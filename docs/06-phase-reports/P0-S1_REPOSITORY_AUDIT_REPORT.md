@@ -17,7 +17,7 @@ Read-only audit of 26 untracked items in `C:\AI_WORKSPACE\iPoint App` (branch `p
 
 ## 2. Classification (26 items)
 
-### ADOPT_INTO_GIT (15)
+### ADOPT_INTO_GIT (14)
 
 These files/directories are suitable for version control after Phase 0 toolchain review:
 
@@ -37,7 +37,6 @@ These files/directories are suitable for version control after Phase 0 toolchain
 | 12 | `tests/` | Directory | E2E test specs (`tests/e2e/member-shell.spec.ts`). Smoke test for member app shell. |
 | 13 | `tsconfig.base.json` | File | TypeScript base configuration. Used by all packages. |
 | 14 | `tsconfig.json` | File | Root TypeScript configuration. |
-| 15 | `Concept/` | Directory | **See classification below — moved to REVIEW_REQUIRED** |
 
 ### KEEP_LOCAL (5)
 
