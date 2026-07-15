@@ -4,44 +4,39 @@ policy: complete-first-perfect-next
 phases:
   - id: P0
     title: Engineering foundation
-    status: active
+    status: completed
     tasks:
       - id: IP-P0-001
         title: Initialize pnpm TypeScript monorepo
         priority: P0
-        status: ready
+        status: completed
         owner: codex
         reviewer: gemini
-        acceptance:
-          - member, merchant, admin, and api apps exist
-          - shared packages exist
-          - workspace install succeeds
-          - lint, typecheck, test, and build commands exist
       - id: IP-P0-002
         title: Configure PostgreSQL Redis Prisma and Docker Compose
         priority: P0
-        status: blocked
+        status: completed
         dependencies: [IP-P0-001]
         owner: codex
         reviewer: gemini
       - id: IP-P0-003
         title: Configure GitHub Actions quality gates
         priority: P0
-        status: blocked
+        status: completed
         dependencies: [IP-P0-001]
         owner: codex
         reviewer: gemini
       - id: IP-P0-004
         title: Add health check logging error handling and env validation
         priority: P0
-        status: blocked
+        status: completed
         dependencies: [IP-P0-001, IP-P0-002]
         owner: codex
         reviewer: gemini
       - id: IP-P0-005
         title: Document architecture data precision timezone and ledger invariants
         priority: P0
-        status: ready
+        status: completed
         owner: codex
         reviewer: gemini
 

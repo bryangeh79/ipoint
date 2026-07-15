@@ -4,7 +4,7 @@ Last updated: 2026-07-15
 
 ## Current phase
 
-Phase 0 — Engineering foundation and automation baseline
+Phase 0 - Engineering foundation and automation baseline (implementation complete)
 
 ## Canonical environment
 
@@ -12,46 +12,47 @@ Phase 0 — Engineering foundation and automation baseline
 - GitHub repository: `https://github.com/bryangeh79/ipoint`
 - Integration branch: `develop`
 - Active work branch: `chore/phase-0-automation-baseline`
+- Draft PR: `#1`
 - Primary implementation agent: Codex CLI
 - Independent reviewer: Gemini CLI / Pro
 
 ## Completed
 
-- GitHub repository initialized
-- `develop` integration branch created
-- autonomous engineering rules added
-- Gemini review protocol added
-- canonical local workspace and GitHub remote recorded
-- Draft PR #1 opened for Phase 0 automation baseline
+- initialized pnpm TypeScript monorepo with member, merchant, admin, and API applications
+- created shared UI, design tokens, types, config, validation, and business-rule packages
+- configured ESLint, Prettier, TypeScript, Vitest, Playwright, and GitHub Actions
+- configured PostgreSQL 17, Redis 7, Prisma, and Docker Compose
+- added API liveness/readiness endpoints, structured logging, public error responses, and environment validation
+- documented account/market, decimal precision, ledger, timezone, idempotency, and audit invariants
+- verified real PostgreSQL/Redis readiness through the API
 
-## In progress
+## Verification
 
-- local repository synchronization at `C:\AI_WORKSPACE\ipoint`
-- Phase 0 repository scaffold
-- task queue initialization
-- CI, monorepo, apps, packages, database, and test baseline
+- `pnpm db:generate`
+- `pnpm db:validate`
+- `pnpm check`
+- `pnpm test:e2e`
+- `docker compose config --quiet`
+- PostgreSQL and Redis container health checks
+- `GET /health/ready` against real local dependencies
 
 ## Next
 
-1. clone or synchronize the repository at the canonical workspace;
-2. check out `chore/phase-0-automation-baseline`;
-3. initialize pnpm monorepo;
-4. create member, merchant, admin, and API application skeletons;
-5. create shared UI, config, types, validation, and business-rule packages;
-6. configure PostgreSQL, Redis, Prisma, Docker Compose;
-7. configure lint, typecheck, unit tests, E2E baseline, build, and GitHub Actions;
-8. run independent Gemini review and resolve actionable findings.
+1. complete independent Gemini review for Draft PR #1;
+2. resolve actionable review or CI findings;
+3. merge Phase 0 into `develop` after approval;
+4. plan Phase 1 identity, access, market, and audit foundations as dedicated commits.
 
 ## Blockers
 
-- The GitHub repository is ready.
-- Local Codex CLI execution requires the development machine to open `C:\AI_WORKSPACE\ipoint`; ChatGPT's GitHub connector cannot directly execute commands on the Windows machine.
+- None for the Phase 0 implementation.
+- Approved Product Design System V1.0 assets are not present in the repository; visual implementation remains intentionally deferred.
 
 ## Delivery target
 
-Member registration → merchant onboarding → MCP top-up → scan transaction → MCP debit → daily iPoint distribution → admin audit.
+Member registration -> merchant onboarding -> MCP top-up -> scan transaction -> MCP debit -> daily iPoint distribution -> admin audit.
 
 ## Overall progress
 
-Phase 0: 15%
-MVP: 1%
+Phase 0: 100%
+MVP: 3%
