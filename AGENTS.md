@@ -8,7 +8,18 @@
 - GitHub is the engineering source of truth.
 - Continue automatically unless a decision is financially material, legally sensitive, destructive, irreversible, production-facing, or changes an approved business rule.
 
-## 2. Delivery principle
+## 2. Canonical workspace
+
+- Development machine project root: `C:\AI_WORKSPACE\ipoint`
+- GitHub repository: `https://github.com/bryangeh79/ipoint`
+- Git remote: `origin`
+- Integration branch: `develop`
+- Production branch: `main`
+- All Codex CLI commands must run from the canonical project root unless a task explicitly requires a subdirectory.
+- If the local directory is missing, clone the repository into the canonical project root.
+- If the directory exists, verify `origin` points to the canonical GitHub repository before making changes.
+
+## 3. Delivery principle
 
 Use "complete first, perfect next":
 
@@ -20,7 +31,7 @@ Use "complete first, perfect next":
 
 Do not stop for ordinary implementation choices. Record reasonable assumptions in `DECISIONS.md` and continue.
 
-## 3. Locked product constraints
+## 4. Locked product constraints
 
 - UI/UX must follow iPoint Product Design System V1.0 and the approved member, merchant, and admin layouts.
 - Architecture must support One Account + Multi Market from the beginning.
@@ -31,7 +42,7 @@ Do not stop for ordinary implementation choices. Record reasonable assumptions i
 - Daily reward processing must be timezone-aware, versioned, idempotent, retryable, and auditable.
 - Do not implement real withdrawals, cross-border settlement, lending, IPO subscription, or regulated wallet functions without explicit approval.
 
-## 4. Branch and Git rules
+## 5. Branch and Git rules
 
 - Never develop directly on `main`.
 - Use `develop` as the integration branch.
@@ -40,18 +51,20 @@ Do not stop for ordinary implementation choices. Record reasonable assumptions i
 - Push after approximately three small completed tasks, except database, ledger, auth, permission, and transaction-state changes, which require dedicated commits.
 - Open a Draft PR for each phase or meaningful workstream.
 
-## 5. Mandatory startup routine
+## 6. Mandatory startup routine
 
 At the start of every Codex session:
 
-1. read this file;
-2. read `PROJECT_STATUS.md`;
-3. read `tasks/active.yaml` and `tasks/backlog.yaml`;
-4. inspect repository status and current branch;
-5. identify the highest-priority unblocked task;
-6. execute without requesting confirmation unless it meets a stop condition.
+1. change directory to `C:\AI_WORKSPACE\ipoint`;
+2. read this file;
+3. read `PROJECT_STATUS.md`;
+4. read `tasks/active.yaml` and `tasks/backlog.yaml`;
+5. run `git status`, verify the branch, and verify `git remote -v`;
+6. fetch and rebase or fast-forward safely from the appropriate remote branch;
+7. identify the highest-priority unblocked task;
+8. execute without requesting confirmation unless it meets a stop condition.
 
-## 6. Mandatory completion routine
+## 7. Mandatory completion routine
 
 Before marking work complete:
 
@@ -66,9 +79,11 @@ Before marking work complete:
 - update `PROJECT_STATUS.md`;
 - move task state appropriately;
 - update architecture or decision records if behavior changed;
-- commit with a conventional commit message.
+- commit with a conventional commit message;
+- push the current feature branch;
+- update the Draft PR.
 
-## 7. Stop conditions
+## 8. Stop conditions
 
 Pause and request Bryan's decision only for:
 
@@ -82,7 +97,7 @@ Pause and request Bryan's decision only for:
 - major architecture replacement;
 - irreconcilable conflicts between approved PRDs.
 
-## 8. Quality priorities
+## 9. Quality priorities
 
 1. accounting and ledger correctness;
 2. transaction integrity and idempotency;
