@@ -79,7 +79,7 @@ These files contain useful information that should be absorbed into existing tra
 
 | # | Path | Type | Reason |
 |---|---|---|---|
-| 1 | `Concept/` | Directory | Contains 11 files: 9 official PRD docx files, 3 UI/UX reference images (jpeg/png), 1 unidentified docx. These are internal product documents. Requires review to determine: (a) which are authoritative vs historical, (b) whether they should be version-controlled, stored separately, or referenced from docs/ only. **Not added to Git; not added to .gitignore yet.** |
+| 1 | `Concept/` | Directory | Contains 11 files: 6 official PRD/design DOCX files, 1 planning draft DOCX, 3 UI/reference images, 1 unidentified DOCX. These are internal product documents. Requires review to determine: (a) which are authoritative vs historical, (b) whether they should be version-controlled, stored separately, or referenced from docs/ only. **Not added to Git; not added to .gitignore yet.** |
 
 **Sensitive information note:** The `Concept/` directory contains internal product documentation (PRD files and UI design references). Content descriptions are withheld from this report. No passwords, tokens, or credentials were found in any audited file.
 
@@ -127,10 +127,10 @@ Two YAML files:
 ### 3.5 Concept/ (directory, 11 files, ~3.5 MB total)
 
 Contains:
-- 6 official PRD/design document docx files (Admin PRD, Merchant PRD, Member PRD V1.0, Member PRD V1.1, Product Design System, Commission)
-- 1 planning draft docx (ipoint.docx)
-- 3 UI reference images (APP Flow.png, 2 admin/member design screenshots)
-- 1 unidentified docx
+- 6 official PRD/design DOCX files (Admin PRD, Merchant PRD, Member PRD V1.0, Member PRD V1.1, Product Design System, Commission)
+- 1 planning draft DOCX (ipoint.docx)
+- 3 UI/reference images (APP Flow.png, 2 admin/member design screenshots)
+- 1 unidentified DOCX
 
 **Action:** Requires total command center decision on: (a) whether canonical PRDs in `docs/01-product/` are sufficient, (b) whether Concept/ files should be archived externally, (c) whether any contain information not yet captured in tracked governance. Currently marked REVIEW_REQUIRED.
 
