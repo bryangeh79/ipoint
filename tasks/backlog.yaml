@@ -1,0 +1,78 @@
+project: ipoint
+policy: complete-first-perfect-next
+
+phases:
+  - id: P0
+    title: Engineering foundation
+    status: active
+    tasks:
+      - id: IP-P0-001
+        title: Initialize pnpm TypeScript monorepo
+        priority: P0
+        status: ready
+        owner: codex
+        reviewer: gemini
+        acceptance:
+          - member, merchant, admin, and api apps exist
+          - shared packages exist
+          - workspace install succeeds
+          - lint, typecheck, test, and build commands exist
+      - id: IP-P0-002
+        title: Configure PostgreSQL Redis Prisma and Docker Compose
+        priority: P0
+        status: blocked
+        dependencies: [IP-P0-001]
+        owner: codex
+        reviewer: gemini
+      - id: IP-P0-003
+        title: Configure GitHub Actions quality gates
+        priority: P0
+        status: blocked
+        dependencies: [IP-P0-001]
+        owner: codex
+        reviewer: gemini
+      - id: IP-P0-004
+        title: Add health check logging error handling and env validation
+        priority: P0
+        status: blocked
+        dependencies: [IP-P0-001, IP-P0-002]
+        owner: codex
+        reviewer: gemini
+      - id: IP-P0-005
+        title: Document architecture data precision timezone and ledger invariants
+        priority: P0
+        status: ready
+        owner: codex
+        reviewer: gemini
+
+  - id: P1
+    title: Identity access market and audit foundations
+    status: planned
+
+  - id: P2
+    title: Member core
+    status: planned
+
+  - id: P3
+    title: Merchant core
+    status: planned
+
+  - id: P4
+    title: MCP and transaction ledger
+    status: planned
+
+  - id: P5
+    title: Daily iPoint reward engine
+    status: planned
+
+  - id: P6
+    title: Admin operations
+    status: planned
+
+  - id: P7
+    title: Referral agent and commission
+    status: planned
+
+  - id: P8
+    title: Redemption advertising reporting and release hardening
+    status: planned
