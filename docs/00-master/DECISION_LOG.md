@@ -64,4 +64,23 @@
 
 ---
 
+## D-004: PR #2 merge and governance status update
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-004 |
+| **Date** | 2026-07-16 |
+| **Source** | ChatGPT Command Center final approval |
+| **Old Rule** | PR #2 as Draft on docs/project-master-baseline; Baseline Acknowledgment pending final sign-off |
+| **New Decision** | PR #2 squash merged to main (3c850bd). Baseline Acknowledgment: APPROVED. Persistent governance files now on main. |
+| **Reason** | Engineering starter pack and governance baseline complete. All documents reviewed and corrected. |
+| **Affected Files** | docs/00-master/PHASE_REGISTRY.md (status update), docs/00-master/DECISION_LOG.md (this entry) |
+| **Affected Phases** | NONE (pre-Phase governance) |
+| **Migration** | NONE |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | APPROVED (2026-07-16) |
+| **Status** | **APPROVED** |
+
+---
+
 *— End of current entries. New decisions must be appended below —*

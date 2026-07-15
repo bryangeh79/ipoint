@@ -12,8 +12,8 @@
 
 | Item | Status | Notes |
 |---|---|---|
-| **Baseline Acknowledgment** | **APPROVED AFTER V1.1 CORRECTION** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
-| **PR #2** (docs: iPoint engineering starter pack) | **UNDER REVIEW** | Not merged; Draft PR on docs/project-master-baseline |
+| **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
+| **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
 | **Current Authorized Phase** | **NONE** | No Big Phase Brief has been issued |
 | **Phase 0** | **NOT_AUTHORIZED** | Engineering foundation awaiting Big Phase Brief |
 | **Phase 1** | **NOT_AUTHORIZED** | Merchant Onboarding + MCP Ledger awaiting Big Phase Brief |
@@ -66,4 +66,4 @@
 
 ---
 
-*Last updated: 2026-07-16 | Updated by: OpenClaw | Based on decisions D-001, D-002, D-003*
+*Last updated: 2026-07-16 | Updated by: OpenClaw | Based on decisions D-001, D-002, D-003, D-004*
