@@ -1,0 +1,26 @@
+{
+  "name": "@ipoint/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:validate": "prisma validate"
+  },
+  "dependencies": {
+    "@ipoint/config": "workspace:*",
+    "@ipoint/types": "workspace:*",
+    "@prisma/client": "6.19.0",
+    "fastify": "5.6.2",
+    "ioredis": "5.8.2"
+  },
+  "devDependencies": {
+    "prisma": "6.19.0",
+    "tsx": "4.20.6"
+  }
+}
