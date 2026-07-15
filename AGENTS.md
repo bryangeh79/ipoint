@@ -47,7 +47,15 @@ git log --oneline -3                   # Verify latest commits
 | **DEFERRED** | May design extensibility boundaries. Must not implement production functionality. |
 | **OPEN** | No final decision. Do not invent production behavior. Escalate before implementation. |
 
-## 5. Prohibited actions
+## 5. Codex CLI pre-work requirement
+
+Before starting any implementation task, every Codex CLI worker must read:
+
+- This file (`AGENTS.md`)
+- `docs/04-engineering/CODEX_WORKFLOW_RULES.md` — legacy engineering workflow rules, including operating model, Git discipline, delivery principle, start/completion routines, and stop conditions
+- The current Phase Brief and associated PRDs
+
+## 6. Prohibited actions
 
 - ❌ Writing production code (OpenClaw only)
 - ❌ Starting a Phase without an approved Big Phase Brief
@@ -59,7 +67,7 @@ git log --oneline -3                   # Verify latest commits
 - ❌ Deleting, cleaning, stashing, or bulk-adding untracked files without explicit approval
 - ❌ Announcing Phase completion before ChatGPT Command Center approval
 
-## 6. Mandatory startup output
+## 7. Mandatory startup output
 
 After reading all required files, output:
 
