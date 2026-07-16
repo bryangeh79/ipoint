@@ -1,4 +1,4 @@
-# RECOMMENDATION ONLY — AWAITING COMMAND CENTER ORM GATE
+# ORM GATE READY — RECOMMENDATION ONLY
 
 # P0-S4A ORM Comparison — Reproducible PoC Evidence
 
@@ -10,7 +10,7 @@
 >
 > **Branch:** `task/p0-s4a-orm-poc`
 >
-> **Status:** **READY FOR COMMAND CENTER EVIDENCE REVIEW; ORM GATE REMAINS OPEN**
+> **Status:** **ORM GATE READY FOR COMMAND CENTER DECISION; ORM GATE REMAINS OPEN**
 
 ## 1. Scope and evidence policy
 
@@ -51,12 +51,14 @@ pnpm orm-poc
 | Drizzle ORM                           | 0.45.2  |
 | Drizzle Kit                           | 0.31.10 |
 | node-postgres                         | 8.22.0  |
-| NestJS experimental provider baseline | 10.4.x  |
+| NestJS experimental provider baseline | 10.4.22 |
 | pnpm                                  | 9.15.9  |
 | Docker                                | 29.3.1  |
-| Host Node                             | 26.4.0  |
+| Host Node                             | v26.4.0 |
 
-**[LIMITATION]** Prisma 7.8.0 reports supported Node majors 20.19+, 22.12+, and 24.x. The PoC completed on Node 26.4.0, but Command Center should require a repeat on supported Node 24 before treating runtime evidence as production-gate quality.
+**[LIMITATION]** The correction host exposed only Node v26.4.0. The evidence is `UNVALIDATED_ON_TARGET_NODE_LTS`; a complete repeat on Node 24 LTS is still required for target-runtime validation. Runtime-specific evidence is retained in `results/node-v26.4.0-*` files.
+
+**[WITHDRAWN]** “Prisma on Node 22 has behavior differences.” No Node 22 execution exists in this evidence set, so the claim has no evidentiary basis.
 
 ## 3. Data model and SQL evidence
 
@@ -118,13 +120,15 @@ pnpm orm-poc
 - deliberate deadlock detection;
 - connection cleanup.
 
-**[POC]** Ten deliberately conflicting serializable credits produced, for each ORM:
+**[POC/PARTIAL]** Ten deliberately conflicting serializable credits produced, for each ORM:
 
 - final balance 10;
 - exactly 10 ledger entries;
 - 45 observed serialization conflicts;
 - 55 total attempts;
 - maximum 10 attempts within a bound of 20.
+
+The bound of 20 is an experimental correctness-probe setting, not a production retry recommendation. Production retry count, backoff, jitter, observability, and exhaustion handling remain to be designed.
 
 **[POC]** The deadlock probe created opposing row-lock order. PostgreSQL selected exactly one victim with SQLSTATE `40P01` for each ORM. Prisma exposed it through a `P2010` raw-query wrapper with the original PostgreSQL code in metadata; Drizzle exposed the driver error/cause with `40P01`.
 
@@ -143,7 +147,7 @@ pnpm orm-poc
 
 ## 7. Maker/Checker evidence
 
-**[POC]** For both ORMs:
+**[POC/PARTIAL]** For both ORMs:
 
 - maker self-approval was rejected and the request stayed PENDING;
 - two concurrent checkers produced one execution and one non-executing outcome;
@@ -152,7 +156,7 @@ pnpm orm-poc
 - exactly two action rows, two audit rows, and one ledger row were retained;
 - the executed ledger FK and request idempotency constraints remained valid.
 
-**[INFERRED]** The database check provides defense in depth, but production still requires authenticated actor authorization and market/action permission checks outside this PoC.
+**[INFERRED]** The observed exactly-once result depends on the row-locking transaction plus database uniqueness and foreign-key constraints. The database check provides defense in depth, but production still requires authenticated actor authorization and market/action permission checks outside this PoC.
 
 ## 8. Ledger evidence
 
@@ -169,7 +173,7 @@ pnpm orm-poc
 
 ## 9. NestJS integration evidence
 
-**[POC]** Project-owned experimental providers exist separately under `prisma/` and `drizzle/`, not under `apps/api`.
+**[POC/PARTIAL]** Project-owned experimental providers exist separately under `prisma/` and `drizzle/`, not under `apps/api`.
 
 Both passed:
 
@@ -179,7 +183,7 @@ Both passed:
 - rollback-based test isolation;
 - connection cleanup with zero pool connections after module close.
 
-**[LIMITATION]** These are lifecycle/transaction probes, not production modules. Authentication, authorization, telemetry, health integration, request scoping, and production pooling policy remain deferred until an ORM is approved.
+The probes create real Nest testing modules, start them, inject each provider, use transaction context, roll back test data, close the modules, and verify zero pool connections. **[LIMITATION]** These are lifecycle/transaction probes, not production modules. Authentication, authorization, telemetry, health integration, request scoping, and production pooling policy remain deferred until an ORM is approved.
 
 ## 10. Failures and limitations retained as evidence
 
@@ -199,13 +203,39 @@ Additional limitations:
 - shared operations intentionally use reviewable raw SQL inside each ORM's real transaction adapter so domain semantics remain identical; query-builder ergonomics were not scored;
 - no production API, permission system, real money movement, or external integration was exercised.
 
-## 11. Evidence-based gate posture
+## 11. Evidence-based recommendation
 
-**[INFERRED]** The PoC removes the earlier uncertainty about whether either ORM can satisfy iPoint's core PostgreSQL, transaction, idempotency, Maker/Checker, ledger, and NestJS lifecycle requirements: both can, when paired with explicit database constraints and application-owned domain logic.
+### Recommendation
 
-**[INFERRED]** Prisma showed a clearer tested non-mutating live-schema diff workflow. Drizzle produced direct SQL/driver error surfaces and equivalent transaction/savepoint correctness. Neither difference alone justifies approval without Command Center weighting of operational workflow, team ergonomics, supported runtime repeat, and long-term migration policy.
+**[INFERRED] `APPROVE_DRIZZLE`**, with **MEDIUM** confidence and the mitigations below. This is a recommendation to the Command Center, not an ORM selection or gate closure.
 
-No new numeric score is assigned. No ORM is selected. The required next action is Command Center evidence review, followed by either a supported-Node rerun/rework request or a recorded ORM Gate decision.
+### Why Drizzle fits iPoint
+
+- **Ledger and Maker/Checker:** both ORMs passed the same PostgreSQL transaction and constraint probes, so correctness is database- and application-owned. Drizzle keeps the SQL, locking, constraint, and driver-error surface closer to the implementation that iPoint must review carefully.
+- **Migration reviewability and recovery:** direct SQL migrations are easier to inspect alongside append-only triggers, exact-decimal constraints, recovery SQL, and market-scoped indexes. This matters more to iPoint than maximizing ordinary CRUD abstraction.
+- **Decimal precision and multi-market:** both candidates preserve `numeric(24,8)`, `market_id`, UTC timestamps, and versioned rules. Drizzle does not receive a correctness advantage here, but it does not block these locked requirements.
+- **Modular monolith and long-term maintenance:** a thin typed SQL layer fits explicit domain-module boundaries and reduces pressure to make the ORM client the architecture boundary.
+- **Team DX and CI complexity:** Prisma has the stronger tested drift command and a more guided client workflow; Drizzle's smaller abstraction surface is preferred for ledger-heavy code, provided CI adds the missing migration controls.
+
+### Maximum risk
+
+**[POC]** The maximum identified Drizzle risk is migration governance: this PoC did not establish a stable, non-mutating Drizzle Kit live-database diff equivalent to the tested Prisma command, and neither tool detected a comment-only change to applied migration SQL.
+
+### Risk mitigation
+
+Before production schema work, require immutable migration checksums, a read-only PostgreSQL catalog/schema-dump diff in CI, forward migration tests from zero and from the latest release snapshot, explicit destructive-change approval, backup/restore rehearsal, and reviewed recovery SQL. Keep ledger constraints and append-only triggers in explicit SQL migrations.
+
+### Why not Prisma for this gate
+
+Prisma is not rejected on correctness; it passed the same core probes and had the stronger tested live-drift workflow. It is not the primary recommendation because iPoint's highest-risk work will already require explicit PostgreSQL SQL, constraints, locks, triggers, and recovery review. The additional client abstraction does not remove that responsibility, and the PoC did not demonstrate enough offsetting advantage for ledger-heavy modules.
+
+### Where Prisma fits
+
+Prisma remains a strong fit for CRUD-heavy modules, teams prioritizing generated-client ergonomics, and environments where its non-mutating live-schema diff is the dominant operational requirement. It remains a valid Command Center option.
+
+### Confidence
+
+**MEDIUM.** Functional evidence is strong for both ORMs, but Node 24 LTS is not available on this host, production authorization is not tested, the retry policy is experimental, and neither production CI migration policy nor long-duration maintenance evidence exists.
 
 ## 12. Evidence files
 
@@ -221,9 +251,36 @@ No new numeric score is assigned. No ORM is selected. The required next action i
 - `experiments/orm-comparison/results/timing.json`
 - `experiments/orm-comparison/results/sql/`
 - `experiments/orm-comparison/results/known-failures.md`
+- `experiments/orm-comparison/results/node-v26.4.0-commands.jsonl`
+- `experiments/orm-comparison/results/node-v26.4.0-environment.json`
+- `experiments/orm-comparison/results/node-v26.4.0-test-summary.json`
+- `experiments/orm-comparison/results/node-v26.4.0-versions.json`
+- `experiments/orm-comparison/results/GATE_EVIDENCE_INDEX.md`
+
+## 13. Gate verification
+
+| Check                                                                                                  | Result                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile`                                                                       | PASS                                                                                                                    |
+| `pnpm exec prettier --check experiments/orm-comparison docs/06-phase-reports/P0-S4A_ORM_COMPARISON.md` | PASS                                                                                                                    |
+| `pnpm format:check`                                                                                    | DOCUMENTED BASELINE EXCEPTION: 95 pre-existing files outside PoC ownership; exact paths are in `GATE_EVIDENCE_INDEX.md` |
+| `pnpm lint`                                                                                            | PASS                                                                                                                    |
+| `pnpm typecheck`                                                                                       | PASS                                                                                                                    |
+| `pnpm build`                                                                                           | PASS                                                                                                                    |
+| `pnpm test`                                                                                            | PASS: 7 files, 33 tests                                                                                                 |
+| `pnpm orm-poc`                                                                                         | PASS on Node v26.4.0; `UNVALIDATED_ON_TARGET_NODE_LTS`                                                                  |
+| `git diff --check`                                                                                     | PASS                                                                                                                    |
+
+## 14. ORM Gate decision options
+
+The Command Center may record exactly one of:
+
+1. `APPROVE_PRISMA`
+2. `APPROVE_DRIZZLE` — evidence-based recommendation
+3. `REQUIRE_MORE_EVIDENCE` — choose this if Node 24 LTS validation is mandatory before ORM selection
 
 ---
 
-> **RECOMMENDATION ONLY — AWAITING COMMAND CENTER ORM GATE**
+> **ORM GATE READY — RECOMMENDATION ONLY**
 >
-> This PoC is ready for evidence review. It does not approve Prisma or Drizzle, and it does not close the ORM Gate.
+> This PoC evidence is ready for a Command Center decision. It does not approve Prisma or Drizzle by itself, and it does not close the ORM Gate.
