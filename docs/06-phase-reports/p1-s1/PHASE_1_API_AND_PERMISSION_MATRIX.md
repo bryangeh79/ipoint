@@ -55,7 +55,7 @@ date: 2026-07-16
 | `GET /admin/markets/:marketId/service-fee-profiles`                                   | `merchant.package.view`     | Required                           | Version/effective history                          |
 | `POST /admin/markets/:marketId/service-fee-profiles`                                  | `merchant.package.manage`   | Required                           | Creates definition/draft only                      |
 | `POST /admin/markets/:marketId/service-fee-profiles/:id/versions`                     | `merchant.package.manage`   | Required                           | Exact numeric/effective window                     |
-| `POST /admin/markets/:marketId/special-percentages`                                   | `merchant.package.manage`   | Required                           | O-07 range not invented                            |
+| `POST /admin/markets/:marketId/special-percentages`                                   | `merchant.package.manage`   | Required                           | D-010 range: rate > 0 and rate <= 100               |
 | `POST /admin/markets/:marketId/merchants/:merchantId/package-assignments`             | `merchant.package.assign`   | Required                           | Versioned assignment                               |
 | `POST /admin/markets/:marketId/merchants/:merchantId/package-assignments/:id/default` | `merchant.package.assign`   | Required                           | Atomic single default                              |
 

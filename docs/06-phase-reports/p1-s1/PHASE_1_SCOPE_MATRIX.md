@@ -23,7 +23,7 @@ date: 2026-07-16
 | MerchantTermsAcceptance | Merchant §§4-5; Admin §14 | LOCKED | In Scope | NO | Append-only terms/disclaimer version evidence with accepted time, IP, device and locale; no update/delete/soft delete |
 | ServiceFeeProfile | Merchant §13; Admin §§9.5,17 | CONFIGURABLE | In Scope | NO | Stable standard identities A-F; recorded package values are 2.5/5/10/15/20/25 |
 | ServiceFeePackageVersion | Admin §§9.5,17 | CONFIGURABLE | In Scope | NO | Numeric rate, version, market, effective range, status; history immutable after use |
-| SpecialPercentage | Admin D-10, §§9.5,23 O-07 | CONFIGURABLE / OPEN range | In Scope | NO | `numeric(12,6)` and rate > 0; maximum, increment and approval threshold remain OPEN and block P1-S2 production constraints |
+| SpecialPercentage | Admin D-10, §§9.5,23; D-010 | CONFIGURABLE value / LOCKED range | In Scope | NO | `numeric(12,6)` with rate > 0 and rate <= 100; increment and approval threshold remain OPEN |
 | MerchantPackageAssignment | Merchant §13; Admin §§8-9 | LOCKED structure / CONFIGURABLE values | In Scope | NO | Multiple assignments allowed; exactly one default among active assignments; last active cannot be paused |
 | MCPAccount | Merchant §10; Admin §§10,17 | LOCKED | In Scope | NO | Per merchant branch and market; suspension preserves total MCP; ledger is truth |
 | MCPLedgerEntry | Admin §10; DB ERD §§3-4 | LOCKED | In Scope | NO | Append-only, exact numeric, idempotent, compensating reversal, no unauthorized negative available balance; no update/delete/soft delete |
@@ -46,5 +46,5 @@ date: 2026-07-16
 - Merchant PRD says one Merchant login and the open-question registry moves staff/sub-account behavior to OPEN. Phase 1 must not add staff permissions.
 - Command Center CR-01 resolves O-01 for Phase 1 by requiring a proper MerchantGroup ownership entity. This structural grouping grants no group-level permissions, shared MCP or group-level settlement.
 - Merchant primary email is the immutable Account email. Merchant Profile has no independently modifiable email field, and Admin cannot modify the primary email.
-- Standard A-F package values remain recorded as 2.5/5/10/15/20/25. The maximum special percentage, business increment and approval threshold remain OPEN per O-07; P1-S2 production constraints are blocked pending a Command Center decision.
+- Standard A-F package values remain recorded as 2.5/5/10/15/20/25. D-010 locks the special-percentage storage and range at `numeric(12,6)`, rate > 0 and rate <= 100. Business increment and approval threshold remain OPEN.
 - Merchant PRD example `1 MCP = RM1` is market-specific reference language, not a universal hard-coded conversion rule.

@@ -33,7 +33,7 @@ Phase 1 remains a modular monolith. Domains may call published application inter
 
 **Entities.** `ServiceFeeProfile`, `ServiceFeePackageVersion`, `SpecialPercentage`, `MerchantPackageAssignment`.
 
-**Invariants.** A-F are stable package codes with recorded values 2.5/5/10/15/20/25. Effective ranges for the same profile/market cannot overlap. Used versions are immutable. An assignment references exactly one standard version or special percentage. Special percentage uses `numeric(12,6)` and must be greater than zero. Its maximum, business increment and approval threshold remain OPEN per O-07; P1-S2 production validation is blocked until Command Center decides them. One active assignment is default; paused profiles are not selectable; the last active assignment cannot be paused. `PendingChange` never changes historical assignments or rates retroactively.
+**Invariants.** A-F are stable package codes with recorded values 2.5/5/10/15/20/25. Effective ranges for the same profile/market cannot overlap. Used versions are immutable. An assignment references exactly one standard version or special percentage. D-010 locks special percentage storage at `numeric(12,6)` and its range to rate > 0 and rate <= 100. Business increment and approval threshold remain OPEN. One active assignment is default; paused profiles are not selectable; the last active assignment cannot be paused. `PendingChange` never changes historical assignments or rates retroactively.
 
 **Phase 0 dependencies.** `markets`, Admin RBAC, audit/timeline, exact-decimal utility.
 

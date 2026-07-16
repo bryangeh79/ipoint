@@ -542,7 +542,7 @@ export const specialPercentages = pgTable(
     ),
     check(
       'special_percentages_rate_check',
-      sql`${t.ratePercent} > 0`,
+      sql`${t.ratePercent} > 0 and ${t.ratePercent} <= 100`,
     ),
   ],
 );
@@ -835,8 +835,7 @@ export const selectLedgerEntrySchema = createSelectSchema(mcpLedgerEntries);
 - Account email is the only Merchant primary email. No Merchant table duplicates it, and neither Merchant nor Admin input may update it.
 - Application Review writes only `MerchantApplicationStatus`; KYC Review writes only `MerchantKycStatus`; activation policy derives `MerchantOperationalStatus`. Suspend/reactivate update only Operational Status and preserve MCP.
 - Standard package identities record A=2.5, B=5, C=10, D=15, E=20 and F=25.
-- Maximum allowed special percentage remains OPEN per O-07.
-- P1-S2 special-percentage production constraint is blocked until Command Center decision.
-- No implementation may invent maximum, minimum business increment or approval threshold.
+- D-010 locks the special-percentage range to rate > 0 and rate <= 100 with `numeric(12,6)` storage.
+- Minimum business increment and approval threshold remain OPEN and must not be invented.
 - Exclusion constraints for overlapping active effective periods where appropriate.
 - Transactional service checks for market equality, group ownership, maker != checker, last-active/default package and non-negative MCP; cross-table rules cannot be trusted to DTO validation alone.
