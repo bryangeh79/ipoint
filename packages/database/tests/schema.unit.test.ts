@@ -33,6 +33,7 @@ describe('database foundation schema', () => {
         'merchant_account_access',
         'merchant_branches',
         'merchant_profiles',
+        'merchant_api_idempotency_keys',
         'merchant_profile_gallery_entries',
         'merchant_applications',
         'merchant_application_submissions',
@@ -105,6 +106,7 @@ describe('database foundation schema', () => {
       '0000_database_foundation.sql',
       '0001_auth_session_access_expiry.sql',
       '0002_phase_1_merchant_package_mcp.sql',
+      '0003_merchant_api_support.sql',
     ]);
     const migration = await readFile(
       `${migrationsDirectory}/0000_database_foundation.sql`,

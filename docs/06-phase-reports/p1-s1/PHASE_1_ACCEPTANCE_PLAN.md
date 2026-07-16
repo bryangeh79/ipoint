@@ -14,13 +14,13 @@ This plan defines evidence for a future authorized Phase 1 implementation. P1-S1
 
 ## 2. Unit-test targets
 
-| Module        | Required targets                                                                                                                                                                                |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Module        | Required targets                                                                                                                                                                                      |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Merchant      | MerchantGroup ownership/default creation, public Merchant ID uniqueness, immutable Account email, independent Application/KYC/Operational transitions, activation policy, suspension/closure behavior |
-| Package       | Exact decimal validation, non-overlapping versions, effective resolution, standard/special exclusive assignment, default selection, last-active pause rejection, pending-change behavior        |
-| MCP           | Direction/delta table, exact arithmetic, idempotency payload mismatch, negative-balance rejection, reversal rules, freeze/unfreeze projection, maker/checker separation, no-threshold invariant |
-| RBAC          | Permission deny-by-default, active role/account/market checks, entity/header market mismatch, merchant ownership isolation                                                                      |
-| Files/consent | Private classification, metadata validation, unauthorized read denial, terms version evidence, audit redaction                                                                                  |
+| Package       | Exact decimal validation, non-overlapping versions, effective resolution, standard/special exclusive assignment, default selection, last-active pause rejection, pending-change behavior              |
+| MCP           | Direction/delta table, exact arithmetic, idempotency payload mismatch, negative-balance rejection, reversal rules, freeze/unfreeze projection, maker/checker separation, no-threshold invariant       |
+| RBAC          | Permission deny-by-default, active role/account/market checks, entity/header market mismatch, merchant ownership isolation                                                                            |
+| Files/consent | Private classification, metadata validation, unauthorized read denial, terms version evidence, audit redaction                                                                                        |
 
 ## 3. Integration-test targets
 
@@ -86,16 +86,16 @@ Transaction/QR completion is a later-phase E2E and must not be faked in Phase 1.
 
 ## 6. Merchant PRD acceptance mapping
 
-| Merchant requirement                           | Phase 1 acceptance                                                                  |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Registration/KYC/profile                       | Default MerchantGroup + branch ownership, split reviews, rejection/resubmission, immutable email and private file checks |
-| Application Approved + KYC Approved + MCP >= 100 -> Active | Deterministic activation integration/E2E; suspend/reactivate affect only Operational Status |
-| One branch = one Merchant ID                   | Unique/public-ID and isolation tests                                                |
-| Multiple profiles/default/pause                | Package unit/integration tests; last active cannot pause                            |
-| MCP wallet/ledger/top-up/refund                | Exact, idempotent, immutable foundation tests                                       |
-| Suspension preserves MCP                       | E2E position equality before/after suspension                                       |
-| Transaction success + MCP deduction            | Deferred to Transaction Engine                                                      |
-| Advertising/analytics/POS/Bridge               | Deferred                                                                            |
+| Merchant requirement                                       | Phase 1 acceptance                                                                                                       |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Registration/KYC/profile                                   | Default MerchantGroup + branch ownership, split reviews, rejection/resubmission, immutable email and private file checks |
+| Application Approved + KYC Approved + MCP >= 100 -> Active | Deterministic activation integration/E2E; suspend/reactivate affect only Operational Status                              |
+| One branch = one Merchant ID                               | Unique/public-ID and isolation tests                                                                                     |
+| Multiple profiles/default/pause                            | Package unit/integration tests; last active cannot pause                                                                 |
+| MCP wallet/ledger/top-up/refund                            | Exact, idempotent, immutable foundation tests                                                                            |
+| Suspension preserves MCP                                   | E2E position equality before/after suspension                                                                            |
+| Transaction success + MCP deduction                        | Deferred to Transaction Engine                                                                                           |
+| Advertising/analytics/POS/Bridge                           | Deferred                                                                                                                 |
 
 ## 7. CI strategy
 

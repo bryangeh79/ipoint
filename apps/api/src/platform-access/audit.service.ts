@@ -9,7 +9,7 @@ type DatabaseTransaction = Parameters<
 
 export interface PrivilegedAuditInput {
   actor: {
-    type: 'ADMIN_USER' | 'SYSTEM';
+    type: 'ACCOUNT' | 'ADMIN_USER' | 'SYSTEM';
     id?: string;
   };
   action: string;

@@ -56,10 +56,11 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0000_database_foundation.sql',
       '0001_auth_session_access_expiry.sql',
       '0002_phase_1_merchant_package_mcp.sql',
+      '0003_merchant_api_support.sql',
     ]);
   });
 
-  it('applies 0002 cleanly when upgrading an isolated database from 0001', async () => {
+  it('applies Phase 1 migrations cleanly when upgrading an isolated database from 0001', async () => {
     await withDisposableDatabase(async (url) => {
       const isolated = createDatabase(url);
       try {
