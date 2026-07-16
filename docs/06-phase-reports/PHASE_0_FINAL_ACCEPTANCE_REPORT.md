@@ -1,10 +1,10 @@
 # Phase 0 Final Acceptance Report
 
-> Task: P0-S9 — Phase 0 Final Integration, Audit & Acceptance  
-> Execution engine: Codex CLI foreground supervisor mode  
-> Authorization: ChatGPT account session; no OpenClaw sub-agent  
-> Branch: `phase/0-engineering-foundation`  
-> Status: LOCAL VERIFICATION PASSED — GitHub CI evidence pending
+> - Task: P0-S9 — Phase 0 Final Integration, Audit & Acceptance
+> - Execution engine: Codex CLI foreground supervisor mode
+> - Authorization: ChatGPT account session; no OpenClaw sub-agent
+> - Branch: `phase/0-engineering-foundation`
+> - Status: LOCAL VERIFICATION PASSED — GitHub CI evidence pending
 
 ## 1. Acceptance scope
 
