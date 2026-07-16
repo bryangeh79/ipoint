@@ -502,10 +502,7 @@ export const serviceFeeVersions = pgTable(
       t.status,
       t.effectiveFrom,
     ),
-    check(
-      'service_fee_versions_rate_check',
-      sql`${t.ratePercent} > 0`,
-    ),
+    check('service_fee_versions_rate_check', sql`${t.ratePercent} > 0`),
     check(
       'service_fee_versions_period_check',
       sql`${t.effectiveTo} is null or ${t.effectiveTo} > ${t.effectiveFrom}`,
