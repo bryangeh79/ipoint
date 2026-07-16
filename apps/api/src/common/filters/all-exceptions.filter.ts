@@ -1,0 +1,97 @@
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+
+interface ErrorResponseBody {
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+  requestId: string;
+  timestamp: string;
+}
+
+@Catch()
+export class AllExceptionsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(AllExceptionsFilter.name);
+
+  catch(exception: unknown, host: ArgumentsHost): void {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
+
+    const requestId =
+      ((request as unknown) as Record<string, string>)['requestId'] ??
+      'unknown';
+    const timestamp = new Date().toISOString();
+
+    let httpStatus: number;
+    let errorCode: string;
+    let errorMessage: string;
+    let errorDetails: unknown;
+
+    if (exception instanceof HttpException) {
+      httpStatus = exception.getStatus();
+      const exceptionResponse = exception.getResponse();
+
+      if (typeof exceptionResponse === 'string') {
+        errorCode = `HTTP_${httpStatus}`;
+        errorMessage = exceptionResponse;
+      } else if (typeof exceptionResponse === 'object') {
+        const resp = exceptionResponse as Record<string, unknown>;
+        errorCode = (resp['error'] as string) ?? `HTTP_${httpStatus}`;
+        errorMessage = (resp['message'] as string) ?? exception.message;
+        errorDetails = resp['details'];
+      } else {
+        errorCode = `HTTP_${httpStatus}`;
+        errorMessage = exception.message;
+      }
+    } else if (exception instanceof Error) {
+      httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
+      errorCode = 'INTERNAL_ERROR';
+      errorMessage = 'An unexpected error occurred';
+      errorDetails =
+        process.env.NODE_ENV === 'development'
+          ? { name: exception.name, message: exception.message }
+          : undefined;
+
+      this.logger.error(
+        {
+          err: exception,
+          requestId,
+          url: request.url,
+          method: request.method,
+        },
+        'Unhandled exception',
+      );
+    } else {
+      httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
+      errorCode = 'INTERNAL_ERROR';
+      errorMessage = 'An unexpected error occurred';
+
+      this.logger.error(
+        { requestId, url: request.url, method: request.method, exception },
+        'Unknown exception type',
+      );
+    }
+
+    const body: ErrorResponseBody = {
+      error: {
+        code: errorCode,
+        message: errorMessage,
+        ...(errorDetails !== undefined ? { details: errorDetails } : {}),
+      },
+      requestId,
+      timestamp,
+    };
+
+    response.status(httpStatus).json(body);
+  }
+}
