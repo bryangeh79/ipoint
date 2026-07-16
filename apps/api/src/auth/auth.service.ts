@@ -106,9 +106,10 @@ export class AuthService {
       throw new AuthError('AUTH_SESSION_INVALID', 'The session is invalid.');
     }
     return {
-      type: 'ACCOUNT',
+      type: session.adminUserId ? 'ADMIN_USER' : 'ACCOUNT',
       accountId: session.accountId,
       sessionId: session.id,
+      ...(session.adminUserId ? { adminUserId: session.adminUserId } : {}),
     };
   }
 

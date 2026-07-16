@@ -14,9 +14,10 @@ export interface RequestMetadata {
 }
 
 export interface RequestActor {
-  type: 'ACCOUNT';
+  type: 'ACCOUNT' | 'ADMIN_USER';
   accountId: string;
   sessionId: string;
+  adminUserId?: string;
 }
 
 export interface AuthTokens {
@@ -39,6 +40,7 @@ export interface SessionRecord {
   status: AccountStatus;
   expiresAt: Date;
   revokedAt: Date | null;
+  adminUserId: string | null;
 }
 
 export interface OtpRecord {

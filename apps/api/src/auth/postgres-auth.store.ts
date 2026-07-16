@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   accounts,
+  adminUsers,
   credentials,
   otps,
   securityEvents,
@@ -102,9 +103,11 @@ export class PostgresAuthStore implements AuthStorePort {
         status: accounts.status,
         expiresAt: sessions.accessExpiresAt,
         revokedAt: sessions.revokedAt,
+        adminUserId: adminUsers.id,
       })
       .from(sessions)
       .innerJoin(accounts, eq(accounts.id, sessions.accountId))
+      .leftJoin(adminUsers, eq(adminUsers.accountId, sessions.accountId))
       .where(eq(sessions.accessTokenHash, accessTokenHash))
       .limit(1);
     return rows[0] ?? null;

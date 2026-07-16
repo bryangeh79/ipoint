@@ -5,6 +5,7 @@ import { ConfigService } from './config/config.service.js';
 import { HealthModule } from './health/health.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { PlatformAccessModule } from './platform-access/platform-access.module.js';
 import {
   RequestIdMiddleware,
   resolveRequestId,
@@ -37,6 +38,7 @@ import {
     HealthModule,
     DatabaseModule,
     AuthModule,
+    PlatformAccessModule,
   ],
 })
 export class AppModule implements NestModule {
