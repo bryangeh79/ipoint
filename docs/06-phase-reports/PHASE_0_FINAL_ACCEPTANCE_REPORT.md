@@ -4,7 +4,7 @@
 > - Execution engine: Codex CLI foreground supervisor mode
 > - Authorization: ChatGPT account session; no OpenClaw sub-agent
 > - Branch: `phase/0-engineering-foundation`
-> - Status: LOCAL VERIFICATION PASSED — GitHub CI evidence pending
+> - Status: PHASE 0 FINAL ACCEPTANCE READY
 
 ## 1. Acceptance scope
 
@@ -159,7 +159,22 @@ Some negative-path tests intentionally emit NestJS `FATAL`/`ERROR` log lines for
 
 ## 7. GitHub CI evidence
 
-Workflow run ID and every job conclusion will be recorded here after the P0-S9 commits are pushed and GitHub Actions reaches a terminal state.
+P0-S9 delivery head `1686a8cc682c4fa889591dc7955653170ce3e6f8` triggered both configured events. Both runs reached a terminal successful state.
+
+|        Run ID | Event        | Workflow conclusion | Job            |        Job ID | Conclusion |
+| ------------: | ------------ | ------------------- | -------------- | ------------: | ---------- |
+| `29486889386` | push         | SUCCESS             | E2E            | `87583397986` | SUCCESS    |
+| `29486889386` | push         | SUCCESS             | Database tests | `87583397995` | SUCCESS    |
+| `29486889386` | push         | SUCCESS             | API tests      | `87583398006` | SUCCESS    |
+| `29486889386` | push         | SUCCESS             | Quality        | `87583398014` | SUCCESS    |
+| `29486889386` | push         | SUCCESS             | Unit tests     | `87583398016` | SUCCESS    |
+| `29486891153` | pull_request | SUCCESS             | E2E            | `87583403619` | SUCCESS    |
+| `29486891153` | pull_request | SUCCESS             | Database tests | `87583403624` | SUCCESS    |
+| `29486891153` | pull_request | SUCCESS             | Unit tests     | `87583403630` | SUCCESS    |
+| `29486891153` | pull_request | SUCCESS             | API tests      | `87583403645` | SUCCESS    |
+| `29486891153` | pull_request | SUCCESS             | Quality        | `87583403650` | SUCCESS    |
+
+The final report-only follow-up commit is subject to the same workflow. Its final-head run IDs are recorded in PR #4 and the P0-S9 handoff after they reach a terminal state.
 
 ## 8. Risks and limitations
 
@@ -177,4 +192,4 @@ Workflow run ID and every job conclusion will be recorded here after the P0-S9 c
 - `REJECT_SCOPE_LEAKAGE` — if unauthorized business or deferred functionality is present.
 - `DEFER_ACCEPTANCE` — if evidence cannot be completed for an external or environmental reason.
 
-Current recommendation: PENDING GitHub CI. Local acceptance recommendation is `APPROVE_PHASE_0`.
+Current recommendation: `APPROVE_PHASE_0`. Phase 1 remains NOT_AUTHORIZED and must not start without a new explicit decision.
