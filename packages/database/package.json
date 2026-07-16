@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run tests/schema.unit.test.ts",
+    "test": "vitest run tests",
     "test:integration": "vitest run tests/database.integration.test.ts",
     "db:migrate": "tsx src/migration-runner.ts",
     "db:seed": "tsx seeds/index.ts",

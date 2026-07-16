@@ -16,6 +16,8 @@
     "lint": "eslint .",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
+    "test:api": "pnpm --filter @ipoint/api test",
+    "test:database": "pnpm --filter @ipoint/database test",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "orm-poc": "pnpm --filter @ipoint/orm-comparison poc",
@@ -25,6 +27,7 @@
     "db:seed": "pnpm --filter @ipoint/database db:seed",
     "db:checksum": "pnpm --filter @ipoint/database db:checksum",
     "db:drift": "pnpm --filter @ipoint/database db:drift",
+    "ci:verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm test:database && pnpm test:api && pnpm test:e2e",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {

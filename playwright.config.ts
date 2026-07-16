@@ -7,7 +7,8 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   use: { baseURL: 'http://127.0.0.1:4173', trace: 'on-first-retry' },
   webServer: {
-    command: 'pnpm --filter @ipoint/member preview --host 127.0.0.1',
+    command:
+      'pnpm --filter @ipoint/member-web build && pnpm --filter @ipoint/member-web preview --host 127.0.0.1',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
   },
