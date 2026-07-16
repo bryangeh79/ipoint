@@ -44,6 +44,26 @@ export class ConfigService {
     return this.config.REDIS_URL;
   }
 
+  get authOtpPepper(): string {
+    return this.config.AUTH_OTP_PEPPER;
+  }
+
+  get authAccessTtlSeconds(): number {
+    return this.config.AUTH_ACCESS_TTL_SECONDS;
+  }
+
+  get authRefreshTtlSeconds(): number {
+    return this.config.AUTH_REFRESH_TTL_SECONDS;
+  }
+
+  get authOtpTtlSeconds(): number {
+    return this.config.AUTH_OTP_TTL_SECONDS;
+  }
+
+  get authOtpMaxAttempts(): number {
+    return this.config.AUTH_OTP_MAX_ATTEMPTS;
+  }
+
   get appVersion(): string {
     return this.config.APP_VERSION;
   }

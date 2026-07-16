@@ -118,6 +118,7 @@ export const sessions = pgTable(
     revokedAt: utcTimestamp('revoked_at'),
     revokeReason: text('revoke_reason'),
     replacedBySessionId: uuid('replaced_by_session_id'),
+    accessExpiresAt: utcTimestamp('access_expires_at').notNull(),
   },
   (table) => [
     unique('sessions_access_token_hash_unique').on(table.accessTokenHash),
@@ -133,6 +134,10 @@ export const sessions = pgTable(
     check(
       'sessions_expiry_check',
       sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
+    check(
+      'sessions_access_expiry_check',
+      sql`${table.accessExpiresAt} > ${table.createdAt} and ${table.accessExpiresAt} <= ${table.expiresAt}`,
     ),
   ],
 );

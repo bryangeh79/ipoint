@@ -14,6 +14,10 @@ describe('App (e2e)', () => {
   beforeAll(async () => {
     vi.stubEnv('DATABASE_URL', 'postgresql://localhost:5432/test');
     vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
+    vi.stubEnv(
+      'AUTH_OTP_PEPPER',
+      'test-otp-pepper-with-at-least-32-characters',
+    );
     vi.stubEnv('NODE_ENV', 'test');
     vi.stubEnv('LOG_LEVEL', 'silent');
 

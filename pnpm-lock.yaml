@@ -90,6 +90,9 @@ importers:
       '@ipoint/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@ipoint/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@ipoint/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -114,9 +117,15 @@ importers:
       class-validator:
         specifier: ^0.14.1
         version: 0.14.4
+      drizzle-orm:
+        specifier: 0.45.2
+        version: 0.45.2(@electric-sql/pglite@0.4.1)(@prisma/client@7.8.0(prisma@7.8.0(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(magicast@0.5.3)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(typescript@5.9.3))(typescript@5.9.3))(@types/pg@8.20.0)(mysql2@3.15.3)(pg@8.22.0)(postgres@3.4.7)(prisma@7.8.0(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(magicast@0.5.3)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)(typescript@5.9.3))
       nestjs-pino:
         specifier: ^4.1.0
         version: 4.6.1(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(pino-http@11.0.0)(pino@9.14.0)(rxjs@7.8.2)
+      pg:
+        specifier: 8.22.0
+        version: 8.22.0
       pino:
         specifier: ^9.0.0
         version: 9.14.0
@@ -139,6 +148,9 @@ importers:
       '@types/express':
         specifier: ^5.0.0
         version: 5.0.6
+      '@types/pg':
+        specifier: ^8.15.5
+        version: 8.20.0
       '@types/supertest':
         specifier: ^6.0.2
         version: 6.0.3

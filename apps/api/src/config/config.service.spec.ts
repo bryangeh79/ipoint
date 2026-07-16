@@ -10,6 +10,7 @@ describe('ConfigService', () => {
     process.env.NODE_ENV = 'development';
     process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
     process.env.REDIS_URL = 'redis://localhost:6379';
+    process.env.AUTH_OTP_PEPPER = 'test-otp-pepper-with-at-least-32-characters';
   });
 
   afterEach(() => {
@@ -24,6 +25,7 @@ describe('ConfigService', () => {
     expect(service.appVersion).toBe('0.0.0');
     expect(service.databaseUrl).toBe('postgresql://localhost:5432/test');
     expect(service.redisUrl).toBe('redis://localhost:6379');
+    expect(service.authAccessTtlSeconds).toBe(900);
   });
 
   it('should reflect NODE_ENV state', () => {

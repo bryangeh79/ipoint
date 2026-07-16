@@ -49,7 +49,10 @@ describe('database foundation schema', () => {
 
   it('keeps migrations explicit SQL and in the checksum set', async () => {
     const checksums = await calculateMigrationChecksums();
-    expect(Object.keys(checksums)).toEqual(['0000_database_foundation.sql']);
+    expect(Object.keys(checksums)).toEqual([
+      '0000_database_foundation.sql',
+      '0001_auth_session_access_expiry.sql',
+    ]);
     const migration = await readFile(
       `${migrationsDirectory}/0000_database_foundation.sql`,
       'utf8',
