@@ -14,16 +14,20 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Phase** | **Batch A: P0-S4B → P0-S5 → P0-S6** | Sequential execution authorized by ChatGPT Command Center |
+| **Current Authorized Phase** | **P0-S7** | IN_PROGRESS under D-007; P0-S8 is AUTHORIZED |
 | **P0-S1** | **COMPLETE** | Repository audit completed |
 | **P0-S2** | **COMPLETE** | Phase 0 application shells completed |
 | **P0-S3** | **COMPLETE** | Backend foundation independently re-validated after D-005 |
 | **P0-S4A Documentation** | **COMPLETE** | ORM comparison independently re-validated after D-005 |
 | **P0-S4A PoC** | **COMPLETE** | Reproducible ORM comparison PoC integrated into the Phase branch |
 | **ORM Gate** | **CLOSED — DRIZZLE APPROVED** | D-006 selects Drizzle for the production baseline |
-| **P0-S4B** | **IN_PROGRESS** | Node 24 LTS validation is required before completion |
-| **P0-S5** | **AUTHORIZED** | Authorized as the next Batch A sub-phase after P0-S4B |
-| **P0-S6** | **AUTHORIZED** | Authorized as the final Batch A sub-phase after P0-S5 |
+| **Batch A** | **APPROVED** | D-007 accepts remote head `760cb8b8916b569f1a6be057b8cd4ba8546d2e87` |
+| **P0-S4B** | **COMPLETE** | Node 24.18.0 validation passed; accepted under D-007 |
+| **P0-S5** | **COMPLETE** | Accepted under D-007 |
+| **P0-S6** | **COMPLETE** | Accepted under D-007 |
+| **P0-S7** | **IN_PROGRESS** | Current authorized sub-phase under D-007 |
+| **P0-S8** | **AUTHORIZED** | Authorized after P0-S7 under D-007 |
+| **P0-S9** | **NOT_AUTHORIZED** | Not authorized under D-007 |
 
 ---
 
@@ -37,9 +41,13 @@
 | **P0-S4A Documentation** | ORM comparison and recommendation evidence | **COMPLETE** | None |
 | **P0-S4A PoC** | Checked-in, reproducible ORM comparison PoC | **COMPLETE** | None |
 | **ORM Gate** | ORM selection governance decision | **CLOSED — DRIZZLE APPROVED** | D-006 recorded |
-| **P0-S4B** | Post-ORM-gate Phase 0 work | **IN_PROGRESS** | Node 24 LTS validation before completion |
-| **P0-S5** | Batch A follow-on work | **AUTHORIZED** | P0-S4B completion |
-| **P0-S6** | Batch A follow-on work | **AUTHORIZED** | P0-S5 completion |
+| **Batch A** | P0-S4B through P0-S6 acceptance gate | **APPROVED** | D-007 recorded |
+| **P0-S4B** | Post-ORM-gate Phase 0 work | **COMPLETE** | Node 24.18.0 validation passed |
+| **P0-S5** | Batch A follow-on work | **COMPLETE** | D-007 accepted |
+| **P0-S6** | Batch A follow-on work | **COMPLETE** | D-007 accepted |
+| **P0-S7** | Phase 0 follow-on work | **IN_PROGRESS** | Current authorized sub-phase |
+| **P0-S8** | Phase 0 follow-on work | **AUTHORIZED** | P0-S7 completion |
+| **P0-S9** | Phase 0 follow-on work | **NOT_AUTHORIZED** | Awaiting authorization |
 
 ---
 
@@ -68,16 +76,15 @@
 ## Current allowed actions
 
 - ✅ Read and analyze project documentation and existing Phase 0 evidence
-- ✅ Execute authorized Batch A sequentially: P0-S4B → P0-S5 → P0-S6
-- ✅ Run repository verification and quality gates for authorized work
+- ✅ Execute P0-S7 and prepare the authorized P0-S8 sequence
+- ✅ Run repository verification and quality gates for authorized P0-S7/P0-S8 work
 - ✅ Append Decision Log entries only when a new decision is issued
 - ✅ Update PHASE_REGISTRY.md as authorized status decisions arrive
 - ✅ Escalate ORM evidence gaps, conflicts, and open questions
 
 ## Current prohibited actions
 
-- ❌ Mark P0-S4B complete before Node 24 LTS validation passes
-- ❌ Start work outside the authorized Batch A sequence
+- ❌ Start P0-S9 or work outside the authorized P0-S7/P0-S8 sequence
 - ❌ Use OpenClaw sub-agents for engineering execution or accept invalidated sub-agent output as evidence
 - ❌ Modify files outside the currently authorized scope
 - ❌ Change LOCKED business rules
@@ -89,4 +96,4 @@
 
 ---
 
-*Last updated: 2026-07-16 | Updated by: Codex CLI | Based on decisions D-001, D-002, D-003, D-004, D-005, D-006 and current ChatGPT Command Center authorization*
+*Last updated: 2026-07-16 | Updated by: Codex CLI | Based on decisions D-001, D-002, D-003, D-004, D-005, D-006, D-007 and current ChatGPT Command Center authorization*
