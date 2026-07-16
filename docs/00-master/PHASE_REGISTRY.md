@@ -14,9 +14,28 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Phase** | **NONE** | No Big Phase Brief has been issued |
-| **Phase 0** | **NOT_AUTHORIZED** | Engineering foundation awaiting Big Phase Brief |
-| **Phase 1** | **NOT_AUTHORIZED** | Merchant Onboarding + MCP Ledger awaiting Big Phase Brief |
+| **Current Authorized Phase** | **P0-S4A PoC** | Authorized; implementation has not started |
+| **P0-S1** | **COMPLETE** | Repository audit completed |
+| **P0-S2** | **COMPLETE** | Phase 0 application shells completed |
+| **P0-S3** | **COMPLETE** | Backend foundation independently re-validated after D-005 |
+| **P0-S4A Documentation** | **COMPLETE** | ORM comparison independently re-validated after D-005 |
+| **P0-S4A PoC** | **AUTHORIZED / NOT STARTED** | Reproducible ORM PoC is the current authorized work |
+| **ORM Gate** | **OPEN** | No ORM is selected until PoC evidence is reviewed and a governance decision is recorded |
+| **P0-S4B** | **NOT_AUTHORIZED** | Must not start before ORM Gate approval |
+
+---
+
+## Phase 0 sub-phase status
+
+| Sub-phase | Scope | Status | Next gate |
+|---|---|---|---|
+| **P0-S1** | Repository audit and workspace classification | **COMPLETE** | None |
+| **P0-S2** | Monorepo application shells | **COMPLETE** | None |
+| **P0-S3** | NestJS backend foundation | **COMPLETE** | None |
+| **P0-S4A Documentation** | ORM comparison and recommendation evidence | **COMPLETE** | None |
+| **P0-S4A PoC** | Checked-in, reproducible ORM comparison PoC | **AUTHORIZED / NOT STARTED** | Command Center evidence review |
+| **ORM Gate** | ORM selection governance decision | **OPEN** | PoC completion, review, and recorded decision |
+| **P0-S4B** | Post-ORM-gate Phase 0 work | **NOT_AUTHORIZED** | ORM Gate approval |
 
 ---
 
@@ -44,19 +63,19 @@
 
 ## Current allowed actions
 
-- ✅ Read and analyze project documentation
-- ✅ Update governance files (AGENTS.md, DOCUMENT_AUTHORITY.md, OPENCLAW_OPERATING_RULES.md, BASELINE_ACKNOWLEDGMENT_V1.1.md, DECISION_LOG.md, OPEN_QUESTIONS.md, PHASE_REGISTRY.md)
-- ✅ Append new Decision Log entries as decisions arrive
-- ✅ Update PHASE_REGISTRY.md status as phases advance
-- ✅ Prepare Phase breakdown proposals for ChatGPT review
-- ✅ Escalate conflicts and open questions
+- ✅ Read and analyze project documentation and existing Phase 0 evidence
+- ✅ Execute the authorized P0-S4A checked-in, reproducible ORM PoC
+- ✅ Run repository verification and quality gates for authorized work
+- ✅ Append Decision Log entries only when a new decision is issued
+- ✅ Update PHASE_REGISTRY.md as authorized status decisions arrive
+- ✅ Escalate ORM evidence gaps, conflicts, and open questions
 
 ## Current prohibited actions
 
-- ❌ Start Phase 0 without an approved Big Phase Brief
-- ❌ Assign Codex CLI to write production code
-- ❌ Merge PR #2
-- ❌ Modify files outside governance scope without Phase authorization
+- ❌ Start P0-S4B or any other unauthorized Phase work
+- ❌ Select an ORM or close the ORM Gate without reviewed PoC evidence and a recorded governance decision
+- ❌ Use OpenClaw sub-agents for engineering execution or accept invalidated sub-agent output as evidence
+- ❌ Modify files outside the currently authorized scope
 - ❌ Change LOCKED business rules
 - ❌ Hard-code CONFIGURABLE values
 - ❌ Implement DEFERRED modules
@@ -66,4 +85,4 @@
 
 ---
 
-*Last updated: 2026-07-16 | Updated by: OpenClaw | Based on decisions D-001, D-002, D-003, D-004*
+*Last updated: 2026-07-16 | Updated by: OpenClaw | Based on decisions D-001, D-002, D-003, D-004, D-005 and current ChatGPT Command Center authorization*

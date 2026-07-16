@@ -83,4 +83,21 @@
 
 ---
 
+## D-005: P0-S3 / P0-S4A sub-agent output invalidated
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-005 |
+| **Date** | 2026-07-16 |
+| **Source** | ChatGPT Command Center — P0-S3 + P0-S4A: EXECUTION INVALID |
+| **Old Rule** | OpenClaw sub-agent created commits for P0-S3 and P0-S4A using `sessions_spawn` |
+| **New Decision** | All sub-agent output marked UNTRUSTED_SUBAGENT_OUTPUT. Two Codex CLI workers must independently re-validate and fix. No push, merge, or phase evidence from sub-agent commits. |
+| **Reason** | CODEX-ONLY EXECUTION POLICY violation. Only real Codex CLI processes may execute engineering work. OpenClaw sub-agent token pool usage also unauthorized. |
+| **Affected Files** | apps/api/ (all files), docs/06-phase-reports/P0-S4A_ORM_COMPARISON.md, pnpm-lock.yaml, package.json (root) |
+| **Affected Phases** | P0-S3, P0-S4A |
+| **Migration** | NONE |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P0-S3 + P0-S4A: EXECUTION INVALID (2026-07-16) |
+| **Status** | **ENFORCED** |
+
 *— End of current entries. New decisions must be appended below —*
