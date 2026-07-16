@@ -16,14 +16,19 @@ date: 2026-07-16
 - Internal keys are UUID. `merchant_branches.public_merchant_id` is the branch public identifier.
 - All applicable business tables carry `market_id`; global identities remain in Phase 0.
 - `numeric` values cross the TypeScript boundary as strings/decimal-safe values.
-- Mutable catalog/profile records use `archived_at`; ledger/history/approval records are retained and never soft-deleted.
-- Nullable `merchant_branches.group_id` is the only Merchant Group reservation. No group table or FK is proposed until O-01 is resolved.
+- Mutable catalog/profile records may use `archived_at`; append-only ledger/history/approval/terms/KYC submission evidence has event timestamps only and is never soft-deleted.
+- `merchant_groups` is a proper Phase 1 entity. It owns the Account/Market relationship, and every `merchant_branches.merchant_group_id` is a non-null foreign key. Single-branch merchants receive a default group.
+- Merchant primary email is always the immutable `accounts.email`. No Merchant Profile primary/contact email field exists, and Admin has no mutation path for it.
+- Application, KYC and Operational status are independent enums. Operational activation is derived from approved Application, approved KYC and the MCP activation condition.
 
 ## 2. Relationship summary
 
 ```text
-accounts 1--1 merchant_branches --1 merchant_profiles
-markets  1--* merchant_branches --* merchant_documents/status_history/referrals
+accounts 1--* merchant_groups *--1 markets
+merchant_groups 1--* merchant_branches --1 merchant_profiles
+markets 1--* merchant_branches --* merchant_documents/status_history/referrals
+merchant_branches 1--* merchant_applications
+merchant_branches 1--* merchant_kyc_submissions 1--* merchant_kyc_reviews
 merchant_branches 1--* merchant_package_assignments *--1 service_fee_versions
 merchant_branches 1--1 mcp_accounts 1--* mcp_ledger_entries
 mcp_accounts 1--* recharge/refund/adjustment requests
@@ -60,23 +65,30 @@ const audit = {
 };
 const archival = { archivedAt: utc('archived_at') };
 
-export const merchantState = pgEnum('merchant_state', [
+export const merchantApplicationStatus = pgEnum('merchant_application_status', [
   'DRAFT',
+  'SUBMITTED',
+  'UNDER_REVIEW',
+  'RESUBMISSION_REQUIRED',
+  'APPROVED',
+  'REJECTED',
+]);
+export const merchantKycStatus = pgEnum('merchant_kyc_status', [
+  'DRAFT',
+  'SUBMITTED',
+  'UNDER_REVIEW',
+  'RESUBMISSION_REQUIRED',
+  'APPROVED',
+  'REJECTED',
+]);
+export const merchantOperationalStatus = pgEnum('merchant_operational_status', [
+  'PENDING_APPLICATION',
   'PENDING_KYC',
-  'KYC_SUBMITTED',
-  'KYC_REJECTED',
-  'KYC_APPROVED',
-  'AWAITING_MCP_TOPUP',
+  'PENDING_MCP',
   'ACTIVE',
   'SUSPENDED',
   'CLOSURE_PENDING',
   'CLOSED',
-]);
-export const kycState = pgEnum('merchant_kyc_state', [
-  'DRAFT',
-  'SUBMITTED',
-  'APPROVED',
-  'REJECTED',
 ]);
 export const profileKind = pgEnum('service_fee_profile_kind', ['STANDARD']);
 export const ruleState = pgEnum('service_fee_rule_state', [
@@ -124,21 +136,41 @@ export const adjustmentState = pgEnum('mcp_adjustment_state', [
   'CANCELLED',
 ]);
 
-export const merchantBranches = pgTable(
-  'merchant_branches',
+export const merchantGroups = pgTable(
+  'merchant_groups',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'restrict' }),
     marketId: uuid('market_id')
       .notNull()
       .references(() => markets.id, { onDelete: 'restrict' }),
-    groupId: uuid('group_id'), // reservation only; intentionally no FK/table in Phase 1
+    createdAt: utc('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    index('merchant_groups_account_idx').on(t.accountId),
+    index('merchant_groups_market_idx').on(t.marketId),
+  ],
+);
+
+export const merchantBranches = pgTable(
+  'merchant_branches',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    merchantGroupId: uuid('merchant_group_id')
+      .notNull()
+      .references(() => merchantGroups.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
     publicMerchantId: text('public_merchant_id').notNull(),
     merchantType: text('merchant_type').notNull(),
     legalName: text('legal_name').notNull(),
-    status: merchantState('status').notNull().default('DRAFT'),
+    operationalStatus: merchantOperationalStatus('operational_status')
+      .notNull()
+      .default('PENDING_APPLICATION'),
     version: integer('version').notNull().default(1),
     activatedAt: utc('activated_at'),
     closedAt: utc('closed_at'),
@@ -146,10 +178,12 @@ export const merchantBranches = pgTable(
     ...archival,
   },
   (t) => [
-    unique('merchant_branches_account_unique').on(t.accountId),
     unique('merchant_branches_public_id_unique').on(t.publicMerchantId),
-    index('merchant_branches_market_status_idx').on(t.marketId, t.status),
-    index('merchant_branches_group_idx').on(t.groupId),
+    index('merchant_branches_market_status_idx').on(
+      t.marketId,
+      t.operationalStatus,
+    ),
+    index('merchant_branches_group_idx').on(t.merchantGroupId),
   ],
 );
 
@@ -164,7 +198,6 @@ export const merchantProfiles = pgTable(
       .notNull()
       .references(() => markets.id, { onDelete: 'restrict' }),
     displayName: text('display_name').notNull(),
-    contactEmail: text('contact_email'),
     phone: text('phone'),
     address: text('address'),
     logoObjectKey: text('logo_object_key'),
@@ -194,7 +227,7 @@ export const merchantApplications = pgTable(
     marketId: uuid('market_id')
       .notNull()
       .references(() => markets.id, { onDelete: 'restrict' }),
-    state: merchantState('state').notNull().default('DRAFT'),
+    status: merchantApplicationStatus('status').notNull().default('DRAFT'),
     version: integer('version').notNull().default(1),
     submittedAt: utc('submitted_at'),
     reviewedAt: utc('reviewed_at'),
@@ -206,15 +239,13 @@ export const merchantApplications = pgTable(
     ...audit,
   },
   (t) => [
-    uniqueIndex('merchant_applications_open_unique')
-      .on(t.merchantBranchId)
-      .where(sql`${t.state} <> 'CLOSED'`),
-    index('merchant_applications_market_state_idx').on(t.marketId, t.state),
+    unique('merchant_applications_branch_unique').on(t.merchantBranchId),
+    index('merchant_applications_market_status_idx').on(t.marketId, t.status),
   ],
 );
 
-export const merchantKyc = pgTable(
-  'merchant_kyc',
+export const merchantKycCases = pgTable(
+  'merchant_kyc_cases',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     merchantBranchId: uuid('merchant_branch_id')
@@ -223,25 +254,70 @@ export const merchantKyc = pgTable(
     marketId: uuid('market_id')
       .notNull()
       .references(() => markets.id, { onDelete: 'restrict' }),
-    submissionVersion: integer('submission_version').notNull(),
-    status: kycState('status').notNull().default('DRAFT'),
-    picName: text('pic_name'),
-    submittedAt: utc('submitted_at'),
-    reviewedAt: utc('reviewed_at'),
-    reviewedByAdminUserId: uuid('reviewed_by_admin_user_id').references(
-      () => adminUsers.id,
-      { onDelete: 'restrict' },
-    ),
-    rejectReason: text('reject_reason'),
-    requirementsVersion: text('requirements_version').notNull(),
+    status: merchantKycStatus('status').notNull().default('DRAFT'),
+    version: integer('version').notNull().default(1),
     ...audit,
   },
   (t) => [
-    unique('merchant_kyc_branch_version_unique').on(
+    unique('merchant_kyc_cases_branch_unique').on(t.merchantBranchId),
+    index('merchant_kyc_cases_market_status_idx').on(t.marketId, t.status),
+  ],
+);
+
+export const merchantKycSubmissions = pgTable(
+  'merchant_kyc_submissions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    merchantKycCaseId: uuid('merchant_kyc_case_id')
+      .notNull()
+      .references(() => merchantKycCases.id, { onDelete: 'restrict' }),
+    merchantBranchId: uuid('merchant_branch_id')
+      .notNull()
+      .references(() => merchantBranches.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    submissionVersion: integer('submission_version').notNull(),
+    picName: text('pic_name'),
+    requirementsVersion: text('requirements_version').notNull(),
+    snapshot: jsonb('snapshot').notNull(),
+    submittedAt: utc('submitted_at').notNull(),
+    createdAt: utc('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    unique('merchant_kyc_submission_branch_version_unique').on(
       t.merchantBranchId,
       t.submissionVersion,
     ),
-    index('merchant_kyc_market_status_idx').on(t.marketId, t.status),
+    index('merchant_kyc_submission_case_time_idx').on(
+      t.merchantKycCaseId,
+      t.submittedAt,
+    ),
+  ],
+);
+
+export const merchantKycReviews = pgTable(
+  'merchant_kyc_reviews',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    merchantKycSubmissionId: uuid('merchant_kyc_submission_id')
+      .notNull()
+      .references(() => merchantKycSubmissions.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    reviewerAdminUserId: uuid('reviewer_admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    decision: merchantKycStatus('decision').notNull(),
+    reason: text('reason').notNull(),
+    decidedAt: utc('decided_at').notNull(),
+    createdAt: utc('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    unique('merchant_kyc_review_submission_unique').on(
+      t.merchantKycSubmissionId,
+    ),
   ],
 );
 
@@ -252,9 +328,9 @@ export const merchantDocuments = pgTable(
     merchantBranchId: uuid('merchant_branch_id')
       .notNull()
       .references(() => merchantBranches.id, { onDelete: 'restrict' }),
-    merchantKycId: uuid('merchant_kyc_id')
+    merchantKycSubmissionId: uuid('merchant_kyc_submission_id')
       .notNull()
-      .references(() => merchantKyc.id, { onDelete: 'restrict' }),
+      .references(() => merchantKycSubmissions.id, { onDelete: 'restrict' }),
     marketId: uuid('market_id')
       .notNull()
       .references(() => markets.id, { onDelete: 'restrict' }),
@@ -271,7 +347,9 @@ export const merchantDocuments = pgTable(
   },
   (t) => [
     unique('merchant_documents_object_key_unique').on(t.objectKey),
-    index('merchant_documents_kyc_idx').on(t.merchantKycId),
+    index('merchant_documents_kyc_submission_idx').on(
+      t.merchantKycSubmissionId,
+    ),
     index('merchant_documents_market_idx').on(t.marketId),
   ],
 );
@@ -286,15 +364,14 @@ export const merchantStatusHistory = pgTable(
     marketId: uuid('market_id')
       .notNull()
       .references(() => markets.id, { onDelete: 'restrict' }),
-    fromStatus: merchantState('from_status'),
-    toStatus: merchantState('to_status').notNull(),
+    fromStatus: merchantOperationalStatus('from_status'),
+    toStatus: merchantOperationalStatus('to_status').notNull(),
     actorAdminUserId: uuid('actor_admin_user_id').references(
       () => adminUsers.id,
       { onDelete: 'restrict' },
     ),
     reason: text('reason'),
     createdAt: utc('created_at').notNull().defaultNow(),
-    updatedAt: utc('updated_at').notNull().defaultNow(),
   },
   (t) => [
     index('merchant_status_history_branch_time_idx').on(
@@ -360,7 +437,6 @@ export const merchantTermsAcceptances = pgTable(
     device: text('device'),
     acceptedAt: utc('accepted_at').notNull(),
     createdAt: utc('created_at').notNull().defaultNow(),
-    updatedAt: utc('updated_at').notNull().defaultNow(),
   },
   (t) => [
     unique('merchant_terms_acceptance_unique').on(
@@ -428,7 +504,7 @@ export const serviceFeeVersions = pgTable(
     ),
     check(
       'service_fee_versions_rate_check',
-      sql`${t.ratePercent} > 0 and ${t.ratePercent} <= 100`,
+      sql`${t.ratePercent} > 0`,
     ),
     check(
       'service_fee_versions_period_check',
@@ -466,7 +542,7 @@ export const specialPercentages = pgTable(
     ),
     check(
       'special_percentages_rate_check',
-      sql`${t.ratePercent} > 0 and ${t.ratePercent} <= 100`,
+      sql`${t.ratePercent} > 0`,
     ),
   ],
 );
@@ -578,7 +654,6 @@ export const mcpLedgerEntries = pgTable(
     metadata: jsonb('metadata').notNull().default({}),
     effectiveAt: utc('effective_at').notNull(),
     createdAt: utc('created_at').notNull().defaultNow(),
-    updatedAt: utc('updated_at').notNull().defaultNow(),
   },
   (t) => [
     unique('mcp_ledger_account_sequence_unique').on(t.mcpAccountId, t.sequence),
@@ -732,7 +807,6 @@ export const mcpAdjustmentDecisions = pgTable(
     reason: text('reason').notNull(),
     decidedAt: utc('decided_at').notNull().defaultNow(),
     createdAt: utc('created_at').notNull().defaultNow(),
-    updatedAt: utc('updated_at').notNull().defaultNow(),
   },
   (t) => [
     unique('mcp_adjustment_decision_request_unique').on(t.adjustmentRequestId),
@@ -756,6 +830,13 @@ export const selectLedgerEntrySchema = createSelectSchema(mcpLedgerEntries);
 ## 4. Additional database enforcement planned
 
 - Deferrable/self foreign key from `mcp_ledger_entries.reversal_of_entry_id` to ledger ID and entry-type/opposite-delta checks.
-- Immutable triggers on ledger, status history, terms acceptance and adjustment decisions.
+- Immutable triggers reject `UPDATE` and `DELETE` on MCP ledger entries, operational status history, terms acceptances, MCP adjustment decisions, KYC submissions and KYC review evidence. These tables have no soft-delete column; corrections append compensation or superseding evidence.
+- MerchantGroup and every child branch must have the same `market_id`. No group-level permission, shared MCP or group-level settlement relationship is modeled. O-01 is resolved for the Phase 1 structural boundary.
+- Account email is the only Merchant primary email. No Merchant table duplicates it, and neither Merchant nor Admin input may update it.
+- Application Review writes only `MerchantApplicationStatus`; KYC Review writes only `MerchantKycStatus`; activation policy derives `MerchantOperationalStatus`. Suspend/reactivate update only Operational Status and preserve MCP.
+- Standard package identities record A=2.5, B=5, C=10, D=15, E=20 and F=25.
+- Maximum allowed special percentage remains OPEN per O-07.
+- P1-S2 special-percentage production constraint is blocked until Command Center decision.
+- No implementation may invent maximum, minimum business increment or approval threshold.
 - Exclusion constraints for overlapping active effective periods where appropriate.
-- Transactional service checks for market equality, maker != checker, last-active/default package and non-negative MCP; cross-table rules cannot be trusted to DTO validation alone.
+- Transactional service checks for market equality, group ownership, maker != checker, last-active/default package and non-negative MCP; cross-table rules cannot be trusted to DTO validation alone.

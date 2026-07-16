@@ -15,7 +15,7 @@ The next migration is `0002_phase_1_merchant_package_mcp.sql`, owned by the futu
 
 Within `0002`, use dependency order:
 
-1. enums and Merchant base tables;
+1. independent application/KYC/operational enums and MerchantGroup ownership tables;
 2. Package definitions, versions, special percentages and assignments;
 3. MCP account, ledger and request/decision tables;
 4. foreign keys, unique/check constraints and indexes;
@@ -28,8 +28,9 @@ A single migration avoids partially deployable cross-domain foreign keys at this
 - Create-table and additive-enum only; no existing production-row transformation.
 - Reference existing `accounts`, `markets`, `admin_users`, `audit_logs` and `entity_timelines` with `ON DELETE RESTRICT`.
 - Use UUID defaults, `timestamptz(6)`, PostgreSQL `numeric`, explicit constraints, and no cascade deletion of financial/history records.
-- `group_id` remains nullable UUID reservation without a Merchant Group table/FK until O-01 is resolved.
-- Add append-only database triggers modeled after Phase 0 audit/timeline protection.
+- Create `merchant_groups` before `merchant_branches`; `merchant_groups.account_id` owns the group, and every branch has a non-null FK to its group. Do not add a unique constraint on a branch Account ID. Single-branch registration creates its default group transactionally.
+- Add append-only database triggers modeled after Phase 0 audit/timeline protection. Append-only tables reject `UPDATE` and `DELETE`; corrections use compensating records rather than mutation.
+- Append-only ledger/history/decision/KYC snapshot tables retain event timestamps only. They have no `updated_at`, `archived_at`, soft-delete flag or other mutation-oriented column.
 - Do not add cloud storage, provider credentials, webhook endpoints or production seed values in the migration.
 
 ## 3. Forward validation
@@ -40,7 +41,7 @@ Run against a fresh PostgreSQL database and an upgraded database at `0001`:
 2. apply `0002` transactionally;
 3. rerun migrate idempotently;
 4. run expected-schema and integration constraints;
-5. verify append-only triggers reject update/delete;
+5. verify append-only triggers reject `UPDATE` and `DELETE`, originals remain intact, and corrections use compensating records;
 6. run schema drift check;
 7. validate SQL rollback rehearsal in disposable data only.
 

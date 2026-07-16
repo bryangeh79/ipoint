@@ -54,7 +54,9 @@ The migration runner applies explicit SQL files in filename order, records filen
 
 ### Merchant
 
-- Branch/public Merchant ID, optional reserved `group_id`, application, KYC, private document metadata, profile/media metadata, status history, referral, terms/disclaimer acceptance.
+- Merchant Group ownership, branch/public Merchant ID, application, KYC, private document metadata, profile/media metadata, status history, referral, terms/disclaimer acceptance.
+- `MerchantGroup` is a proper Phase 1 entity owned by an Account and scoped to one Market. Every merchant, including a single-branch merchant, receives a default group; branches reference that group.
+- Phase 1 Merchant Group scope is structural ownership only: no group-level permissions, shared MCP, group-level settlement or reporting UI. O-01 is resolved for this Phase 1 boundary.
 - Merchant ownership guard, application/KYC services, status transition policy, private file adapter port, and Admin review services.
 
 ### Package

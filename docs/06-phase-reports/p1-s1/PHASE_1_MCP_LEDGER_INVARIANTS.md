@@ -10,10 +10,10 @@ date: 2026-07-16
 
 ## 1. Authoritative invariants
 
-1. The ledger is append-only and immutable; database triggers reject update/delete.
+1. The ledger is append-only and immutable; database triggers reject `UPDATE` and `DELETE`. Entries have event time fields such as `effective_at` and `created_at`, but no `updated_at`, soft-delete or archive column.
 2. Amounts and derived deltas use PostgreSQL `numeric`; application code uses decimal-safe strings/types, never floating point.
 3. Every write has a non-empty, account-scoped idempotency key and payload fingerprint. Same key/same payload returns the same result; same key/different payload is rejected.
-4. Reversal appends a compensating entry linked by `reversal_of_entry_id`; original rows remain unchanged.
+4. Reversal appends a compensating entry linked by `reversal_of_entry_id`; original rows remain unchanged. Compensation is the only correction mechanism.
 5. Available balance cannot become negative. The application service enforces this while holding an MCP account lock; the database stores enough constraints and sequence ordering to prevent invalid concurrent posting.
 6. Current balance = the sum of all effective, un-reversed signed ledger postings. A cached snapshot, if later approved, is derived and updated atomically with the ledger, never the source of truth.
 7. Reversal pairs are applied exactly once in projection/reconciliation; implementations must not both exclude the original and double-count the compensating row.
@@ -56,6 +56,7 @@ Freeze/Unfreeze direction describes available-position movement; `balance_delta`
 - Separation is checked when deciding and again when executing.
 - No amount threshold, role shortcut or Super Admin exception exists under D-002 (C-03).
 - Rejection requires a reason; approval/execution cannot be deleted or edited.
+- `mcp_adjustment_decisions` is append-only approval evidence with `decided_at`/`created_at` only; it rejects `UPDATE` and `DELETE` and has no soft-delete column.
 
 ## 5. Recharge and refund
 

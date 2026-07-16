@@ -10,91 +10,111 @@ date: 2026-07-16
 
 ## 1. Common transition contract
 
-Every transition validates expected current state, actor/permission, entity market, transition reason and optimistic version while holding the required database lock. State update, domain history, audit log and timeline append are atomic. Notifications are durable intents only; no production send is authorized.
+Every transition validates expected current state, actor/permission, entity market, transition reason and optimistic version while holding the required database lock. State update, append-only domain history, audit log and timeline append are atomic. Notifications are durable intents only; no production send is authorized.
 
-## 2. Merchant lifecycle
+Merchant onboarding is represented by three independent state machines. Application Review determines only the application result. KYC Review determines only the KYC result. Operational Status is deterministically driven by activation policy, except explicit suspend/reactivate and closure actions.
 
-| State            | Description                                                               |
-| ---------------- | ------------------------------------------------------------------------- |
-| Draft            | Registration/application incomplete                                       |
-| PendingKYC       | Account/application complete; KYC evidence required                       |
-| KYCSubmitted     | KYC submitted and immutable review snapshot pending                       |
-| KYCRejected      | Rejected with reason; resubmission allowed                                |
-| KYCApproved      | KYC accepted; activation prerequisites evaluated                          |
-| AwaitingMCPTopup | KYC approved but initial MCP activation condition unmet                   |
-| Active           | Merchant may use authorized operational features                          |
-| Suspended        | Login/status view allowed; transaction/advertising blocked; MCP preserved |
-| ClosurePending   | Closure/refund matters under review; new operations blocked               |
-| Closed           | Terminal commercial relationship; history and MCP evidence retained       |
+## 2. Merchant Application Status
 
-| From                          | To                | Trigger / guard                                                    | Required side effects                                                |
-| ----------------------------- | ----------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------- |
-| Draft                         | PendingKYC        | Registration, profile minimum and versioned terms accepted         | Application history, audit, KYC CTA intent                           |
-| PendingKYC, KYCRejected       | KYCSubmitted      | Required metadata/documents valid                                  | Freeze submission snapshot, history/audit, reviewer queue intent     |
-| KYCSubmitted                  | KYCRejected       | Authorized reviewer + reason                                       | Review record, history/audit, rejection intent                       |
-| KYCSubmitted                  | KYCApproved       | Authorized reviewer; market requirements satisfied                 | Review record, history/audit, activation evaluation                  |
-| KYCApproved                   | AwaitingMCPTopup  | Initial MCP condition unmet                                        | History/audit, top-up CTA intent                                     |
-| KYCApproved, AwaitingMCPTopup | Active            | Approved KYC and initial MCP condition met                         | Activation timestamp, history/audit, activation intent               |
-| Active                        | Suspended         | Authorized Admin + reason                                          | Block capability, preserve MCP, history/audit                        |
-| Suspended                     | Active            | Authorized reactivation; KYC remains valid                         | Restore capability, history/audit                                    |
-| Active, Suspended             | ClosurePending    | Merchant closure request accepted for review                       | Closure request, history/audit                                       |
-| ClosurePending                | Active, Suspended | Closure rejected/cancelled; restore prior eligible state           | Review reason, history/audit                                         |
-| ClosurePending                | Closed            | Authorized closure approval and required foundation steps complete | Close timestamp, MCP preserved/refund foundation link, history/audit |
+`MerchantApplicationStatus`: `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `RESUBMISSION_REQUIRED`, `APPROVED`, `REJECTED`
 
-**Concurrency.** Only one active KYC review submission and one closure request per branch. Compare-and-swap `version` prevents competing review/status decisions. Active transition locks application and MCP account projection. Closed is terminal; no delete/reactivate shortcut.
+| From | To | Trigger / guard | Required evidence |
+| --- | --- | --- | --- |
+| `DRAFT` | `SUBMITTED` | Required application fields and versioned terms are complete | Submission time, immutable submission payload reference, audit/timeline |
+| `SUBMITTED` | `UNDER_REVIEW` | Authorized reviewer claims review | Reviewer and review-start evidence |
+| `UNDER_REVIEW` | `RESUBMISSION_REQUIRED` | Correctable deficiency with mandatory reason | Append-only decision evidence and notification intent |
+| `RESUBMISSION_REQUIRED` | `SUBMITTED` | Merchant submits a new immutable application snapshot | New submission version; prior evidence retained |
+| `UNDER_REVIEW` | `APPROVED` | Authorized reviewer approves the application | Append-only approval evidence and activation-policy evaluation |
+| `UNDER_REVIEW` | `REJECTED` | Authorized reviewer issues terminal rejection with reason | Append-only rejection evidence |
 
-## 3. Receipt/request foundation (no Transaction Engine)
+Application approval does not approve KYC and does not directly set Operational Status to `ACTIVE`.
 
-| State         | Description                                                       |
-| ------------- | ----------------------------------------------------------------- |
-| Pending       | Receipt/request created but not yet exposed for member binding    |
-| WaitingMember | Awaiting member binding within locked 60-minute expiry            |
-| Completed     | Binding/confirmation outcome recorded by future authorized engine |
-| Expired       | Expiry passed before completion                                   |
+## 3. Merchant KYC Status
 
-Transitions: `Pending -> WaitingMember` on issue; `WaitingMember -> Completed` on future idempotent confirmation; `Pending|WaitingMember -> Expired` on guarded expiry. Completion requires future Merchant/Member/MCP checks and atomic transaction logic and is **not implemented in Phase 1**. Unique receipt public ID and one binding key prevent duplicate completion. Expiry and completion race under a row lock; only one wins. Side effects are audit/timeline; future completion ledger/notification side effects are deferred.
+`MerchantKycStatus`: `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `RESUBMISSION_REQUIRED`, `APPROVED`, `REJECTED`
 
-## 4. Merchant service-fee assignment profile
+| From | To | Trigger / guard | Required evidence |
+| --- | --- | --- | --- |
+| `DRAFT` | `SUBMITTED` | Required market-versioned KYC evidence is valid | Immutable KYC submission snapshot and private document references |
+| `SUBMITTED` | `UNDER_REVIEW` | Authorized KYC reviewer claims review | Reviewer and review-start evidence |
+| `UNDER_REVIEW` | `RESUBMISSION_REQUIRED` | Correctable deficiency with mandatory reason | Append-only KYC review decision |
+| `RESUBMISSION_REQUIRED` | `SUBMITTED` | Merchant submits a new immutable KYC snapshot | New submission version; old snapshot remains unchanged |
+| `UNDER_REVIEW` | `APPROVED` | Market requirements satisfied | Append-only approval evidence and activation-policy evaluation |
+| `UNDER_REVIEW` | `REJECTED` | Authorized reviewer issues terminal rejection with reason | Append-only rejection evidence |
 
-| State         | Description                                                                   |
-| ------------- | ----------------------------------------------------------------------------- |
-| Active        | Eligible for future transaction selection                                     |
-| Paused        | Temporarily hidden/ineligible; assignment retained                            |
-| PendingChange | Requested version/assignment change awaiting authorized review/effective time |
+KYC approval does not approve the application. Only the KYC state machine may determine the KYC result.
 
-Transitions: `Active -> Paused` by merchant only if another active assignment remains; `Paused -> Active` when referenced version is currently effective; `Active|Paused -> PendingChange` on change request; `PendingChange -> Active|Paused` on approve/reject/cancel according to prior state and effective-time rules. Default reassignment is atomic. Concurrent operations lock all assignments for the merchant; there must be at least one active default after commit. Rate/version rows are never overwritten.
+## 4. Merchant Operational Status
 
-## 5. MCP adjustment request
+`MerchantOperationalStatus`: `PENDING_APPLICATION`, `PENDING_KYC`, `PENDING_MCP`, `ACTIVE`, `SUSPENDED`, `CLOSURE_PENDING`, `CLOSED`
 
-| State           | Description                                     |
-| --------------- | ----------------------------------------------- |
-| Draft           | Maker prepares credit/debit reason and evidence |
-| PendingApproval | Immutable request awaiting checker              |
-| Approved        | Checker approved; not yet posted                |
-| Rejected        | Terminal rejection with reason                  |
-| Executed        | Terminal; exactly one ledger entry posted       |
-| Cancelled       | Terminal cancellation before approval           |
+### Deterministic activation policy
 
-Transitions: `Draft -> PendingApproval`, `Draft -> Cancelled`, `PendingApproval -> Approved|Rejected|Cancelled`, `Approved -> Executed`. Credit and debit both follow this flow; no threshold bypass. Checker must differ from maker. Approval uses one checker decision; execution revalidates separation, status, idempotency and available balance inside one transaction. Side effects: decision/audit/timeline for every transition; ledger + balance projection + notification intent only on execution. One terminal decision and one execution idempotency key are unique.
+| Inputs | Derived Operational Status |
+| --- | --- |
+| Application is not `APPROVED` | `PENDING_APPLICATION` |
+| Application is `APPROVED`, KYC is not `APPROVED` | `PENDING_KYC` |
+| Application and KYC are `APPROVED`, MCP < 100 | `PENDING_MCP` |
+| Application and KYC are `APPROVED`, MCP >= 100 | `ACTIVE` |
 
-## 6. MCP recharge request
+- KYC approved + MCP >= 100 results in `ACTIVE` once the application is also approved.
+- The 100 MCP activation condition is evaluated centrally; after initial activation, MCP may fall below 100 without deactivation.
+- `SUSPENDED` is an explicit operational override. Suspend preserves MCP and changes no Application or KYC status.
+- Reactivate clears the suspension override and deterministically reevaluates the current activation inputs; it changes only Operational Status.
+- Closure actions change only Operational Status. `CLOSED` is terminal and all history/MCP evidence remains retained.
 
-| State      | Description                                                   |
-| ---------- | ------------------------------------------------------------- |
-| Pending    | Merchant request received                                     |
-| Processing | Authorized Admin review or verified gateway callback handling |
-| Completed  | Exactly one Recharge credit posted                            |
-| Failed     | Terminal processing failure/rejection with reason             |
+| From | To | Trigger / guard |
+| --- | --- | --- |
+| Any pending operational status | Another pending status or `ACTIVE` | Deterministic reevaluation after Application, KYC or initial MCP input changes |
+| `ACTIVE` | `SUSPENDED` | Authorized Admin with mandatory reason |
+| `SUSPENDED` | Derived pending status or `ACTIVE` | Authorized reactivation followed by deterministic reevaluation |
+| `ACTIVE`, `SUSPENDED` | `CLOSURE_PENDING` | Merchant closure request accepted for review |
+| `CLOSURE_PENDING` | Derived pending status, `ACTIVE` or `SUSPENDED` | Closure rejected/cancelled; restore suspension override if it existed, otherwise reevaluate |
+| `CLOSURE_PENDING` | `CLOSED` | Authorized closure approval and foundation checks complete |
 
-Transitions: `Pending -> Processing`, `Processing -> Completed|Failed`; retriable transport attempts do not change a terminal outcome. Manual recharge approval requires normal authorized review, **not maker/checker**. Gateway callback uses provider event ID + idempotency key, but production gateway integration is deferred. Completion atomically writes ledger/audit/timeline; failure writes no credit. Competing callbacks/reviews lock the request and return the same logical result.
+Operational transitions append `merchant_status_history` with event time, actor and reason. That history has no update/delete/soft-delete path.
 
-## 7. MCP refund request foundation
+## 5. Merchant service-fee assignment profile
 
-| State       | Description                                             |
-| ----------- | ------------------------------------------------------- |
-| Pending     | Merchant/closure refund request submitted               |
-| UnderReview | Authorized Admin review in progress                     |
-| Approved    | Foundation approval recorded; no bank/gateway execution |
-| Rejected    | Terminal rejection with reason                          |
+| State | Description |
+| --- | --- |
+| `Active` | Eligible for future transaction selection |
+| `Paused` | Temporarily hidden/ineligible; assignment retained |
+| `PendingChange` | Requested version/assignment change awaiting authorized review/effective time |
 
-Transitions: `Pending -> UnderReview`, `UnderReview -> Approved|Rejected`. Under the future authorized Phase 1 foundation, approval atomically appends one `Refund` debit that removes the approved MCP from the spendable position and records a non-cash refund obligation; actual money movement is always deferred. Amount cannot exceed eligible MCP. Only one open refund request may reserve the same MCP amount; review uses account/request locks. Side effects: ledger (approval only), audit/timeline and notification intent; no payout or provider call.
+Transitions: `Active -> Paused` by merchant only if another active assignment remains; `Paused -> Active` when the referenced version is currently effective; `Active|Paused -> PendingChange` on change request; `PendingChange -> Active|Paused` on approve/reject/cancel according to prior state and effective-time rules. Default reassignment is atomic. Concurrent operations lock all assignments for the merchant; there must be at least one active default after commit. Rate/version rows are never overwritten.
+
+## 6. MCP adjustment request
+
+| State | Description |
+| --- | --- |
+| `Draft` | Maker prepares credit/debit reason and evidence |
+| `PendingApproval` | Immutable request awaiting checker |
+| `Approved` | Checker approved; not yet posted |
+| `Rejected` | Terminal rejection with reason |
+| `Executed` | Terminal; exactly one ledger entry posted |
+| `Cancelled` | Terminal cancellation before approval |
+
+Transitions: `Draft -> PendingApproval`, `Draft -> Cancelled`, `PendingApproval -> Approved|Rejected|Cancelled`, `Approved -> Executed`. Credit and debit both follow this flow; no threshold bypass. Checker must differ from maker. Approval uses one checker decision; execution revalidates separation, status, idempotency and available balance inside one transaction. Decision evidence is append-only and contains event timestamps only. One terminal decision and one execution idempotency key are unique.
+
+## 7. MCP recharge request
+
+| State | Description |
+| --- | --- |
+| `Pending` | Merchant request received |
+| `Processing` | Authorized Admin review or verified gateway callback handling |
+| `Completed` | Exactly one Recharge credit posted |
+| `Failed` | Terminal processing failure/rejection with reason |
+
+Transitions: `Pending -> Processing`, `Processing -> Completed|Failed`; retriable transport attempts do not change a terminal outcome. Manual recharge approval requires normal authorized review, not maker/checker. Gateway callback uses provider event ID + idempotency key, but production gateway integration is deferred. Completion atomically writes ledger/audit/timeline; failure writes no credit. Competing callbacks/reviews lock the request and return the same logical result.
+
+## 8. MCP refund request foundation
+
+| State | Description |
+| --- | --- |
+| `Pending` | Merchant/closure refund request submitted |
+| `UnderReview` | Authorized Admin review in progress |
+| `Approved` | Foundation approval recorded; no bank/gateway execution |
+| `Rejected` | Terminal rejection with reason |
+
+Transitions: `Pending -> UnderReview`, `UnderReview -> Approved|Rejected`. Under a future authorized Phase 1 foundation, approval atomically appends one `Refund` debit that removes the approved MCP from the spendable position and records a non-cash refund obligation; actual money movement is always deferred. Amount cannot exceed eligible MCP. Only one open refund request may reserve the same MCP amount; review uses account/request locks. Side effects: ledger (approval only), audit/timeline and notification intent; no payout or provider call.
