@@ -1,5 +1,7 @@
 node_modules/
 .pnpm-store/
+.cache/
+.npm/
 dist/
 coverage/
 .vite/
