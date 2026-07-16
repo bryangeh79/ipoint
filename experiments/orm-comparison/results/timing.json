@@ -1,49 +1,49 @@
 {
-  "totalDurationMs": 18051,
+  "totalDurationMs": 18121,
   "commands": [
     {
       "command": "docker.exe compose -f compose.poc.yaml up -d --wait",
-      "durationMs": 5058,
+      "durationMs": 5078,
       "exitCode": 0
     },
     {
       "command": "C:\\Program Files\\nodejs\\node.exe C:\\Users\\MSI\\AppData\\Roaming\\npm\\node_modules\\pnpm\\bin\\pnpm.cjs exec prisma validate --config prisma/prisma.config.ts",
-      "durationMs": 1352,
+      "durationMs": 1338,
       "exitCode": 0
     },
     {
       "command": "C:\\Program Files\\nodejs\\node.exe C:\\Users\\MSI\\AppData\\Roaming\\npm\\node_modules\\pnpm\\bin\\pnpm.cjs exec prisma generate --config prisma/prisma.config.ts",
-      "durationMs": 1468,
+      "durationMs": 1487,
       "exitCode": 0
     },
     {
       "command": "C:\\Program Files\\nodejs\\node.exe C:\\Users\\MSI\\AppData\\Roaming\\npm\\node_modules\\pnpm\\bin\\pnpm.cjs exec prisma migrate deploy --config prisma/prisma.config.ts",
-      "durationMs": 1542,
+      "durationMs": 1540,
       "exitCode": 0
     },
     {
       "command": "C:\\Program Files\\nodejs\\node.exe C:\\Users\\MSI\\AppData\\Roaming\\npm\\node_modules\\pnpm\\bin\\pnpm.cjs exec drizzle-kit check --config drizzle/drizzle.config.ts",
-      "durationMs": 661,
+      "durationMs": 655,
       "exitCode": 0
     },
     {
       "command": "C:\\Program Files\\nodejs\\node.exe C:\\Users\\MSI\\AppData\\Roaming\\npm\\node_modules\\pnpm\\bin\\pnpm.cjs exec drizzle-kit migrate --config drizzle/drizzle.config.ts",
-      "durationMs": 1042,
+      "durationMs": 1039,
       "exitCode": 0
     },
     {
       "command": "C:\\Program Files\\nodejs\\node.exe C:\\Users\\MSI\\AppData\\Roaming\\npm\\node_modules\\pnpm\\bin\\pnpm.cjs exec prisma migrate status --config prisma/prisma.config.ts",
-      "durationMs": 1374,
+      "durationMs": 1389,
       "exitCode": 0
     },
     {
       "command": "C:\\Program Files\\nodejs\\node.exe C:\\Users\\MSI\\AppData\\Roaming\\npm\\node_modules\\pnpm\\bin\\pnpm.cjs exec drizzle-kit migrate --config drizzle/drizzle.config.ts",
-      "durationMs": 942,
+      "durationMs": 951,
       "exitCode": 0
     },
     {
       "command": "C:\\Program Files\\nodejs\\node.exe C:\\Users\\MSI\\AppData\\Roaming\\npm\\node_modules\\pnpm\\bin\\pnpm.cjs exec prisma migrate diff --config prisma/prisma.config.ts --from-config-datasource --to-schema prisma/schema.prisma --exit-code --script",
-      "durationMs": 1409,
+      "durationMs": 1402,
       "exitCode": 2
     },
     {
@@ -58,7 +58,7 @@
     },
     {
       "command": "docker.exe --version",
-      "durationMs": 39,
+      "durationMs": 38,
       "exitCode": 0
     }
   ]

@@ -24,6 +24,7 @@ const CHECKER_B_ID = '20000000-0000-4000-8000-000000000002';
 export interface CaseResult {
   name: string;
   passed: boolean;
+  evidenceStatus: 'PASSED' | 'PARTIAL' | 'NOT_TESTED' | 'INFERRED';
   details: Record<string, unknown>;
 }
 
@@ -178,6 +179,7 @@ const transactionExperiments = async (
   results.push({
     name: 'rollback',
     passed: countValue(rollbackRows[0]) === 0,
+    evidenceStatus: 'PASSED',
     details: { persistedRows: countValue(rollbackRows[0]) },
   });
 
@@ -185,6 +187,7 @@ const transactionExperiments = async (
   results.push({
     name: 'nested-savepoint',
     passed: nested.outerPersisted && !nested.innerPersisted,
+    evidenceStatus: 'PASSED',
     details: nested,
   });
 
@@ -217,6 +220,7 @@ const transactionExperiments = async (
     passed:
       Number(afterFailure[0]?.balance) === 0 &&
       countValue(failedLedger[0]) === 0,
+    evidenceStatus: 'PASSED',
     details: {
       balance: afterFailure[0]?.balance,
       ledgerRows: countValue(failedLedger[0]),
@@ -249,6 +253,7 @@ const transactionExperiments = async (
       Number(concurrentWallet[0]?.balance) === concurrentCount &&
       countValue(concurrentLedger[0]) === concurrentCount &&
       retryRuns.every((run) => run.attempts <= retryBound),
+    evidenceStatus: 'PARTIAL',
     details: {
       operations: concurrentCount,
       balance: concurrentWallet[0]?.balance,
@@ -257,6 +262,8 @@ const transactionExperiments = async (
       serializationConflicts: totalConflicts,
       maxAttemptsObserved: Math.max(...retryRuns.map((run) => run.attempts)),
       retryBound,
+      limitation:
+        'The bound of 20 is an experimental correctness-probe setting, not an approved production retry policy.',
     },
   });
 
@@ -264,6 +271,7 @@ const transactionExperiments = async (
   results.push({
     name: 'deadlock-detection',
     passed: deadlock.rejected === 1 && deadlock.retryableErrors === 1,
+    evidenceStatus: 'PASSED',
     details: deadlock,
   });
 
@@ -338,6 +346,7 @@ const idempotencyExperiments = async (
     name: 'same-key-repeat-consistent-result',
     passed:
       first.entryId === second.entryId && first.balance === second.balance,
+    evidenceStatus: 'PASSED',
     details: { first, second },
   });
 
@@ -360,6 +369,7 @@ const idempotencyExperiments = async (
       uniqueEntryIds.size === 1 &&
       countValue(concurrentLedger[0]) === 1 &&
       Number(wallet[0]?.balance) === 9.75,
+    evidenceStatus: 'PASSED',
     details: {
       callers: concurrent.length,
       uniqueResults: uniqueEntryIds.size,
@@ -379,6 +389,7 @@ const idempotencyExperiments = async (
   results.push({
     name: 'same-key-different-payload-rejected',
     passed: mismatchRejected,
+    evidenceStatus: 'PASSED',
     details: { mismatchRejected },
   });
 
@@ -485,7 +496,13 @@ const makerCheckerExperiments = async (
       selfRejected &&
       selfState[0]?.status === 'PENDING' &&
       selfState[0]?.checker_id === null,
-    details: { selfRejected, state: selfState[0] },
+    evidenceStatus: 'PARTIAL',
+    details: {
+      selfRejected,
+      state: selfState[0],
+      limitation:
+        'The PoC verifies application logic and a database check; authenticated actor authorization is not tested.',
+    },
   });
 
   const requestId = await createAdjustment(
@@ -534,6 +551,7 @@ const makerCheckerExperiments = async (
       countValue(actionCount[0]) === 2 &&
       countValue(auditCount[0]) === 2 &&
       countValue(ledgerCount[0]) === 1,
+    evidenceStatus: 'PARTIAL',
     details: {
       concurrentOutcomes: values,
       executedCount,
@@ -543,6 +561,10 @@ const makerCheckerExperiments = async (
       auditRows: countValue(auditCount[0]),
       ledgerRows: countValue(ledgerCount[0]),
       transitions: ['PENDING', 'APPROVED', 'EXECUTED'],
+      mechanism:
+        'Exactly-once execution depends on the row-locking transaction plus database uniqueness and foreign-key constraints.',
+      limitation:
+        'Authenticated roles, market access, action permissions, and production service boundaries are not tested.',
     },
   });
 
@@ -582,7 +604,13 @@ const ledgerExperiments = async (
   results.push({
     name: 'append-only-update-delete-blocked',
     passed: updateBlocked && deleteBlocked,
-    details: { updateBlocked, deleteBlocked, sqlState: '55000' },
+    evidenceStatus: 'PASSED',
+    details: {
+      updateBlocked,
+      deleteBlocked,
+      sqlState: '55000',
+      mechanism: 'PostgreSQL BEFORE UPDATE OR DELETE trigger',
+    },
   });
 
   const compensationId = randomUUID();
@@ -610,6 +638,7 @@ const ledgerExperiments = async (
     passed:
       totals[0]?.wallet_balance === totals[0]?.ledger_total &&
       countValue(originalStillExists[0]) === 1,
+    evidenceStatus: 'PASSED',
     details: {
       originalEntryId: originalEntry.id,
       compensationEntryId: compensationId,
@@ -705,6 +734,7 @@ export const runNestIntegrationProbe = async (
   return {
     name: 'nestjs-provider-lifecycle-di-transaction-isolation-cleanup',
     passed: transactionPropagated && isolationRollback && poolAfterClose === 0,
+    evidenceStatus: 'PARTIAL',
     details: {
       startup: true,
       shutdown: true,
@@ -712,6 +742,8 @@ export const runNestIntegrationProbe = async (
       transactionPropagated,
       testIsolationRollback: isolationRollback,
       poolConnectionsAfterClose: poolAfterClose,
+      limitation:
+        'A real Nest testing module starts, injects, uses, and closes each experimental provider; production app wiring, request scope, telemetry, and health checks are not tested.',
     },
   };
 };

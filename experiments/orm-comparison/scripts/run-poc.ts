@@ -18,6 +18,7 @@ import type { OrmHarness } from '../shared/harness.js';
 const packageRoot = resolve(import.meta.dirname, '..');
 const resultsRoot = join(packageRoot, 'results');
 const sqlResultsRoot = join(resultsRoot, 'sql');
+const nodeEvidencePrefix = `node-${process.version.replaceAll(/[^a-zA-Z0-9.-]/g, '_')}`;
 const prismaUrl =
   'postgresql://ipoint_poc:ipoint_poc@localhost:55431/ipoint_prisma_poc';
 const drizzleUrl =
@@ -413,9 +414,61 @@ const main = async (): Promise<void> => {
     };
     const testSummary = {
       banner: 'RECOMMENDATION ONLY — AWAITING COMMAND CENTER ORM GATE',
+      runtimeValidation: {
+        status: 'UNVALIDATED_ON_TARGET_NODE_LTS',
+        observedNode: process.version,
+        targetNode: 'Node 24 LTS',
+      },
       prisma: prismaResult,
       drizzle: drizzleResult,
       nestjs: nestResults,
+      evidenceAudit: {
+        realAssertions: {
+          status: 'PASSED',
+          observation:
+            'Every passed=true case is calculated from database state, returned values, caught SQLSTATE values, or Nest lifecycle state in shared/experiments.ts.',
+        },
+        runnerFailureExit: {
+          status: 'PASSED',
+          observation:
+            'A failed case throws; main rethrows after cleanup, so the pnpm process exits non-zero.',
+        },
+        cleanupInFinally: {
+          status: 'PASSED',
+          observation:
+            'ORM pools disconnect and docker compose down -v runs in finally.',
+        },
+        equivalentModelAndConstraints: {
+          status: 'PARTIAL',
+          observation:
+            'Both final databases use the same eight-table column signature and exercise the same domain invariants, but generated constraint representation and migration histories are not byte-identical.',
+        },
+        isolationLevels: {
+          status: 'PASSED',
+          observation:
+            'Both harnesses default to read committed and explicitly use serializable for the concurrent credit probe.',
+        },
+        retryBound: {
+          status: 'PARTIAL',
+          observation:
+            'The bound of 20 is experimental only and is not a production retry recommendation.',
+        },
+        makerCheckerExactlyOnce: {
+          status: 'PARTIAL',
+          observation:
+            'Observed exactly-once execution depends on a row-locking transaction plus database uniqueness and foreign-key constraints; production authorization is not tested.',
+        },
+        ledgerAppendOnly: {
+          status: 'PASSED',
+          observation:
+            'A PostgreSQL BEFORE UPDATE OR DELETE trigger rejects both mutations with SQLSTATE 55000; production privilege hardening remains untested.',
+        },
+        nestjsLifecycle: {
+          status: 'PARTIAL',
+          observation:
+            'Nest testing modules start, inject, transact, roll back, close, and leave zero pool connections; production app integration is not tested.',
+        },
+      },
       allPassed: allCasesPassed({ prismaResult, drizzleResult, nestResults }),
     };
     if (!testSummary.allPassed)
@@ -423,6 +476,8 @@ const main = async (): Promise<void> => {
 
     const versions = {
       recordedAt: new Date().toISOString(),
+      validationStatus: 'UNVALIDATED_ON_TARGET_NODE_LTS',
+      versionSource: 'pnpm-lock.yaml and live command output',
       node: runCommand(process.execPath, ['--version']).stdout.trim(),
       pnpm: runPnpm(['--version']).stdout.trim(),
       docker: runCommand(docker, ['--version']).stdout.trim(),
@@ -437,7 +492,7 @@ const main = async (): Promise<void> => {
         drizzleOrm: '0.45.2',
         drizzleKit: '0.31.10',
         pg: '8.22.0',
-        nestjs: '10.4.x',
+        nestjs: '10.4.22',
       },
     };
     const environment = {
@@ -459,8 +514,11 @@ const main = async (): Promise<void> => {
       ],
       credentials:
         'Local disposable PoC credentials are declared in compose.poc.yaml; no production secrets are used.',
-      nodeSupportLimitation:
-        'Host Node v26.4.0 is outside Prisma 7.8.0 documented supported majors (20.19+, 22.12+, 24.x). Commands completed, but results must be repeated on supported Node 24 before a production gate.',
+      runtimeValidationStatus: 'UNVALIDATED_ON_TARGET_NODE_LTS',
+      runtimeObservation:
+        'The only Node executable discovered for this correction run was v26.4.0. Node 24 LTS was not available, so no target-LTS claim is made.',
+      withdrawnClaim:
+        'WITHDRAWN: Prisma on Node 22 has behavior differences. No Node 22 run is part of this evidence.',
     };
 
     await writeJson('versions.json', versions);
@@ -469,6 +527,9 @@ const main = async (): Promise<void> => {
     await writeJson('schema-comparison.json', schemaComparison);
     await writeJson('drift-results.json', driftResults);
     await writeJson('test-summary.json', testSummary);
+    await writeJson(`${nodeEvidencePrefix}-versions.json`, versions);
+    await writeJson(`${nodeEvidencePrefix}-environment.json`, environment);
+    await writeJson(`${nodeEvidencePrefix}-test-summary.json`, testSummary);
     await writeJson('concurrency-results.json', {
       prisma: prismaResult.transactions.filter((item) =>
         ['concurrent-updates-bounded-retry', 'deadlock-detection'].includes(
@@ -509,6 +570,13 @@ const main = async (): Promise<void> => {
       join(packageRoot, 'shared/recovery.sql'),
       join(sqlResultsRoot, 'recovery.sql'),
     );
+    runPnpm([
+      'exec',
+      'prettier',
+      '--write',
+      'results/test-summary.json',
+      `results/${nodeEvidencePrefix}-test-summary.json`,
+    ]);
   } catch (error) {
     failed = error;
     process.stderr.write(
@@ -521,9 +589,17 @@ const main = async (): Promise<void> => {
     runCommand(docker, ['compose', '-f', 'compose.poc.yaml', 'down', '-v'], {
       expectedExitCodes: [0],
     });
+    const commandEvidence = `${commands
+      .map((command) => JSON.stringify(command))
+      .join('\n')}\n`;
     await writeFile(
       join(resultsRoot, 'commands.jsonl'),
-      `${commands.map((command) => JSON.stringify(command)).join('\n')}\n`,
+      commandEvidence,
+      'utf8',
+    );
+    await writeFile(
+      join(resultsRoot, `${nodeEvidencePrefix}-commands.jsonl`),
+      commandEvidence,
       'utf8',
     );
   }

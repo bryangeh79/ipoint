@@ -2,7 +2,7 @@
 
 # P0-S4A Reproducible ORM Evaluation
 
-This checked-in PoC compares Prisma ORM 7.8.0 and Drizzle ORM 0.45.2 against the same PostgreSQL 17 model and the same iPoint-critical failure scenarios. It is evidence for the Command Center gate; it does not select an ORM and must not be copied into `apps/api` as production integration.
+This checked-in PoC compares Prisma ORM 7.8.0 and Drizzle ORM 0.45.2 against the same PostgreSQL 17.10 model and the same iPoint-critical failure scenarios. It is evidence for the Command Center gate; it does not select an ORM and must not be copied into `apps/api` as production integration.
 
 ## Scope and safety
 
@@ -16,9 +16,11 @@ This checked-in PoC compares Prisma ORM 7.8.0 and Drizzle ORM 0.45.2 against the
 
 - Docker Engine with Compose
 - pnpm 9.15.9
-- A Prisma-supported Node release. Node 24 is recommended for reproducing the gate evidence.
+- Node 24 LTS for target-runtime gate validation.
 
-The recorded host used Node 26.4.0. Prisma 7.8.0 printed that its supported majors are 20.19+, 22.12+, and 24.x. All commands completed on Node 26, but this is a material limitation: repeat the final gate run on Node 24 before production selection.
+The correction host exposed only Node v26.4.0. The run is therefore `UNVALIDATED_ON_TARGET_NODE_LTS`; its independent runtime evidence uses `node-v26.4.0-*` filenames. Repeat the complete run on Node 24 LTS before treating the runtime evidence as target-validated. The earlier claim “Prisma on Node 22 has behavior differences” is `WITHDRAWN`; no Node 22 execution supports it.
+
+Lockfile/runtime versions used by the evidence are Node v26.4.0, Prisma 7.8.0, `@prisma/client` 7.8.0, Drizzle ORM 0.45.2, Drizzle Kit 0.31.10, `pg` 8.22.0, PostgreSQL 17.10, NestJS 10.4.22, and pnpm 9.15.9.
 
 ## Reproduction
 
@@ -89,22 +91,22 @@ Database migrations add defense-in-depth checks and an append-only ledger trigge
 | C Transaction   | Nested transaction/savepoint rolls back inner only | Prisma 7.8 nested `$transaction` pass           | Drizzle nested transaction pass                                                             |
 | C Transaction   | Wallet + ledger failure injection                  | Both writes rolled back                         | Both writes rolled back                                                                     |
 | C Transaction   | 10 serializable concurrent credits                 | 10 ledger rows / balance 10                     | 10 ledger rows / balance 10                                                                 |
-| C Transaction   | Bounded retry                                      | 45 conflicts, max 10 of 20 attempts             | 45 conflicts, max 10 of 20 attempts                                                         |
+| C Transaction   | Bounded retry                                      | PARTIAL: experimental bound 20; max 10 observed | PARTIAL: experimental bound 20; max 10 observed                                             |
 | C Transaction   | Deliberate deadlock                                | One SQLSTATE `40P01` victim                     | One SQLSTATE `40P01` victim                                                                 |
 | D Idempotency   | Same key repeat                                    | Same entry/result                               | Same entry/result                                                                           |
 | D Idempotency   | 16 concurrent callers                              | 1 result, 1 ledger, 0 duplicates                | 1 result, 1 ledger, 0 duplicates                                                            |
 | D Idempotency   | Same key/different payload                         | Rejected                                        | Rejected                                                                                    |
-| E Maker/Checker | Self-approval                                      | Rejected, remains PENDING                       | Rejected, remains PENDING                                                                   |
-| E Maker/Checker | Two concurrent checkers                            | Exactly one execution                           | Exactly one execution                                                                       |
-| E Maker/Checker | Repeat execution                                   | No second execution                             | No second execution                                                                         |
+| E Maker/Checker | Self-approval                                      | PARTIAL: rejected, remains PENDING              | PARTIAL: rejected, remains PENDING                                                          |
+| E Maker/Checker | Two concurrent checkers                            | PARTIAL: exactly one execution                  | PARTIAL: exactly one execution                                                              |
+| E Maker/Checker | Repeat execution                                   | PARTIAL: no second execution                    | PARTIAL: no second execution                                                                |
 | E Maker/Checker | State/action/audit evidence                        | PENDING→APPROVED→EXECUTED, 2 actions, 2 audits  | Same                                                                                        |
 | F Ledger        | Direct UPDATE/DELETE                               | Blocked                                         | Blocked                                                                                     |
 | F Ledger        | Compensating debit                                 | Original retained; wallet 20 = signed ledger 20 | Same                                                                                        |
-| G NestJS        | Startup/shutdown/DI                                | Pass                                            | Pass                                                                                        |
-| G NestJS        | Transaction propagation/isolation                  | Pass                                            | Pass                                                                                        |
-| G NestJS        | Connection cleanup                                 | 0 pool connections after close                  | 0 pool connections after close                                                              |
+| G NestJS        | Startup/shutdown/DI                                | PARTIAL: experimental module lifecycle pass     | PARTIAL: experimental module lifecycle pass                                                 |
+| G NestJS        | Transaction propagation/isolation                  | PARTIAL: lifecycle probe pass                   | PARTIAL: lifecycle probe pass                                                               |
+| G NestJS        | Connection cleanup                                 | PARTIAL: 0 pool connections after module close  | PARTIAL: 0 pool connections after module close                                              |
 
-All assertions in the recorded complete run passed. Exact identifiers and error payloads are in `results/test-summary.json`; timings and retries are observations from one machine, not benchmarks.
+All recorded assertion predicates passed, but the evidence status is deliberately narrower: retry policy, Maker/Checker production guarantees, final-schema equivalence, and NestJS production integration remain `PARTIAL`. Exact classifications, identifiers, and error payloads are in `results/test-summary.json`; timings and retries are observations from one machine, not benchmarks.
 
 ## Evidence index
 
@@ -119,10 +121,11 @@ All assertions in the recorded complete run passed. Exact identifiers and error 
 - `results/test-summary.json`: all domain and NestJS assertions.
 - `results/timing.json`: command and total run timings.
 - `results/known-failures.md`: failures found and corrected while making the PoC reproducible.
+- `results/node-v26.4.0-*.json` and `results/node-v26.4.0-commands.jsonl`: independent evidence tied to the actual runtime.
 
 ## Limitations and gate posture
 
-1. The host Node major is outside Prisma's supported range; repeat on Node 24.
+1. The run is `UNVALIDATED_ON_TARGET_NODE_LTS`; repeat the complete PoC on Node 24 LTS.
 2. Neither tested deployment/status command detected an applied SQL file modified only by a comment. CI must checksum immutable migration files independently.
 3. Drizzle Kit stable did not provide an established non-mutating live-schema diff command; the PoC used PostgreSQL catalog comparison.
 4. Destructive recovery recreates structure but cannot reconstruct data. Production destructive migration requires backup/restore rehearsal and explicit approval.
