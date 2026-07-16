@@ -14,7 +14,7 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Phase** | **P0-S9** | IN_PROGRESS under D-008 final integration authorization |
+| **Current Authorized Phase** | **NONE** | Phase 0 is CLOSED and APPROVED under D-009 |
 | **P0-S1** | **COMPLETE** | Repository audit completed |
 | **P0-S2** | **COMPLETE** | Phase 0 application shells completed |
 | **P0-S3** | **COMPLETE** | Backend foundation independently re-validated after D-005 |
@@ -28,7 +28,7 @@
 | **Batch B** | **APPROVED** | D-008 accepts remote head `fb3478f5e12724a837ece025024a375c673dc7ac` |
 | **P0-S7** | **COMPLETE** | Accepted under D-008 |
 | **P0-S8** | **COMPLETE** | Accepted under D-008 |
-| **P0-S9** | **IN_PROGRESS** | Final integration, audit, and acceptance verification under D-008 |
+| **P0-S9** | **COMPLETE** | Final integration, audit, and acceptance completed under D-009 |
 
 ---
 
@@ -49,7 +49,7 @@
 | **Batch B** | P0-S7 Design System foundation and P0-S8 testing/CI/local environment | **APPROVED** | D-008 recorded |
 | **P0-S7** | Design System foundation | **COMPLETE** | D-008 accepted |
 | **P0-S8** | Testing, CI, and local environment | **COMPLETE** | D-008 accepted |
-| **P0-S9** | Phase 0 final integration, audit, and acceptance | **IN_PROGRESS** | Final evidence and GitHub CI required |
+| **P0-S9** | Phase 0 final integration, audit, and acceptance | **COMPLETE** | Final acceptance completed under D-009 |
 
 ---
 
@@ -59,7 +59,8 @@
 
 | Phase | Scope | Status | Notes |
 |---|---|---|---|
-| **Phase 0** | General ledger technical skeleton, DB foundation, Auth framework, RBAC, Market module, Audit infrastructure, Design System tokens | **PENDING** | P0-S9 final acceptance verification in progress; ChatGPT decision required |
+| **Phase 0** | General ledger technical skeleton, DB foundation, Auth framework, RBAC, Market module, Audit infrastructure, Design System tokens | **APPROVED** | Final acceptance approved under D-009 |
+| **Phase 0 closure** | Final integration, audit, acceptance, and governance closure | **CLOSED** | Closed under D-009; Phase 1 requires new authorization |
 | **Phase 1** | Merchant Onboarding + MCP Ledger | **NOT_AUTHORIZED** | Awaiting Big Phase Brief |
 | **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, wallet shell, referral) | **NOT_AUTHORIZED** | Will be authorized after Phase 1 |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **NOT_AUTHORIZED** | Note: renamed from original Roadmap sequence per C-01 |
@@ -77,27 +78,27 @@
 
 ## Current allowed actions
 
-- ✅ Read and analyze project documentation and existing Phase 0 evidence
-- ✅ Execute P0-S9 final integration audit and acceptance verification
-- ✅ Run the complete local quality, API, database, E2E, migration, checksum, seed-idempotency, and drift gates
-- ✅ Push P0-S9 governance and evidence commits to `origin/phase/0-engineering-foundation`
-- ✅ Update PR #4 description and poll GitHub Actions to completion
-- ✅ Append Decision Log entries only when a new decision is issued
-- ✅ Update PHASE_REGISTRY.md as authorized status decisions arrive
-- ✅ Escalate ORM evidence gaps, conflicts, and open questions
+- ✅ Read and analyze project documentation and accepted Phase 0 evidence
+- ✅ Commit and push the D-009 governance closure to `origin/phase/0-engineering-foundation`
+- ✅ Poll the Phase 0 branch CI and verify all required jobs succeed
+- ✅ Mark PR #4 ready for review after the branch CI succeeds
+- ✅ Squash merge PR #4 to `main` only after every authorized merge gate passes
+- ✅ Poll and verify the post-merge `main` CI
+- ✅ Append Decision Log entries and update this registry only when a new decision is issued
 
 ## Current prohibited actions
 
-- ❌ Start Phase 1 or work outside P0-S9 final acceptance scope
+- ❌ Start Phase 1, create a Phase 1 branch, or perform any Phase 1 work without a new ChatGPT Command Center authorization
 - ❌ Use OpenClaw sub-agents for engineering execution or accept invalidated sub-agent output as evidence
-- ❌ Modify files outside the currently authorized scope
+- ❌ Modify files outside the authorized Phase 0 governance closure scope
 - ❌ Change LOCKED business rules
 - ❌ Hard-code CONFIGURABLE values
 - ❌ Implement DEFERRED modules
 - ❌ Invent behavior for OPEN questions
 - ❌ Delete, clean, stash, or batch-add untracked files
-- ❌ Announce Phase completion without ChatGPT approval
+- ❌ Modify Merchant business schema or implement Merchant onboarding
+- ❌ Force push, rewrite `main` history, or use an ordinary merge or rebase merge for PR #4
 
 ---
 
-*Last updated: 2026-07-16 | Updated by: Codex CLI | Based on decisions D-001, D-002, D-003, D-004, D-005, D-006, D-007, D-008 and current ChatGPT Command Center authorization*
+*Last updated: 2026-07-16 | Updated by: Codex CLI | Based on decisions D-001, D-002, D-003, D-004, D-005, D-006, D-007, D-008, D-009 and the ChatGPT Command Center Phase 0 Final Acceptance Decision*

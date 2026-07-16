@@ -157,4 +157,23 @@
 | **Basis** | P0-S9 — Phase 0 Final Integration, Audit & Acceptance authorization (2026-07-16) |
 | **Status** | **APPROVED** |
 
+---
+
+## D-009: Phase 0 final acceptance and closure
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-009 |
+| **Date** | 2026-07-16 |
+| **Source** | ChatGPT Command Center — Phase 0 Final Acceptance Decision |
+| **Old Rule** | Phase 0 PENDING, P0-S9 IN_PROGRESS |
+| **New Decision** | Accept Phase 0 at PR #4 head `f9706c4bd4719a180cd83953d3c1ca94bda9eef4`. GitHub CI both runs SUCCESS. P0-S9 COMPLETE. Phase 0 APPROVED and CLOSED. Phase 1 requires new authorization. |
+| **Reason** | All sub-phases complete, full audit passed, all verification gates passed, CI SUCCESS, no business leakage |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, docs/06-phase-reports/PHASE_0_FINAL_ACCEPTANCE_REPORT.md, PR #4 |
+| **Affected Phases** | P0-S9, Phase 0 |
+| **Migration** | NONE |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | Phase 0 Final Acceptance Decision (2026-07-16) |
+| **Status** | **APPROVED** |
+
 *— End of current entries. New decisions must be appended below —*
