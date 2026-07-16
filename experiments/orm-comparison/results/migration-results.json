@@ -34,7 +34,7 @@
     "drizzle": {
       "changedAppliedSqlDetected": false,
       "exitCode": 0,
-      "observation": "Reading config file 'C:\\AI_WORKSPACE\\ipoint-p0-s4a-poc\\experiments\\orm-comparison\\drizzle\\drizzle.config.ts'\nUsing 'pg' driver for database querying\n[⣷] applying migrations...\u001b[2K\u001b[1G[✓] migrations applied successfully!"
+      "observation": "Reading config file 'C:\\AI_WORKSPACE\\iPoint App\\experiments\\orm-comparison\\drizzle\\drizzle.config.ts'\nUsing 'pg' driver for database querying\n[⣷] applying migrations...\u001b[2K\u001b[1G[✓] migrations applied successfully!"
     }
   }
 }

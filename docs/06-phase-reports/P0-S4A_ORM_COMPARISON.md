@@ -45,18 +45,18 @@ pnpm orm-poc
 
 **[POC]** Package/runtime baseline:
 
-| Component                             | Version |
-| ------------------------------------- | ------- |
-| Prisma / client / PG adapter          | 7.8.0   |
-| Drizzle ORM                           | 0.45.2  |
-| Drizzle Kit                           | 0.31.10 |
-| node-postgres                         | 8.22.0  |
-| NestJS experimental provider baseline | 10.4.22 |
-| pnpm                                  | 9.15.9  |
-| Docker                                | 29.3.1  |
-| Host Node                             | v26.4.0 |
+| Component                             | Version  |
+| ------------------------------------- | -------- |
+| Prisma / client / PG adapter          | 7.8.0    |
+| Drizzle ORM                           | 0.45.2   |
+| Drizzle Kit                           | 0.31.10  |
+| node-postgres                         | 8.22.0   |
+| NestJS experimental provider baseline | 10.4.22  |
+| pnpm                                  | 9.15.9   |
+| Docker                                | 29.3.1   |
+| Validated target Node                 | v24.18.0 |
 
-**[LIMITATION]** The correction host exposed only Node v26.4.0. The evidence is `UNVALIDATED_ON_TARGET_NODE_LTS`; a complete repeat on Node 24 LTS is still required for target-runtime validation. Runtime-specific evidence is retained in `results/node-v26.4.0-*` files.
+**[POC]** P0-S4B repeated the complete PoC on Node v24.18.0. All assertions passed and runtime-specific evidence is retained in `results/node-v24.18.0-*` files. The earlier Node v26.4.0 evidence remains retained as historical evidence.
 
 **[WITHDRAWN]** “Prisma on Node 22 has behavior differences.” No Node 22 execution exists in this evidence set, so the claim has no evidentiary basis.
 
@@ -235,7 +235,7 @@ Prisma remains a strong fit for CRUD-heavy modules, teams prioritizing generated
 
 ### Confidence
 
-**MEDIUM.** Functional evidence is strong for both ORMs, but Node 24 LTS is not available on this host, production authorization is not tested, the retry policy is experimental, and neither production CI migration policy nor long-duration maintenance evidence exists.
+**MEDIUM.** Functional evidence is strong for both ORMs and Node 24 LTS validation now passes, but production authorization is not tested, the retry policy is experimental, and long-duration maintenance evidence does not yet exist.
 
 ## 12. Evidence files
 
@@ -255,6 +255,10 @@ Prisma remains a strong fit for CRUD-heavy modules, teams prioritizing generated
 - `experiments/orm-comparison/results/node-v26.4.0-environment.json`
 - `experiments/orm-comparison/results/node-v26.4.0-test-summary.json`
 - `experiments/orm-comparison/results/node-v26.4.0-versions.json`
+- `experiments/orm-comparison/results/node-v24.18.0-commands.jsonl`
+- `experiments/orm-comparison/results/node-v24.18.0-environment.json`
+- `experiments/orm-comparison/results/node-v24.18.0-test-summary.json`
+- `experiments/orm-comparison/results/node-v24.18.0-versions.json`
 - `experiments/orm-comparison/results/GATE_EVIDENCE_INDEX.md`
 
 ## 13. Gate verification
@@ -268,14 +272,14 @@ Prisma remains a strong fit for CRUD-heavy modules, teams prioritizing generated
 | `pnpm typecheck`                                                                                       | PASS                                                                                                                    |
 | `pnpm build`                                                                                           | PASS                                                                                                                    |
 | `pnpm test`                                                                                            | PASS: 7 files, 33 tests                                                                                                 |
-| `pnpm orm-poc`                                                                                         | PASS on Node v26.4.0; `UNVALIDATED_ON_TARGET_NODE_LTS`                                                                  |
+| `pnpm orm-poc`                                                                                         | PASS on target Node v24.18.0; all PoC assertions passed                                                                 |
 | `git diff --check`                                                                                     | PASS                                                                                                                    |
 
 ## 14. ORM Gate decision
 
 ChatGPT Command Center selected `APPROVE_DRIZZLE` and recorded the production-baseline requirements in D-006. Prisma was evaluated but not selected. PostgreSQL remains the source of truth, decimal values use `numeric`, migrations require explicit reviewable SQL and mandatory checksums, applied migration recovery is forward-fix, and ledger immutability remains a database/application design responsibility.
 
-Node 24 LTS was not available on this host. The evidence remains `UNVALIDATED_ON_TARGET_NODE_LTS`, and P0-S4B must not be marked complete until the complete PoC passes on Node 24 LTS.
+P0-S4B repeated the complete PoC on target Node v24.18.0. All assertions passed, the disposable containers were removed, and the D-006 target-runtime validation condition is satisfied for review.
 
 ---
 

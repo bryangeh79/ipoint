@@ -9,7 +9,15 @@ const typedRules = tseslint.configs.recommendedTypeChecked.map((config) => ({
 }));
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/coverage/**', '**/playwright-report/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      '**/playwright-report/**',
+      '.git/**',
+      '.local/**',
+    ],
+  },
   eslint.configs.recommended,
   ...typedRules,
   prettier,
