@@ -16,7 +16,7 @@ This plan defines evidence for a future authorized Phase 1 implementation. P1-S1
 
 | Module        | Required targets                                                                                                                                                                                |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Merchant      | Public Merchant ID uniqueness, immutable login email, KYC submit/reject/resubmit, activation conditions, valid transitions, suspension/closure behavior, group reservation non-behavior         |
+| Merchant      | MerchantGroup ownership/default creation, public Merchant ID uniqueness, immutable Account email, independent Application/KYC/Operational transitions, activation policy, suspension/closure behavior |
 | Package       | Exact decimal validation, non-overlapping versions, effective resolution, standard/special exclusive assignment, default selection, last-active pause rejection, pending-change behavior        |
 | MCP           | Direction/delta table, exact arithmetic, idempotency payload mismatch, negative-balance rejection, reversal rules, freeze/unfreeze projection, maker/checker separation, no-threshold invariant |
 | RBAC          | Permission deny-by-default, active role/account/market checks, entity/header market mismatch, merchant ownership isolation                                                                      |
@@ -26,6 +26,10 @@ This plan defines evidence for a future authorized Phase 1 implementation. P1-S1
 
 - Fresh `0000 -> 0001 -> 0002` and upgrade-from-`0001`; idempotent migrate/seed/checksum/drift.
 - Foreign keys, unique/exclusion/check constraints and append-only triggers.
+- Account owns MerchantGroup, MerchantGroup owns many branches, single-branch registration creates a default group, and no unique constraint exists on a branch Account ID.
+- Application Review changes only Application Status; KYC Review changes only KYC Status; activation policy derives Operational Status.
+- Approved Application + approved KYC + MCP >= 100 derives `ACTIVE`; suspension/reactivation affect only Operational Status and suspension preserves MCP.
+- Append-only tables reject `UPDATE` and `DELETE`, contain no soft-delete column, and use compensation instead of mutation.
 - Atomic KYC review/status history/audit/timeline.
 - Concurrent activation versus suspension/closure; optimistic-version conflict.
 - Concurrent package default/pause operations leave exactly one active default.
@@ -42,7 +46,7 @@ This plan defines evidence for a future authorized Phase 1 implementation. P1-S1
 
 1. Merchant registers and accepts versioned terms/disclaimer.
 2. Merchant submits profile, KYC and private document metadata.
-3. Admin with correct permission and market access approves KYC.
+3. Admin with correct permission and market access independently approves the application and KYC.
 4. Merchant submits recharge request; authorized Admin approves; one MCP credit posts.
 5. Merchant becomes Active when configured activation condition is met.
 6. Admin assigns approved service-fee version; merchant sees active/default profile.
@@ -56,9 +60,12 @@ This plan defines evidence for a future authorized Phase 1 implementation. P1-S1
 - Duplicate recharge callback/request does not duplicate credit.
 - Maker attempts own approval: denied; both Credit and Debit covered at small and large amounts.
 - Refund review produces no bank/gateway movement.
-- Group ID never grants cross-branch access or shared MCP.
+- MerchantGroup ownership grants access only through explicit group/branch ownership checks; it grants no group-level permissions, shared MCP or group settlement.
+- `PATCH /merchant/me/profile` with `primary_email`, `login_email` or equivalent is rejected and leaves Account email unchanged.
+- Admin cannot modify Merchant primary email through profile or merchant-management inputs.
+- Suspend and reactivate leave Application/KYC statuses and MCP position unchanged; reactivation deterministically reevaluates Operational Status.
 
-Transaction/QR/receipt completion is a later-phase E2E and must not be faked in Phase 1.
+Transaction/QR completion is a later-phase E2E and must not be faked in Phase 1.
 
 ## 5. Admin PRD AC mapping
 
@@ -81,8 +88,8 @@ Transaction/QR/receipt completion is a later-phase E2E and must not be faked in 
 
 | Merchant requirement                           | Phase 1 acceptance                                                                  |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Registration/KYC/profile                       | Golden path + rejection/resubmission + private file checks                          |
-| KYC Approved + initial MCP condition -> Active | Activation integration/E2E; condition is configurable policy, not scattered literal |
+| Registration/KYC/profile                       | Default MerchantGroup + branch ownership, split reviews, rejection/resubmission, immutable email and private file checks |
+| Application Approved + KYC Approved + MCP >= 100 -> Active | Deterministic activation integration/E2E; suspend/reactivate affect only Operational Status |
 | One branch = one Merchant ID                   | Unique/public-ID and isolation tests                                                |
 | Multiple profiles/default/pause                | Package unit/integration tests; last active cannot pause                            |
 | MCP wallet/ledger/top-up/refund                | Exact, idempotent, immutable foundation tests                                       |

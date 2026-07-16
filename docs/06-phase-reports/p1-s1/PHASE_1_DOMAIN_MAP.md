@@ -15,15 +15,15 @@ Phase 1 remains a modular monolith. Domains may call published application inter
 
 ## 2. Merchant Domain
 
-**Purpose and boundary.** Own merchant registration, branch identity, profile, KYC evidence, lifecycle, referral and consent. It does not own package rate definitions, MCP postings, member purchases, QR, receipts, advertising, commission or payout.
+**Purpose and boundary.** Own merchant registration, group ownership, branch identity, profile, KYC evidence, application review, operational lifecycle, referral and consent. It does not own package rate definitions, MCP postings, member purchases, QR, advertising, commission or payout.
 
-**Entities.** `MerchantGroup` (nullable `group_id` reservation only), `MerchantBranch`, `MerchantProfile`, `MerchantApplication`, `MerchantKYC`, `MerchantDocument`, `MerchantStatusHistory`, `MerchantReferral`, `MerchantTermsAcceptance`.
+**Entities.** `MerchantGroup`, `MerchantBranch`, `MerchantProfile`, `MerchantApplication`, `MerchantKycSubmission`, `MerchantKycReview`, `MerchantDocument`, `MerchantStatusHistory`, `MerchantReferral`, `MerchantTermsAcceptance`.
 
-**Invariants.** One branch has one unique, never-reused Merchant ID and one market. Group association cannot grant permissions or share MCP. Login email is immutable. The approved Merchant baseline requires KYC approval plus the initial 100 MCP activation condition; the value must be represented as a centralized market-aware policy, not scattered literals. After activation, MCP may fall below 100 if current operations remain otherwise eligible. Suspended/closed merchants retain history and MCP. KYC documents are private metadata references.
+**Invariants.** An Account owns a MerchantGroup; a MerchantGroup belongs to one market and owns many MerchantBranches. Every merchant, including a single-branch merchant, receives a default group. Branches do not have a unique Account ownership constraint. Group association grants no group-level permission and provides no shared MCP or group-level settlement. One branch has one unique, never-reused Merchant ID and one market matching its group. Merchant primary email is the immutable Account email; Merchant Profile has no separate modifiable email. Phone, WhatsApp and website may change, while a public support email remains a future independent product decision. Application, KYC and Operational statuses are independent. KYC approval plus MCP >= 100 deterministically activates the merchant; after activation MCP may fall below 100. Suspension/reactivation changes only Operational Status, and suspension preserves MCP. Suspended/closed merchants retain history and MCP. KYC documents and submission snapshots are immutable private metadata references.
 
 **Phase 0 dependencies.** `accounts`, credentials/sessions/OTP, `markets`, Admin actors, RBAC, audit logs and entity timelines.
 
-**Published interfaces.** `getMerchantBranch`, `assertMerchantOwnership`, `submitApplication`, `submitKyc`, `reviewKyc`, `transitionMerchantStatus`, `recordTermsAcceptance`, and events such as `MerchantKycApproved`, `MerchantActivated`, `MerchantSuspended`, `MerchantClosed`.
+**Published interfaces.** `getMerchantGroup`, `getMerchantBranch`, `assertMerchantGroupOwnership`, `submitApplication`, `reviewApplication`, `submitKyc`, `reviewKyc`, `evaluateOperationalStatus`, `suspendMerchant`, `reactivateMerchant`, `recordTermsAcceptance`, and events such as `MerchantApplicationApproved`, `MerchantKycApproved`, `MerchantActivated`, `MerchantSuspended`, `MerchantClosed`.
 
 **Other-domain interfaces.** Reads package eligibility from Package Domain and MCP eligibility/balance from MCP Domain. It cannot post ledger entries itself.
 
@@ -33,7 +33,7 @@ Phase 1 remains a modular monolith. Domains may call published application inter
 
 **Entities.** `ServiceFeeProfile`, `ServiceFeePackageVersion`, `SpecialPercentage`, `MerchantPackageAssignment`.
 
-**Invariants.** A-F are stable package codes; their percentages are configurable version data. Effective ranges for the same profile/market cannot overlap. Used versions are immutable. An assignment references exactly one standard version or special percentage. One active assignment is default; paused profiles are not selectable; the last active assignment cannot be paused. `PendingChange` never changes historical assignments or rates retroactively.
+**Invariants.** A-F are stable package codes with recorded values 2.5/5/10/15/20/25. Effective ranges for the same profile/market cannot overlap. Used versions are immutable. An assignment references exactly one standard version or special percentage. Special percentage uses `numeric(12,6)` and must be greater than zero. Its maximum, business increment and approval threshold remain OPEN per O-07; P1-S2 production validation is blocked until Command Center decides them. One active assignment is default; paused profiles are not selectable; the last active assignment cannot be paused. `PendingChange` never changes historical assignments or rates retroactively.
 
 **Phase 0 dependencies.** `markets`, Admin RBAC, audit/timeline, exact-decimal utility.
 

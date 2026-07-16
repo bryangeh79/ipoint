@@ -11,7 +11,7 @@ date: 2026-07-16
 
 ## 1. Guard strategy
 
-- Merchant endpoints use existing `AuthGuard` plus a future `MerchantBranchGuard` that binds the authenticated account to the route branch and verifies market/status capability.
+- Merchant endpoints use existing `AuthGuard` plus a future `MerchantGroupOwnershipGuard` that resolves the authenticated Account's MerchantGroup and verifies the target branch belongs to that group and market.
 - Admin endpoints use `AuthGuard` + existing `RbacGuard` + `RequirePermission(code, { marketScoped: true })`.
 - The server resolves the target entity's `market_id`; it rejects any route/header mismatch and never trusts `X-Market-Id` alone.
 - Critical writes require `Idempotency-Key`; all responses use the existing request-ID/error-envelope conventions.
@@ -21,13 +21,13 @@ date: 2026-07-16
 
 | Method and path                                         | Purpose                                       | Auth/permission                                  | Market/ownership scope            | Idempotency |
 | ------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------ | --------------------------------- | ----------- |
-| `POST /merchant/registrations`                          | Create account/application/branch draft       | Public rate-limited + verified registration flow | Market code validated server-side | Required    |
+| `POST /merchant/registrations`                          | Create account/default group/application/branch draft | Public rate-limited + verified registration flow | Market code validated server-side | Required    |
 | `POST /merchant/registrations/:id/terms-acceptances`    | Accept terms/disclaimer version               | Auth + application ownership                     | Application market                | Required    |
 | `GET /merchant/me/application`                          | View onboarding state                         | Auth + branch ownership                          | Own branch only                   | No          |
 | `POST /merchant/me/kyc/submissions`                     | Submit/resubmit KYC snapshot                  | Auth + branch ownership                          | Own branch/market                 | Required    |
 | `POST /merchant/me/documents/upload-intents`            | Request private upload intent                 | Auth + branch ownership                          | Own KYC/market                    | Required    |
 | `GET /merchant/me/profile`                              | View profile                                  | Auth + branch ownership                          | Own branch                        | No          |
-| `PATCH /merchant/me/profile`                            | Update display profile                        | Auth + branch ownership                          | Own branch; login email excluded  | Required    |
+| `PATCH /merchant/me/profile`                            | Update display profile                        | Auth + group/branch ownership                    | Phone/WhatsApp/website allowed; any primary/login email input rejected | Required    |
 | `GET /merchant/me/service-fee-profiles`                 | List assignments/versions                     | Auth + branch ownership                          | Own branch                        | No          |
 | `POST /merchant/me/service-fee-profiles/:id/pause`      | Pause assignment                              | Auth + branch ownership                          | Own branch; last-active guard     | Required    |
 | `POST /merchant/me/service-fee-profiles/:id/resume`     | Resume assignment                             | Auth + branch ownership                          | Own branch/effective version      | Required    |
@@ -44,9 +44,10 @@ date: 2026-07-16
 | ------------------------------------------------------------------------------------- | --------------------------- | ---------------------------------- | -------------------------------------------------- |
 | `GET /admin/markets/:marketId/merchants`                                              | `merchant.view`             | Active grant required              | Paginated/filterable                               |
 | `GET /admin/markets/:marketId/merchants/:merchantId`                                  | `merchant.view`             | Route, entity and grant must match | Mask sensitive fields                              |
-| `POST /admin/markets/:marketId/merchants/:merchantId/kyc/approve`                     | `merchant.approve`          | Required                           | Reason/audit; no maker/checker                     |
-| `POST /admin/markets/:marketId/merchants/:merchantId/kyc/reject`                      | `merchant.approve`          | Required                           | Rejection reason mandatory                         |
-| `POST /admin/markets/:marketId/merchants/:merchantId/activate`                        | `merchant.approve`          | Required                           | KYC + initial MCP guard                            |
+| `POST /admin/markets/:marketId/merchants/:merchantId/application/approve`             | `merchant.approve`          | Required                           | Determines only Application Status; append-only decision evidence |
+| `POST /admin/markets/:marketId/merchants/:merchantId/application/reject`              | `merchant.approve`          | Required                           | Determines only Application Status; reason mandatory |
+| `POST /admin/markets/:marketId/merchants/:merchantId/kyc/approve`                     | `merchant.approve`          | Required                           | Determines only KYC Status; append-only decision evidence |
+| `POST /admin/markets/:marketId/merchants/:merchantId/kyc/reject`                      | `merchant.approve`          | Required                           | Determines only KYC Status; rejection reason mandatory |
 | `POST /admin/markets/:marketId/merchants/:merchantId/suspend`                         | `merchant.suspend`          | Required                           | Reason mandatory; preserves MCP                    |
 | `POST /admin/markets/:marketId/merchants/:merchantId/reactivate`                      | `merchant.suspend`          | Required                           | Reason/audit                                       |
 | `POST /admin/markets/:marketId/merchants/:merchantId/close`                           | `merchant.close`            | Required                           | No payout side effect                              |
@@ -97,4 +98,13 @@ Roles are assignments of permissions, not authorization shortcuts. Super Admin s
 
 ## 6. Deferred endpoints
 
-No purchase transaction, QR scan, receipt creation/claim, advertising, production payment webhook/refund, payout, member wallet, reward, commission or redemption endpoint is authorized in Phase 1. A future gateway callback route requires separate provider/security approval.
+No purchase transaction, QR scan, advertising, production payment webhook/refund, payout, member wallet, reward, commission or redemption endpoint is authorized in Phase 1. A future gateway callback route requires separate provider/security approval.
+
+## 7. Email immutability contract
+
+- Merchant primary email is always the Account email and is immutable.
+- Merchant Profile has no separately modifiable `contact_email`, `primary_email` or login-email field.
+- Merchant and Admin profile/update inputs containing any primary or login email field are rejected; silently ignoring the field is not acceptable.
+- Admin has no endpoint or exception path to modify Merchant primary email.
+- Phone, WhatsApp and website remain modifiable profile fields. A public support email is a future independent product decision and has no Phase 1 field or endpoint.
+- Operational activation has no manual endpoint: approved Application + approved KYC + MCP >= 100 deterministically derives `ACTIVE`; suspend/reactivate affect Operational Status only and preserve MCP.
