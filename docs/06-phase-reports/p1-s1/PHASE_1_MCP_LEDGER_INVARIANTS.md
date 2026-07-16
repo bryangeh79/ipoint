@@ -26,7 +26,6 @@ date: 2026-07-16
 | Entry type           | Direction          |   Total balance delta | Available balance effect        | Required source                                |
 | -------------------- | ------------------ | --------------------: | ------------------------------- | ---------------------------------------------- |
 | Recharge             | CREDIT             |             `+amount` | Increase                        | Completed recharge request / verified callback |
-| TransactionDeduction | DEBIT              |             `-amount` | Decrease                        | Future authorized transaction snapshot         |
 | AdvertisingDeduction | DEBIT              |             `-amount` | Decrease                        | Future authorized advertising charge           |
 | ManualCredit         | CREDIT             |             `+amount` | Increase                        | Executed approved adjustment                   |
 | ManualDebit          | DEBIT              |             `-amount` | Decrease                        | Executed approved adjustment                   |

@@ -10,8 +10,6 @@ date: 2026-07-16
 
 | Deferred item                  | Phase 1 permitted boundary               | Explicitly prohibited now                                    | Revisit gate                                             |
 | ------------------------------ | ---------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------- |
-| Transaction Engine             | No Phase 1 table, enum, endpoint or runtime behavior | All transaction execution and related runtime behavior | Authorized later phase |
-| MCP sale deduction             | Reserve enum/type and future port only   | Any live transaction debit                                   | Transaction Engine                                       |
 | iPoint reward                  | No coupling from MCP                     | Entitlement, wallet credit, 00:00 job                        | iPoint Reward phase                                      |
 | Wallet engine                  | MCP account only; no member wallet       | iPoint wallet/balance/ledger                                 | iPoint Wallet phase                                      |
 | Commission                     | Reference boundary only                  | Calculation, entitlement, posting                            | Agent & Commission phase                                 |

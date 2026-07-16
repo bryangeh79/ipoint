@@ -106,7 +106,6 @@ export const assignmentState = pgEnum('merchant_package_assignment_state', [
 export const direction = pgEnum('mcp_direction', ['CREDIT', 'DEBIT']);
 export const mcpEntryType = pgEnum('mcp_entry_type', [
   'RECHARGE',
-  'TRANSACTION_DEDUCTION',
   'ADVERTISING_DEDUCTION',
   'MANUAL_CREDIT',
   'MANUAL_DEBIT',

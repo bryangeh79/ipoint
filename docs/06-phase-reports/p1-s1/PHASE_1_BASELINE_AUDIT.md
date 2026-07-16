@@ -77,7 +77,7 @@ The accepted Phase 0 schema guard rejects `member`, `merchant`, `wallet`, `commi
 
 - no Merchant/KYC/package/MCP production tables;
 - no MCP ledger or balance implementation;
-- no transaction, receipt, payment, refund, storage, messaging, AI, or external provider integration;
+- no transaction, payment, refund, storage, messaging, AI, or external provider integration;
 - only generic decimal helpers and an isolated ORM comparison experiment exist outside production paths;
 - Merchant/Member apps are placeholder shells.
 
