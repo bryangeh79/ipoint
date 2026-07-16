@@ -1,0 +1,21 @@
+# Historical governance and generated dependency artifacts are retained verbatim.
+AGENTS.md
+docs/00-master/BASELINE_ACKNOWLEDGMENT_V1.1.md
+docs/00-master/DECISION_LOG.md
+docs/00-master/DOCUMENT_AUTHORITY.md
+docs/00-master/OPEN_QUESTIONS.md
+docs/00-master/OPENCLAW_OPERATING_RULES.md
+docs/00-master/PHASE_REGISTRY.md
+docs/04-engineering/05_iPoint_Engineering_Standards_and_Git_Workflow_V1.0.md
+docs/06-phase-reports/P0-S1_REPOSITORY_AUDIT_REPORT.md
+pnpm-lock.yaml
+
+# Local acceptance worktrees, evidence, caches, and operator notes are not source files.
+.acceptance-evidence/
+.acceptance/
+.local/
+Concept/
+memory/
+tasks/
+DECISIONS.md
+GEMINI.md

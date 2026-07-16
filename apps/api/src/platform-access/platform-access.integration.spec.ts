@@ -8,7 +8,7 @@ import {
   migrate,
   roles,
 } from '@ipoint/database';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import type { ConfigService } from '../config/config.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { AccessAdministrationService } from './access-administration.service.js';
@@ -122,6 +122,20 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
         permission: 'market.manage',
       }),
     ).resolves.toBe(false);
+    await database.db
+      .update(adminUsers)
+      .set({ status: 'SUSPENDED' })
+      .where(eq(adminUsers.id, subjectAdminUserId));
+    await expect(
+      rbac.isAllowed({
+        adminUserId: subjectAdminUserId,
+        permission: 'audit.view',
+      }),
+    ).resolves.toBe(false);
+    await database.db
+      .update(adminUsers)
+      .set({ status: 'ACTIVE' })
+      .where(eq(adminUsers.id, subjectAdminUserId));
 
     await administration.grantMarketAccess(subjectAdminUserId, marketId, {
       adminUserId: actorAdminUserId,
@@ -144,6 +158,28 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
         marketId,
       }),
     ).resolves.toBe(true);
+
+    const otherMarket = await marketsService.create(
+      {
+        code: `T${randomUUID().replaceAll('-', '').slice(0, 5)}`,
+        name: 'Other Market',
+        currencyCode: 'SGD',
+        timezone: 'Asia/Singapore',
+        defaultLocale: 'en-SG',
+      },
+      { adminUserId: actorAdminUserId, reason: 'Cross-market denial test' },
+    );
+    await marketsService.setStatus(otherMarket.id, 'ACTIVE', {
+      adminUserId: actorAdminUserId,
+      reason: 'Cross-market denial test',
+    });
+    await expect(
+      rbac.isAllowed({
+        adminUserId: subjectAdminUserId,
+        permission: 'audit.view',
+        marketId: otherMarket.id,
+      }),
+    ).resolves.toBe(false);
   });
 
   it('revokes market and role access immediately', async () => {
@@ -177,6 +213,7 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
 
   it('redacts privileged before/after values and appends an entity timeline', async () => {
     const entityId = randomUUID();
+    const requestId = randomUUID();
     await audit.recordPrivilegedAction({
       actor: { type: 'ADMIN_USER', id: actorAdminUserId },
       action: 'foundation.redaction.test',
@@ -184,20 +221,57 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
       before: { password: 'old-password', safe: 'before' },
       after: { nested: { accessToken: 'token-value', safe: 'after' } },
       result: 'SUCCESS',
+      requestId,
       summary: 'Redaction verified.',
     });
     const auditRows = await database.db
-      .select({ before: auditLogs.before, after: auditLogs.after })
+      .select({
+        actorType: auditLogs.actorType,
+        actorId: auditLogs.actorId,
+        action: auditLogs.action,
+        entityType: auditLogs.entityType,
+        entityId: auditLogs.entityId,
+        requestId: auditLogs.requestId,
+        occurredAt: auditLogs.occurredAt,
+        before: auditLogs.before,
+        after: auditLogs.after,
+      })
       .from(auditLogs)
       .where(eq(auditLogs.entityId, entityId));
-    expect(auditRows[0]).toEqual({
+    expect(auditRows[0]).toMatchObject({
+      actorType: 'ADMIN_USER',
+      actorId: actorAdminUserId,
+      action: 'foundation.redaction.test',
+      entityType: 'test_entity',
+      entityId,
+      requestId,
       before: { password: '[REDACTED]', safe: 'before' },
       after: { nested: { accessToken: '[REDACTED]', safe: 'after' } },
     });
+    expect(auditRows[0]?.occurredAt).toBeInstanceOf(Date);
+    await audit.recordPrivilegedAction({
+      actor: { type: 'ADMIN_USER', id: actorAdminUserId },
+      action: 'foundation.ordering.test',
+      entity: { type: 'test_entity', id: entityId },
+      result: 'SUCCESS',
+      requestId,
+      summary: 'Timeline ordering verified.',
+    });
     const timelineRows = await database.db
-      .select({ id: entityTimelines.id })
+      .select({
+        eventType: entityTimelines.eventType,
+        occurredAt: entityTimelines.occurredAt,
+      })
       .from(entityTimelines)
-      .where(eq(entityTimelines.entityId, entityId));
-    expect(timelineRows).toHaveLength(1);
+      .where(eq(entityTimelines.entityId, entityId))
+      .orderBy(asc(entityTimelines.occurredAt));
+    expect(timelineRows).toHaveLength(2);
+    expect(timelineRows.map((row) => row.eventType)).toEqual([
+      'foundation.redaction.test',
+      'foundation.ordering.test',
+    ]);
+    expect(timelineRows[0]?.occurredAt.getTime()).toBeLessThanOrEqual(
+      timelineRows[1]?.occurredAt.getTime() ?? 0,
+    );
   });
 });

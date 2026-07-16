@@ -17,6 +17,7 @@ describe('database foundation schema', () => {
         'admin_users',
         'roles',
         'permissions',
+        'role_permissions',
         'role_assignments',
         'market_access',
         'audit_logs',

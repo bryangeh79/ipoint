@@ -7,7 +7,12 @@ export default defineConfig({
       '**/dist/**',
       '**/tests/e2e/**',
       '**/.git/**',
+      '**/.acceptance-evidence/**',
+      '**/.acceptance/**',
       '**/.local/**',
+      '**/Concept/**',
+      '**/memory/**',
+      '**/tasks/**',
     ],
   },
 });

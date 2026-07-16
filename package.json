@@ -8,6 +8,7 @@
     "pnpm": ">=9.15.0"
   },
   "scripts": {
+    "postinstall": "pnpm --filter @ipoint/orm-comparison prisma:generate",
     "build": "pnpm -r --if-present build",
     "dev": "pnpm --parallel -r --filter './apps/*' dev",
     "format": "prettier --write .",
