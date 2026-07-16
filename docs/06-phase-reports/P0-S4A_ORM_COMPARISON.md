@@ -1,223 +1,229 @@
-# P0-S4A ORM Comparison Re-validation — Prisma vs Drizzle
+# RECOMMENDATION ONLY — AWAITING COMMAND CENTER ORM GATE
+
+# P0-S4A ORM Comparison — Reproducible PoC Evidence
 
 > **Big Phase:** Phase 0 — Engineering Foundation
-> **Small Phase:** P0-S4A — ORM Comparison and Recommendation
-> **Re-validation date:** 2026-07-16
-> **Status:** **RECOMMENDATION ONLY — AWAITING COMMAND CENTER ORM GATE**
-> **Scope:** Documentation and evidence correction only. This report does not select or install an ORM.
-
----
-
-## 1. Evidence labels
-
-Every material technical or project claim in this report uses one of these labels:
-
-- **[OFFICIAL]** — directly supported by first-party Prisma, Drizzle, NestJS, or iPoint governance documentation.
-- **[REGISTRY]** — observed from the package metadata and distribution tags published to the npm registry.
-- **[THIRD-PARTY]** — supported by a community-maintained package or source, not by the ORM/framework owner.
-- **[INFERRED]** — engineering judgment derived from official capabilities and iPoint requirements; it is not a vendor guarantee.
-- **[POC]** — observed from reproducible local commands or tracked PoC artifacts. ORM capability claims are not marked `[POC]` unless their artifacts and commands are available in this branch.
-
-The original report's deleted temporary PoCs are not reproducible from Git. Their measurements and completion claims are therefore not accepted as evidence in this re-validation.
-
----
-
-## 2. Executive finding
-
-- **[REGISTRY]** On 2026-07-16, the npm `latest` tags resolve to Prisma ORM `7.8.0`, Drizzle ORM `0.45.2`, and Drizzle Kit `0.31.10`. Prisma v6.x and Drizzle ORM v0.40.x must not be presented as the current baselines.
-- **[REGISTRY]** Drizzle ORM v1 is not the npm stable line at this review date. The `latest` tag remains `0.45.2`, while the `rc` tag resolves to `1.0.0-rc.4`.
-- **[INFERRED]** This report therefore compares the current stable package lines and excludes release-candidate-only behavior from production scoring.
-- **[INFERRED]** Both ORMs can model the core PostgreSQL structures iPoint needs, but neither ORM by itself guarantees ledger immutability, Maker/Checker separation, idempotency, or audit completeness.
-- **[INFERRED]** The original 366–366 tie was an arithmetic result of subjective scores, not empirical proof of equivalence. Several decisive inputs were inaccurate, so that total must not be used at the ORM gate.
-- **[INFERRED]** No ORM should be declared from the current evidence. A checked-in, reproducible PoC is still required for project-specific transaction, migration, PostgreSQL constraint, and NestJS lifecycle questions.
-
----
-
-## 3. Critical claim re-validation
-
-### 3.1 Prisma transactions and retry behavior
-
-- **[OFFICIAL]** Prisma supports nested writes, batch transactions, and interactive transactions. A nested write is one atomic ORM operation over related records; it is not a nested database transaction or savepoint.
-- **[OFFICIAL]** Nested `$transaction` rollback behavior through SQL savepoints was introduced in Prisma ORM v7.5.0.
-- **[OFFICIAL]** Prisma documents transaction isolation settings and returns `P2034` for transaction write conflicts or deadlocks.
-- **[INFERRED]** The original claim of automatic built-in serialization retry was inaccurate. Prisma's official example implements a bounded retry loop in application code; iPoint must design and test its own retry policy.
-
-### 3.2 Prisma down migrations
-
-- **[OFFICIAL]** Prisma Migrate has no native `migrate down` command that automatically reverses an applied migration.
-- **[OFFICIAL]** Prisma documents a `migrate diff --script` workflow that can generate a `down.sql` file. For a failed production migration, operators can execute that SQL and then use `migrate resolve --rolled-back` after verifying database state.
-- **[OFFICIAL]** If an up migration completed successfully and must be reverted, Prisma's documented approach is to restore the desired schema state and create a new forward migration.
-- **[INFERRED]** Prisma therefore supports an official down-SQL recovery workflow, but not native history-rewinding rollback. Custom SQL and data changes still require manually authored reversal logic.
-
-### 3.3 Drizzle down migrations
-
-- **[OFFICIAL]** Drizzle Kit documents `generate`, `migrate`, `push`, `pull`, `check`, `up`, and `export`. The documented `migrate` flow applies previously unapplied SQL migration files.
-- **[OFFICIAL]** Drizzle Kit can create empty custom SQL migrations, allowing a team to author explicit compensating or reversal SQL.
-- **[OFFICIAL]** The official command set does not document a native automatic `down`/rollback command. `drizzle-kit up` upgrades migration snapshots; it does not roll back a database. The v1 migration guide also removes the older `drop` command.
-- **[INFERRED]** The original Drizzle rollback score was overstated. Human-readable SQL can make recovery easier to review, but that is not equivalent to generated or automatically applied down migrations.
-
-### 3.4 Prisma and NestJS integration
-
-- **[OFFICIAL]** NestJS publishes an official Prisma recipe showing direct integration through a project-owned `PrismaService` and Nest dependency injection.
-- **[OFFICIAL]** The current recipe explicitly covers Prisma v7 module-format and driver-adapter setup. It does not instruct projects to install an official Nest-owned or Prisma-owned integration module.
-- **[REGISTRY]** `pnpm view @nestjs/prisma version` returns npm `E404`; there is no package by that name in the registry at this review date.
-- **[THIRD-PARTY]** `nestjs-prisma` is maintained under the `notiz-dev` GitHub organization. npm reports version `0.27.0` and the repository `notiz-dev/nestjs-prisma`.
-- **[INFERRED]** The original statements that an official `@nestjs/prisma` package is maintained by the Prisma team and that `nest add @nestjs/prisma` is the official path were inaccurate.
-- **[INFERRED]** Drizzle can also be wrapped in a small project-owned Nest provider. The absence of an official Nest recipe is an ecosystem/documentation difference, not proof that its runtime integration is technically weaker.
-
-### 3.5 Current version baseline
-
-| Product        | Re-validated package baseline | Classification | Gate treatment                                              |
-| -------------- | ----------------------------: | -------------- | ----------------------------------------------------------- |
-| Prisma ORM     |            `7.8.0` (`latest`) | **[REGISTRY]** | Compare current v7 behavior; do not present v6.x as current |
-| Prisma ORM v6  |             `6.19.2` (`prev`) | **[REGISTRY]** | Historical compatibility line only                          |
-| Drizzle ORM    |           `0.45.2` (`latest`) | **[REGISTRY]** | Stable comparison baseline                                  |
-| Drizzle Kit    |          `0.31.10` (`latest`) | **[REGISTRY]** | Stable migration-tool baseline                              |
-| Drizzle ORM v1 |           `1.0.0-rc.4` (`rc`) | **[REGISTRY]** | Track separately; do not score RC-only behavior as stable   |
-
-### 3.6 Scoring tie rationale
-
-- **[INFERRED]** The original score used undocumented judgment calls, including Prisma 5/5 for transaction support and NestJS integration, Drizzle 5/5 for rollback, and Prisma 5/5 vs Drizzle 2/5 for drift detection.
-- **[OFFICIAL]** Drizzle Kit's `check` validates generated migration-history consistency and branch collisions. It is not the same operation as comparing a live database to the expected schema.
-- **[OFFICIAL]** Prisma `migrate diff` can compare schema sources, and Prisma migration history detects changed or missing applied migration files.
-- **[INFERRED]** Those tools solve overlapping but different problems. A single “drift detection” number hid the distinction between migration-history integrity and live-schema drift.
-- **[INFERRED]** Because the original inputs were materially wrong and no reproducible benchmark exists, the 366–366 total is withdrawn rather than recalculated into another false-precision number.
-
-### 3.7 Ledger, Maker/Checker, audit, and versioned-rule claims
-
-- **[OFFICIAL]** iPoint requires append-only MCP, iPoint, and commission ledgers; compensating entries; atomic critical writes; idempotency; and Maker/Checker separation for all manual MCP/iPoint credit and debit adjustments.
-- **[INFERRED]** Prisma `create` and Drizzle `insert` APIs do not enforce append-only behavior. Both also expose update/delete operations unless application design and database permissions prevent them.
-- **[INFERRED]** Maker/Checker requires domain state transitions, authorization, a `maker_id != checker_id` invariant, concurrency protection, idempotent execution, and privileged-action audit. Merely defining relations and unique indexes is insufficient.
-- **[INFERRED]** Database roles, restrictive grants, constraints where expressible, and optional triggers can provide defense in depth. Service-level authorization and tests remain mandatory.
-- **[INFERRED]** Neither ORM receives a scoring advantage for these business invariants until a PoC proves the complete flow under concurrent approval/execution attempts.
-
----
-
-## 4. Corrected capability comparison
-
-| Criterion                                   | Prisma                                                       | Drizzle                                                                                                 | Evidence assessment                                                                                                  |
-| ------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| PostgreSQL numeric, UUID, timestamptz, enum | Supported                                                    | Supported                                                                                               | **[OFFICIAL]** Both expose the required column families. **[INFERRED]** Exact project DDL still needs PoC inspection |
-| Interactive transaction                     | `$transaction(async tx => ...)`                              | `db.transaction(async tx => ...)`                                                                       | **[OFFICIAL]** Both support callback transactions                                                                    |
-| Nested transaction/savepoint                | Available from Prisma 7.5                                    | Nested `tx.transaction(...)` savepoints documented                                                      | **[OFFICIAL]** Current stable lines support the listed behavior                                                      |
-| Serialization/deadlock retry                | Project-owned retry policy required                          | Project-owned retry policy required                                                                     | **[INFERRED]** No automatic retry claim is accepted for either baseline                                              |
-| Generated up migration SQL                  | Supported                                                    | Supported                                                                                               | **[OFFICIAL]** Both produce reviewable SQL migration files                                                           |
-| Native automatic down command               | Not documented                                               | Not documented                                                                                          | **[OFFICIAL]** Both require explicit recovery/reversal workflow                                                      |
-| Down SQL assistance                         | `migrate diff --script` official workflow                    | Custom SQL migration authoring                                                                          | **[OFFICIAL]** Capabilities differ; neither rewinds production history automatically                                 |
-| Migration-history integrity                 | Applied migration checks and history validation              | `drizzle-kit check` for generated-history consistency/collisions                                        | **[OFFICIAL]** Both capabilities are documented. **[INFERRED]** Validate exact CI commands in PoC                    |
-| Live schema comparison                      | `migrate diff` supports schema-source comparison             | `push` introspects and diffs before applying; no equivalent non-mutating drift command established here | **[OFFICIAL]** Listed behavior is documented. **[INFERRED]** Prisma has the clearer non-mutating official workflow   |
-| NestJS integration                          | Official NestJS recipe; optional third-party `nestjs-prisma` | Project-owned provider; optional community packages                                                     | **[OFFICIAL] [THIRD-PARTY] [INFERRED]** No official ORM-specific Nest package for either is assumed                  |
-| Ledger/Maker/Checker enforcement            | Application/database design required                         | Application/database design required                                                                    | **[INFERRED]** ORM-neutral domain requirement                                                                        |
-| Raw SQL                                     | Tagged raw query APIs                                        | SQL template integrated with query builder                                                              | **[OFFICIAL]** Listed APIs are documented. **[INFERRED]** Project query ergonomics require PoC                       |
-
----
-
-## 5. PoC evidence status
-
-### 5.1 What is verifiable in this branch
-
-- **[POC]** ORM capability PoC evidence: none. No Prisma schema, Drizzle schema, generated migration, benchmark script, transaction test, or command transcript is tracked in this branch.
-- **[INFERRED]** Illustrative snippets in the original report are examples, not execution evidence.
-
-### 5.2 Original claims that are withdrawn
-
-The following original claims are not independently reproducible and are withdrawn:
-
-- **[POC] WITHDRAWN** “complete schema definition covering all 8 entity groups”;
-- **[POC] WITHDRAWN** Prisma schema validation, client generation in 383 ms, and migration-diff success;
-- **[POC] WITHDRAWN** Drizzle validation, 12-table/6-enum/17-index migration generation;
-- **[POC] WITHDRAWN** 2 s vs 500 ms migration generation, 100–200 ms vs 5–10 ms startup, and 15 MB vs 200 KB bundle measurements;
-- **[POC] WITHDRAWN** transaction, Maker/Checker, versioned-rule, audit, pagination, and raw-SQL patterns described as verified.
-
-### 5.3 Minimum reproducible gate PoC
-
-Before Command Center can use this comparison to choose an ORM, a new checked-in PoC should demonstrate:
-
-1. **[INFERRED]** The same PostgreSQL schema subset in both ORMs: market, wallet, ledger entry, adjustment request/action, audit event, versioned rule, and idempotency record.
-2. **[INFERRED]** Exact generated up SQL plus explicit recovery SQL for one additive and one destructive schema change.
-3. **[INFERRED]** Concurrent wallet update + ledger append with optimistic conflict and bounded retry.
-4. **[INFERRED]** Concurrent Maker/Checker attempts proving self-approval rejection and exactly-once execution.
-5. **[INFERRED]** Live-schema drift and migration-history collision checks using documented CLI commands.
-6. **[INFERRED]** A project-owned NestJS provider with startup, shutdown, transaction propagation, and test isolation.
-7. **[INFERRED]** Repeated measurements on the same machine, Node version, PostgreSQL version, driver, schema, and command sequence.
-
----
-
-## 6. Recommendation posture
-
-### No ORM declaration at this review
-
-- **[INFERRED]** Prisma currently has stronger first-party NestJS learning material and a clearer non-mutating schema-diff workflow.
-- **[INFERRED]** Drizzle currently exposes savepoint nesting in its stable transaction API and offers SQL-oriented schema/query composition with fewer generated-client concerns.
-- **[INFERRED]** These are trade-offs, not a sufficient project decision. The corrected evidence removes the original decisive Prisma integration claim and the original decisive Drizzle rollback claim.
-- **[INFERRED]** The gate should remain open until the reproducible PoC in Section 5.3 is reviewed.
-
----
-
-## 7. Production migration and recovery policy
-
-The following policy is ORM-neutral:
-
-- **[INFERRED]** Production migration history should be append-only. A successful migration that must be reversed should normally be followed by a new forward migration restoring the intended schema.
-- **[INFERRED]** Every risky migration requires reviewed recovery SQL, data-backfill/reversal handling, lock-impact assessment, and a tested application rollback order.
-- **[INFERRED]** A failed migration must be reconciled with the ORM's migration-history table only after the database state has been verified.
-- **[INFERRED]** Ledger corrections must use compensating entries through the approved Maker/Checker path; schema rollback procedures do not authorize ad hoc ledger update/delete operations.
-- **[INFERRED]** `push`, reset, drop, or other destructive development shortcuts must not be part of the production deployment path.
-
----
-
-## 8. Repository and verification evidence
-
-- **[POC]** The clean branch is based directly on `c7c588b6b999a48f15923a7e68f22fea03360c77`; neither `ee0f607b` nor `903345d0` was cherry-picked.
-- **[POC]** The current damaged worktree's file blob is `13da9dcff6e98e4cc9427433cf2405fd64f4a1df`, while commit `903345d0` contains the corrected report blob `8ffd81f70ebd039740276cccd4d0b9dcea078454`. The latter was used as the content baseline because it matches the task's stated “Codex-validated version” intent.
-- **[POC]** Package baselines were queried without installing ORM dependencies: Prisma `7.8.0`, Drizzle ORM `0.45.2`, Drizzle Kit `0.31.10`, `nestjs-prisma` `0.27.0`, and `@nestjs/prisma` returned `E404`.
-- **[POC]** Clean-worktree install, lint, typecheck, build, test, whitespace, and one-file-diff results are recorded in the delivery evidence accompanying this commit.
-
----
-
-## 9. Decision gate checklist
-
-| #   | Gate item                                                       | Status           |
-| --- | --------------------------------------------------------------- | ---------------- |
-| 1   | Current stable package baselines corrected                      | Complete         |
-| 2   | Prisma transaction and retry claims corrected                   | Complete         |
-| 3   | Prisma down-migration claim corrected                           | Complete         |
-| 4   | Drizzle down-migration claim corrected                          | Complete         |
-| 5   | Prisma/NestJS official vs third-party distinction corrected     | Complete         |
-| 6   | Original scoring tie rationale corrected                        | Complete         |
-| 7   | Ledger and Maker/Checker claims classified as domain invariants | Complete         |
-| 8   | Original PoC independently reproducible                         | **Not complete** |
-| 9   | New side-by-side project PoC checked in                         | **Not complete** |
-| 10  | Command Center ORM gate decision recorded                       | **Not complete** |
-
----
-
-## 10. First-party references
-
-- [Prisma transactions](https://www.prisma.io/docs/orm/prisma-client/queries/transactions)
-- [Prisma v7.5 nested transaction savepoints](https://www.prisma.io/changelog/2026-03-11)
-- [Prisma down migration workflow](https://docs.prisma.io/docs/orm/prisma-migrate/workflows/generating-down-migrations)
-- [Prisma Migrate commands](https://www.prisma.io/docs/cli/migrate)
-- [Prisma migration histories](https://www.prisma.io/docs/orm/prisma-migrate/understanding-prisma-migrate/migration-histories)
-- [Prisma release notes](https://www.prisma.io/changelog)
-- [Drizzle transactions and savepoints](https://orm.drizzle.team/docs/transactions)
-- [Drizzle migration fundamentals](https://orm.drizzle.team/docs/migrations)
-- [Drizzle Kit overview](https://orm.drizzle.team/docs/kit-overview)
-- [Drizzle Kit check](https://orm.drizzle.team/docs/drizzle-kit-check)
-- [Drizzle custom migrations](https://orm.drizzle.team/docs/kit-custom-migrations)
-- [Drizzle v0 to v1 changes](https://orm.drizzle.team/docs/v0-v1-changes)
-- [NestJS Prisma recipe](https://docs.nestjs.com/recipes/prisma)
-- [NestJS database integrations](https://docs.nestjs.com/techniques/database)
-
-## 11. Package and third-party references
-
-- npm distribution tags queried with `pnpm view prisma dist-tags --json`, `pnpm view drizzle-orm dist-tags --json`, and `pnpm view drizzle-kit dist-tags --json` on 2026-07-16.
-- [notiz-dev/nestjs-prisma](https://github.com/notiz-dev/nestjs-prisma) — **[THIRD-PARTY]** community NestJS integration package and schematic.
-
----
-
-> **IMPORTANT**
 >
+> **Small Phase:** P0-S4A — Reproducible ORM Evaluation
+>
+> **Evidence date:** 2026-07-16
+>
+> **Branch:** `task/p0-s4a-orm-poc`
+>
+> **Status:** **READY FOR COMMAND CENTER EVIDENCE REVIEW; ORM GATE REMAINS OPEN**
+
+## 1. Scope and evidence policy
+
+This report replaces the earlier documentation-only evidence gap with a checked-in, executable PoC under `experiments/orm-comparison/`. It compares Prisma ORM 7.8.0 and Drizzle ORM 0.45.2 using separate PostgreSQL 17.10 containers, identical core columns, the same deterministic seed, and the same domain assertions.
+
+Evidence labels:
+
+- **[POC]**: produced by the tracked runner and retained in `experiments/orm-comparison/results/`.
+- **[OFFICIAL]**: first-party behavior encoded in the tested CLI/API.
+- **[INFERRED]**: engineering interpretation; not vendor guarantee or governance approval.
+- **[LIMITATION]**: a known boundary that must remain visible at the gate.
+
+No production file under `apps/` or `packages/` is modified. Both NestJS providers are experimental only.
+
+## 2. Reproduction baseline
+
+**[POC]** Complete command:
+
+```powershell
+pnpm install --frozen-lockfile
+pnpm orm-poc
+```
+
+**[POC]** The runner starts and later removes:
+
+| ORM     | Image                | Database             | Host port |
+| ------- | -------------------- | -------------------- | --------: |
+| Prisma  | `postgres:17-alpine` | `ipoint_prisma_poc`  |     55431 |
+| Drizzle | `postgres:17-alpine` | `ipoint_drizzle_poc` |     55432 |
+
+**[POC]** Recorded PostgreSQL is 17.10, `max_connections=100`, `deadlock_timeout=100ms`, default isolation `read committed`, server timezone UTC. Serializable tests explicitly request serializable isolation.
+
+**[POC]** Package/runtime baseline:
+
+| Component                             | Version |
+| ------------------------------------- | ------- |
+| Prisma / client / PG adapter          | 7.8.0   |
+| Drizzle ORM                           | 0.45.2  |
+| Drizzle Kit                           | 0.31.10 |
+| node-postgres                         | 8.22.0  |
+| NestJS experimental provider baseline | 10.4.x  |
+| pnpm                                  | 9.15.9  |
+| Docker                                | 29.3.1  |
+| Host Node                             | 26.4.0  |
+
+**[LIMITATION]** Prisma 7.8.0 reports supported Node majors 20.19+, 22.12+, and 24.x. The PoC completed on Node 26.4.0, but Command Center should require a repeat on supported Node 24 before treating runtime evidence as production-gate quality.
+
+## 3. Data model and SQL evidence
+
+**[POC]** Both ORMs define the same eight entities:
+
+1. Market
+2. Wallet
+3. LedgerEntry
+4. AdjustmentRequest
+5. AdjustmentAction
+6. AuditEvent
+7. VersionedRule
+8. IdempotencyRecord
+
+**[POC]** Live-catalog comparison reports identical tables, column order, PostgreSQL data types, nullability, numeric precision/scale, and enum UDT names. The complete signature is in `results/schema-comparison.json`.
+
+**[POC]** Both final schemas include:
+
+- UUID primary keys and separate unique public IDs;
+- exact `numeric(24,8)` wallet, ledger, and adjustment amounts;
+- `timestamptz(6)` persisted timestamps;
+- PostgreSQL enums and positive/range checks;
+- market, wallet, request, reversal, and executed-ledger foreign keys;
+- public/source/idempotency/version uniqueness;
+- market/status, wallet/effective-time, audit, approval, rule-effective, and lock indexes;
+- `maker_id != checker_id` when checker is present;
+- an append-only trigger rejecting ledger UPDATE/DELETE with SQLSTATE `55000`.
+
+**[POC]** Prisma emits many uniqueness rules as unique indexes; Drizzle emits several as `UNIQUE` constraints. The PostgreSQL representation differs, but the uniqueness semantics and required behavior are equivalent and directly exercised.
+
+## 4. Migration experiments
+
+| Experiment              | Prisma result                                               | Drizzle result                                       |
+| ----------------------- | ----------------------------------------------------------- | ---------------------------------------------------- |
+| Initial migration       | 2 migrations applied                                        | 3 migrations applied                                 |
+| From-zero rebuild       | 8/8 tables + deterministic seed                             | 8/8 tables + deterministic seed                      |
+| Additive migration      | Nullable `correlation_id` + partial index present           | Same                                                 |
+| Destructive migration   | Column/index removed                                        | Same                                                 |
+| Recovery SQL            | Column/index recreated                                      | Same                                                 |
+| Recovery data           | Previous value became NULL                                  | Previous value became NULL                           |
+| Migration history check | Applied SQL comment change not detected by `migrate status` | Applied SQL comment change not detected by `migrate` |
+| Live drift              | Prisma diff exited 2 and generated rogue-column removal SQL | Read-only catalog probe detected rogue column        |
+
+**[LIMITATION]** Recovery SQL restores structure, not removed values. A production destructive migration needs backup/restore rehearsal, data recovery design, and explicit destructive-change approval.
+
+**[LIMITATION]** Neither tested deployment/status path detected a comment-only change in an already-applied SQL file. CI should independently checksum immutable migration files.
+
+**[INFERRED]** Prisma has the stronger tested non-mutating live-drift workflow: `prisma migrate diff --from-config-datasource --to-schema ... --exit-code --script`. For stable Drizzle Kit, this PoC did not establish an equivalent non-mutating live-database command, so it used a PostgreSQL catalog probe.
+
+## 5. Transaction and concurrency evidence
+
+**[POC]** Both ORMs passed:
+
+- explicit rollback;
+- inner savepoint rollback while the outer write commits;
+- wallet snapshot + ledger atomicity under injected failure;
+- serializable concurrent wallet updates;
+- bounded application-owned retry;
+- deliberate deadlock detection;
+- connection cleanup.
+
+**[POC]** Ten deliberately conflicting serializable credits produced, for each ORM:
+
+- final balance 10;
+- exactly 10 ledger entries;
+- 45 observed serialization conflicts;
+- 55 total attempts;
+- maximum 10 attempts within a bound of 20.
+
+**[POC]** The deadlock probe created opposing row-lock order. PostgreSQL selected exactly one victim with SQLSTATE `40P01` for each ORM. Prisma exposed it through a `P2010` raw-query wrapper with the original PostgreSQL code in metadata; Drizzle exposed the driver error/cause with `40P01`.
+
+**[INFERRED]** Both require project-owned classification, backoff, observability, and a bounded retry policy. The run does not support a claim of automatic ORM retry.
+
+## 6. Idempotency evidence
+
+**[POC]** For both ORMs:
+
+- sequential same-key retry returned the original ledger entry and exact decimal result;
+- sixteen concurrent callers using the same key produced one result, one ledger row, and zero duplicates;
+- same key with a different request hash was rejected;
+- the idempotency result was persisted and returned consistently.
+
+**[INFERRED]** Correctness came from transaction scope plus PostgreSQL unique constraints and persisted results. It is not an ORM feature by itself.
+
+## 7. Maker/Checker evidence
+
+**[POC]** For both ORMs:
+
+- maker self-approval was rejected and the request stayed PENDING;
+- two concurrent checkers produced one execution and one non-executing outcome;
+- a later repeat did not execute again;
+- the observed transition was PENDING → APPROVED → EXECUTED;
+- exactly two action rows, two audit rows, and one ledger row were retained;
+- the executed ledger FK and request idempotency constraints remained valid.
+
+**[INFERRED]** The database check provides defense in depth, but production still requires authenticated actor authorization and market/action permission checks outside this PoC.
+
+## 8. Ledger evidence
+
+**[POC]** Direct UPDATE and DELETE both failed with SQLSTATE `55000` under both ORMs.
+
+**[POC]** A compensating debit retained the original entry and produced:
+
+- wallet balance `20.00000000`;
+- signed ledger total `20.00000000`;
+- original ledger row still present;
+- reversal link to the original entry.
+
+**[INFERRED]** The trigger is a strong guard for the application role, but production privilege design must also prevent trigger bypass or ownership-level DDL/DML abuse.
+
+## 9. NestJS integration evidence
+
+**[POC]** Project-owned experimental providers exist separately under `prisma/` and `drizzle/`, not under `apps/api`.
+
+Both passed:
+
+- module startup and shutdown hooks;
+- dependency injection by explicit provider token;
+- AsyncLocalStorage transaction propagation to a nested consumer;
+- rollback-based test isolation;
+- connection cleanup with zero pool connections after module close.
+
+**[LIMITATION]** These are lifecycle/transaction probes, not production modules. Authentication, authorization, telemetry, health integration, request scoping, and production pooling policy remain deferred until an ORM is approved.
+
+## 10. Failures and limitations retained as evidence
+
+The reproducibility work found and corrected:
+
+- Windows/Node 26 `.cmd` child-process incompatibility;
+- Prisma raw-query deserialization of PostgreSQL internal `char` and `void` types;
+- an insufficient initial retry bound under deliberately synchronized conflicts;
+- exact-decimal object/string normalization for persisted idempotency responses.
+
+Details are retained in `results/known-failures.md`. Final command stdout/stderr, exit codes, and timings are in `results/commands.jsonl` and `results/timing.json`.
+
+Additional limitations:
+
+- one-machine timings are not performance benchmarks;
+- concurrency levels are correctness probes, not load tests;
+- shared operations intentionally use reviewable raw SQL inside each ORM's real transaction adapter so domain semantics remain identical; query-builder ergonomics were not scored;
+- no production API, permission system, real money movement, or external integration was exercised.
+
+## 11. Evidence-based gate posture
+
+**[INFERRED]** The PoC removes the earlier uncertainty about whether either ORM can satisfy iPoint's core PostgreSQL, transaction, idempotency, Maker/Checker, ledger, and NestJS lifecycle requirements: both can, when paired with explicit database constraints and application-owned domain logic.
+
+**[INFERRED]** Prisma showed a clearer tested non-mutating live-schema diff workflow. Drizzle produced direct SQL/driver error surfaces and equivalent transaction/savepoint correctness. Neither difference alone justifies approval without Command Center weighting of operational workflow, team ergonomics, supported runtime repeat, and long-term migration policy.
+
+No new numeric score is assigned. No ORM is selected. The required next action is Command Center evidence review, followed by either a supported-Node rerun/rework request or a recorded ORM Gate decision.
+
+## 12. Evidence files
+
+- `experiments/orm-comparison/README.md`
+- `experiments/orm-comparison/results/commands.jsonl`
+- `experiments/orm-comparison/results/versions.json`
+- `experiments/orm-comparison/results/environment.json`
+- `experiments/orm-comparison/results/schema-comparison.json`
+- `experiments/orm-comparison/results/migration-results.json`
+- `experiments/orm-comparison/results/drift-results.json`
+- `experiments/orm-comparison/results/concurrency-results.json`
+- `experiments/orm-comparison/results/test-summary.json`
+- `experiments/orm-comparison/results/timing.json`
+- `experiments/orm-comparison/results/sql/`
+- `experiments/orm-comparison/results/known-failures.md`
+
+---
+
 > **RECOMMENDATION ONLY — AWAITING COMMAND CENTER ORM GATE**
 >
-> This re-validation corrects the comparison evidence but does not select Prisma or Drizzle. No ORM dependency or production integration is authorized by this report. The final selection requires a reproducible PoC, Command Center review, and a recorded governance decision.
+> This PoC is ready for evidence review. It does not approve Prisma or Drizzle, and it does not close the ORM Gate.
