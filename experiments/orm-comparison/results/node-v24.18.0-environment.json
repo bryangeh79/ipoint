@@ -1,0 +1,22 @@
+{
+  "os": "win32 x64",
+  "cwd": "C:\\AI_WORKSPACE\\iPoint App\\experiments\\orm-comparison",
+  "containers": [
+    {
+      "name": "ipoint-orm-poc-prisma-postgres-1",
+      "image": "postgres:17-alpine",
+      "hostPort": 55431,
+      "database": "ipoint_prisma_poc"
+    },
+    {
+      "name": "ipoint-orm-poc-drizzle-postgres-1",
+      "image": "postgres:17-alpine",
+      "hostPort": 55432,
+      "database": "ipoint_drizzle_poc"
+    }
+  ],
+  "credentials": "Local disposable PoC credentials are declared in compose.poc.yaml; no production secrets are used.",
+  "runtimeValidationStatus": "UNVALIDATED_ON_TARGET_NODE_LTS",
+  "runtimeObservation": "The only Node executable discovered for this correction run was v26.4.0. Node 24 LTS was not available, so no target-LTS claim is made.",
+  "withdrawnClaim": "WITHDRAWN: Prisma on Node 22 has behavior differences. No Node 22 run is part of this evidence."
+}

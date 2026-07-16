@@ -1,0 +1,150 @@
+:root {
+  color-scheme: light;
+  --ip-color-primary: #20b366;
+  --ip-color-primary-hover: #188f51;
+  --ip-color-primary-active: #137443;
+  --ip-color-primary-soft: #e9f8f0;
+  --ip-color-secondary: #c89b2c;
+  --ip-color-secondary-hover: #a77e1f;
+  --ip-color-secondary-soft: #fbf5e6;
+  --ip-color-white: #ffffff;
+  --ip-color-surface: #ffffff;
+  --ip-color-canvas: #f6f8f7;
+  --ip-color-surface-muted: #edf1ef;
+  --ip-color-border: #dce3df;
+  --ip-color-border-strong: #c2cdc7;
+  --ip-color-text: #202b25;
+  --ip-color-text-muted: #64736b;
+  --ip-color-text-subtle: #8d9b94;
+  --ip-color-success: #168a4b;
+  --ip-color-success-soft: #e8f7ef;
+  --ip-color-warning: #a76600;
+  --ip-color-warning-soft: #fff5db;
+  --ip-color-error: #c53632;
+  --ip-color-error-soft: #fdedec;
+  --ip-color-info: #246bce;
+  --ip-color-info-soft: #eaf2fd;
+  --ip-space-0: 0;
+  --ip-space-0-5: 4px;
+  --ip-space-1: 8px;
+  --ip-space-1-5: 12px;
+  --ip-space-2: 16px;
+  --ip-space-3: 24px;
+  --ip-space-4: 32px;
+  --ip-space-5: 40px;
+  --ip-space-6: 48px;
+  --ip-space-8: 64px;
+  --ip-space-10: 80px;
+  --ip-space-12: 96px;
+  --ip-radius-sm: 12px;
+  --ip-radius-md: 16px;
+  --ip-radius-lg: 20px;
+  --ip-radius-round: 999px;
+  --ip-font-latin: Inter, 'Noto Sans', sans-serif;
+  --ip-font-zh-cn: 'Noto Sans SC', Inter, sans-serif;
+  --ip-font-zh-tw: 'Noto Sans TC', Inter, sans-serif;
+  --ip-font-sea: 'Noto Sans', Inter, sans-serif;
+  --ip-font-size-caption: 0.75rem;
+  --ip-font-size-body-sm: 0.875rem;
+  --ip-font-size-body: 1rem;
+  --ip-font-size-h3: 1.25rem;
+  --ip-font-size-h2: 1.5rem;
+  --ip-font-size-h1: clamp(1.75rem, 4vw, 2.25rem);
+  --ip-line-tight: 1.2;
+  --ip-line-heading: 1.3;
+  --ip-line-body: 1.5;
+  --ip-breakpoint-sm: 480px;
+  --ip-breakpoint-md: 768px;
+  --ip-breakpoint-lg: 1024px;
+  --ip-breakpoint-xl: 1280px;
+  --ip-breakpoint-2xl: 1536px;
+  --ip-motion-fast: 120ms;
+  --ip-motion-normal: 200ms;
+  --ip-motion-slow: 320ms;
+  --ip-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ip-ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+  --ip-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ip-z-sticky: 100;
+  --ip-z-navigation: 200;
+  --ip-z-overlay: 500;
+  --ip-z-modal: 600;
+  --ip-z-toast: 700;
+  --ip-shadow-card: 0 1px 2px rgb(18 26 22 / 5%), 0 8px 24px rgb(18 26 22 / 6%);
+  --ip-shadow-overlay: 0 24px 64px rgb(18 26 22 / 18%);
+  --ip-focus-ring: 0 0 0 3px rgb(32 179 102 / 28%);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --ip-color-surface: #18231d;
+  --ip-color-canvas: #101713;
+  --ip-color-surface-muted: #202e26;
+  --ip-color-border: #33453b;
+  --ip-color-border-strong: #465b50;
+  --ip-color-text: #f2f7f4;
+  --ip-color-text-muted: #b6c5bd;
+  --ip-color-text-subtle: #8fa197;
+  --ip-shadow-card: 0 8px 28px rgb(0 0 0 / 24%);
+  --ip-shadow-overlay: 0 24px 64px rgb(0 0 0 / 44%);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--ip-font-latin);
+  color: var(--ip-color-text);
+  background: var(--ip-color-canvas);
+  line-height: var(--ip-line-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+html:lang(zh-CN) {
+  font-family: var(--ip-font-zh-cn);
+}
+html:lang(zh-TW) {
+  font-family: var(--ip-font-zh-tw);
+}
+html:lang(vi),
+html:lang(ms),
+html:lang(id),
+html:lang(th) {
+  font-family: var(--ip-font-sea);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button,
+[role='button'],
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ip-focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "name": "ipoint",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.15.0"
+  },
+  "scripts": {
+    "postinstall": "pnpm --filter @ipoint/orm-comparison prisma:generate",
+    "build": "pnpm -r --if-present build",
+    "dev": "pnpm --parallel -r --filter './apps/*' dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "vitest run",
+    "test:api": "pnpm --filter @ipoint/api test",
+    "test:database": "pnpm --filter @ipoint/database test",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "orm-poc": "pnpm --filter @ipoint/orm-comparison poc",
+    "orm-poc:infra:up": "pnpm --filter @ipoint/orm-comparison infra:up",
+    "orm-poc:infra:down": "pnpm --filter @ipoint/orm-comparison infra:down",
+    "db:migrate": "pnpm --filter @ipoint/database db:migrate",
+    "db:seed": "pnpm --filter @ipoint/database db:seed",
+    "db:checksum": "pnpm --filter @ipoint/database db:checksum",
+    "db:drift": "pnpm --filter @ipoint/database db:drift",
+    "ci:verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm test:database && pnpm test:api && pnpm test:e2e",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.1",
+    "@playwright/test": "1.56.1",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.1.1",
+    "@vitest/coverage-v8": "4.0.14",
+    "eslint": "9.39.1",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "16.5.0",
+    "prettier": "3.7.3",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.48.0",
+    "vite": "7.2.6",
+    "vitest": "4.0.14"
+  }
+}

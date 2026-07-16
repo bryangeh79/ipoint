@@ -14,9 +14,42 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Phase** | **NONE** | No Big Phase Brief has been issued |
-| **Phase 0** | **NOT_AUTHORIZED** | Engineering foundation awaiting Big Phase Brief |
-| **Phase 1** | **NOT_AUTHORIZED** | Merchant Onboarding + MCP Ledger awaiting Big Phase Brief |
+| **Current Authorized Phase** | **NONE** | Phase 0 is CLOSED and APPROVED under D-009 |
+| **P0-S1** | **COMPLETE** | Repository audit completed |
+| **P0-S2** | **COMPLETE** | Phase 0 application shells completed |
+| **P0-S3** | **COMPLETE** | Backend foundation independently re-validated after D-005 |
+| **P0-S4A Documentation** | **COMPLETE** | ORM comparison independently re-validated after D-005 |
+| **P0-S4A PoC** | **COMPLETE** | Reproducible ORM comparison PoC integrated into the Phase branch |
+| **ORM Gate** | **CLOSED — DRIZZLE APPROVED** | D-006 selects Drizzle for the production baseline |
+| **Batch A** | **APPROVED** | D-007 accepts remote head `760cb8b8916b569f1a6be057b8cd4ba8546d2e87` |
+| **P0-S4B** | **COMPLETE** | Node 24.18.0 validation passed; accepted under D-007 |
+| **P0-S5** | **COMPLETE** | Accepted under D-007 |
+| **P0-S6** | **COMPLETE** | Accepted under D-007 |
+| **Batch B** | **APPROVED** | D-008 accepts remote head `fb3478f5e12724a837ece025024a375c673dc7ac` |
+| **P0-S7** | **COMPLETE** | Accepted under D-008 |
+| **P0-S8** | **COMPLETE** | Accepted under D-008 |
+| **P0-S9** | **COMPLETE** | Final integration, audit, and acceptance completed under D-009 |
+
+---
+
+## Phase 0 sub-phase status
+
+| Sub-phase | Scope | Status | Next gate |
+|---|---|---|---|
+| **P0-S1** | Repository audit and workspace classification | **COMPLETE** | None |
+| **P0-S2** | Monorepo application shells | **COMPLETE** | None |
+| **P0-S3** | NestJS backend foundation | **COMPLETE** | None |
+| **P0-S4A Documentation** | ORM comparison and recommendation evidence | **COMPLETE** | None |
+| **P0-S4A PoC** | Checked-in, reproducible ORM comparison PoC | **COMPLETE** | None |
+| **ORM Gate** | ORM selection governance decision | **CLOSED — DRIZZLE APPROVED** | D-006 recorded |
+| **Batch A** | P0-S4B through P0-S6 acceptance gate | **APPROVED** | D-007 recorded |
+| **P0-S4B** | Post-ORM-gate Phase 0 work | **COMPLETE** | Node 24.18.0 validation passed |
+| **P0-S5** | Batch A follow-on work | **COMPLETE** | D-007 accepted |
+| **P0-S6** | Batch A follow-on work | **COMPLETE** | D-007 accepted |
+| **Batch B** | P0-S7 Design System foundation and P0-S8 testing/CI/local environment | **APPROVED** | D-008 recorded |
+| **P0-S7** | Design System foundation | **COMPLETE** | D-008 accepted |
+| **P0-S8** | Testing, CI, and local environment | **COMPLETE** | D-008 accepted |
+| **P0-S9** | Phase 0 final integration, audit, and acceptance | **COMPLETE** | Final acceptance completed under D-009 |
 
 ---
 
@@ -26,7 +59,8 @@
 
 | Phase | Scope | Status | Notes |
 |---|---|---|---|
-| **Phase 0** | General ledger technical skeleton, DB foundation, Auth framework, RBAC, Market module, Audit infrastructure, Design System tokens | **NOT_AUTHORIZED** | Awaiting Big Phase Brief |
+| **Phase 0** | General ledger technical skeleton, DB foundation, Auth framework, RBAC, Market module, Audit infrastructure, Design System tokens | **APPROVED** | Final acceptance approved under D-009 |
+| **Phase 0 closure** | Final integration, audit, acceptance, and governance closure | **CLOSED** | Closed under D-009; Phase 1 requires new authorization |
 | **Phase 1** | Merchant Onboarding + MCP Ledger | **NOT_AUTHORIZED** | Awaiting Big Phase Brief |
 | **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, wallet shell, referral) | **NOT_AUTHORIZED** | Will be authorized after Phase 1 |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **NOT_AUTHORIZED** | Note: renamed from original Roadmap sequence per C-01 |
@@ -44,26 +78,27 @@
 
 ## Current allowed actions
 
-- ✅ Read and analyze project documentation
-- ✅ Update governance files (AGENTS.md, DOCUMENT_AUTHORITY.md, OPENCLAW_OPERATING_RULES.md, BASELINE_ACKNOWLEDGMENT_V1.1.md, DECISION_LOG.md, OPEN_QUESTIONS.md, PHASE_REGISTRY.md)
-- ✅ Append new Decision Log entries as decisions arrive
-- ✅ Update PHASE_REGISTRY.md status as phases advance
-- ✅ Prepare Phase breakdown proposals for ChatGPT review
-- ✅ Escalate conflicts and open questions
+- ✅ Read and analyze project documentation and accepted Phase 0 evidence
+- ✅ Commit and push the D-009 governance closure to `origin/phase/0-engineering-foundation`
+- ✅ Poll the Phase 0 branch CI and verify all required jobs succeed
+- ✅ Mark PR #4 ready for review after the branch CI succeeds
+- ✅ Squash merge PR #4 to `main` only after every authorized merge gate passes
+- ✅ Poll and verify the post-merge `main` CI
+- ✅ Append Decision Log entries and update this registry only when a new decision is issued
 
 ## Current prohibited actions
 
-- ❌ Start Phase 0 without an approved Big Phase Brief
-- ❌ Assign Codex CLI to write production code
-- ❌ Merge PR #2
-- ❌ Modify files outside governance scope without Phase authorization
+- ❌ Start Phase 1, create a Phase 1 branch, or perform any Phase 1 work without a new ChatGPT Command Center authorization
+- ❌ Use OpenClaw sub-agents for engineering execution or accept invalidated sub-agent output as evidence
+- ❌ Modify files outside the authorized Phase 0 governance closure scope
 - ❌ Change LOCKED business rules
 - ❌ Hard-code CONFIGURABLE values
 - ❌ Implement DEFERRED modules
 - ❌ Invent behavior for OPEN questions
 - ❌ Delete, clean, stash, or batch-add untracked files
-- ❌ Announce Phase completion without ChatGPT approval
+- ❌ Modify Merchant business schema or implement Merchant onboarding
+- ❌ Force push, rewrite `main` history, or use an ordinary merge or rebase merge for PR #4
 
 ---
 
-*Last updated: 2026-07-16 | Updated by: OpenClaw | Based on decisions D-001, D-002, D-003, D-004*
+*Last updated: 2026-07-16 | Updated by: Codex CLI | Based on decisions D-001, D-002, D-003, D-004, D-005, D-006, D-007, D-008, D-009 and the ChatGPT Command Center Phase 0 Final Acceptance Decision*

@@ -1,0 +1,53 @@
+name: ipoint
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    init: true
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ipoint}
+      POSTGRES_USER: ${POSTGRES_USER:-ipoint}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ipoint-local-only}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-ipoint} -d ${POSTGRES_DB:-ipoint}',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - ipoint-local
+
+  redis:
+    image: redis:7-alpine
+    init: true
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes', '--save', '60', '1']
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    volumes:
+      - redis-data:/data
+    networks:
+      - ipoint-local
+
+networks:
+  ipoint-local:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:

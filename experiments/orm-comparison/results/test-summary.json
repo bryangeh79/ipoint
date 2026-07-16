@@ -1,0 +1,405 @@
+{
+  "banner": "RECOMMENDATION ONLY — AWAITING COMMAND CENTER ORM GATE",
+  "runtimeValidation": {
+    "status": "UNVALIDATED_ON_TARGET_NODE_LTS",
+    "observedNode": "v24.18.0",
+    "targetNode": "Node 24 LTS"
+  },
+  "prisma": {
+    "orm": "prisma",
+    "transactions": [
+      {
+        "name": "rollback",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "persistedRows": 0
+        }
+      },
+      {
+        "name": "nested-savepoint",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "outerPersisted": true,
+          "innerPersisted": false,
+          "mechanism": "Prisma 7.8 nested $transaction savepoint"
+        }
+      },
+      {
+        "name": "wallet-ledger-atomicity-failure-injection",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "balance": "0",
+          "ledgerRows": 0
+        }
+      },
+      {
+        "name": "concurrent-updates-bounded-retry",
+        "passed": true,
+        "evidenceStatus": "PARTIAL",
+        "details": {
+          "operations": 10,
+          "balance": "10",
+          "ledgerRows": 10,
+          "totalAttempts": 55,
+          "serializationConflicts": 45,
+          "maxAttemptsObserved": 10,
+          "retryBound": 20,
+          "limitation": "The bound of 20 is an experimental correctness-probe setting, not an approved production retry policy."
+        }
+      },
+      {
+        "name": "deadlock-detection",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "rejected": 1,
+          "retryableErrors": 1,
+          "messages": [
+            "PrismaClientKnownRequestError: \nInvalid `prisma.$queryRawUnsafe()` invocation:\n\n\nRaw query failed. Code: `40P01`. Message: `deadlock detected` {\"code\":\"P2010\",\"meta\":{\"driverAdapterError\":{\"name\":\"DriverAdapterError\",\"cause\":{\"originalCode\":\"40P01\",\"originalMessage\":\"deadlock detected\",\"kind\":\"postgres\",\"code\":\"40P01\",\"severity\":\"ERROR\",\"message\":\"deadlock detected\",\"detail\":\"Process 148 waits for ShareLock on transaction 873; blocked by process 149.\\nProcess 149 waits for ShareLock on transaction 872; blocked by process 148.\",\"hint\":\"See server log for query details.\"}}},\"clientVersion\":\"7.8.0\",\"name\":\"PrismaClientKnownRequestError\"}"
+          ]
+        }
+      }
+    ],
+    "idempotency": [
+      {
+        "name": "same-key-repeat-consistent-result",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "first": {
+            "entryId": "29d8b9a6-fc09-4141-b611-c00eeb94313d",
+            "balance": "7.5"
+          },
+          "second": {
+            "balance": "7.5",
+            "entryId": "29d8b9a6-fc09-4141-b611-c00eeb94313d"
+          }
+        }
+      },
+      {
+        "name": "concurrent-repeat-exactly-once",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "callers": 16,
+          "uniqueResults": 1,
+          "duplicateLedgerRows": 0,
+          "balance": "9.75"
+        }
+      },
+      {
+        "name": "same-key-different-payload-rejected",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "mismatchRejected": true
+        }
+      }
+    ],
+    "makerChecker": [
+      {
+        "name": "no-self-approval",
+        "passed": true,
+        "evidenceStatus": "PARTIAL",
+        "details": {
+          "selfRejected": true,
+          "state": {
+            "status": "PENDING",
+            "checker_id": null
+          },
+          "limitation": "The PoC verifies application logic and a database check; authenticated actor authorization is not tested."
+        }
+      },
+      {
+        "name": "concurrent-checkers-exactly-once-state-audit",
+        "passed": true,
+        "evidenceStatus": "PARTIAL",
+        "details": {
+          "concurrentOutcomes": [
+            {
+              "executed": true,
+              "entryId": "70abd847-aad7-4273-93a0-40edb97a40a9"
+            },
+            {
+              "executed": false
+            }
+          ],
+          "executedCount": 1,
+          "repeatExecuted": false,
+          "finalState": {
+            "status": "EXECUTED",
+            "checker_id": "20000000-0000-4000-8000-000000000001",
+            "executed_entry_id": "70abd847-aad7-4273-93a0-40edb97a40a9"
+          },
+          "actionRows": 2,
+          "auditRows": 2,
+          "ledgerRows": 1,
+          "transitions": ["PENDING", "APPROVED", "EXECUTED"],
+          "mechanism": "Exactly-once execution depends on the row-locking transaction plus database uniqueness and foreign-key constraints.",
+          "limitation": "Authenticated roles, market access, action permissions, and production service boundaries are not tested."
+        }
+      }
+    ],
+    "ledger": [
+      {
+        "name": "append-only-update-delete-blocked",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "updateBlocked": true,
+          "deleteBlocked": true,
+          "sqlState": "55000",
+          "mechanism": "PostgreSQL BEFORE UPDATE OR DELETE trigger"
+        }
+      },
+      {
+        "name": "compensating-entry-wallet-consistency",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "originalEntryId": "70abd847-aad7-4273-93a0-40edb97a40a9",
+          "compensationEntryId": "b7d22de7-0103-4080-9082-a260e0d47316",
+          "originalPreserved": true,
+          "walletBalance": "20.00000000",
+          "signedLedgerTotal": "20.00000000"
+        }
+      }
+    ]
+  },
+  "drizzle": {
+    "orm": "drizzle",
+    "transactions": [
+      {
+        "name": "rollback",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "persistedRows": 0
+        }
+      },
+      {
+        "name": "nested-savepoint",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "outerPersisted": true,
+          "innerPersisted": false,
+          "mechanism": "Drizzle nested transaction savepoint"
+        }
+      },
+      {
+        "name": "wallet-ledger-atomicity-failure-injection",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "balance": "0.00000000",
+          "ledgerRows": 0
+        }
+      },
+      {
+        "name": "concurrent-updates-bounded-retry",
+        "passed": true,
+        "evidenceStatus": "PARTIAL",
+        "details": {
+          "operations": 10,
+          "balance": "10.00000000",
+          "ledgerRows": 10,
+          "totalAttempts": 55,
+          "serializationConflicts": 45,
+          "maxAttemptsObserved": 10,
+          "retryBound": 20,
+          "limitation": "The bound of 20 is an experimental correctness-probe setting, not an approved production retry policy."
+        }
+      },
+      {
+        "name": "deadlock-detection",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "rejected": 1,
+          "retryableErrors": 1,
+          "messages": [
+            "Error: Failed query: SELECT id FROM wallets WHERE id = '00000000-0000-4000-8000-000000000002' FOR UPDATE\nparams:  {\"query\":\"SELECT id FROM wallets WHERE id = '00000000-0000-4000-8000-000000000002' FOR UPDATE\",\"params\":[],\"cause\":{\"length\":317,\"name\":\"error\",\"severity\":\"ERROR\",\"code\":\"40P01\",\"detail\":\"Process 151 waits for ShareLock on transaction 814; blocked by process 153.\\nProcess 153 waits for ShareLock on transaction 815; blocked by process 151.\",\"hint\":\"See server log for query details.\",\"where\":\"while locking tuple (0,13) in relation \\\"wallets\\\"\",\"file\":\"deadlock.c\",\"line\":\"1130\",\"routine\":\"DeadLockReport\"}}"
+          ]
+        }
+      }
+    ],
+    "idempotency": [
+      {
+        "name": "same-key-repeat-consistent-result",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "first": {
+            "entryId": "1fa64366-a05f-4093-9a87-c48f3b2e4f9b",
+            "balance": "7.50000000"
+          },
+          "second": {
+            "balance": "7.50000000",
+            "entryId": "1fa64366-a05f-4093-9a87-c48f3b2e4f9b"
+          }
+        }
+      },
+      {
+        "name": "concurrent-repeat-exactly-once",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "callers": 16,
+          "uniqueResults": 1,
+          "duplicateLedgerRows": 0,
+          "balance": "9.75000000"
+        }
+      },
+      {
+        "name": "same-key-different-payload-rejected",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "mismatchRejected": true
+        }
+      }
+    ],
+    "makerChecker": [
+      {
+        "name": "no-self-approval",
+        "passed": true,
+        "evidenceStatus": "PARTIAL",
+        "details": {
+          "selfRejected": true,
+          "state": {
+            "status": "PENDING",
+            "checker_id": null
+          },
+          "limitation": "The PoC verifies application logic and a database check; authenticated actor authorization is not tested."
+        }
+      },
+      {
+        "name": "concurrent-checkers-exactly-once-state-audit",
+        "passed": true,
+        "evidenceStatus": "PARTIAL",
+        "details": {
+          "concurrentOutcomes": [
+            {
+              "executed": true,
+              "entryId": "4b22afef-077f-4a42-b04e-cf689243c40b"
+            },
+            {
+              "executed": false
+            }
+          ],
+          "executedCount": 1,
+          "repeatExecuted": false,
+          "finalState": {
+            "status": "EXECUTED",
+            "checker_id": "20000000-0000-4000-8000-000000000001",
+            "executed_entry_id": "4b22afef-077f-4a42-b04e-cf689243c40b"
+          },
+          "actionRows": 2,
+          "auditRows": 2,
+          "ledgerRows": 1,
+          "transitions": ["PENDING", "APPROVED", "EXECUTED"],
+          "mechanism": "Exactly-once execution depends on the row-locking transaction plus database uniqueness and foreign-key constraints.",
+          "limitation": "Authenticated roles, market access, action permissions, and production service boundaries are not tested."
+        }
+      }
+    ],
+    "ledger": [
+      {
+        "name": "append-only-update-delete-blocked",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "updateBlocked": true,
+          "deleteBlocked": true,
+          "sqlState": "55000",
+          "mechanism": "PostgreSQL BEFORE UPDATE OR DELETE trigger"
+        }
+      },
+      {
+        "name": "compensating-entry-wallet-consistency",
+        "passed": true,
+        "evidenceStatus": "PASSED",
+        "details": {
+          "originalEntryId": "4b22afef-077f-4a42-b04e-cf689243c40b",
+          "compensationEntryId": "4303afe9-4f86-43d9-8924-2082ec851d18",
+          "originalPreserved": true,
+          "walletBalance": "20.00000000",
+          "signedLedgerTotal": "20.00000000"
+        }
+      }
+    ]
+  },
+  "nestjs": {
+    "prisma": {
+      "name": "nestjs-provider-lifecycle-di-transaction-isolation-cleanup",
+      "passed": true,
+      "evidenceStatus": "PARTIAL",
+      "details": {
+        "startup": true,
+        "shutdown": true,
+        "dependencyInjection": true,
+        "transactionPropagated": true,
+        "testIsolationRollback": true,
+        "poolConnectionsAfterClose": 0,
+        "limitation": "A real Nest testing module starts, injects, uses, and closes each experimental provider; production app wiring, request scope, telemetry, and health checks are not tested."
+      }
+    },
+    "drizzle": {
+      "name": "nestjs-provider-lifecycle-di-transaction-isolation-cleanup",
+      "passed": true,
+      "evidenceStatus": "PARTIAL",
+      "details": {
+        "startup": true,
+        "shutdown": true,
+        "dependencyInjection": true,
+        "transactionPropagated": true,
+        "testIsolationRollback": true,
+        "poolConnectionsAfterClose": 0,
+        "limitation": "A real Nest testing module starts, injects, uses, and closes each experimental provider; production app wiring, request scope, telemetry, and health checks are not tested."
+      }
+    }
+  },
+  "evidenceAudit": {
+    "realAssertions": {
+      "status": "PASSED",
+      "observation": "Every passed=true case is calculated from database state, returned values, caught SQLSTATE values, or Nest lifecycle state in shared/experiments.ts."
+    },
+    "runnerFailureExit": {
+      "status": "PASSED",
+      "observation": "A failed case throws; main rethrows after cleanup, so the pnpm process exits non-zero."
+    },
+    "cleanupInFinally": {
+      "status": "PASSED",
+      "observation": "ORM pools disconnect and docker compose down -v runs in finally."
+    },
+    "equivalentModelAndConstraints": {
+      "status": "PARTIAL",
+      "observation": "Both final databases use the same eight-table column signature and exercise the same domain invariants, but generated constraint representation and migration histories are not byte-identical."
+    },
+    "isolationLevels": {
+      "status": "PASSED",
+      "observation": "Both harnesses default to read committed and explicitly use serializable for the concurrent credit probe."
+    },
+    "retryBound": {
+      "status": "PARTIAL",
+      "observation": "The bound of 20 is experimental only and is not a production retry recommendation."
+    },
+    "makerCheckerExactlyOnce": {
+      "status": "PARTIAL",
+      "observation": "Observed exactly-once execution depends on a row-locking transaction plus database uniqueness and foreign-key constraints; production authorization is not tested."
+    },
+    "ledgerAppendOnly": {
+      "status": "PASSED",
+      "observation": "A PostgreSQL BEFORE UPDATE OR DELETE trigger rejects both mutations with SQLSTATE 55000; production privilege hardening remains untested."
+    },
+    "nestjsLifecycle": {
+      "status": "PARTIAL",
+      "observation": "Nest testing modules start, inject, transact, roll back, close, and leave zero pool connections; production app integration is not tested."
+    }
+  },
+  "allPassed": true
+}

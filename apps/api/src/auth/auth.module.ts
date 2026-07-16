@@ -1,0 +1,36 @@
+import { Module } from '@nestjs/common';
+import { ConfigService } from '../config/config.service.js';
+import { DatabaseModule } from '../database/database.module.js';
+import {
+  AUTH_RATE_LIMITER,
+  AUTH_SETTINGS,
+  AUTH_STORE,
+} from './auth.constants.js';
+import { AuthGuard } from './auth.guard.js';
+import { AuthService, type AuthSettings } from './auth.service.js';
+import { PostgresAuthStore } from './postgres-auth.store.js';
+import { InMemoryRateLimiter } from './rate-limit.port.js';
+
+@Module({
+  imports: [DatabaseModule],
+  providers: [
+    PostgresAuthStore,
+    { provide: AUTH_STORE, useExisting: PostgresAuthStore },
+    { provide: AUTH_RATE_LIMITER, useClass: InMemoryRateLimiter },
+    {
+      provide: AUTH_SETTINGS,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService): AuthSettings => ({
+        otpPepper: config.authOtpPepper,
+        accessTtlSeconds: config.authAccessTtlSeconds,
+        refreshTtlSeconds: config.authRefreshTtlSeconds,
+        otpTtlSeconds: config.authOtpTtlSeconds,
+        otpMaxAttempts: config.authOtpMaxAttempts,
+      }),
+    },
+    AuthService,
+    AuthGuard,
+  ],
+  exports: [AuthService, AuthGuard],
+})
+export class AuthModule {}

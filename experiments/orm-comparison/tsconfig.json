@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "rootDir": ".",
+    "types": ["node", "vitest/globals"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "include": [
+    "drizzle/**/*.ts",
+    "prisma/**/*.ts",
+    "scripts/**/*.ts",
+    "shared/**/*.ts"
+  ]
+}

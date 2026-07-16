@@ -1,0 +1,47 @@
+{
+  "name": "@ipoint/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/main.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ipoint/config": "workspace:*",
+    "@ipoint/database": "workspace:*",
+    "@ipoint/types": "workspace:*",
+    "@ipoint/validation": "workspace:*",
+    "@nestjs/common": "^10.4.0",
+    "@nestjs/core": "^10.4.0",
+    "@nestjs/platform-express": "^10.4.0",
+    "@nestjs/swagger": "^7.4.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "drizzle-orm": "0.45.2",
+    "nestjs-pino": "^4.1.0",
+    "pino": "^9.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "pg": "8.22.0",
+    "uuid": "^11.0.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^10.4.0",
+    "@types/express": "^5.0.0",
+    "@types/pg": "^8.15.5",
+    "@types/supertest": "^6.0.2",
+    "@types/uuid": "^10.0.0",
+    "supertest": "^7.0.0",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vitest": "^4.0.0"
+  }
+}
