@@ -531,6 +531,7 @@ export const merchantProfiles = pgTable(
     logoUrl: text('logo_url'),
     bannerUrl: text('banner_url'),
     aboutUs: text('about_us'),
+    address: jsonb('address'),
     businessHours: jsonb('business_hours'),
     phone: text('phone'),
     whatsapp: text('whatsapp'),
@@ -541,6 +542,34 @@ export const merchantProfiles = pgTable(
   },
   (table) => [
     unique('merchant_profiles_branch_unique').on(table.merchantBranchId),
+  ],
+);
+
+export const merchantApiIdempotencyKeys = pgTable(
+  'merchant_api_idempotency_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    scope: text('scope').notNull(),
+    key: text('key').notNull(),
+    requestHash: text('request_hash').notNull(),
+    response: jsonb('response'),
+    statusCode: integer('status_code'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('merchant_api_idempotency_scope_key_unique').on(
+      table.scope,
+      table.key,
+    ),
+    check(
+      'merchant_api_idempotency_request_hash_check',
+      sql`char_length(${table.requestHash}) = 64`,
+    ),
+    check(
+      'merchant_api_idempotency_result_check',
+      sql`(${table.response} is null and ${table.statusCode} is null) or (${table.response} is not null and ${table.statusCode} between 200 and 299)`,
+    ),
   ],
 );
 
