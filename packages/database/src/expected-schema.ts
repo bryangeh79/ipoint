@@ -171,7 +171,6 @@ export const expectedSchema = {
     'logo_url',
     'banner_url',
     'about_us',
-    'address',
     'business_hours',
     'phone',
     'whatsapp',
@@ -179,6 +178,7 @@ export const expectedSchema = {
     'social_links',
     'created_at',
     'updated_at',
+    'address',
   ],
   merchant_api_idempotency_keys: [
     'id',

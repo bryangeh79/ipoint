@@ -14,9 +14,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { AuthGuard } from '../auth/auth.guard.js';
-import { CurrentActor } from '../auth/current-actor.decorator.js';
-import type { RequestActor } from '../auth/auth.types.js';
+import { AuthGuard, type AuthenticatedRequest } from '../auth/auth.guard.js';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
 import { RbacGuard, RequirePermission } from '../platform-access/rbac.guard.js';
 import {
@@ -77,16 +75,15 @@ export class MerchantController {
   @UseGuards(AuthGuard, MerchantOwnershipGuard)
   updateProfile(
     @Param('branchId', new ParseUUIDPipe()) branchId: string,
-    @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(updateMerchantProfileSchema))
     input: UpdateMerchantProfileDto,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Ip() ipAddress: string,
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.merchants.updateProfile(
       branchId,
-      requireAccountActor(actor),
+      requireAccountActor(request.actor),
       input,
       requireIdempotencyKey(idempotencyKey),
       requestContext(request, ipAddress),
@@ -97,16 +94,15 @@ export class MerchantController {
   @UseGuards(AuthGuard, MerchantOwnershipGuard)
   addGalleryEntry(
     @Param('branchId', new ParseUUIDPipe()) branchId: string,
-    @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(addGalleryEntrySchema))
     input: AddGalleryEntryDto,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Ip() ipAddress: string,
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.merchants.addGalleryEntry(
       branchId,
-      requireAccountActor(actor),
+      requireAccountActor(request.actor),
       input,
       requireIdempotencyKey(idempotencyKey),
       requestContext(request, ipAddress),
@@ -117,16 +113,15 @@ export class MerchantController {
   @UseGuards(AuthGuard, MerchantOwnershipGuard)
   submitApplication(
     @Param('branchId', new ParseUUIDPipe()) branchId: string,
-    @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(submitMerchantApplicationSchema))
     input: SubmitMerchantApplicationDto,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Ip() ipAddress: string,
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.merchants.submitApplication(
       branchId,
-      requireAccountActor(actor),
+      requireAccountActor(request.actor),
       input,
       requireIdempotencyKey(idempotencyKey),
       requestContext(request, ipAddress),
@@ -157,17 +152,16 @@ export class MerchantController {
   reviewApplication(
     @Param('marketId', new ParseUUIDPipe()) marketId: string,
     @Param('branchId', new ParseUUIDPipe()) branchId: string,
-    @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(reviewMerchantApplicationSchema))
     input: ReviewMerchantApplicationDto,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Ip() ipAddress: string,
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.merchants.reviewApplication(
       marketId,
       branchId,
-      requireAdminActor(actor),
+      requireAdminActor(request.actor),
       input,
       requireIdempotencyKey(idempotencyKey),
       requestContext(request, ipAddress),
@@ -181,17 +175,16 @@ export class MerchantController {
   suspend(
     @Param('marketId', new ParseUUIDPipe()) marketId: string,
     @Param('branchId', new ParseUUIDPipe()) branchId: string,
-    @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(merchantStatusActionSchema))
     input: MerchantStatusActionDto,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Ip() ipAddress: string,
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.merchants.suspend(
       marketId,
       branchId,
-      requireAdminActor(actor),
+      requireAdminActor(request.actor),
       input,
       requireIdempotencyKey(idempotencyKey),
       requestContext(request, ipAddress),
@@ -205,17 +198,16 @@ export class MerchantController {
   reactivate(
     @Param('marketId', new ParseUUIDPipe()) marketId: string,
     @Param('branchId', new ParseUUIDPipe()) branchId: string,
-    @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(merchantStatusActionSchema))
     input: MerchantStatusActionDto,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Ip() ipAddress: string,
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.merchants.reactivate(
       marketId,
       branchId,
-      requireAdminActor(actor),
+      requireAdminActor(request.actor),
       input,
       requireIdempotencyKey(idempotencyKey),
       requestContext(request, ipAddress),
@@ -229,17 +221,16 @@ export class MerchantController {
   close(
     @Param('marketId', new ParseUUIDPipe()) marketId: string,
     @Param('branchId', new ParseUUIDPipe()) branchId: string,
-    @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(merchantStatusActionSchema))
     input: MerchantStatusActionDto,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Ip() ipAddress: string,
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ) {
     return this.merchants.close(
       marketId,
       branchId,
-      requireAdminActor(actor),
+      requireAdminActor(request.actor),
       input,
       requireIdempotencyKey(idempotencyKey),
       requestContext(request, ipAddress),
