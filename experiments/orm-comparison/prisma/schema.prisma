@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MarketStatus {
+  ACTIVE
+  SUSPENDED
+
+  @@map("market_status")
+}
+
+enum WalletStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+
+  @@map("wallet_status")
+}
+
+enum LedgerDirection {
+  CREDIT
+  DEBIT
+
+  @@map("ledger_direction")
+}
+
+enum AdjustmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTED
+
+  @@map("adjustment_status")
+}
+
+enum AdjustmentActionType {
+  APPROVE
+  REJECT
+  EXECUTE
+
+  @@map("adjustment_action_type")
+}
+
+enum RuleStatus {
+  DRAFT
+  ACTIVE
+  RETIRED
+
+  @@map("rule_status")
+}
+
+enum IdempotencyStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@map("idempotency_status")
+}
+
+model Market {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId    String              @unique(map: "markets_public_id_key") @map("public_id") @db.VarChar(32)
+  code        String              @unique(map: "markets_code_key") @db.VarChar(16)
+  currency    String              @db.Char(3)
+  timezone    String              @db.VarChar(64)
+  status      MarketStatus        @default(ACTIVE)
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  wallets     Wallet[]
+  adjustments AdjustmentRequest[]
+  auditEvents AuditEvent[]
+  rules       VersionedRule[]
+
+  @@map("markets")
+}
+
+model Wallet {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId      String              @unique(map: "wallets_public_id_key") @map("public_id") @db.VarChar(40)
+  marketId      String              @map("market_id") @db.Uuid
+  ownerType     String              @map("owner_type") @db.VarChar(32)
+  ownerId       String              @map("owner_id") @db.Uuid
+  currency      String              @db.Char(3)
+  balance       Decimal             @default(0) @db.Decimal(24, 8)
+  version       Int                 @default(0)
+  status        WalletStatus        @default(ACTIVE)
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  market        Market              @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  ledgerEntries LedgerEntry[]
+  adjustments   AdjustmentRequest[]
+
+  @@unique([marketId, ownerType, ownerId, currency], map: "wallets_market_owner_currency_key")
+  @@index([marketId, status], map: "wallets_market_status_idx")
+  @@map("wallets")
+}
+
+model LedgerEntry {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId           String             @unique(map: "ledger_entries_public_id_key") @map("public_id") @db.VarChar(48)
+  walletId           String             @map("wallet_id") @db.Uuid
+  direction          LedgerDirection
+  amount             Decimal            @db.Decimal(24, 8)
+  entryType          String             @map("entry_type") @db.VarChar(48)
+  sourceType         String             @map("source_type") @db.VarChar(48)
+  sourceId           String             @map("source_id") @db.Uuid
+  idempotencyKey     String             @map("idempotency_key") @db.VarChar(128)
+  balanceAfter       Decimal            @map("balance_after") @db.Decimal(24, 8)
+  effectiveAt        DateTime           @map("effective_at") @db.Timestamptz(6)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  reversalOfEntryId  String?            @map("reversal_of_entry_id") @db.Uuid
+  metadata           Json               @default("{}") @db.JsonB
+  wallet             Wallet             @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  reversalOf         LedgerEntry?       @relation("ledger_reversals", fields: [reversalOfEntryId], references: [id], onDelete: Restrict)
+  reversals          LedgerEntry[]      @relation("ledger_reversals")
+  executedAdjustment AdjustmentRequest? @relation("executed_adjustment")
+
+  @@unique([walletId, idempotencyKey], map: "ledger_entries_wallet_idempotency_key")
+  @@unique([walletId, sourceType, sourceId, entryType], map: "ledger_entries_source_once_key")
+  @@index([walletId, effectiveAt, id], map: "ledger_entries_wallet_effective_idx")
+  @@map("ledger_entries")
+}
+
+model AdjustmentRequest {
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId        String             @unique(map: "adjustment_requests_public_id_key") @map("public_id") @db.VarChar(48)
+  marketId        String             @map("market_id") @db.Uuid
+  walletId        String             @map("wallet_id") @db.Uuid
+  makerId         String             @map("maker_id") @db.Uuid
+  checkerId       String?            @map("checker_id") @db.Uuid
+  direction       LedgerDirection
+  amount          Decimal            @db.Decimal(24, 8)
+  reason          String             @db.Text
+  status          AdjustmentStatus   @default(PENDING)
+  idempotencyKey  String             @unique(map: "adjustment_requests_idempotency_key_key") @map("idempotency_key") @db.VarChar(128)
+  executedEntryId String?            @unique(map: "adjustment_requests_executed_entry_id_key") @map("executed_entry_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  market          Market             @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  wallet          Wallet             @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  executedEntry   LedgerEntry?       @relation("executed_adjustment", fields: [executedEntryId], references: [id], onDelete: Restrict)
+  actions         AdjustmentAction[]
+
+  @@index([marketId, status, createdAt], map: "adjustment_requests_market_status_idx")
+  @@map("adjustment_requests")
+}
+
+model AdjustmentAction {
+  id        String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId  String               @unique(map: "adjustment_actions_public_id_key") @map("public_id") @db.VarChar(48)
+  requestId String               @map("request_id") @db.Uuid
+  actorId   String               @map("actor_id") @db.Uuid
+  action    AdjustmentActionType
+  reason    String?              @db.Text
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  request   AdjustmentRequest    @relation(fields: [requestId], references: [id], onDelete: Restrict)
+
+  @@unique([requestId, action], map: "adjustment_actions_request_action_key")
+  @@index([requestId, createdAt], map: "adjustment_actions_request_created_idx")
+  @@map("adjustment_actions")
+}
+
+model AuditEvent {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId   String   @unique(map: "audit_events_public_id_key") @map("public_id") @db.VarChar(48)
+  marketId   String   @map("market_id") @db.Uuid
+  actorId    String   @map("actor_id") @db.Uuid
+  action     String   @db.VarChar(96)
+  entityType String   @map("entity_type") @db.VarChar(64)
+  entityId   String   @map("entity_id") @db.Uuid
+  before     Json?    @db.JsonB
+  after      Json?    @db.JsonB
+  reason     String?  @db.Text
+  requestId  String   @map("request_id") @db.VarChar(96)
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  market     Market   @relation(fields: [marketId], references: [id], onDelete: Restrict)
+
+  @@index([marketId, actorId, occurredAt], map: "audit_events_market_actor_time_idx")
+  @@index([entityType, entityId, occurredAt], map: "audit_events_entity_time_idx")
+  @@map("audit_events")
+}
+
+model VersionedRule {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId      String     @unique(map: "versioned_rules_public_id_key") @map("public_id") @db.VarChar(48)
+  marketId      String     @map("market_id") @db.Uuid
+  ruleType      String     @map("rule_type") @db.VarChar(64)
+  scopeKey      String     @map("scope_key") @db.VarChar(128)
+  version       Int
+  status        RuleStatus @default(DRAFT)
+  effectiveFrom DateTime   @map("effective_from") @db.Timestamptz(6)
+  effectiveTo   DateTime?  @map("effective_to") @db.Timestamptz(6)
+  payload       Json       @db.JsonB
+  createdBy     String     @map("created_by") @db.Uuid
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  market        Market     @relation(fields: [marketId], references: [id], onDelete: Restrict)
+
+  @@unique([marketId, ruleType, scopeKey, version], map: "versioned_rules_scope_version_key")
+  @@index([marketId, ruleType, scopeKey, status, effectiveFrom], map: "versioned_rules_effective_idx")
+  @@map("versioned_rules")
+}
+
+model IdempotencyRecord {
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicId     String            @unique(map: "idempotency_records_public_id_key") @map("public_id") @db.VarChar(48)
+  scope        String            @db.VarChar(64)
+  key          String            @db.VarChar(128)
+  requestHash  String            @map("request_hash") @db.Char(64)
+  status       IdempotencyStatus @default(PROCESSING)
+  responseCode Int?              @map("response_code")
+  responseBody Json?             @map("response_body") @db.JsonB
+  lockedUntil  DateTime?         @map("locked_until") @db.Timestamptz(6)
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt  DateTime?         @map("completed_at") @db.Timestamptz(6)
+
+  @@unique([scope, key], map: "idempotency_records_scope_key_key")
+  @@index([status, lockedUntil], map: "idempotency_records_status_lock_idx")
+  @@map("idempotency_records")
+}
