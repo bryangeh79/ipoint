@@ -17,6 +17,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "orm-poc": "pnpm --filter @ipoint/orm-comparison poc",
+    "orm-poc:infra:up": "pnpm --filter @ipoint/orm-comparison infra:up",
+    "orm-poc:infra:down": "pnpm --filter @ipoint/orm-comparison infra:down",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
