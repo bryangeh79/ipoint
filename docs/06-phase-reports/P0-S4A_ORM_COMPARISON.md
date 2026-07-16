@@ -1,4 +1,4 @@
-# ORM GATE READY — RECOMMENDATION ONLY
+# ORM GATE CLOSED — DRIZZLE APPROVED
 
 # P0-S4A ORM Comparison — Reproducible PoC Evidence
 
@@ -10,7 +10,7 @@
 >
 > **Branch:** `task/p0-s4a-orm-poc`
 >
-> **Status:** **ORM GATE READY FOR COMMAND CENTER DECISION; ORM GATE REMAINS OPEN**
+> **Status:** **P0-S4A COMPLETE; ORM GATE CLOSED — DRIZZLE APPROVED BY D-006**
 
 ## 1. Scope and evidence policy
 
@@ -271,16 +271,14 @@ Prisma remains a strong fit for CRUD-heavy modules, teams prioritizing generated
 | `pnpm orm-poc`                                                                                         | PASS on Node v26.4.0; `UNVALIDATED_ON_TARGET_NODE_LTS`                                                                  |
 | `git diff --check`                                                                                     | PASS                                                                                                                    |
 
-## 14. ORM Gate decision options
+## 14. ORM Gate decision
 
-The Command Center may record exactly one of:
+ChatGPT Command Center selected `APPROVE_DRIZZLE` and recorded the production-baseline requirements in D-006. Prisma was evaluated but not selected. PostgreSQL remains the source of truth, decimal values use `numeric`, migrations require explicit reviewable SQL and mandatory checksums, applied migration recovery is forward-fix, and ledger immutability remains a database/application design responsibility.
 
-1. `APPROVE_PRISMA`
-2. `APPROVE_DRIZZLE` — evidence-based recommendation
-3. `REQUIRE_MORE_EVIDENCE` — choose this if Node 24 LTS validation is mandatory before ORM selection
+Node 24 LTS was not available on this host. The evidence remains `UNVALIDATED_ON_TARGET_NODE_LTS`, and P0-S4B must not be marked complete until the complete PoC passes on Node 24 LTS.
 
 ---
 
-> **ORM GATE READY — RECOMMENDATION ONLY**
+> **ORM GATE CLOSED — DRIZZLE APPROVED**
 >
-> This PoC evidence is ready for a Command Center decision. It does not approve Prisma or Drizzle by itself, and it does not close the ORM Gate.
+> The PoC evidence informed D-006. Governance approval selects Drizzle; the evidence itself remains bounded by the recorded Node 24 LTS limitation.

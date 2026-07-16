@@ -1,4 +1,4 @@
-# RECOMMENDATION ONLY — AWAITING COMMAND CENTER ORM GATE
+# ORM GATE CLOSED — DRIZZLE APPROVED
 
 # P0-S4A Reproducible ORM Evaluation
 
@@ -133,4 +133,4 @@ All recorded assertion predicates passed, but the evidence status is deliberatel
 6. Ten concurrent writers and sixteen idempotent callers are correctness probes, not load or performance tests.
 7. Nest providers are experimental and remain outside `apps/api`; no production integration is authorized.
 
-The evidence supports Command Center review but does not approve Prisma or Drizzle. The ORM Gate remains OPEN.
+The evidence informed Command Center decision D-006, which approved Drizzle for the iPoint production baseline. The current host still exposes only Node v26.4.0, so target-runtime evidence remains `UNVALIDATED_ON_TARGET_NODE_LTS` and must be repeated on Node 24 LTS before P0-S4B completion.

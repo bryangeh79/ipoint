@@ -100,4 +100,23 @@
 | **Basis** | P0-S3 + P0-S4A: EXECUTION INVALID (2026-07-16) |
 | **Status** | **ENFORCED** |
 
+---
+
+## D-006: Drizzle ORM selected for iPoint production baseline
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-006 |
+| **Date** | 2026-07-16 |
+| **Source** | ChatGPT Command Center — ORM Gate decision and Batch A authorization |
+| **Old Rule** | ORM Gate OPEN; Prisma and Drizzle evaluated with no production ORM selected |
+| **New Decision** | Close the ORM Gate and approve Drizzle ORM for the iPoint production baseline. Prisma was evaluated but not selected. PostgreSQL remains the source of truth. Monetary, percentage, point, and commission decimal values use PostgreSQL `numeric`, never floating point. Production migrations use explicit, reviewable SQL and forward-fix recovery. Ledger immutability is enforced through database and application design, not delegated to the ORM. Migration checksums are mandatory. Node 24 LTS validation must pass before P0-S4B completion. |
+| **Reason** | The checked-in P0-S4A comparison PoC demonstrated equivalent critical correctness behavior while Drizzle provides the approved SQL-oriented production baseline. The explicit migration, integrity, and target-runtime requirements preserve reviewability and operational safety. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, experiments/orm-comparison/, future production database integration files |
+| **Affected Phases** | P0-S4A, ORM Gate, P0-S4B, P0-S5, P0-S6 and all later database-backed phases |
+| **Migration** | Explicit reviewable SQL migrations; immutable migration-file checksums; append-only history; forward-fix recovery after an applied migration |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | ORM Gate CLOSED — DRIZZLE APPROVED; Batch A (P0-S4B → P0-S5 → P0-S6) authorized (2026-07-16) |
+| **Status** | **APPROVED** |
+
 *— End of current entries. New decisions must be appended below —*

@@ -1,6 +1,6 @@
 # P0-S4A ORM Gate Evidence Index
 
-> Evidence status: **ORM GATE READY FOR COMMAND CENTER DECISION**
+> Evidence status: **ORM GATE CLOSED — DRIZZLE APPROVED BY D-006**
 >
 > Runtime status: **UNVALIDATED_ON_TARGET_NODE_LTS**
 >
@@ -184,4 +184,4 @@ vitest.config.ts
 
 ## Gate interpretation
 
-The evidence package is complete enough for the Command Center to choose among `APPROVE_PRISMA`, `APPROVE_DRIZZLE`, and `REQUIRE_MORE_EVIDENCE`. The ORM Gate itself remains open until the Command Center records a governance decision. Node 24 LTS validation remains the maximum evidence limitation.
+The evidence package informed Command Center decision D-006, which selected `APPROVE_DRIZZLE`; Prisma was evaluated but not selected. Node 24 LTS validation remains the maximum evidence limitation and is required before P0-S4B completion.

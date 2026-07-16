@@ -14,14 +14,16 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Phase** | **P0-S4A PoC** | Authorized; implementation has not started |
+| **Current Authorized Phase** | **Batch A: P0-S4B → P0-S5 → P0-S6** | Sequential execution authorized by ChatGPT Command Center |
 | **P0-S1** | **COMPLETE** | Repository audit completed |
 | **P0-S2** | **COMPLETE** | Phase 0 application shells completed |
 | **P0-S3** | **COMPLETE** | Backend foundation independently re-validated after D-005 |
 | **P0-S4A Documentation** | **COMPLETE** | ORM comparison independently re-validated after D-005 |
-| **P0-S4A PoC** | **AUTHORIZED / NOT STARTED** | Reproducible ORM PoC is the current authorized work |
-| **ORM Gate** | **OPEN** | No ORM is selected until PoC evidence is reviewed and a governance decision is recorded |
-| **P0-S4B** | **NOT_AUTHORIZED** | Must not start before ORM Gate approval |
+| **P0-S4A PoC** | **COMPLETE** | Reproducible ORM comparison PoC integrated into the Phase branch |
+| **ORM Gate** | **CLOSED — DRIZZLE APPROVED** | D-006 selects Drizzle for the production baseline |
+| **P0-S4B** | **IN_PROGRESS** | Node 24 LTS validation is required before completion |
+| **P0-S5** | **AUTHORIZED** | Authorized as the next Batch A sub-phase after P0-S4B |
+| **P0-S6** | **AUTHORIZED** | Authorized as the final Batch A sub-phase after P0-S5 |
 
 ---
 
@@ -33,9 +35,11 @@
 | **P0-S2** | Monorepo application shells | **COMPLETE** | None |
 | **P0-S3** | NestJS backend foundation | **COMPLETE** | None |
 | **P0-S4A Documentation** | ORM comparison and recommendation evidence | **COMPLETE** | None |
-| **P0-S4A PoC** | Checked-in, reproducible ORM comparison PoC | **AUTHORIZED / NOT STARTED** | Command Center evidence review |
-| **ORM Gate** | ORM selection governance decision | **OPEN** | PoC completion, review, and recorded decision |
-| **P0-S4B** | Post-ORM-gate Phase 0 work | **NOT_AUTHORIZED** | ORM Gate approval |
+| **P0-S4A PoC** | Checked-in, reproducible ORM comparison PoC | **COMPLETE** | None |
+| **ORM Gate** | ORM selection governance decision | **CLOSED — DRIZZLE APPROVED** | D-006 recorded |
+| **P0-S4B** | Post-ORM-gate Phase 0 work | **IN_PROGRESS** | Node 24 LTS validation before completion |
+| **P0-S5** | Batch A follow-on work | **AUTHORIZED** | P0-S4B completion |
+| **P0-S6** | Batch A follow-on work | **AUTHORIZED** | P0-S5 completion |
 
 ---
 
@@ -64,7 +68,7 @@
 ## Current allowed actions
 
 - ✅ Read and analyze project documentation and existing Phase 0 evidence
-- ✅ Execute the authorized P0-S4A checked-in, reproducible ORM PoC
+- ✅ Execute authorized Batch A sequentially: P0-S4B → P0-S5 → P0-S6
 - ✅ Run repository verification and quality gates for authorized work
 - ✅ Append Decision Log entries only when a new decision is issued
 - ✅ Update PHASE_REGISTRY.md as authorized status decisions arrive
@@ -72,8 +76,8 @@
 
 ## Current prohibited actions
 
-- ❌ Start P0-S4B or any other unauthorized Phase work
-- ❌ Select an ORM or close the ORM Gate without reviewed PoC evidence and a recorded governance decision
+- ❌ Mark P0-S4B complete before Node 24 LTS validation passes
+- ❌ Start work outside the authorized Batch A sequence
 - ❌ Use OpenClaw sub-agents for engineering execution or accept invalidated sub-agent output as evidence
 - ❌ Modify files outside the currently authorized scope
 - ❌ Change LOCKED business rules
@@ -85,4 +89,4 @@
 
 ---
 
-*Last updated: 2026-07-16 | Updated by: OpenClaw | Based on decisions D-001, D-002, D-003, D-004, D-005 and current ChatGPT Command Center authorization*
+*Last updated: 2026-07-16 | Updated by: Codex CLI | Based on decisions D-001, D-002, D-003, D-004, D-005, D-006 and current ChatGPT Command Center authorization*
