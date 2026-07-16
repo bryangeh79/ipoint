@@ -1,0 +1,40 @@
+{
+  "prisma": {
+    "fromZeroTableCount": 8,
+    "fromZeroRebuildPassed": true,
+    "deterministicSeed": {
+      "marketId": "00000000-0000-4000-8000-000000000001",
+      "walletId": "00000000-0000-4000-8000-000000000002"
+    },
+    "additiveColumnPresent": true,
+    "destructiveColumnAbsent": true,
+    "recoveryColumnPresent": true,
+    "recoveredPriorValue": null,
+    "recoveryDataLossDocumented": true
+  },
+  "drizzle": {
+    "fromZeroTableCount": 8,
+    "fromZeroRebuildPassed": true,
+    "deterministicSeed": {
+      "marketId": "00000000-0000-4000-8000-000000000001",
+      "walletId": "00000000-0000-4000-8000-000000000002"
+    },
+    "additiveColumnPresent": true,
+    "destructiveColumnAbsent": true,
+    "recoveryColumnPresent": true,
+    "recoveredPriorValue": null,
+    "recoveryDataLossDocumented": true
+  },
+  "historyConflict": {
+    "prisma": {
+      "changedAppliedSqlDetected": false,
+      "exitCode": 0,
+      "observation": "Datasource \"db\": PostgreSQL database \"ipoint_prisma_poc\", schema \"public\" at \"localhost:55431\"\n\n2 migrations found in prisma/migrations\n\nDatabase schema is up to date!\nLoaded Prisma config from prisma\\prisma.config.ts.\n\nPrisma schema loaded from prisma\\schema.prisma."
+    },
+    "drizzle": {
+      "changedAppliedSqlDetected": false,
+      "exitCode": 0,
+      "observation": "Reading config file 'C:\\AI_WORKSPACE\\ipoint-p0-s4a-poc\\experiments\\orm-comparison\\drizzle\\drizzle.config.ts'\nUsing 'pg' driver for database querying\n[⣷] applying migrations...\u001b[2K\u001b[1G[✓] migrations applied successfully!"
+    }
+  }
+}

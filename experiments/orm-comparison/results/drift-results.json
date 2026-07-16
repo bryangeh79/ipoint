@@ -1,0 +1,14 @@
+{
+  "prisma": {
+    "cli": "prisma migrate diff --from-config-datasource --to-schema ... --exit-code --script",
+    "exitCode": 2,
+    "driftDetected": true,
+    "stdout": "-- AlterTable\nALTER TABLE \"wallets\" DROP COLUMN \"rogue_drift_probe\";\n",
+    "stderr": "Loaded Prisma config from prisma\\prisma.config.ts.\n\n"
+  },
+  "drizzle": {
+    "nonMutatingOfficialLiveDiffCommand": null,
+    "catalogProbeDetected": true,
+    "limitation": "Drizzle Kit stable has no equivalent documented non-mutating live-schema diff command; PoC used a read-only PostgreSQL catalog probe."
+  }
+}

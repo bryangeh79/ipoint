@@ -1,0 +1,31 @@
+{
+  "recordedAt": "2026-07-16T05:01:16.924Z",
+  "node": "v26.4.0",
+  "pnpm": "9.15.9",
+  "docker": "Docker version 29.3.1, build c2be9cc",
+  "postgres": {
+    "prisma": {
+      "version": "PostgreSQL 17.10 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+      "max_connections": "100",
+      "deadlock_timeout": "100ms",
+      "default_transaction_isolation": "read committed",
+      "timezone": "UTC"
+    },
+    "drizzle": {
+      "version": "PostgreSQL 17.10 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+      "max_connections": "100",
+      "deadlock_timeout": "100ms",
+      "default_transaction_isolation": "read committed",
+      "timezone": "UTC"
+    }
+  },
+  "packages": {
+    "prisma": "7.8.0",
+    "prismaClient": "7.8.0",
+    "prismaPgAdapter": "7.8.0",
+    "drizzleOrm": "0.45.2",
+    "drizzleKit": "0.31.10",
+    "pg": "8.22.0",
+    "nestjs": "10.4.x"
+  }
+}

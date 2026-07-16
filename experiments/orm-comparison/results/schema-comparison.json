@@ -1,0 +1,1924 @@
+{
+  "identicalColumnSignature": true,
+  "prismaColumns": [
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "request_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "actor_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "action",
+      "data_type": "USER-DEFINED",
+      "udt_name": "adjustment_action_type",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "reason",
+      "data_type": "text",
+      "udt_name": "text",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "market_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "wallet_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "maker_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "checker_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "direction",
+      "data_type": "USER-DEFINED",
+      "udt_name": "ledger_direction",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "amount",
+      "data_type": "numeric",
+      "udt_name": "numeric",
+      "is_nullable": "NO",
+      "numeric_precision": 24,
+      "numeric_scale": 8
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "reason",
+      "data_type": "text",
+      "udt_name": "text",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "udt_name": "adjustment_status",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "idempotency_key",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "executed_entry_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "market_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "actor_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "action",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "entity_type",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "entity_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "before",
+      "data_type": "jsonb",
+      "udt_name": "jsonb",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "after",
+      "data_type": "jsonb",
+      "udt_name": "jsonb",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "reason",
+      "data_type": "text",
+      "udt_name": "text",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "request_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "occurred_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "scope",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "key",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "request_hash",
+      "data_type": "character",
+      "udt_name": "bpchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "udt_name": "idempotency_status",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "response_code",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "is_nullable": "YES",
+      "numeric_precision": 32,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "response_body",
+      "data_type": "jsonb",
+      "udt_name": "jsonb",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "locked_until",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "completed_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "wallet_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "direction",
+      "data_type": "USER-DEFINED",
+      "udt_name": "ledger_direction",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "amount",
+      "data_type": "numeric",
+      "udt_name": "numeric",
+      "is_nullable": "NO",
+      "numeric_precision": 24,
+      "numeric_scale": 8
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "entry_type",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "source_type",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "source_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "idempotency_key",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "balance_after",
+      "data_type": "numeric",
+      "udt_name": "numeric",
+      "is_nullable": "NO",
+      "numeric_precision": 24,
+      "numeric_scale": 8
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "effective_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "reversal_of_entry_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "metadata",
+      "data_type": "jsonb",
+      "udt_name": "jsonb",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "code",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "currency",
+      "data_type": "character",
+      "udt_name": "bpchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "timezone",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "udt_name": "market_status",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "market_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "rule_type",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "scope_key",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "version",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "is_nullable": "NO",
+      "numeric_precision": 32,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "udt_name": "rule_status",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "effective_from",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "effective_to",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "payload",
+      "data_type": "jsonb",
+      "udt_name": "jsonb",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "created_by",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "market_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "owner_type",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "owner_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "currency",
+      "data_type": "character",
+      "udt_name": "bpchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "balance",
+      "data_type": "numeric",
+      "udt_name": "numeric",
+      "is_nullable": "NO",
+      "numeric_precision": 24,
+      "numeric_scale": 8
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "version",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "is_nullable": "NO",
+      "numeric_precision": 32,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "udt_name": "wallet_status",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    }
+  ],
+  "drizzleColumns": [
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "request_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "actor_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "action",
+      "data_type": "USER-DEFINED",
+      "udt_name": "adjustment_action_type",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "reason",
+      "data_type": "text",
+      "udt_name": "text",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_actions",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "market_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "wallet_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "maker_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "checker_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "direction",
+      "data_type": "USER-DEFINED",
+      "udt_name": "ledger_direction",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "amount",
+      "data_type": "numeric",
+      "udt_name": "numeric",
+      "is_nullable": "NO",
+      "numeric_precision": 24,
+      "numeric_scale": 8
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "reason",
+      "data_type": "text",
+      "udt_name": "text",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "udt_name": "adjustment_status",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "idempotency_key",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "executed_entry_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "adjustment_requests",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "market_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "actor_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "action",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "entity_type",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "entity_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "before",
+      "data_type": "jsonb",
+      "udt_name": "jsonb",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "after",
+      "data_type": "jsonb",
+      "udt_name": "jsonb",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "reason",
+      "data_type": "text",
+      "udt_name": "text",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "request_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_events",
+      "column_name": "occurred_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "scope",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "key",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "request_hash",
+      "data_type": "character",
+      "udt_name": "bpchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "udt_name": "idempotency_status",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "response_code",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "is_nullable": "YES",
+      "numeric_precision": 32,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "response_body",
+      "data_type": "jsonb",
+      "udt_name": "jsonb",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "locked_until",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "idempotency_records",
+      "column_name": "completed_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "wallet_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "direction",
+      "data_type": "USER-DEFINED",
+      "udt_name": "ledger_direction",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "amount",
+      "data_type": "numeric",
+      "udt_name": "numeric",
+      "is_nullable": "NO",
+      "numeric_precision": 24,
+      "numeric_scale": 8
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "entry_type",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "source_type",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "source_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "idempotency_key",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "balance_after",
+      "data_type": "numeric",
+      "udt_name": "numeric",
+      "is_nullable": "NO",
+      "numeric_precision": 24,
+      "numeric_scale": 8
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "effective_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "reversal_of_entry_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "ledger_entries",
+      "column_name": "metadata",
+      "data_type": "jsonb",
+      "udt_name": "jsonb",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "code",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "currency",
+      "data_type": "character",
+      "udt_name": "bpchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "timezone",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "udt_name": "market_status",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "markets",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "market_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "rule_type",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "scope_key",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "version",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "is_nullable": "NO",
+      "numeric_precision": 32,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "udt_name": "rule_status",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "effective_from",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "effective_to",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "YES",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "payload",
+      "data_type": "jsonb",
+      "udt_name": "jsonb",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "created_by",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "versioned_rules",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "public_id",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "market_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "owner_type",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "owner_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "currency",
+      "data_type": "character",
+      "udt_name": "bpchar",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "balance",
+      "data_type": "numeric",
+      "udt_name": "numeric",
+      "is_nullable": "NO",
+      "numeric_precision": 24,
+      "numeric_scale": 8
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "version",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "is_nullable": "NO",
+      "numeric_precision": 32,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "udt_name": "wallet_status",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "wallets",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "is_nullable": "NO",
+      "numeric_precision": null,
+      "numeric_scale": null
+    }
+  ],
+  "prismaConstraints": [
+    {
+      "table_name": "adjustment_actions",
+      "contype": "f",
+      "definition": "FOREIGN KEY (request_id) REFERENCES adjustment_requests(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "adjustment_actions",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "c",
+      "definition": "CHECK (((checker_id IS NULL) OR (maker_id <> checker_id)))"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "c",
+      "definition": "CHECK ((amount > (0)::numeric))"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "f",
+      "definition": "FOREIGN KEY (executed_entry_id) REFERENCES ledger_entries(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "f",
+      "definition": "FOREIGN KEY (market_id) REFERENCES markets(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "f",
+      "definition": "FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "audit_events",
+      "contype": "f",
+      "definition": "FOREIGN KEY (market_id) REFERENCES markets(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "audit_events",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "idempotency_records",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "ledger_entries",
+      "contype": "c",
+      "definition": "CHECK (((reversal_of_entry_id IS NULL) OR (reversal_of_entry_id <> id)))"
+    },
+    {
+      "table_name": "ledger_entries",
+      "contype": "c",
+      "definition": "CHECK ((amount > (0)::numeric))"
+    },
+    {
+      "table_name": "ledger_entries",
+      "contype": "f",
+      "definition": "FOREIGN KEY (reversal_of_entry_id) REFERENCES ledger_entries(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "ledger_entries",
+      "contype": "f",
+      "definition": "FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "ledger_entries",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "markets",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "versioned_rules",
+      "contype": "c",
+      "definition": "CHECK (((effective_to IS NULL) OR (effective_to > effective_from)))"
+    },
+    {
+      "table_name": "versioned_rules",
+      "contype": "c",
+      "definition": "CHECK ((version > 0))"
+    },
+    {
+      "table_name": "versioned_rules",
+      "contype": "f",
+      "definition": "FOREIGN KEY (market_id) REFERENCES markets(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "versioned_rules",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "wallets",
+      "contype": "f",
+      "definition": "FOREIGN KEY (market_id) REFERENCES markets(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "wallets",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    }
+  ],
+  "drizzleConstraints": [
+    {
+      "table_name": "adjustment_actions",
+      "contype": "f",
+      "definition": "FOREIGN KEY (request_id) REFERENCES adjustment_requests(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "adjustment_actions",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "adjustment_actions",
+      "contype": "u",
+      "definition": "UNIQUE (public_id)"
+    },
+    {
+      "table_name": "adjustment_actions",
+      "contype": "u",
+      "definition": "UNIQUE (request_id, action)"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "c",
+      "definition": "CHECK (((checker_id IS NULL) OR (maker_id <> checker_id)))"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "c",
+      "definition": "CHECK ((amount > (0)::numeric))"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "f",
+      "definition": "FOREIGN KEY (executed_entry_id) REFERENCES ledger_entries(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "f",
+      "definition": "FOREIGN KEY (market_id) REFERENCES markets(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "f",
+      "definition": "FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "u",
+      "definition": "UNIQUE (executed_entry_id)"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "u",
+      "definition": "UNIQUE (idempotency_key)"
+    },
+    {
+      "table_name": "adjustment_requests",
+      "contype": "u",
+      "definition": "UNIQUE (public_id)"
+    },
+    {
+      "table_name": "audit_events",
+      "contype": "f",
+      "definition": "FOREIGN KEY (market_id) REFERENCES markets(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "audit_events",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "audit_events",
+      "contype": "u",
+      "definition": "UNIQUE (public_id)"
+    },
+    {
+      "table_name": "idempotency_records",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "idempotency_records",
+      "contype": "u",
+      "definition": "UNIQUE (public_id)"
+    },
+    {
+      "table_name": "ledger_entries",
+      "contype": "c",
+      "definition": "CHECK (((reversal_of_entry_id IS NULL) OR (reversal_of_entry_id <> id)))"
+    },
+    {
+      "table_name": "ledger_entries",
+      "contype": "c",
+      "definition": "CHECK ((amount > (0)::numeric))"
+    },
+    {
+      "table_name": "ledger_entries",
+      "contype": "f",
+      "definition": "FOREIGN KEY (reversal_of_entry_id) REFERENCES ledger_entries(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "ledger_entries",
+      "contype": "f",
+      "definition": "FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "ledger_entries",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "ledger_entries",
+      "contype": "u",
+      "definition": "UNIQUE (public_id)"
+    },
+    {
+      "table_name": "ledger_entries",
+      "contype": "u",
+      "definition": "UNIQUE (wallet_id, idempotency_key)"
+    },
+    {
+      "table_name": "ledger_entries",
+      "contype": "u",
+      "definition": "UNIQUE (wallet_id, source_type, source_id, entry_type)"
+    },
+    {
+      "table_name": "markets",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "markets",
+      "contype": "u",
+      "definition": "UNIQUE (code)"
+    },
+    {
+      "table_name": "markets",
+      "contype": "u",
+      "definition": "UNIQUE (public_id)"
+    },
+    {
+      "table_name": "versioned_rules",
+      "contype": "c",
+      "definition": "CHECK (((effective_to IS NULL) OR (effective_to > effective_from)))"
+    },
+    {
+      "table_name": "versioned_rules",
+      "contype": "c",
+      "definition": "CHECK ((version > 0))"
+    },
+    {
+      "table_name": "versioned_rules",
+      "contype": "f",
+      "definition": "FOREIGN KEY (market_id) REFERENCES markets(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "versioned_rules",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "versioned_rules",
+      "contype": "u",
+      "definition": "UNIQUE (market_id, rule_type, scope_key, version)"
+    },
+    {
+      "table_name": "versioned_rules",
+      "contype": "u",
+      "definition": "UNIQUE (public_id)"
+    },
+    {
+      "table_name": "wallets",
+      "contype": "f",
+      "definition": "FOREIGN KEY (market_id) REFERENCES markets(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "wallets",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "wallets",
+      "contype": "u",
+      "definition": "UNIQUE (market_id, owner_type, owner_id, currency)"
+    },
+    {
+      "table_name": "wallets",
+      "contype": "u",
+      "definition": "UNIQUE (public_id)"
+    }
+  ],
+  "note": "Constraint object representation differs where Prisma emits unique indexes and Drizzle emits UNIQUE constraints; behavior probes verify the required invariants."
+}

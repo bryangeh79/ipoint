@@ -1,0 +1,324 @@
+{
+  "banner": "RECOMMENDATION ONLY — AWAITING COMMAND CENTER ORM GATE",
+  "prisma": {
+    "orm": "prisma",
+    "transactions": [
+      {
+        "name": "rollback",
+        "passed": true,
+        "details": {
+          "persistedRows": 0
+        }
+      },
+      {
+        "name": "nested-savepoint",
+        "passed": true,
+        "details": {
+          "outerPersisted": true,
+          "innerPersisted": false,
+          "mechanism": "Prisma 7.8 nested $transaction savepoint"
+        }
+      },
+      {
+        "name": "wallet-ledger-atomicity-failure-injection",
+        "passed": true,
+        "details": {
+          "balance": "0",
+          "ledgerRows": 0
+        }
+      },
+      {
+        "name": "concurrent-updates-bounded-retry",
+        "passed": true,
+        "details": {
+          "operations": 10,
+          "balance": "10",
+          "ledgerRows": 10,
+          "totalAttempts": 55,
+          "serializationConflicts": 45,
+          "maxAttemptsObserved": 10,
+          "retryBound": 20
+        }
+      },
+      {
+        "name": "deadlock-detection",
+        "passed": true,
+        "details": {
+          "rejected": 1,
+          "retryableErrors": 1,
+          "messages": [
+            "PrismaClientKnownRequestError: \nInvalid `prisma.$queryRawUnsafe()` invocation:\n\n\nRaw query failed. Code: `40P01`. Message: `deadlock detected` {\"code\":\"P2010\",\"meta\":{\"driverAdapterError\":{\"name\":\"DriverAdapterError\",\"cause\":{\"originalCode\":\"40P01\",\"originalMessage\":\"deadlock detected\",\"kind\":\"postgres\",\"code\":\"40P01\",\"severity\":\"ERROR\",\"message\":\"deadlock detected\",\"detail\":\"Process 121 waits for ShareLock on transaction 873; blocked by process 116.\\nProcess 116 waits for ShareLock on transaction 872; blocked by process 121.\",\"hint\":\"See server log for query details.\"}}},\"clientVersion\":\"7.8.0\",\"name\":\"PrismaClientKnownRequestError\"}"
+          ]
+        }
+      }
+    ],
+    "idempotency": [
+      {
+        "name": "same-key-repeat-consistent-result",
+        "passed": true,
+        "details": {
+          "first": {
+            "entryId": "f7505317-ca89-473a-aff1-ebf5e2438bf8",
+            "balance": "7.5"
+          },
+          "second": {
+            "balance": "7.5",
+            "entryId": "f7505317-ca89-473a-aff1-ebf5e2438bf8"
+          }
+        }
+      },
+      {
+        "name": "concurrent-repeat-exactly-once",
+        "passed": true,
+        "details": {
+          "callers": 16,
+          "uniqueResults": 1,
+          "duplicateLedgerRows": 0,
+          "balance": "9.75"
+        }
+      },
+      {
+        "name": "same-key-different-payload-rejected",
+        "passed": true,
+        "details": {
+          "mismatchRejected": true
+        }
+      }
+    ],
+    "makerChecker": [
+      {
+        "name": "no-self-approval",
+        "passed": true,
+        "details": {
+          "selfRejected": true,
+          "state": {
+            "status": "PENDING",
+            "checker_id": null
+          }
+        }
+      },
+      {
+        "name": "concurrent-checkers-exactly-once-state-audit",
+        "passed": true,
+        "details": {
+          "concurrentOutcomes": [
+            {
+              "executed": true,
+              "entryId": "7da54d27-7f37-4279-8561-51a881dc0c70"
+            },
+            {
+              "executed": false
+            }
+          ],
+          "executedCount": 1,
+          "repeatExecuted": false,
+          "finalState": {
+            "status": "EXECUTED",
+            "checker_id": "20000000-0000-4000-8000-000000000001",
+            "executed_entry_id": "7da54d27-7f37-4279-8561-51a881dc0c70"
+          },
+          "actionRows": 2,
+          "auditRows": 2,
+          "ledgerRows": 1,
+          "transitions": ["PENDING", "APPROVED", "EXECUTED"]
+        }
+      }
+    ],
+    "ledger": [
+      {
+        "name": "append-only-update-delete-blocked",
+        "passed": true,
+        "details": {
+          "updateBlocked": true,
+          "deleteBlocked": true,
+          "sqlState": "55000"
+        }
+      },
+      {
+        "name": "compensating-entry-wallet-consistency",
+        "passed": true,
+        "details": {
+          "originalEntryId": "7da54d27-7f37-4279-8561-51a881dc0c70",
+          "compensationEntryId": "f96a9323-f205-42c2-ac0f-e5d90454418f",
+          "originalPreserved": true,
+          "walletBalance": "20.00000000",
+          "signedLedgerTotal": "20.00000000"
+        }
+      }
+    ]
+  },
+  "drizzle": {
+    "orm": "drizzle",
+    "transactions": [
+      {
+        "name": "rollback",
+        "passed": true,
+        "details": {
+          "persistedRows": 0
+        }
+      },
+      {
+        "name": "nested-savepoint",
+        "passed": true,
+        "details": {
+          "outerPersisted": true,
+          "innerPersisted": false,
+          "mechanism": "Drizzle nested transaction savepoint"
+        }
+      },
+      {
+        "name": "wallet-ledger-atomicity-failure-injection",
+        "passed": true,
+        "details": {
+          "balance": "0.00000000",
+          "ledgerRows": 0
+        }
+      },
+      {
+        "name": "concurrent-updates-bounded-retry",
+        "passed": true,
+        "details": {
+          "operations": 10,
+          "balance": "10.00000000",
+          "ledgerRows": 10,
+          "totalAttempts": 55,
+          "serializationConflicts": 45,
+          "maxAttemptsObserved": 10,
+          "retryBound": 20
+        }
+      },
+      {
+        "name": "deadlock-detection",
+        "passed": true,
+        "details": {
+          "rejected": 1,
+          "retryableErrors": 1,
+          "messages": [
+            "Error: Failed query: SELECT id FROM wallets WHERE id = '00000000-0000-4000-8000-000000000099' FOR UPDATE\nparams:  {\"query\":\"SELECT id FROM wallets WHERE id = '00000000-0000-4000-8000-000000000099' FOR UPDATE\",\"params\":[],\"cause\":{\"length\":317,\"name\":\"error\",\"severity\":\"ERROR\",\"code\":\"40P01\",\"detail\":\"Process 117 waits for ShareLock on transaction 815; blocked by process 120.\\nProcess 120 waits for ShareLock on transaction 814; blocked by process 117.\",\"hint\":\"See server log for query details.\",\"where\":\"while locking tuple (0,14) in relation \\\"wallets\\\"\",\"file\":\"deadlock.c\",\"line\":\"1130\",\"routine\":\"DeadLockReport\"}}"
+          ]
+        }
+      }
+    ],
+    "idempotency": [
+      {
+        "name": "same-key-repeat-consistent-result",
+        "passed": true,
+        "details": {
+          "first": {
+            "entryId": "527ca271-af02-4074-b2c3-b9e47823442d",
+            "balance": "7.50000000"
+          },
+          "second": {
+            "balance": "7.50000000",
+            "entryId": "527ca271-af02-4074-b2c3-b9e47823442d"
+          }
+        }
+      },
+      {
+        "name": "concurrent-repeat-exactly-once",
+        "passed": true,
+        "details": {
+          "callers": 16,
+          "uniqueResults": 1,
+          "duplicateLedgerRows": 0,
+          "balance": "9.75000000"
+        }
+      },
+      {
+        "name": "same-key-different-payload-rejected",
+        "passed": true,
+        "details": {
+          "mismatchRejected": true
+        }
+      }
+    ],
+    "makerChecker": [
+      {
+        "name": "no-self-approval",
+        "passed": true,
+        "details": {
+          "selfRejected": true,
+          "state": {
+            "status": "PENDING",
+            "checker_id": null
+          }
+        }
+      },
+      {
+        "name": "concurrent-checkers-exactly-once-state-audit",
+        "passed": true,
+        "details": {
+          "concurrentOutcomes": [
+            {
+              "executed": true,
+              "entryId": "3b2e60fa-8df5-4d40-8efe-0fa0e42ab282"
+            },
+            {
+              "executed": false
+            }
+          ],
+          "executedCount": 1,
+          "repeatExecuted": false,
+          "finalState": {
+            "status": "EXECUTED",
+            "checker_id": "20000000-0000-4000-8000-000000000001",
+            "executed_entry_id": "3b2e60fa-8df5-4d40-8efe-0fa0e42ab282"
+          },
+          "actionRows": 2,
+          "auditRows": 2,
+          "ledgerRows": 1,
+          "transitions": ["PENDING", "APPROVED", "EXECUTED"]
+        }
+      }
+    ],
+    "ledger": [
+      {
+        "name": "append-only-update-delete-blocked",
+        "passed": true,
+        "details": {
+          "updateBlocked": true,
+          "deleteBlocked": true,
+          "sqlState": "55000"
+        }
+      },
+      {
+        "name": "compensating-entry-wallet-consistency",
+        "passed": true,
+        "details": {
+          "originalEntryId": "3b2e60fa-8df5-4d40-8efe-0fa0e42ab282",
+          "compensationEntryId": "c6ebc746-44e0-4afe-83e8-aec35c590b05",
+          "originalPreserved": true,
+          "walletBalance": "20.00000000",
+          "signedLedgerTotal": "20.00000000"
+        }
+      }
+    ]
+  },
+  "nestjs": {
+    "prisma": {
+      "name": "nestjs-provider-lifecycle-di-transaction-isolation-cleanup",
+      "passed": true,
+      "details": {
+        "startup": true,
+        "shutdown": true,
+        "dependencyInjection": true,
+        "transactionPropagated": true,
+        "testIsolationRollback": true,
+        "poolConnectionsAfterClose": 0
+      }
+    },
+    "drizzle": {
+      "name": "nestjs-provider-lifecycle-di-transaction-isolation-cleanup",
+      "passed": true,
+      "details": {
+        "startup": true,
+        "shutdown": true,
+        "dependencyInjection": true,
+        "transactionPropagated": true,
+        "testIsolationRollback": true,
+        "poolConnectionsAfterClose": 0
+      }
+    }
+  },
+  "allPassed": true
+}
