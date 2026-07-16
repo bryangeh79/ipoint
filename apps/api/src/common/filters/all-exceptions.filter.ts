@@ -28,8 +28,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     const requestId =
-      ((request as unknown) as Record<string, string>)['requestId'] ??
-      'unknown';
+      (request as unknown as Record<string, string>)['requestId'] ?? 'unknown';
     const timestamp = new Date().toISOString();
 
     let httpStatus: number;
@@ -46,9 +45,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
         errorMessage = exceptionResponse;
       } else if (typeof exceptionResponse === 'object') {
         const resp = exceptionResponse as Record<string, unknown>;
-        errorCode = (resp['error'] as string) ?? `HTTP_${httpStatus}`;
-        errorMessage = (resp['message'] as string) ?? exception.message;
-        errorDetails = resp['details'];
+        errorCode =
+          typeof resp['code'] === 'string'
+            ? resp['code']
+            : `HTTP_${httpStatus}`;
+        if (typeof resp['message'] === 'string') {
+          errorMessage = resp['message'];
+        } else if (Array.isArray(resp['message'])) {
+          errorMessage = 'Validation failed';
+        } else {
+          errorMessage = exception.message;
+        }
+        errorDetails =
+          resp['details'] ??
+          (Array.isArray(resp['message']) ? resp['message'] : undefined);
       } else {
         errorCode = `HTTP_${httpStatus}`;
         errorMessage = exception.message;

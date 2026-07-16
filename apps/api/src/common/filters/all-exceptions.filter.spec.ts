@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  HttpException,
-  HttpStatus,
-  ArgumentsHost,
-} from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
+import type { ArgumentsHost } from '@nestjs/common';
 import { AllExceptionsFilter } from './all-exceptions.filter.js';
 import type { Request, Response } from 'express';
 
@@ -54,14 +51,14 @@ describe('AllExceptionsFilter', () => {
           message: 'Not Found',
         },
         requestId: 'test-request-id',
-        timestamp: expect.any(String),
+        timestamp: expect.any(String) as unknown,
       }),
     );
   });
 
   it('should handle HttpException with object response', () => {
     const exception = new HttpException(
-      { message: 'Validation failed', error: 'VALIDATION_ERROR' },
+      { message: 'Validation failed', code: 'VALIDATION_ERROR' },
       HttpStatus.BAD_REQUEST,
     );
     filter.catch(exception, mockHost);
@@ -78,14 +75,30 @@ describe('AllExceptionsFilter', () => {
     );
   });
 
+  it('normalizes Nest validation message arrays', () => {
+    const exception = new HttpException(
+      { message: ['name must be a string'], error: 'Bad Request' },
+      HttpStatus.BAD_REQUEST,
+    );
+    filter.catch(exception, mockHost);
+
+    expect(jsonSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: {
+          code: 'HTTP_400',
+          message: 'Validation failed',
+          details: ['name must be a string'],
+        },
+      }),
+    );
+  });
+
   it('should handle generic Error with safe message in production', () => {
     vi.stubEnv('NODE_ENV', 'production');
     const exception = new Error('Internal database failure');
     filter.catch(exception, mockHost);
 
-    expect(statusSpy).toHaveBeenCalledWith(
-      HttpStatus.INTERNAL_SERVER_ERROR,
-    );
+    expect(statusSpy).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
     expect(jsonSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         error: {
@@ -109,7 +122,7 @@ describe('AllExceptionsFilter', () => {
             name: 'Error',
             message: 'Developer details',
           },
-        }),
+        }) as unknown,
       }),
     );
   });
@@ -126,7 +139,8 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('should use unknown requestId when not present', () => {
-    (mockRequest as unknown as Record<string, unknown>)['requestId'] = undefined;
+    (mockRequest as unknown as Record<string, unknown>)['requestId'] =
+      undefined;
     const exception = new HttpException('Bad', HttpStatus.BAD_REQUEST);
     filter.catch(exception, mockHost);
 

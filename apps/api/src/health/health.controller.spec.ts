@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
 import { HealthController } from './health.controller.js';
 import { ConfigService } from '../config/config.service.js';
 
 describe('HealthController', () => {
   let controller: HealthController;
-  let configService: ConfigService;
 
   beforeEach(async () => {
     // Set required env vars
@@ -18,7 +18,6 @@ describe('HealthController', () => {
     }).compile();
 
     controller = module.get<HealthController>(HealthController);
-    configService = module.get<ConfigService>(ConfigService);
   });
 
   describe('checkLiveness', () => {

@@ -7,6 +7,7 @@ describe('ConfigService', () => {
   beforeEach(() => {
     vi.resetModules();
     process.env = { ...originalEnv };
+    process.env.NODE_ENV = 'development';
     process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
     process.env.REDIS_URL = 'redis://localhost:6379';
   });

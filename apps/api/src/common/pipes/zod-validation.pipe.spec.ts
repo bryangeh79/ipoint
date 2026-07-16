@@ -4,10 +4,12 @@ import { ZodValidationPipe } from './zod-validation.pipe.js';
 import { BadRequestException } from '@nestjs/common';
 
 describe('ZodValidationPipe', () => {
-  const testSchema = z.object({
-    name: z.string().min(2).max(100),
-    age: z.number().int().positive(),
-  });
+  const testSchema = z
+    .object({
+      name: z.string().min(2).max(100),
+      age: z.number().int().positive(),
+    })
+    .strict();
 
   const pipe = new ZodValidationPipe(testSchema);
 

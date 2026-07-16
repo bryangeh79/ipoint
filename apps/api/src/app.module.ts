@@ -3,7 +3,10 @@ import { LoggerModule } from 'nestjs-pino';
 import { ConfigModule } from './config/config.module.js';
 import { ConfigService } from './config/config.service.js';
 import { HealthModule } from './health/health.module.js';
-import { RequestIdMiddleware } from './common/middleware/request-id.middleware.js';
+import {
+  RequestIdMiddleware,
+  resolveRequestId,
+} from './common/middleware/request-id.middleware.js';
 
 @Module({
   imports: [
@@ -14,25 +17,18 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware.j
       useFactory: (configService: ConfigService) => ({
         pinoHttp: {
           level: configService.logLevel,
-          transport:
-            configService.isDevelopment
-              ? { target: 'pino-pretty', options: { colorize: true } }
-              : undefined,
-          customProps: (req) => ({
-            requestId:
-              ((req as unknown) as Record<string, unknown>)['requestId'] as string,
-          }),
-          serializers: {
-            req: (req) => ({
-              method: req.method,
-              url: req.url,
-              requestId:
-                ((req as unknown) as Record<string, unknown>)['requestId'] as string,
-            }),
-            res: (res) => ({
-              statusCode: res.statusCode,
-            }),
+          genReqId: (req, res) => {
+            const requestId = resolveRequestId(req.headers['x-request-id']);
+            (req as unknown as Record<string, unknown>)['requestId'] =
+              requestId;
+            res.setHeader('x-request-id', requestId);
+            return requestId;
           },
+          customProps: (req) => ({
+            requestId: ((req as unknown as Record<string, unknown>)[
+              'requestId'
+            ] ?? req.id) as string,
+          }),
         },
       }),
     }),
