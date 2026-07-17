@@ -11,29 +11,29 @@
 
 ## Task branch evidence
 
-| Task | Branch | Completion commit | Integration commit | Remote verified |
-|---|---|---|---|---|
-| P1-S5 | `task/p1-s5-service-fee-packages` | `4bb8852bcbe55aab6a9d3032516004a025be578a` | `148a8fdeb7f54e6c29269fd189aaf54864df2776` | Yes |
-| P1-S6 | `task/p1-s6-mcp-ledger-recharge` | `35a183643f391b3b93bd72cc4bd3dc5c42102dfe` | `6946ee1ef55fa354635d156ffdc170017a5c2fc2` | Yes |
-| P1-S7 | `task/p1-s7-mcp-governance` | `d7b609288d0a00db89ec455cd1f46b6f6684708b` | `23bf2e4ce1cef276a10c6d5a547051365d6bf395` | Yes |
+| Task  | Branch                            | Completion commit                          | Integration commit                         | Remote verified |
+| ----- | --------------------------------- | ------------------------------------------ | ------------------------------------------ | --------------- |
+| P1-S5 | `task/p1-s5-service-fee-packages` | `4bb8852bcbe55aab6a9d3032516004a025be578a` | `148a8fdeb7f54e6c29269fd189aaf54864df2776` | Yes             |
+| P1-S6 | `task/p1-s6-mcp-ledger-recharge`  | `35a183643f391b3b93bd72cc4bd3dc5c42102dfe` | `6946ee1ef55fa354635d156ffdc170017a5c2fc2` | Yes             |
+| P1-S7 | `task/p1-s7-mcp-governance`       | `d7b609288d0a00db89ec455cd1f46b6f6684708b` | `23bf2e4ce1cef276a10c6d5a547051365d6bf395` | Yes             |
 
 ## Codex CLI execution evidence
 
-| Field | Evidence |
-|---|---|
-| Executable | `C:\Users\MSI\AppData\Roaming\npm\codex.ps1` |
-| Version | `codex-cli 0.144.4` |
-| Authentication | ChatGPT account session |
-| Provider / model | OpenAI / GPT-5 session runtime |
-| Command | Command Center Phase 1 Batch B order executed sequentially in the active Codex CLI session |
-| Codex PID / parent PID | `21772` / `28620` |
-| API key environment | Not present |
-| Base URL override | Not present |
-| P1-S5 interval | 2026-07-17 12:20:02 +08:00 to 12:36:09 +08:00 |
-| P1-S6 interval | 2026-07-17 12:37:32 +08:00 to 12:47:22 +08:00 |
-| P1-S7 interval | 2026-07-17 12:47:55 +08:00 to 12:55:58 +08:00 |
-| Exit code | `0` for each final task gate run |
-| Local-only logs | `.codex-execution-logs/p1-s5.log`, `p1-s6.log`, `p1-s7.log` (gitignored) |
+| Field                  | Evidence                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------ |
+| Executable             | `C:\Users\MSI\AppData\Roaming\npm\codex.ps1`                                               |
+| Version                | `codex-cli 0.144.4`                                                                        |
+| Authentication         | ChatGPT account session                                                                    |
+| Provider / model       | OpenAI / GPT-5 session runtime                                                             |
+| Command                | Command Center Phase 1 Batch B order executed sequentially in the active Codex CLI session |
+| Codex PID / parent PID | `21772` / `28620`                                                                          |
+| API key environment    | Not present                                                                                |
+| Base URL override      | Not present                                                                                |
+| P1-S5 interval         | 2026-07-17 12:20:02 +08:00 to 12:36:09 +08:00                                              |
+| P1-S6 interval         | 2026-07-17 12:37:32 +08:00 to 12:47:22 +08:00                                              |
+| P1-S7 interval         | 2026-07-17 12:47:55 +08:00 to 12:55:58 +08:00                                              |
+| Exit code              | `0` for each final task gate run                                                           |
+| Local-only logs        | `.codex-execution-logs/p1-s5.log`, `p1-s6.log`, `p1-s7.log` (gitignored)                   |
 
 ## P1-S5 package implementation evidence
 
