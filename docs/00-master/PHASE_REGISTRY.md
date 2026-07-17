@@ -2,7 +2,8 @@
 
 > Rules:
 > - Only ChatGPT Command Center may mark a Phase as APPROVED.
-> - Phase status values: NOT_AUTHORIZED / AUTHORIZED / PLANNING / IN_PROGRESS / UNDER_REVIEW / CHANGES_REQUIRED / APPROVED / BLOCKED
+> - Phase status values: NOT_AUTHORIZED / AUTHORIZED / PLANNING / IN_PROGRESS /| **P2-S1** | Architecture and contract freeze | **COMPLETE / APPROVED** / CHANGES_REQUIRED / APPROVED / BLOCKED
+| **P2-S2** | Member Schema and Forward Migrations | **AUTHORIZED** | D-016 authorizes schema and migration implementation; P2-S3+ NOT_AUTHORIZED |
 > - OpenClaw updates status as decisions arrive.
 > - Before updating status, update DECISION_LOG.md with the authorizing decision.
 
@@ -14,7 +15,7 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Phase** | **P2-S1 GOVERNANCE AND EVIDENCE REPAIR ONLY** | Phase 2 AUTHORIZED under D-014; P2-S1 UNDER_REVIEW after D-015; P2-S2+ NOT_AUTHORIZED |
+| **Current Authorized Phase** | **P2-S1 GOVERNANCE AND EVIDENCE REPAIR ONLY** | Phase 2 P2-S2 authorized under D-016; P2-S1 APPROVED; P2-S3+ NOT_AUTHORIZED |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
 | **Phase 2** | **AUTHORIZED** | P2-S1 documentation freeze authorized under D-014; P2-S1 repair updated under D-015; later sub-phases remain NOT_AUTHORIZED |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
@@ -99,7 +100,7 @@
 
 | Sub-phase | Scope | Status | Next gate |
 |---|---|---|---|
-| **P2-S1** | Architecture and contract freeze | **UNDER_REVIEW** | D-014 recorded; D-015 repair applied; governance and evidence repair only |
+| **P2-S1** | Architecture and contract freeze | **UNDER_REVIEW** | APPROVED at 8cdc0b29 under D-016 |
 | **P2-S2** | Member Schema and Forward Migrations | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S3** | Registration, OTP and Authentication | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S4** | Member Identity, Referral and QR Foundation | **NOT_AUTHORIZED** | Await future authorization |
@@ -111,11 +112,9 @@
 
 ## Current allowed actions
 
-- Record D-015 in DECISION_LOG.md and synchronize this registry
-- Complete the P2-S1 documentation repair on `task/p2-s1-architecture-contract-freeze`
-- Commit and push the documentation-only Phase 2 freeze work
-- Verify the pushed remote head and confirm no code, schema, migration, or UI files changed
-- Maintain the lock on P2-S2 through P2-S9 until separate authorization arrives
+- Execute P2-S2 Member Schema and Forward Migrations
+- Run all database integration tests
+- Maintain the lock on P2-S3 through P2-S9 until separate authorization arrives
 
 ## Current prohibited actions
 

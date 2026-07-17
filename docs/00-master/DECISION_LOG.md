@@ -280,4 +280,21 @@
 | **Status** | **APPROVED** |
 
 
+## D-016: Phase 2 P2-S1 final acceptance and P2-S2 authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-016 |
+| **Date** | 2026-07-17 |
+| **Source** | ChatGPT Command Center - P2-S1 APPROVED and P2-S2 authorization |
+| **Old Rule** | P2-S1 UNDER_REVIEW awaiting review; P2-S2 NOT_AUTHORIZED |
+| **New Decision** | P2-S1 APPROVED at SHA 8cdc0b2938ee7ceedb89c13716c6dae07d029c2f. Architecture and contract freeze complete. D-001 through D-015 history intact. No code, migration, schema, UI, or provider leakage. P2-S2 (Member Schema and Forward Migrations) AUTHORIZED. P2-S3 through P2-S9 remain NOT_AUTHORIZED. Main PR/Main Merge remain NOT_AUTHORIZED. |
+| **Reason** | P2-S1 documentation freeze completed and accepted after all repair loops. Phase 2 may proceed to database schema and migration phase. |
+| **Affected Files** | packages/database/schema/*, packages/database/migrations/*, packages/database/tests/*, docs/06-phase-reports/p2-s2/*, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | P2-S1, P2-S2 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P2-S1 COMMAND CENTER FINAL DECISION - APPROVED (2026-07-17) |
+| **Status** | **APPROVED** |
+
 *— End of current entries. New decisions must be appended below —*
