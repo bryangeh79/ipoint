@@ -244,4 +244,21 @@
 | **Basis** | COMMAND CENTER ORDER (2026-07-17) |
 | **Status** | **APPROVED** |
 
+## D-014: Phase 2 architecture and contract freeze authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-014 |
+| **Date** | 2026-07-17 |
+| **Source** | ChatGPT Command Center - Phase 2 authorization |
+| **Old Rule** | Phase 2 NOT_AUTHORIZED |
+| **New Decision** | Phase 2 is AUTHORIZED for the P2-S1 architecture and contract freeze documentation. P2-S1 is AUTHORIZED. P2-S2 through P2-S9 are NOT_AUTHORIZED. Main merge is NOT AUTHORIZED. Development implementation is NOT AUTHORIZED. Database migration is NOT AUTHORIZED. Business code changes are NOT AUTHORIZED. |
+| **Reason** | Phase 2 Member Core must begin with a controlled documentation freeze before any implementation authorization is granted. |
+| **Affected Files** | docs/06-phase-reports/p2-s1/*, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 2, P2-S1, P2-S2, P2-S3, P2-S4, P2-S5, P2-S6, P2-S7, P2-S8, P2-S9 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | D-014 (2026-07-17) |
+| **Status** | **APPROVED** |
+
 *— End of current entries. New decisions must be appended below —*
