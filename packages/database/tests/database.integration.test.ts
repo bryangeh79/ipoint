@@ -58,6 +58,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0002_phase_1_merchant_package_mcp.sql',
       '0003_merchant_api_support.sql',
       '0004_service_fee_package_management.sql',
+      '0005_mcp_ledger_recharge.sql',
     ]);
   });
 
@@ -304,6 +305,81 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
     ).rejects.toMatchObject({ code: '23514' });
   });
 
+  it('posts MCP ledger entries atomically with scoped idempotency and no negative balance', async () => {
+    const fixture = await createMerchantFixture();
+    const account = await connection.pool.query<{ id: string }>(
+      `INSERT INTO mcp_accounts (merchant_branch_id, market_id)
+       VALUES ($1, $2) RETURNING id`,
+      [fixture.branchId, fixture.marketId],
+    );
+    const accountId = account.rows[0]!.id;
+    const key = randomUUID();
+    const credit = () =>
+      connection.pool.query<{ entry_id: string; replayed: boolean }>(
+        `SELECT * FROM append_mcp_ledger_entry(
+          $1, 'RECHARGE', 'CREDIT', 100, 100, 100, 'TEST', NULL, $2,
+          repeat('a', 64), 'SYSTEM', NULL, 'Concurrent recharge', now())`,
+        [accountId, key],
+      );
+    const postings = await Promise.all([credit(), credit(), credit()]);
+    expect(
+      new Set(postings.map((row) => row.rows[0]!.entry_id)),
+    ).toHaveProperty('size', 1);
+    await expect(
+      connection.pool.query(
+        `SELECT * FROM append_mcp_ledger_entry(
+          $1, 'RECHARGE', 'CREDIT', 101, 101, 101, 'TEST', NULL, $2,
+          repeat('b', 64), 'SYSTEM', NULL, 'Mismatched replay', now())`,
+        [accountId, key],
+      ),
+    ).rejects.toMatchObject({ code: 'P0001' });
+    await expect(
+      connection.pool.query(
+        `SELECT * FROM append_mcp_ledger_entry(
+          $1, 'REFUND', 'DEBIT', 101, -101, -101, 'TEST', NULL, $2,
+          repeat('c', 64), 'SYSTEM', NULL, 'Overdraw attempt', now())`,
+        [accountId, randomUUID()],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
+    await expect(
+      connection.pool.query(
+        `UPDATE mcp_accounts SET available_balance = 50 WHERE id = $1`,
+        [accountId],
+      ),
+    ).rejects.toMatchObject({ code: '55000' });
+    await expect(
+      connection.pool.query(
+        `INSERT INTO mcp_ledger_entries
+          (mcp_account_id, sequence, entry_type, direction, amount,
+           balance_delta, available_delta, source_type, idempotency_key,
+           payload_hash, actor_type, reason, effective_at)
+         VALUES ($1, 2, 'RECHARGE', 'CREDIT', 1, 1, 1, 'TEST', $2,
+           repeat('d', 64), 'SYSTEM', 'Direct insert', now())`,
+        [accountId, randomUUID()],
+      ),
+    ).rejects.toMatchObject({ code: '55000' });
+    const reconciled = await connection.pool.query<{
+      stored_total: string;
+      stored_available: string;
+      computed_total: string;
+      computed_available: string;
+    }>(
+      `SELECT a.total_balance::text AS stored_total,
+              a.available_balance::text AS stored_available,
+              sum(l.balance_delta)::text AS computed_total,
+              sum(l.available_delta)::text AS computed_available
+       FROM mcp_accounts a JOIN mcp_ledger_entries l ON l.mcp_account_id = a.id
+       WHERE a.id = $1 GROUP BY a.id`,
+      [accountId],
+    );
+    expect(reconciled.rows[0]).toEqual({
+      stored_total: '100.0000000000',
+      stored_available: '100.0000000000',
+      computed_total: '100.0000000000',
+      computed_available: '100.0000000000',
+    });
+  });
+
   it('enforces package XOR and active-default constraints', async () => {
     await seedFoundation(db);
     const fixture = await createMerchantFixture();
@@ -451,12 +527,9 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       [fixture.branchId, fixture.marketId],
     );
     const ledger = await connection.pool.query<{ id: string }>(
-      `INSERT INTO mcp_ledger_entries
-        (mcp_account_id, sequence, entry_type, direction, amount, balance_delta,
-         available_delta, source_type, idempotency_key, payload_hash, actor_type,
-         effective_at)
-       VALUES ($1, 1, 'RECHARGE', 'CREDIT', 1, 1, 1, 'TEST', $2,
-         repeat('a', 64), 'SYSTEM', now()) RETURNING id`,
+      `SELECT entry_id AS id FROM append_mcp_ledger_entry(
+        $1, 'RECHARGE', 'CREDIT', 1, 1, 1, 'TEST', NULL, $2,
+        repeat('a', 64), 'SYSTEM', NULL, 'Append-only test', now())`,
       [mcpAccount.rows[0]?.id, randomUUID()],
     );
     const adjustment = await connection.pool.query<{ id: string }>(

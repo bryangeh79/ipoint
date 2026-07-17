@@ -14,7 +14,7 @@ import {
   roles,
 } from '@ipoint/database';
 import { seedFoundation } from '@ipoint/database/seeds/foundation';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { Server } from 'node:http';
 import supertest from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -453,10 +453,18 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
   });
 
   it('computes activation status and records every operational transition', async () => {
-    await database.db
-      .update(mcpAccounts)
-      .set({ availableBalance: '99.99999999', totalBalance: '99.99999999' })
+    const accountRows = await database.db
+      .select({ id: mcpAccounts.id })
+      .from(mcpAccounts)
       .where(eq(mcpAccounts.merchantBranchId, branchId));
+    const accountId = accountRows[0]?.id ?? '';
+    await database.db.execute(sql`
+      SELECT * FROM append_mcp_ledger_entry(
+        ${accountId}::uuid, 'RECHARGE'::mcp_entry_type, 'CREDIT'::mcp_direction,
+        99.99999999, 99.99999999, 99.99999999, 'TEST', NULL,
+        ${randomUUID()}, ${'a'.repeat(64)}, 'SYSTEM', NULL,
+        'Activation threshold test', now())
+    `);
     await expect(
       merchants.reevaluateOperationalStatus(
         branchId,
@@ -464,10 +472,13 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
         'KYC integration test.',
       ),
     ).resolves.toBe('PENDING_MCP');
-    await database.db
-      .update(mcpAccounts)
-      .set({ availableBalance: '100.00000000', totalBalance: '100.00000000' })
-      .where(eq(mcpAccounts.merchantBranchId, branchId));
+    await database.db.execute(sql`
+      SELECT * FROM append_mcp_ledger_entry(
+        ${accountId}::uuid, 'RECHARGE'::mcp_entry_type, 'CREDIT'::mcp_direction,
+        0.00000001, 0.00000001, 0.00000001, 'TEST', NULL,
+        ${randomUUID()}, ${'b'.repeat(64)}, 'SYSTEM', NULL,
+        'Activation threshold reached', now())
+    `);
     await expect(
       merchants.reevaluateOperationalStatus(
         branchId,
@@ -482,6 +493,106 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
     expect(history.map((row) => row.status)).toEqual(
       expect.arrayContaining(['PENDING_KYC', 'PENDING_MCP', 'ACTIVE']),
     );
+  });
+
+  it('recharges MCP exactly once and protects market and branch access', async () => {
+    const createPath = `/api/v1/admin/markets/${marketId}/merchants/${branchId}/recharge`;
+    await supertest(server)
+      .post(createPath)
+      .set('authorization', `Bearer ${unprivilegedAdminToken}`)
+      .set('idempotency-key', randomUUID())
+      .send({ amount: '25.0000000000', reason: 'Denied recharge.' })
+      .expect(403);
+    await supertest(server)
+      .post(
+        `/api/v1/admin/markets/${randomUUID()}/merchants/${branchId}/recharge`,
+      )
+      .set('authorization', `Bearer ${adminToken}`)
+      .set('idempotency-key', randomUUID())
+      .send({ amount: '25.0000000000', reason: 'Wrong market.' })
+      .expect(403);
+
+    const key = randomUUID();
+    const created = await supertest(server)
+      .post(createPath)
+      .set('authorization', `Bearer ${adminToken}`)
+      .set('idempotency-key', key)
+      .send({ amount: '25.0000000000', reason: 'Verified manual recharge.' })
+      .expect(201);
+    const replay = await supertest(server)
+      .post(createPath)
+      .set('authorization', `Bearer ${adminToken}`)
+      .set('idempotency-key', key)
+      .send({ amount: '25.0000000000', reason: 'Verified manual recharge.' })
+      .expect(201);
+    expect(replay.body).toEqual(created.body);
+    await supertest(server)
+      .post(createPath)
+      .set('authorization', `Bearer ${adminToken}`)
+      .set('idempotency-key', key)
+      .send({ amount: '26.0000000000', reason: 'Different payload.' })
+      .expect(409);
+
+    const requestId = String((created.body as { id: string }).id);
+    const reviewPath = `/api/v1/admin/markets/${marketId}/recharge/${requestId}/review`;
+    const [first, second] = await Promise.all([
+      supertest(server)
+        .post(reviewPath)
+        .set('authorization', `Bearer ${adminToken}`)
+        .send({ decision: 'COMPLETED', reason: 'Funds verified.' }),
+      supertest(server)
+        .post(reviewPath)
+        .set('authorization', `Bearer ${adminToken}`)
+        .send({ decision: 'COMPLETED', reason: 'Funds verified.' }),
+    ]);
+    expect([first.status, second.status]).toEqual([200, 200]);
+
+    const summary = await supertest(server)
+      .get(`/api/v1/merchant/branches/${branchId}/mcp`)
+      .set('authorization', `Bearer ${merchantToken}`)
+      .set('x-market-id', marketId)
+      .expect(200);
+    expect(summary.body).toMatchObject({
+      total_balance: '125.0000000000',
+      available_balance: '125.0000000000',
+    });
+    await supertest(server)
+      .get(`/api/v1/merchant/branches/${branchId}/mcp/ledger`)
+      .set('authorization', `Bearer ${otherAccountToken}`)
+      .set('x-market-id', marketId)
+      .expect(403);
+    const ledger = await supertest(server)
+      .get(`/api/v1/merchant/branches/${branchId}/mcp/ledger`)
+      .set('authorization', `Bearer ${merchantToken}`)
+      .set('x-market-id', marketId)
+      .expect(200);
+    expect(
+      (ledger.body as { items: Array<{ sourceId: string }> }).items.filter(
+        (entry) => entry.sourceId === requestId,
+      ),
+    ).toHaveLength(1);
+
+    const failed = await supertest(server)
+      .post(createPath)
+      .set('authorization', `Bearer ${adminToken}`)
+      .set('idempotency-key', randomUUID())
+      .send({ amount: '5', reason: 'Unverified recharge.' })
+      .expect(201);
+    await supertest(server)
+      .post(
+        `/api/v1/admin/markets/${marketId}/recharge/${String((failed.body as { id: string }).id)}/review`,
+      )
+      .set('authorization', `Bearer ${adminToken}`)
+      .send({ decision: 'FAILED', reason: 'Evidence rejected.' })
+      .expect(200);
+    const afterFailed = await supertest(server)
+      .get(`/api/v1/merchant/branches/${branchId}/mcp`)
+      .set('authorization', `Bearer ${merchantToken}`)
+      .set('x-market-id', marketId)
+      .expect(200);
+    expect(afterFailed.body).toMatchObject({
+      available_balance: '125.0000000000',
+    });
   });
 
   it('manages service-fee packages with exact rates, market access, and last-active protection', async () => {

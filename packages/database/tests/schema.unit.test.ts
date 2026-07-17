@@ -108,6 +108,7 @@ describe('database foundation schema', () => {
       '0002_phase_1_merchant_package_mcp.sql',
       '0003_merchant_api_support.sql',
       '0004_service_fee_package_management.sql',
+      '0005_mcp_ledger_recharge.sql',
     ]);
     const migration = await readFile(
       `${migrationsDirectory}/0000_database_foundation.sql`,
