@@ -9,12 +9,15 @@ import {
 } from './kyc-storage.adapter.js';
 import { MerchantController } from './merchant.controller.js';
 import { MerchantService } from './merchant.service.js';
+import { PackageController } from './package.controller.js';
+import { PackageService } from './package.service.js';
 
 @Module({
   imports: [DatabaseModule, PlatformAccessModule, AuthModule],
-  controllers: [MerchantController],
+  controllers: [MerchantController, PackageController],
   providers: [
     MerchantService,
+    PackageService,
     MerchantOwnershipGuard,
     {
       provide: KYC_STORAGE_ADAPTER,

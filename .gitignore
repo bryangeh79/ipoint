@@ -30,4 +30,8 @@ PROJECT_STATUS.md
 .local/
 .codex-*-result.txt
 .codex-p1-s4-dispatch.md
+.codex-*.md
 scripts/p1-s4-task.md
+
+# Codex execution logs
+.codex-execution-logs/
