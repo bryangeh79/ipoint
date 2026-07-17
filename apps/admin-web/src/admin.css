@@ -8,6 +8,11 @@
   display: flex;
   gap: var(--ip-space-1);
 }
+.admin-loading {
+  display: grid;
+  gap: var(--ip-space-3);
+  padding-top: var(--ip-space-4);
+}
 .admin-stat-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

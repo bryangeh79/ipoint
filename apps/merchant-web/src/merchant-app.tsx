@@ -15,6 +15,7 @@ import {
   SearchField,
   Select,
   SideNavigation,
+  Skeleton,
   StatCard,
   Table,
   Tabs,
@@ -88,6 +89,7 @@ export function MerchantApp() {
   const [notice, setNotice] = useState<string>();
   const [suspendedPreview, setSuspendedPreview] = useState(false);
   const status = operationalStatus(activation, suspendedPreview);
+  const forcedState = new URLSearchParams(window.location.search).get('state');
   const items = navigation.map((item) => ({ ...item, href: `#${item.id}` }));
 
   const navigate = (item: NavigationItem) => {
@@ -148,13 +150,70 @@ export function MerchantApp() {
           merchant.
         </Alert>
       ) : null}
-      {renderPage(page, {
-        readOnly: status === 'SUSPENDED',
-        onSaved: setNotice,
-        suspendedPreview,
-        setSuspendedPreview,
-      })}
+      {forcedState ? (
+        <WorkspaceState state={forcedState} />
+      ) : (
+        renderPage(page, {
+          readOnly: status === 'SUSPENDED',
+          onSaved: setNotice,
+          suspendedPreview,
+          setSuspendedPreview,
+        })
+      )}
     </AppShell>
+  );
+}
+
+function WorkspaceState({ state }: { state: string }) {
+  if (state === 'loading') {
+    return (
+      <section
+        aria-label="Loading merchant workspace"
+        className="merchant-loading"
+      >
+        <Skeleton width="38%" height={28} />
+        <Skeleton width="70%" height={18} />
+        <div className="merchant-stat-grid">
+          {Array.from({ length: 4 }, (_, index) => (
+            <Skeleton key={index} height={128} />
+          ))}
+        </div>
+      </section>
+    );
+  }
+  const copy = {
+    empty: [
+      'No merchant data yet',
+      'Complete registration to create the first branch.',
+    ],
+    offline: [
+      'You are offline',
+      'Reconnect to safely load market, KYC, package, and MCP data.',
+    ],
+    forbidden: [
+      'Permission denied',
+      'This account does not own the requested merchant branch.',
+    ],
+    expired: [
+      'Session expired',
+      'Log in again to continue without losing saved server data.',
+    ],
+  }[state] ?? [
+    'Unable to load the workspace',
+    'Retry the request or contact support with the request ID.',
+  ];
+  return (
+    <EmptyState
+      title={copy[0]}
+      description={copy[1]}
+      action={
+        <Button
+          onClick={() => window.location.assign(window.location.pathname)}
+        >
+          Retry
+        </Button>
+      }
+    />
   );
 }
 

@@ -6,6 +6,12 @@
   margin-bottom: var(--ip-space-3);
 }
 
+.merchant-loading {
+  display: grid;
+  gap: var(--ip-space-3);
+  padding-top: var(--ip-space-4);
+}
+
 .merchant-progress {
   padding: var(--ip-space-3) 0 var(--ip-space-4);
 }
