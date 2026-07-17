@@ -97,23 +97,8 @@ describe('mock-based AuthService login gating', () => {
     } = {},
   ) {
     const hasher = new PasswordHasher();
-<<<<<<< Updated upstream
-    const secretHash = await hasher.hash(password);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const findPasswordIdentity = vi.fn().mockResolvedValue({
-      accountId: randomUUID(),
-      secretHash,
-      status: 'ACTIVE',
-      memberStatus,
-    });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const createSession = vi.fn().mockResolvedValue('session-id');
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const recordSecurityEvent = vi.fn().mockResolvedValue(undefined);
-=======
     const secretHash = options.secretHash ?? (await hasher.hash(password));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-    const findPasswordIdentity = vi.fn<any>().mockResolvedValue(
+    const findPasswordIdentity = vi.fn().mockResolvedValue(
       options.identity === undefined
         ? {
             accountId: randomUUID(),
@@ -123,11 +108,8 @@ describe('mock-based AuthService login gating', () => {
           }
         : options.identity,
     );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-    const createSession = vi.fn<any>().mockResolvedValue('session-id');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-    const recordSecurityEvent = vi.fn<any>().mockResolvedValue(undefined);
->>>>>>> Stashed changes
+    const createSession = vi.fn().mockResolvedValue('session-id');
+    const recordSecurityEvent = vi.fn().mockResolvedValue(undefined);
     const store = {
       findPasswordIdentity,
       createSession,

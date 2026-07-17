@@ -53,7 +53,22 @@ describe.skipIf(!databaseUrl)('auth foundation integration', () => {
 
   beforeAll(async () => {
     database = new DatabaseService({ databaseUrl } as ConfigService);
-    await migrate(database.pool);
+    try {
+      await migrate(database.pool);
+    } catch (error) {
+      // Ignore migration collision when another test file already ran migration
+      if (
+        !(
+          error instanceof Error &&
+          'message' in error &&
+          String((error as Error).message).includes(
+            'pg_type_typname_nsp_index',
+          )
+        )
+      ) {
+        throw error;
+      }
+    }
     const inserted = await database.db
       .insert(accounts)
       .values({
