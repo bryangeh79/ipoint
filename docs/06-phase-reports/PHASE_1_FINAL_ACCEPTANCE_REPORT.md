@@ -4,6 +4,7 @@
 > - Authorization: ChatGPT Command Center Order, 2026-07-17 13:12 +08:00
 > - Approved baseline: `ff0b49aa76d25e465970eed1292077732194066a`
 > - Phase branch: `phase/1-merchant-onboarding-mcp`
+> - Final implementation integration SHA: `98a3ca3e`
 > - Main merge: **NOT PERFORMED**
 > - Status: **IMPLEMENTATION COMPLETE — COMMAND CENTER ACCEPTANCE REQUIRED**
 
@@ -31,14 +32,16 @@ Phase 1 remains `IN_PROGRESS` until the ChatGPT Command Center issues final acce
 
 ## 3. Final-batch commit and execution evidence
 
-| Item                            | Branch                              | Commit                                     | Remote status           |
-| ------------------------------- | ----------------------------------- | ------------------------------------------ | ----------------------- |
-| Governance D-012                | `phase/1-merchant-onboarding-mcp`   | `d4431342d6256e38c1d631e7e87f6e5daf732c98` | Verified                |
-| P1-S8 task                      | `task/p1-s8-merchant-admin-ui`      | `2ebd819bfc24e513dccbc2cfc0535a7af21c987a` | Verified                |
-| P1-S8 integration               | `phase/1-merchant-onboarding-mcp`   | `d32483a4c4c21737a395472f82a25ae663218d9b` | Verified                |
-| P1-S9 auth HTTP surface         | `task/p1-s9-integration-acceptance` | `f84701abd338206232738de19e5c61962a786538` | Pending final task push |
-| P1-S9 auth acceptance isolation | `task/p1-s9-integration-acceptance` | `fb8299aa`                                 | Pending final task push |
-| P1-S9 UI/PWA/E2E                | `task/p1-s9-integration-acceptance` | `daac5731`                                 | Pending final task push |
+| Item                            | Branch                              | Commit                                     | Remote status      |
+| ------------------------------- | ----------------------------------- | ------------------------------------------ | ------------------ |
+| Governance D-012                | `phase/1-merchant-onboarding-mcp`   | `d4431342d6256e38c1d631e7e87f6e5daf732c98` | Verified           |
+| P1-S8 task                      | `task/p1-s8-merchant-admin-ui`      | `2ebd819bfc24e513dccbc2cfc0535a7af21c987a` | Verified           |
+| P1-S8 integration               | `phase/1-merchant-onboarding-mcp`   | `d32483a4c4c21737a395472f82a25ae663218d9b` | Verified           |
+| P1-S9 auth HTTP surface         | `task/p1-s9-integration-acceptance` | `f84701abd338206232738de19e5c61962a786538` | Verified           |
+| P1-S9 auth acceptance isolation | `task/p1-s9-integration-acceptance` | `fb8299aa`                                 | Verified           |
+| P1-S9 UI/PWA/E2E                | `task/p1-s9-integration-acceptance` | `daac5731`                                 | Verified           |
+| P1-S9 task head                 | `task/p1-s9-integration-acceptance` | `4f139ed759dd5e7540dac33802814e042b15551c` | Verified           |
+| P1-S9 integration               | `phase/1-merchant-onboarding-mcp`   | `98a3ca3e`                                 | Pending phase push |
 
 Local Codex execution records are stored under `.codex-execution-logs/` and remain gitignored. The execution identity is `originator=codex_exec`, `auth=ChatGPT`, `provider=openai`, and model `GPT-5 Codex`.
 
