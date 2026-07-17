@@ -15,6 +15,8 @@ export const foundationPermissions = [
   ['audit.view', 'View audit logs and entity timelines'],
   ['merchant.view', 'View merchants in authorized markets'],
   ['merchant.approve', 'Review merchant applications and KYC'],
+  ['merchant.kyc.view', 'View merchant KYC submissions'],
+  ['merchant.kyc.approve', 'Review merchant KYC submissions'],
   ['merchant.suspend', 'Suspend and reactivate merchants'],
   ['merchant.close', 'Review merchant closure requests'],
   ['merchant.referral.correct', 'Correct merchant referral evidence'],
