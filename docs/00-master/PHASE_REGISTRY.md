@@ -14,7 +14,7 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Phase** | **NONE** | Phase 0 is CLOSED and APPROVED under D-009 |
+| **Current Authorized Phase** | **Phase 1** | Merchant Onboarding + MCP Ledger; IN_PROGRESS under D-010 |
 | **P0-S1** | **COMPLETE** | Repository audit completed |
 | **P0-S2** | **COMPLETE** | Phase 0 application shells completed |
 | **P0-S3** | **COMPLETE** | Backend foundation independently re-validated after D-005 |
@@ -61,7 +61,7 @@
 |---|---|---|---|
 | **Phase 0** | General ledger technical skeleton, DB foundation, Auth framework, RBAC, Market module, Audit infrastructure, Design System tokens | **APPROVED** | Final acceptance approved under D-009 |
 | **Phase 0 closure** | Final integration, audit, acceptance, and governance closure | **CLOSED** | Closed under D-009; Phase 1 requires new authorization |
-| **Phase 1** | Merchant Onboarding + MCP Ledger | **NOT_AUTHORIZED** | Awaiting Big Phase Brief |
+| **Phase 1** | Merchant Onboarding + MCP Ledger | **IN_PROGRESS** | P1-S1 APPROVED; P1-S2 COMPLETE; P1-S3 COMPLETE; P1-S4 IN_PROGRESS under D-010. P1-S5+ NOT YET AUTHORIZED. Main merge NOT AUTHORIZED. Phase branch: phase/1-merchant-onboarding-mcp |
 | **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, wallet shell, referral) | **NOT_AUTHORIZED** | Will be authorized after Phase 1 |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **NOT_AUTHORIZED** | Note: renamed from original Roadmap sequence per C-01 |
 | **Phase 4** | Transaction Engine | **NOT_AUTHORIZED** | Draft, receipt, QR scan, atomic confirmation, MCP debit |
@@ -76,29 +76,38 @@
 
 ---
 
+## Phase 1 sub-phase status
+
+| Sub-phase | Scope | Status | Next gate |
+|---|---|---|---|
+| **P1-S1** | Phase 1 planning & architecture approval | **APPROVED** | D-010 |
+| **P1-S2** | Merchant Schema and Migrations | **COMPLETE** | Commits e8870a92 |
+| **P1-S3** | Merchant Onboarding Domain/API | **COMPLETE** | Commits d40c4250, a5cc85f9 |
+| **P1-S4** | Merchant KYC and Review | **IN_PROGRESS** | Codex CLI execution |
+| **P1-S5** | (future) | **NOT YET AUTHORIZED** | Requires separate authorization |
+
 ## Current allowed actions
 
-- ✅ Read and analyze project documentation and accepted Phase 0 evidence
-- ✅ Commit and push the D-009 governance closure to `origin/phase/0-engineering-foundation`
-- ✅ Poll the Phase 0 branch CI and verify all required jobs succeed
-- ✅ Mark PR #4 ready for review after the branch CI succeeds
-- ✅ Squash merge PR #4 to `main` only after every authorized merge gate passes
-- ✅ Poll and verify the post-merge `main` CI
+- ✅ Execute P1-S4 (Merchant KYC and Review) via Codex CLI
+- ✅ Record governance updates in DECISION_LOG.md and PHASE_REGISTRY.md
+- ✅ Monitor Codex CLI execution and collect evidence
+- ✅ After Batch A complete, submit one Batch A Milestone Report (only)
+- ✅ Poll branch CI and verify all required jobs succeed
 - ✅ Append Decision Log entries and update this registry only when a new decision is issued
 
 ## Current prohibited actions
 
-- ❌ Start Phase 1, create a Phase 1 branch, or perform any Phase 1 work without a new ChatGPT Command Center authorization
+- ❌ Enter P1-S5 or any not-yet-authorized sub-phase
+- ❌ Merge to `main` (main merge NOT AUTHORIZED until Phase 1 Batch A acceptance)
 - ❌ Use OpenClaw sub-agents for engineering execution or accept invalidated sub-agent output as evidence
-- ❌ Modify files outside the authorized Phase 0 governance closure scope
-- ❌ Change LOCKED business rules
+- ❌ OpenClaw writing production code or modifying source files
+- ❌ Change LOCKED business rules (special service fee: >0% AND <=100% — LOCKED per D-010)
 - ❌ Hard-code CONFIGURABLE values
 - ❌ Implement DEFERRED modules
 - ❌ Invent behavior for OPEN questions
 - ❌ Delete, clean, stash, or batch-add untracked files
-- ❌ Modify Merchant business schema or implement Merchant onboarding
-- ❌ Force push, rewrite `main` history, or use an ordinary merge or rebase merge for PR #4
+- ❌ Force push, rewrite `main` history
 
 ---
 
-*Last updated: 2026-07-16 | Updated by: Codex CLI | Based on decisions D-001, D-002, D-003, D-004, D-005, D-006, D-007, D-008, D-009 and the ChatGPT Command Center Phase 0 Final Acceptance Decision*
+*Last updated: 2026-07-17 | Updated by: Codex CLI | Based on decisions D-001 through D-010 and the ChatGPT Command Center Phase 1 Implementation Authorization*
