@@ -57,6 +57,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0001_auth_session_access_expiry.sql',
       '0002_phase_1_merchant_package_mcp.sql',
       '0003_merchant_api_support.sql',
+      '0004_service_fee_package_management.sql',
     ]);
   });
 
@@ -167,8 +168,12 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       SELECT
         (SELECT count(*) FROM roles) AS roles,
         (SELECT count(*) FROM permissions) AS permissions,
-        (SELECT count(*) FROM service_fee_profiles) AS profiles,
-        (SELECT count(*) FROM service_fee_versions) AS versions
+        (SELECT count(*) FROM service_fee_profiles
+          WHERE market_id IS NULL AND code IN ('A', 'B', 'C', 'D', 'E', 'F')) AS profiles,
+        (SELECT count(*) FROM service_fee_versions v
+          JOIN service_fee_profiles p ON p.id = v.service_fee_profile_id
+          WHERE v.market_id IS NULL AND p.market_id IS NULL
+            AND p.code IN ('A', 'B', 'C', 'D', 'E', 'F')) AS versions
     `);
     expect(counts.rows[0]).toEqual({
       roles: '2',
@@ -326,6 +331,62 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
         [assignment.rows[0]?.id],
       ),
     ).rejects.toMatchObject({ code: '23514' });
+  });
+
+  it('enforces package effective windows and reference-data immutability', async () => {
+    const fixture = await createMerchantFixture();
+    const profile = await connection.pool.query<{ id: string }>(
+      `INSERT INTO service_fee_profiles (code, name, market_id)
+       VALUES ($1, 'Window Test', $2) RETURNING id`,
+      [`W${randomUUID().replaceAll('-', '').slice(0, 8)}`, fixture.marketId],
+    );
+    const firstVersion = await connection.pool.query<{ id: string }>(
+      `INSERT INTO service_fee_versions
+        (service_fee_profile_id, rate, effective_from, effective_to, status, market_id)
+       VALUES ($1, '8.125000', '2026-01-01T00:00:00Z',
+         '2027-01-01T00:00:00Z', 'ACTIVE', $2) RETURNING id`,
+      [profile.rows[0]?.id, fixture.marketId],
+    );
+    await expect(
+      connection.pool.query(
+        `INSERT INTO service_fee_versions
+          (service_fee_profile_id, rate, effective_from, effective_to, market_id)
+         VALUES ($1, '9.000000', '2026-06-01T00:00:00Z',
+           '2027-06-01T00:00:00Z', $2)`,
+        [profile.rows[0]?.id, fixture.marketId],
+      ),
+    ).rejects.toMatchObject({ code: '23P01' });
+
+    await connection.pool.query(
+      `INSERT INTO merchant_package_assignments
+        (merchant_branch_id, service_fee_version_id, status, is_default)
+       VALUES ($1, $2, 'ACTIVE', true)`,
+      [fixture.branchId, firstVersion.rows[0]?.id],
+    );
+    await expect(
+      connection.pool.query(
+        'UPDATE service_fee_versions SET rate = $1 WHERE id = $2',
+        ['9.500000', firstVersion.rows[0]?.id],
+      ),
+    ).rejects.toMatchObject({ code: '55000' });
+
+    const special = await connection.pool.query<{ id: string }>(
+      `INSERT INTO special_percentages
+        (rate, created_by_admin_user_id, description, market_id)
+       VALUES ('100.000000', $1, 'Upper boundary', $2) RETURNING id`,
+      [fixture.adminId, fixture.marketId],
+    );
+    await expect(
+      connection.pool.query(
+        'UPDATE special_percentages SET description = $1 WHERE id = $2',
+        ['mutated', special.rows[0]?.id],
+      ),
+    ).rejects.toMatchObject({ code: '55000' });
+    await expect(
+      connection.pool.query('DELETE FROM special_percentages WHERE id = $1', [
+        special.rows[0]?.id,
+      ]),
+    ).rejects.toMatchObject({ code: '55000' });
   });
 
   it('rejects UPDATE and DELETE on every Phase 1 append-only table', async () => {

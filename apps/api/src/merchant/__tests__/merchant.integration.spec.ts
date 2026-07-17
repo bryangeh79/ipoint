@@ -484,6 +484,112 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
     );
   });
 
+  it('manages service-fee packages with exact rates, market access, and last-active protection', async () => {
+    const packagePath = `/api/v1/admin/markets/${marketId}/packages`;
+    await supertest(server)
+      .post(packagePath)
+      .set('authorization', `Bearer ${unprivilegedAdminToken}`)
+      .set('idempotency-key', randomUUID())
+      .send({ code: `U${randomUUID().slice(0, 6)}`, name: 'Denied Package' })
+      .expect(403);
+    await supertest(server)
+      .post(`/api/v1/admin/markets/${randomUUID()}/packages`)
+      .set('authorization', `Bearer ${adminToken}`)
+      .set('idempotency-key', randomUUID())
+      .send({ code: `M${randomUUID().slice(0, 6)}`, name: 'Wrong Market' })
+      .expect(403);
+
+    for (const rate of ['0', '100.000001']) {
+      await supertest(server)
+        .post(`/api/v1/admin/markets/${marketId}/special-percentages`)
+        .set('authorization', `Bearer ${adminToken}`)
+        .set('idempotency-key', randomUUID())
+        .send({ rate, description: 'Invalid boundary' })
+        .expect(400);
+    }
+    await supertest(server)
+      .post(`/api/v1/admin/markets/${marketId}/special-percentages`)
+      .set('authorization', `Bearer ${adminToken}`)
+      .set('idempotency-key', randomUUID())
+      .send({ rate: '100.000000', description: 'Valid upper boundary' })
+      .expect(201);
+
+    const versionIds: string[] = [];
+    for (const rate of ['2.500000', '8.125000']) {
+      const profileResponse = await supertest(server)
+        .post(packagePath)
+        .set('authorization', `Bearer ${adminToken}`)
+        .set('idempotency-key', randomUUID())
+        .send({
+          code: `P${randomUUID().replaceAll('-', '').slice(0, 10)}`,
+          name: `Package ${rate}`,
+          description: 'Integration package',
+        })
+        .expect(201);
+      const profile = profileResponse.body as unknown as { id: string };
+      const versionResponse = await supertest(server)
+        .post(`${packagePath}/${profile.id}/versions`)
+        .set('authorization', `Bearer ${adminToken}`)
+        .set('idempotency-key', randomUUID())
+        .send({
+          rate,
+          effective_from: '2026-01-01T00:00:00.000Z',
+          effective_to: '2027-01-01T00:00:00.000Z',
+        })
+        .expect(201);
+      const version = versionResponse.body as unknown as { id: string };
+      await supertest(server)
+        .patch(`${packagePath}/${profile.id}/versions/${version.id}/activate`)
+        .set('authorization', `Bearer ${adminToken}`)
+        .set('idempotency-key', randomUUID())
+        .expect(200);
+      versionIds.push(version.id);
+    }
+
+    const assignmentIds: string[] = [];
+    for (const [index, versionId] of versionIds.entries()) {
+      const response = await supertest(server)
+        .post(
+          `/api/v1/admin/markets/${marketId}/merchants/${branchId}/packages/assignments`,
+        )
+        .set('authorization', `Bearer ${adminToken}`)
+        .set('idempotency-key', randomUUID())
+        .send({ service_fee_version_id: versionId, is_default: index === 0 })
+        .expect(201);
+      const assignment = response.body as unknown as { id: string };
+      assignmentIds.push(assignment.id);
+    }
+
+    await supertest(server)
+      .get(`/api/v1/merchant/branches/${branchId}/packages`)
+      .set('authorization', `Bearer ${otherAccountToken}`)
+      .set('x-market-id', marketId)
+      .expect(403);
+    const list = await supertest(server)
+      .get(`/api/v1/merchant/branches/${branchId}/packages`)
+      .set('authorization', `Bearer ${merchantToken}`)
+      .set('x-market-id', marketId)
+      .expect(200);
+    expect((list.body as { items: unknown[] }).items).toHaveLength(2);
+
+    await supertest(server)
+      .patch(
+        `/api/v1/merchant/branches/${branchId}/packages/assignments/${assignmentIds[1]}/pause`,
+      )
+      .set('authorization', `Bearer ${merchantToken}`)
+      .set('x-market-id', marketId)
+      .set('idempotency-key', randomUUID())
+      .expect(200);
+    await supertest(server)
+      .patch(
+        `/api/v1/merchant/branches/${branchId}/packages/assignments/${assignmentIds[0]}/pause`,
+      )
+      .set('authorization', `Bearer ${merchantToken}`)
+      .set('x-market-id', marketId)
+      .set('idempotency-key', randomUUID())
+      .expect(409);
+  });
+
   it('suspends without changing MCP, reactivates by policy, and closes terminally', async () => {
     const before = await database.db
       .select({ balance: mcpAccounts.availableBalance })

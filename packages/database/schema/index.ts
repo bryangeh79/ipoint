@@ -113,6 +113,17 @@ export const serviceFeeStatus = pgEnum('service_fee_status', [
   'PAUSED',
   'PENDING_CHANGE',
 ]);
+export const serviceFeeVersionStatus = pgEnum('service_fee_version_status', [
+  'DRAFT',
+  'SCHEDULED',
+  'ACTIVE',
+  'EXPIRED',
+  'CANCELLED',
+]);
+export const packageChangeRequestStatus = pgEnum(
+  'package_change_request_status',
+  ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'],
+);
 export const authAccountAccessType = pgEnum('auth_account_access_type', [
   'PRIMARY_OWNER',
 ]);
@@ -817,6 +828,9 @@ export const serviceFeeProfiles = pgTable(
     code: text('code').notNull(),
     name: text('name').notNull(),
     description: text('description'),
+    marketId: uuid('market_id').references(() => markets.id, {
+      onDelete: 'restrict',
+    }),
     createdAt: utcTimestamp('created_at').notNull().defaultNow(),
   },
   (table) => [unique('service_fee_profiles_code_unique').on(table.code)],
@@ -832,7 +846,7 @@ export const serviceFeeVersions = pgTable(
     rate: numeric('rate', { precision: 12, scale: 6 }).notNull(),
     effectiveFrom: utcTimestamp('effective_from').notNull(),
     effectiveTo: utcTimestamp('effective_to'),
-    status: serviceFeeStatus('status').notNull().default('ACTIVE'),
+    status: serviceFeeVersionStatus('status').notNull().default('DRAFT'),
     marketId: uuid('market_id').references(() => markets.id, {
       onDelete: 'restrict',
     }),
@@ -909,6 +923,31 @@ export const merchantPackageAssignments = pgTable(
       'merchant_package_assignments_version_check',
       sql`${table.version} > 0`,
     ),
+  ],
+);
+
+export const merchantPackageChangeRequests = pgTable(
+  'merchant_package_change_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    merchantBranchId: uuid('merchant_branch_id')
+      .notNull()
+      .references(() => merchantBranches.id, { onDelete: 'restrict' }),
+    requestedServiceFeeVersionId: uuid('requested_service_fee_version_id')
+      .notNull()
+      .references(() => serviceFeeVersions.id, { onDelete: 'restrict' }),
+    requestedByAccountId: uuid('requested_by_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    status: packageChangeRequestStatus('status').notNull().default('PENDING'),
+    reason: text('reason').notNull(),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('merchant_package_change_requests_open_unique')
+      .on(table.merchantBranchId)
+      .where(sql`${table.status} = 'PENDING'`),
   ],
 );
 
@@ -1181,6 +1220,7 @@ export const schema = {
   serviceFeeVersions,
   specialPercentages,
   merchantPackageAssignments,
+  merchantPackageChangeRequests,
   mcpAccounts,
   mcpLedgerEntries,
   mcpRechargeRequests,
