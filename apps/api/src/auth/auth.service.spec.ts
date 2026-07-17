@@ -83,20 +83,51 @@ describe('mock-based AuthService login gating', () => {
     memberReferralCodeLength: 8,
   };
 
-  async function createService(memberStatus: string | null) {
+  async function createService(
+    options: {
+      accountStatus?: string;
+      memberStatus?: string | null;
+      secretHash?: string;
+      identity?: {
+        accountId: string;
+        status: string;
+        memberStatus: string | null;
+        secretHash: string;
+      } | null;
+    } = {},
+  ) {
     const hasher = new PasswordHasher();
+<<<<<<< Updated upstream
     const secretHash = await hasher.hash(password);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-    const findPasswordIdentity = vi.fn<any>().mockResolvedValue({
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const findPasswordIdentity = vi.fn().mockResolvedValue({
       accountId: randomUUID(),
       secretHash,
       status: 'ACTIVE',
       memberStatus,
     });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const createSession = vi.fn().mockResolvedValue('session-id');
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const recordSecurityEvent = vi.fn().mockResolvedValue(undefined);
+=======
+    const secretHash = options.secretHash ?? (await hasher.hash(password));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const findPasswordIdentity = vi.fn<any>().mockResolvedValue(
+      options.identity === undefined
+        ? {
+            accountId: randomUUID(),
+            secretHash,
+            status: options.accountStatus ?? 'ACTIVE',
+            memberStatus: options.memberStatus ?? null,
+          }
+        : options.identity,
+    );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
     const createSession = vi.fn<any>().mockResolvedValue('session-id');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
     const recordSecurityEvent = vi.fn<any>().mockResolvedValue(undefined);
+>>>>>>> Stashed changes
     const store = {
       findPasswordIdentity,
       createSession,
@@ -116,8 +147,9 @@ describe('mock-based AuthService login gating', () => {
   }
 
   it('allows merchant-only login when memberStatus is null', async () => {
-    const { auth, createSession, recordSecurityEvent } =
-      await createService(null);
+    const { auth, createSession, recordSecurityEvent } = await createService({
+      memberStatus: null,
+    });
     await expect(
       auth.login('merchant@example.com', password),
     ).resolves.toMatchObject({
@@ -130,11 +162,56 @@ describe('mock-based AuthService login gating', () => {
     );
   });
 
+  it('allows active member login when account and member are active', async () => {
+    const { auth, createSession } = await createService({
+      accountStatus: 'ACTIVE',
+      memberStatus: 'ACTIVE',
+    });
+    await expect(auth.login('member@example.com', password)).resolves.toEqual(
+      expect.objectContaining({
+        accessToken: expect.any(String) as unknown,
+        refreshToken: expect.any(String) as unknown,
+      }),
+    );
+    expect(createSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects unknown email with AUTH_INVALID_CREDENTIALS', async () => {
+    const { auth, findPasswordIdentity, createSession } = await createService({
+      identity: null,
+    });
+    await expect(
+      auth.login('unknown@example.com', password),
+    ).rejects.toMatchObject({ code: 'AUTH_INVALID_CREDENTIALS' });
+    expect(findPasswordIdentity).toHaveBeenCalledTimes(1);
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it('rejects wrong password with AUTH_INVALID_CREDENTIALS', async () => {
+    const { auth, createSession } = await createService();
+    await expect(
+      auth.login('merchant@example.com', 'wrong-password-123'),
+    ).rejects.toMatchObject({ code: 'AUTH_INVALID_CREDENTIALS' });
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-active account status with AUTH_ACCOUNT_INACTIVE', async () => {
+    const { auth, createSession } = await createService({
+      accountStatus: 'SUSPENDED',
+      memberStatus: 'ACTIVE',
+    });
+    await expect(
+      auth.login('member@example.com', password),
+    ).rejects.toMatchObject({ code: 'AUTH_ACCOUNT_INACTIVE' });
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
   it.each(['PENDING_EMAIL_VERIFICATION', 'CLOSED', 'SUSPENDED'] as const)(
     'rejects login with AUTH_MEMBER_INACTIVE when memberStatus is %s',
     async (memberStatus) => {
-      const { auth, createSession, recordSecurityEvent } =
-        await createService(memberStatus);
+      const { auth, createSession, recordSecurityEvent } = await createService({
+        memberStatus,
+      });
       await expect(
         auth.login('member@example.com', password),
       ).rejects.toMatchObject({ code: 'AUTH_MEMBER_INACTIVE' });

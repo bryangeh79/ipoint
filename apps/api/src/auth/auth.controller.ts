@@ -53,6 +53,7 @@ export class AuthController {
   ) {}
 
   @Post('login')
+  @Post('member/login')
   @HttpCode(200)
   login(
     @Body(new ZodValidationPipe(loginSchema)) input: LoginDto,
@@ -65,6 +66,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @Post('member/refresh')
   @HttpCode(200)
   refresh(
     @Body(new ZodValidationPipe(refreshSchema)) input: RefreshDto,
@@ -80,6 +82,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @Post('member/logout')
   @HttpCode(204)
   @UseGuards(AuthGuard)
   async logout(
@@ -120,6 +123,7 @@ export class AuthController {
   }
 
   @Post('registration/initiate')
+  @Post('member/register')
   @HttpCode(202)
   async initiateRegistration(
     @Body(new ZodValidationPipe(registrationInitiateSchema))
@@ -141,12 +145,14 @@ export class AuthController {
           locale: input.locale,
         },
         metadata,
+        input.idempotency_key ?? null,
       ),
     );
     return this.issueOtpResponse(otp);
   }
 
   @Post('registration/resend')
+  @Post('member/register/resend-otp')
   @HttpCode(202)
   async resendRegistrationOtp(
     @Body(new ZodValidationPipe(registrationResendSchema))
@@ -164,6 +170,7 @@ export class AuthController {
   }
 
   @Post('registration/verify')
+  @Post('member/register/verify')
   @HttpCode(200)
   async verifyRegistrationOtp(
     @Body(new ZodValidationPipe(verifyOtpSchema))
@@ -182,6 +189,7 @@ export class AuthController {
   }
 
   @Post('registration/complete')
+  @Post('member/register/complete')
   @HttpCode(200)
   async completeRegistration(
     @Body(new ZodValidationPipe(registrationCompleteSchema))
@@ -199,6 +207,7 @@ export class AuthController {
   }
 
   @Post('password-reset/initiate')
+  @Post('member/password-reset/request')
   @HttpCode(202)
   async initiatePasswordReset(
     @Body(new ZodValidationPipe(passwordResetInitiateSchema))
@@ -213,6 +222,7 @@ export class AuthController {
   }
 
   @Post('password-reset/verify')
+  @Post('member/password-reset/verify')
   @HttpCode(200)
   async verifyPasswordResetOtp(
     @Body(new ZodValidationPipe(passwordResetVerifySchema))
@@ -231,6 +241,7 @@ export class AuthController {
   }
 
   @Post('password-reset/complete')
+  @Post('member/password-reset/complete')
   @HttpCode(204)
   async completePasswordReset(
     @Body(new ZodValidationPipe(passwordResetCompleteSchema))
