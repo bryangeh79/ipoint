@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
-import { accounts, migrate } from '@ipoint/database';
+import { accounts, markets, migrate } from '@ipoint/database';
+import { eq } from 'drizzle-orm';
 import type { Server } from 'node:http';
 import supertest from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -33,6 +34,27 @@ describe.skipIf(!databaseUrl)('Auth HTTP integration', () => {
       .returning({ id: accounts.id });
     await auth.setPassword(inserted[0]?.id ?? '', originalPassword);
     return email;
+  }
+
+  async function createActiveMarket(code = 'MY') {
+    const existing = await database.db
+      .select({ id: markets.id })
+      .from(markets)
+      .where(eq(markets.code, code))
+      .limit(1);
+    if (existing[0]) return existing[0].id;
+    const inserted = await database.db
+      .insert(markets)
+      .values({
+        code,
+        name: `${code} Market`,
+        status: 'ACTIVE',
+        currencyCode: 'MYR',
+        timezone: 'Asia/Kuala_Lumpur',
+        defaultLocale: 'en-MY',
+      })
+      .returning({ id: markets.id });
+    return inserted[0]?.id ?? '';
   }
 
   beforeAll(async () => {
@@ -85,6 +107,57 @@ describe.skipIf(!databaseUrl)('Auth HTTP integration', () => {
       })
       .expect(200)
       .expect({ verified: true });
+  });
+
+  it('completes registration end-to-end with idempotent replay and login', async () => {
+    await createActiveMarket();
+    const email = `${randomUUID()}@example.com`;
+    const password = 'Registration-Password-123!';
+    const initiation = await supertest(server)
+      .post('/api/v1/auth/registration/initiate')
+      .send({
+        email,
+        password,
+        account_country: 'MY',
+        referral_code: null,
+        terms_version: 'v1',
+        disclaimer_version: 'v1',
+        privacy_version: 'v1',
+        locale: 'en-MY',
+      })
+      .expect(202);
+    const initiationBody = initiation.body as {
+      otp_id: string;
+      development_code: string;
+    };
+    await supertest(server)
+      .post('/api/v1/auth/registration/verify')
+      .send({
+        otp_id: initiationBody.otp_id,
+        code: initiationBody.development_code,
+      })
+      .expect(200)
+      .expect({ verified: true });
+    const idempotencyKey = randomUUID();
+    const completed = await supertest(server)
+      .post('/api/v1/auth/registration/complete')
+      .send({
+        otp_id: initiationBody.otp_id,
+        idempotency_key: idempotencyKey,
+      })
+      .expect(200);
+    const replayed = await supertest(server)
+      .post('/api/v1/auth/registration/complete')
+      .send({
+        otp_id: initiationBody.otp_id,
+        idempotency_key: idempotencyKey,
+      })
+      .expect(200);
+    expect(replayed.body).toEqual(completed.body);
+    await supertest(server)
+      .post('/api/v1/auth/login')
+      .send({ email, password })
+      .expect(200);
   });
 
   it('logs in, rotates once, logs out, and denies invalid credentials', async () => {
@@ -161,6 +234,46 @@ describe.skipIf(!databaseUrl)('Auth HTTP integration', () => {
         `Bearer ${String((active.body as { accessToken: string }).accessToken)}`,
       )
       .expect(401);
+    await supertest(server)
+      .post('/api/v1/auth/login')
+      .send({ email, password: originalPassword })
+      .expect(401);
+    await supertest(server)
+      .post('/api/v1/auth/login')
+      .send({ email, password: replacementPassword })
+      .expect(200);
+  });
+
+  it('completes password reset end-to-end via HTTP', async () => {
+    const email = await createAccount();
+    await supertest(server)
+      .post('/api/v1/auth/login')
+      .send({ email, password: originalPassword })
+      .expect(200);
+    const initiation = await supertest(server)
+      .post('/api/v1/auth/password-reset/initiate')
+      .send({ email })
+      .expect(202);
+    const initiationBody = initiation.body as {
+      otp_id: string;
+      development_code: string;
+    };
+    await supertest(server)
+      .post('/api/v1/auth/password-reset/verify')
+      .send({
+        otp_id: initiationBody.otp_id,
+        code: initiationBody.development_code,
+      })
+      .expect(200)
+      .expect({ verified: true });
+    await supertest(server)
+      .post('/api/v1/auth/password-reset/complete')
+      .send({
+        otp_id: initiationBody.otp_id,
+        new_password: replacementPassword,
+        idempotency_key: randomUUID(),
+      })
+      .expect(204);
     await supertest(server)
       .post('/api/v1/auth/login')
       .send({ email, password: originalPassword })

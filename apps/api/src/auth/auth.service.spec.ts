@@ -86,17 +86,17 @@ describe('mock-based AuthService login gating', () => {
   async function createService(memberStatus: string | null) {
     const hasher = new PasswordHasher();
     const secretHash = await hasher.hash(password);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const findPasswordIdentity = vi.fn().mockResolvedValue({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const findPasswordIdentity = vi.fn<any>().mockResolvedValue({
       accountId: randomUUID(),
       secretHash,
       status: 'ACTIVE',
       memberStatus,
     });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const createSession = vi.fn().mockResolvedValue('session-id');
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const recordSecurityEvent = vi.fn().mockResolvedValue(undefined);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const createSession = vi.fn<any>().mockResolvedValue('session-id');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const recordSecurityEvent = vi.fn<any>().mockResolvedValue(undefined);
     const store = {
       findPasswordIdentity,
       createSession,
