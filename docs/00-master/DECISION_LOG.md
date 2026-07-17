@@ -1,4 +1,4 @@
-﻿# iPoint Decision Log (Append-only)
+# iPoint Decision Log (Append-only)
 
 > Rules:
 > - Every entry is append-only. **No entry may be deleted or silently overwritten.**
@@ -40,7 +40,7 @@
 | **Affected Phases** | NONE (pre-Phase governance) |
 | **Migration** | NONE |
 | **Approver** | ChatGPT Command Center |
-| **Basis** | CHANGES REQUIRED â†’ resubmitted â†’ approved directionally |
+| **Basis** | CHANGES REQUIRED → resubmitted → approved directionally |
 | **Status** | **APPROVED** |
 
 ---
@@ -89,7 +89,7 @@
 |---|---|
 | **Decision ID** | D-005 |
 | **Date** | 2026-07-16 |
-| **Source** | ChatGPT Command Center â€” P0-S3 + P0-S4A: EXECUTION INVALID |
+| **Source** | ChatGPT Command Center — P0-S3 + P0-S4A: EXECUTION INVALID |
 | **Old Rule** | OpenClaw sub-agent created commits for P0-S3 and P0-S4A using `sessions_spawn` |
 | **New Decision** | All sub-agent output marked UNTRUSTED_SUBAGENT_OUTPUT. Two Codex CLI workers must independently re-validate and fix. No push, merge, or phase evidence from sub-agent commits. |
 | **Reason** | CODEX-ONLY EXECUTION POLICY violation. Only real Codex CLI processes may execute engineering work. OpenClaw sub-agent token pool usage also unauthorized. |
@@ -108,7 +108,7 @@
 |---|---|
 | **Decision ID** | D-006 |
 | **Date** | 2026-07-16 |
-| **Source** | ChatGPT Command Center â€” ORM Gate decision and Batch A authorization |
+| **Source** | ChatGPT Command Center — ORM Gate decision and Batch A authorization |
 | **Old Rule** | ORM Gate OPEN; Prisma and Drizzle evaluated with no production ORM selected |
 | **New Decision** | Close the ORM Gate and approve Drizzle ORM for the iPoint production baseline. Prisma was evaluated but not selected. PostgreSQL remains the source of truth. Monetary, percentage, point, and commission decimal values use PostgreSQL `numeric`, never floating point. Production migrations use explicit, reviewable SQL and forward-fix recovery. Ledger immutability is enforced through database and application design, not delegated to the ORM. Migration checksums are mandatory. Node 24 LTS validation must pass before P0-S4B completion. |
 | **Reason** | The checked-in P0-S4A comparison PoC demonstrated equivalent critical correctness behavior while Drizzle provides the approved SQL-oriented production baseline. The explicit migration, integrity, and target-runtime requirements preserve reviewability and operational safety. |
@@ -116,7 +116,7 @@
 | **Affected Phases** | P0-S4A, ORM Gate, P0-S4B, P0-S5, P0-S6 and all later database-backed phases |
 | **Migration** | Explicit reviewable SQL migrations; immutable migration-file checksums; append-only history; forward-fix recovery after an applied migration |
 | **Approver** | ChatGPT Command Center |
-| **Basis** | ORM Gate CLOSED â€” DRIZZLE APPROVED; Batch A (P0-S4B â†’ P0-S5 â†’ P0-S6) authorized (2026-07-16) |
+| **Basis** | ORM Gate CLOSED — DRIZZLE APPROVED; Batch A (P0-S4B → P0-S5 → P0-S6) authorized (2026-07-16) |
 | **Status** | **APPROVED** |
 
 ---
@@ -127,7 +127,7 @@
 |---|---|
 | **Decision ID** | D-007 |
 | **Date** | 2026-07-16 |
-| **Source** | ChatGPT Command Center â€” Batch A acceptance |
+| **Source** | ChatGPT Command Center — Batch A acceptance |
 | **Old Rule** | Batch A was authorized and executing sequentially; P0-S4B was IN_PROGRESS, while P0-S5 and P0-S6 were AUTHORIZED. |
 | **New Decision** | Accept Batch A at remote head `760cb8b8916b569f1a6be057b8cd4ba8546d2e87`. Mark P0-S4B, P0-S5, and P0-S6 COMPLETE; mark Batch A APPROVED; move P0-S7 to IN_PROGRESS; authorize P0-S8; keep P0-S9 NOT_AUTHORIZED. Node 24.18.0 validation passed. GitHub CI is not configured. The in-memory rate limiter is explicitly non-production. Batch A contains no member, merchant, wallet, MCP, iPoint, or commission business logic. |
 | **Reason** | Batch A acceptance evidence and current remote-head validation satisfy the authorized engineering-foundation scope while preserving explicit production and business-logic boundaries. |
@@ -146,7 +146,7 @@
 |---|---|
 | **Decision ID** | D-008 |
 | **Date** | 2026-07-16 |
-| **Source** | ChatGPT Command Center â€” P0-S9 Phase 0 final integration, audit, and acceptance authorization |
+| **Source** | ChatGPT Command Center — P0-S9 Phase 0 final integration, audit, and acceptance authorization |
 | **Old Rule** | P0-S7 was IN_PROGRESS, P0-S8 was AUTHORIZED, P0-S9 was NOT_AUTHORIZED, and Batch B awaited acceptance. |
 | **New Decision** | Accept Batch B at remote head `fb3478f5e12724a837ece025024a375c673dc7ac`. Mark P0-S7 and P0-S8 COMPLETE; mark Batch B APPROVED; move P0-S9 to IN_PROGRESS; keep Phase 0 PENDING until final integration evidence and GitHub CI are complete. The accepted scope is limited to the shared Design System foundation, responsive application shells, test and CI gates, and local environment support. |
 | **Reason** | Batch B implementation and existing local/GitHub evidence satisfy the authorized P0-S7 and P0-S8 engineering-foundation scope. P0-S9 performs the independent full-range audit and final acceptance verification before ChatGPT Command Center decides Phase 0. |
@@ -154,7 +154,7 @@
 | **Affected Phases** | Batch B, P0-S7, P0-S8, P0-S9, Phase 0 |
 | **Migration** | NONE (governance synchronization and acceptance evidence only) |
 | **Approver** | ChatGPT Command Center |
-| **Basis** | P0-S9 â€” Phase 0 Final Integration, Audit & Acceptance authorization (2026-07-16) |
+| **Basis** | P0-S9 — Phase 0 Final Integration, Audit & Acceptance authorization (2026-07-16) |
 | **Status** | **APPROVED** |
 
 ---
@@ -165,7 +165,7 @@
 |---|---|
 | **Decision ID** | D-009 |
 | **Date** | 2026-07-16 |
-| **Source** | ChatGPT Command Center â€” Phase 0 Final Acceptance Decision |
+| **Source** | ChatGPT Command Center — Phase 0 Final Acceptance Decision |
 | **Old Rule** | Phase 0 PENDING, P0-S9 IN_PROGRESS |
 | **New Decision** | Accept Phase 0 at PR #4 head `f9706c4bd4719a180cd83953d3c1ca94bda9eef4`. GitHub CI both runs SUCCESS. P0-S9 COMPLETE. Phase 0 APPROVED and CLOSED. Phase 1 requires new authorization. |
 | **Reason** | All sub-phases complete, full audit passed, all verification gates passed, CI SUCCESS, no business leakage |
@@ -182,9 +182,9 @@
 |---|---|
 | **Decision ID** | D-010 |
 | **Date** | 2026-07-17 |
-| **Source** | ChatGPT Command Center â€” CHATGPT_ACCOUNT_SESSION |
+| **Source** | ChatGPT Command Center — CHATGPT_ACCOUNT_SESSION |
 | **Old Rule** | Phase 1 NOT_AUTHORIZED; Phase 0 CLOSED under D-009; Phase 1 awaited Big Phase Brief |
-| **New Decision** | **Phase 0:** CLOSED AND MERGED. **P1-S1:** APPROVED. **Phase 1:** IMPLEMENTATION AUTHORIZED. **Batch A (P1-S2, P1-S3, P1-S4):** AUTHORIZED. **P1-S5 and beyond:** NOT YET AUTHORIZED. **Main merge:** NOT AUTHORIZED until Phase 1 Batch A acceptance. **Special service fee range:** >0% AND <=100% â€” LOCKED (resolves O-07). Phase branch: `phase/1-merchant-onboarding-mcp`. Execution Engine: Codex CLI. OpenClaw sub-agents are not authorized for engineering execution. |
+| **New Decision** | **Phase 0:** CLOSED AND MERGED. **P1-S1:** APPROVED. **Phase 1:** IMPLEMENTATION AUTHORIZED. **Batch A (P1-S2, P1-S3, P1-S4):** AUTHORIZED. **P1-S5 and beyond:** NOT YET AUTHORIZED. **Main merge:** NOT AUTHORIZED until Phase 1 Batch A acceptance. **Special service fee range:** >0% AND <=100% — LOCKED (resolves O-07). Phase branch: `phase/1-merchant-onboarding-mcp`. Execution Engine: Codex CLI. OpenClaw sub-agents are not authorized for engineering execution. |
 | **Reason** | Phase 0 fully accepted and merged. Phase 1 Merchant Onboarding + MCP Ledger authorized with P1-S1 approved and Batch A (P1-S2 through P1-S4) authorized. Remaining sub-phases require separate authorization. Main branch remains protected until Batch A acceptance. |
 | **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, docs/00-master/OPEN_QUESTIONS.md (O-07 resolved) |
 | **Affected Phases** | Phase 0, Phase 1, P1-S1, P1-S2, P1-S3, P1-S4, O-07 |
@@ -199,7 +199,7 @@
 |---|---|
 | **Decision ID** | D-011 |
 | **Date** | 2026-07-17 |
-| **Source** | ChatGPT Command Center â€” Batch B authorization |
+| **Source** | ChatGPT Command Center — Batch B authorization |
 | **Old Rule** | Batch A CHANGES_REQUIRED (resolved via hygiene + checksum repair); P1-S5+ NOT_AUTHORIZED |
 | **New Decision** | Batch A APPROVED. Batch B (P1-S5, P1-S6, P1-S7) AUTHORIZED. P1-S8+ NOT_AUTHORIZED. Main merge NOT AUTHORIZED. |
 | **Reason** | Batch A repairs complete and accepted; Batch B authorized for Service Fee Package, MCP Ledger/Recharge, MCP Adjustment/Refund/Activation |
@@ -216,7 +216,7 @@
 |---|---|
 | **Decision ID** | D-012 |
 | **Date** | 2026-07-17 |
-| **Source** | ChatGPT Command Center â€” Final Batch authorization |
+| **Source** | ChatGPT Command Center — Final Batch authorization |
 | **Old Rule** | Batch B IN_PROGRESS; P1-S8+ NOT_AUTHORIZED |
 | **New Decision** | Batch B APPROVED. Final Batch (P1-S8, P1-S9) AUTHORIZED. Main merge NOT AUTHORIZED. |
 | **Reason** | Batch B implementation complete and accepted; Final Batch authorized for Merchant/Admin UI and Integration/E2E |
@@ -233,7 +233,7 @@
 |---|---|
 | **Decision ID** | D-013 |
 | **Date** | 2026-07-17 |
-| **Source** | ChatGPT Command Center â€” Phase 1 Final Acceptance |
+| **Source** | ChatGPT Command Center — Phase 1 Final Acceptance |
 | **Old Rule** | Phase 1 IN_PROGRESS; Main merge NOT_AUTHORIZED |
 | **New Decision** | Phase 1 ACCEPTED at SHA `48239fea58716c3df0facbfa2c1b4a1865c05b21`. Pull Request to main AUTHORIZED. Phase 2 NOT_AUTHORIZED. |
 | **Reason** | All Phase 1 sub-phases complete and accepted |
@@ -261,6 +261,7 @@
 | **Basis** | D-014 (2026-07-17) |
 | **Status** | **APPROVED** |
 
+
 ## D-015: Phase 2 P2-S1 documentation repair authorization
 
 | Field | Value |
@@ -277,4 +278,6 @@
 | **Approver** | ChatGPT Command Center |
 | **Basis** | P2-S1 COMMAND CENTER REVIEW - CHANGES_REQUIRED (2026-07-17) |
 | **Status** | **APPROVED** |
-*â€” End of current entries. New decisions must be appended below â€”*
+
+
+*— End of current entries. New decisions must be appended below —*

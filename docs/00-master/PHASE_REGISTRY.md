@@ -14,7 +14,7 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Phase** | **P2-S1 documentation repair** | Phase 2 AUTHORIZED under D-014; P2-S1 UNDER_REVIEW after D-015; P2-S2+ NOT_AUTHORIZED |
+| **Current Authorized Phase** | **P2-S1 GOVERNANCE AND EVIDENCE REPAIR ONLY** | Phase 2 AUTHORIZED under D-014; P2-S1 UNDER_REVIEW after D-015; P2-S2+ NOT_AUTHORIZED |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
 | **Phase 2** | **AUTHORIZED** | P2-S1 documentation freeze authorized under D-014; P2-S1 repair updated under D-015; later sub-phases remain NOT_AUTHORIZED |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
@@ -99,7 +99,7 @@
 
 | Sub-phase | Scope | Status | Next gate |
 |---|---|---|---|
-| **P2-S1** | Architecture and contract freeze | **UNDER_REVIEW** | D-014 recorded; D-015 repair applied |
+| **P2-S1** | Architecture and contract freeze | **UNDER_REVIEW** | D-014 recorded; D-015 repair applied; governance and evidence repair only |
 | **P2-S2** | Member Schema and Forward Migrations | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S3** | Registration, OTP and Authentication | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S4** | Member Identity, Referral and QR Foundation | **NOT_AUTHORIZED** | Await future authorization |

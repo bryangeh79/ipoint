@@ -10,65 +10,89 @@ date: 2026-07-17
 
 ## 1. Summary
 
-本次工作完成了 Phase 2 的 P2-S1 文档修复，并将 review 指令要求的结构、边界、开放问题和治理文件同步收口。
+This revision corrects the P2-S1 governance and evidence record only. It does not introduce business code, schema changes, migrations, UI changes, or provider changes.
 
-本次仅包含文档修复，不包含任何代码、schema、migration、UI 或 provider 实现。
+The repair scope is limited to documentation governance, phase registry synchronization, baseline acknowledgment correction, and delivery-report evidence cleanup.
 
-## 2. Execution engine
+## 2. Reference commits
 
-- Execution engine: OpenAI Codex CLI
-- Auth source: ChatGPT logged in
-- Codex version: 0.144.5
-- Model: gpt-5.4-mini
-- Session ID: clear-summit
-- Branch: `task/p2-s1-architecture-contract-freeze`
-- Base SHA: `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`
-- Original commit SHA: `ce80877d5984d89cc43bf9cf43c949b0af0d4809`
-- Repair commit SHA: `abddf4f88137369842ee1b209590d7b765ac4a6b`
-- Task/phase remote SHA: `abddf4f88137369842ee1b209590d7b765ac4a6b`
-- Start time: `2026-07-17T16:45:00+08:00`
-- End time: `2026-07-17T17:29:52+08:00`
-- Exit code: `0`
+- Original documentation commit: `ce80877d5984d89cc43bf9cf43c949b0af0d4809`
+- Repair content commit: `abddf4f88137369842ee1b209590d7b765ac4a6b`
+- Delivery report commit: `e6522a27d5eb32d513bfcf2fa197761d94b26658`
+- Final correction commit: `<new SHA>`
+- Task branch: `task/p2-s1-architecture-contract-freeze`
+- Phase branch: `phase/2-member-core-multi-market`
+- Task branch final remote SHA: `<new SHA after push>`
+- Phase branch final remote SHA: `<new SHA after push>`
 
-## 3. Changed files
+## 3. Repair loops
 
-- `docs/00-master/BASELINE_ACKNOWLEDGMENT_V1.1.md`
+- Loop 1: initial `CHANGES_REQUIRED` review identified that the P2-S1 freeze package still needed documentation corrections before it could be accepted as a stable governance freeze.
+- Loop 2: governance encoding and evidence correction. This loop restored the authoritative decision log, synchronized the phase registry, corrected the baseline acknowledgment line, and replaced the delivery report with a hygiene-safe record.
+
+## 4. Files changed
+
 - `docs/00-master/DECISION_LOG.md`
+- `docs/00-master/BASELINE_ACKNOWLEDGMENT_V1.1.md`
 - `docs/00-master/PHASE_REGISTRY.md`
-- `docs/06-phase-reports/p2-s1/PHASE_2_API_CONTRACT.md`
-- `docs/06-phase-reports/p2-s1/PHASE_2_ARCHITECTURE.md`
-- `docs/06-phase-reports/p2-s1/PHASE_2_ERD.md`
-- `docs/06-phase-reports/p2-s1/PHASE_2_IDEMPOTENCY_SPEC.md`
-- `docs/06-phase-reports/p2-s1/PHASE_2_MASTER_PLAN.md`
-- `docs/06-phase-reports/p2-s1/PHASE_2_OPEN_QUESTIONS.md`
-- `docs/06-phase-reports/p2-s1/PHASE_2_RBAC_MARKET_ACCESS_MATRIX.md`
-- `docs/06-phase-reports/p2-s1/PHASE_2_SECURITY_AND_PRIVACY.md`
-- `docs/06-phase-reports/p2-s1/PHASE_2_STATE_MACHINES.md`
-- `docs/06-phase-reports/p2-s1/PHASE_2_TEST_AND_E2E_MATRIX.md`
 - `docs/06-phase-reports/p2-s1/P2-S1_DELIVERY_REPORT.md`
 
-## 4. Validation performed
+## 5. What was corrected
 
-- `git status --short` -> exit code `0`
-- `git diff --name-status ce80877d..HEAD` -> exit code `0`
-- `git diff --stat ce80877d..HEAD` -> exit code `0`
-- `git diff --name-status 69240bf8..HEAD` -> exit code `0`
-- `git diff --check` -> exit code `0`
-- `git ls-remote origin refs/heads/task/p2-s1-architecture-contract-freeze` -> exit code `0`
+- `DECISION_LOG.md` was restored from the clean `ce80877d` baseline and appended with D-015 before the end marker.
+- `BASELINE_ACKNOWLEDGMENT_V1.1.md` was restored from `69240bf8` and changed on one line only.
+- `PHASE_REGISTRY.md` was aligned to keep P2-S1 in `UNDER_REVIEW` while explicitly limiting current authorized work to governance and evidence repair only.
+- `P2-S1_DELIVERY_REPORT.md` was rewritten with corrected commit references, repair loops, hygiene notes, and final review status.
 
-Validation was run after the repair commit and before this report record was committed.
+## 6. Open questions final status
 
-## 5. Scope leakage check
+- O-01: OPEN
+- O-02: OPEN
+- O-03: OPEN
+- O-04: OPEN
+- O-05: OPEN
+- O-06: OPEN
 
-- TypeScript code: PASS
-- SQL migrations: PASS
-- Schema implementation: PASS
-- JSON config changes: PASS
-- UI implementation: PASS
-- Production provider integration: PASS
-- Later-phase behavior: PASS
+## 7. Risks
 
-## 6. Notes
+- The untracked workspace inventory is still present in the local working tree and intentionally left untouched.
+- The report uses placeholder values for the final correction commit and remote SHAs because those values are only knowable after commit and push.
+- Governance-only changes must remain isolated from any future implementation work so the freeze evidence stays clean.
 
-- `OpenClaw Subagent Used`: NO
-- Final status: P2-S1 REPAIR COMPLETE - AWAITING COMMAND CENTER REVIEW
+## 8. Repository hygiene results
+
+- No `.ts` files were changed.
+- No `.sql` files were changed.
+- No JSON config files were changed.
+- No migration files were changed.
+- No UI files were changed.
+- No provider/integration implementation files were changed.
+- No business logic was introduced.
+
+## 9. Primary workspace untracked inventory
+
+- `.codex-p2-s1-prompt.txt`
+- `.openclaw/`
+- `media/`
+- `memory/2026-07-17-1627.md`
+
+These untracked items were observed during validation and were not added, deleted, cleaned, or modified.
+
+## 10. Phase branch remote verification command
+
+- `git ls-remote origin refs/heads/phase/2-member-core-multi-market`
+
+## 11. Validation summary
+
+- `git status --short`
+- `git diff --name-status e6522a27..HEAD`
+- `git diff --stat e6522a27..HEAD`
+- `git diff --check`
+- `git diff ce80877d..HEAD -- docs/00-master/DECISION_LOG.md`
+- `git diff 69240bf8..HEAD -- docs/00-master/BASELINE_ACKNOWLEDGMENT_V1.1.md`
+- `grep -c '??' docs/00-master/DECISION_LOG.md`
+- `grep -c '??????' docs/00-master/DECISION_LOG.md`
+
+## 12. Final status
+
+P2-S1 GOVERNANCE REPAIR COMPLETE — AWAITING COMMAND CENTER REVIEW
