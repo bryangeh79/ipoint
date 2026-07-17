@@ -172,7 +172,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
     `);
     expect(counts.rows[0]).toEqual({
       roles: '2',
-      permissions: '20',
+      permissions: '22',
       profiles: '6',
       versions: '6',
     });

@@ -68,18 +68,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
       errorCode = 'INTERNAL_ERROR';
       errorMessage = 'An unexpected error occurred';
       errorDetails =
-        process.env.NODE_ENV === 'development'
+        process.env.NODE_ENV === 'development' ||
+        process.env.NODE_ENV === 'test'
           ? { name: exception.name, message: exception.message }
           : undefined;
 
       this.logger.error(
         {
-          err: exception,
+          errorName: exception.name,
+          errorMessage: exception.message,
           requestId,
           url: request.url,
           method: request.method,
         },
-        'Unhandled exception',
+        exception.stack,
       );
     } else {
       httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;

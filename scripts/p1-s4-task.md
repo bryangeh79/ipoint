@@ -36,7 +36,7 @@ P1-S2 established Drizzle schemas (merchant_kyc_submissions, merchant_kyc_review
   - PIC (Person In Charge) identity: full_name, identity_type (enum: nric, passport, others), identity_number, date_of_birth, nationality, proof_of_identity_document_id, proof_of_address_document_id
   - PIC contact: email (must match account email — immutable), phone (may differ from profile)
 - Side-by-side diff support: KYC review UI needs previous submission data (GET returns current + previous)
-- Validate: all required fields, max doc size advisory, MIME types (image/*, application/pdf)
+- Validate: all required fields, max doc size advisory, MIME types (image/\*, application/pdf)
 
 ### 2. Document Management (Metadata Only)
 

@@ -5,6 +5,7 @@ import { ConfigService } from './config/config.service.js';
 
 interface ApplicationSetupOptions {
   enableShutdownHooks?: boolean;
+  scanSwaggerRoutes?: boolean;
 }
 
 export function configureApplication(
@@ -31,7 +32,10 @@ export function configureApplication(
     .setVersion(configService.appVersion)
     .addServer(`http://localhost:${configService.port}`)
     .build();
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  const document =
+    options.scanSwaggerRoutes === false
+      ? { ...swaggerConfig, paths: {} }
+      : SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/v1/docs', app, document);
 
   if (options.enableShutdownHooks ?? true) {
