@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { PlatformAccessModule } from './platform-access/platform-access.module.js';
 import { MerchantModule } from './merchant/merchant.module.js';
+import { MarketModule } from './market/market.module.js';
 import {
   RequestIdMiddleware,
   resolveRequestId,
@@ -41,6 +42,7 @@ import {
     AuthModule,
     PlatformAccessModule,
     MerchantModule,
+    MarketModule,
   ],
 })
 export class AppModule implements NestModule {
