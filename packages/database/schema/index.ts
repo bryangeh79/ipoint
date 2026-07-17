@@ -88,6 +88,11 @@ export const mcpEntryType = pgEnum('mcp_entry_type', [
   'REVERSAL',
 ]);
 export const mcpDirection = pgEnum('mcp_direction', ['CREDIT', 'DEBIT']);
+export const mcpAccountStatus = pgEnum('mcp_account_status', [
+  'ACTIVE',
+  'FROZEN',
+  'CLOSED',
+]);
 export const adjustmentState = pgEnum('adjustment_state', [
   'DRAFT',
   'PENDING_APPROVAL',
@@ -962,14 +967,15 @@ export const mcpAccounts = pgTable(
       .notNull()
       .references(() => markets.id, { onDelete: 'restrict' }),
     availableBalance: numeric('available_balance', {
-      precision: 24,
-      scale: 8,
+      precision: 38,
+      scale: 10,
     })
       .notNull()
       .default('0'),
-    totalBalance: numeric('total_balance', { precision: 24, scale: 8 })
+    totalBalance: numeric('total_balance', { precision: 38, scale: 10 })
       .notNull()
       .default('0'),
+    status: mcpAccountStatus('status').notNull().default('ACTIVE'),
     version: integer('version').notNull().default(1),
     createdAt: utcTimestamp('created_at').notNull().defaultNow(),
     updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
@@ -995,14 +1001,14 @@ export const mcpLedgerEntries = pgTable(
     sequence: bigint('sequence', { mode: 'bigint' }).notNull(),
     entryType: mcpEntryType('entry_type').notNull(),
     direction: mcpDirection('direction').notNull(),
-    amount: numeric('amount', { precision: 24, scale: 8 }).notNull(),
+    amount: numeric('amount', { precision: 38, scale: 10 }).notNull(),
     balanceDelta: numeric('balance_delta', {
-      precision: 24,
-      scale: 8,
+      precision: 38,
+      scale: 10,
     }).notNull(),
     availableDelta: numeric('available_delta', {
-      precision: 24,
-      scale: 8,
+      precision: 38,
+      scale: 10,
     }).notNull(),
     sourceType: text('source_type').notNull(),
     sourceId: text('source_id'),
@@ -1010,6 +1016,7 @@ export const mcpLedgerEntries = pgTable(
     payloadHash: text('payload_hash').notNull(),
     actorType: text('actor_type').notNull(),
     actorId: text('actor_id'),
+    reason: text('reason').notNull(),
     approvalRequestId: uuid('approval_request_id'),
     reversalOfEntryId: uuid('reversal_of_entry_id'),
     metadata: jsonb('metadata').notNull().default({}),
@@ -1050,10 +1057,12 @@ export const mcpRechargeRequests = pgTable(
     requestedByAccountId: uuid('requested_by_account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'restrict' }),
-    amount: numeric('amount', { precision: 24, scale: 8 }).notNull(),
+    amount: numeric('amount', { precision: 38, scale: 10 }).notNull(),
     channel: text('channel').notNull(),
     status: rechargeState('status').notNull().default('PENDING'),
     idempotencyKey: text('idempotency_key').notNull(),
+    payloadHash: text('payload_hash').notNull(),
+    reviewPayloadHash: text('review_payload_hash'),
     providerEventId: text('provider_event_id'),
     reviewedByAdminUserId: uuid('reviewed_by_admin_user_id').references(
       () => adminUsers.id,
@@ -1092,7 +1101,7 @@ export const mcpRefundRequests = pgTable(
     requestedByAccountId: uuid('requested_by_account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'restrict' }),
-    amount: numeric('amount', { precision: 24, scale: 8 }).notNull(),
+    amount: numeric('amount', { precision: 38, scale: 10 }).notNull(),
     status: refundState('status').notNull().default('PENDING'),
     reason: text('reason').notNull(),
     idempotencyKey: text('idempotency_key').notNull(),
@@ -1131,7 +1140,7 @@ export const mcpAdjustmentRequests = pgTable(
       .notNull()
       .references(() => adminUsers.id, { onDelete: 'restrict' }),
     entryType: mcpEntryType('entry_type').notNull(),
-    amount: numeric('amount', { precision: 24, scale: 8 }).notNull(),
+    amount: numeric('amount', { precision: 38, scale: 10 }).notNull(),
     reason: text('reason').notNull(),
     evidence: jsonb('evidence').notNull().default({}),
     status: adjustmentState('status').notNull().default('DRAFT'),

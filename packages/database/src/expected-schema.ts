@@ -330,6 +330,7 @@ export const expectedSchema = {
     'version',
     'created_at',
     'updated_at',
+    'status',
   ],
   mcp_ledger_entries: [
     'id',
@@ -351,6 +352,7 @@ export const expectedSchema = {
     'metadata',
     'effective_at',
     'created_at',
+    'reason',
   ],
   mcp_recharge_requests: [
     'id',
@@ -367,6 +369,8 @@ export const expectedSchema = {
     'ledger_entry_id',
     'created_at',
     'updated_at',
+    'payload_hash',
+    'review_payload_hash',
   ],
   mcp_refund_requests: [
     'id',
