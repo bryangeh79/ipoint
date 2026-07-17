@@ -7,12 +7,14 @@ import {
   AUTH_STORE,
 } from './auth.constants.js';
 import { AuthGuard } from './auth.guard.js';
+import { AuthController } from './auth.controller.js';
 import { AuthService, type AuthSettings } from './auth.service.js';
 import { PostgresAuthStore } from './postgres-auth.store.js';
 import { InMemoryRateLimiter } from './rate-limit.port.js';
 
 @Module({
   imports: [DatabaseModule],
+  controllers: [AuthController],
   providers: [
     PostgresAuthStore,
     { provide: AUTH_STORE, useExisting: PostgresAuthStore },
