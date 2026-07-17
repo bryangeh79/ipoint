@@ -27,13 +27,13 @@ States:
 
 ### Transition table
 
-| From | To | Trigger | Guards | Evidence |
-|---|---|---|---|---|
-| `PENDING_EMAIL_VERIFICATION` | `ACTIVE` | Email OTP verified and registration completed | OTP single-use, validated market, consent captured | Audit, timeline, registration snapshot |
-| `ACTIVE` | `SUSPENDED` | Admin suspend | Admin permission and market access required | Audit, timeline, reason |
-| `SUSPENDED` | `ACTIVE` | Admin reactivate | Admin permission and market access required | Audit, timeline, reason |
-| `ACTIVE` | `CLOSED` | Admin close or governed closure path | Closure policy must be explicit | Audit, timeline, terminal evidence |
-| `SUSPENDED` | `CLOSED` | Admin close after suspension | Closure policy must be explicit | Audit, timeline, terminal evidence |
+| From                         | To          | Trigger                                       | Guards                                             | Evidence                               |
+| ---------------------------- | ----------- | --------------------------------------------- | -------------------------------------------------- | -------------------------------------- |
+| `PENDING_EMAIL_VERIFICATION` | `ACTIVE`    | Email OTP verified and registration completed | OTP single-use, validated market, consent captured | Audit, timeline, registration snapshot |
+| `ACTIVE`                     | `SUSPENDED` | Admin suspend                                 | Admin permission and market access required        | Audit, timeline, reason                |
+| `SUSPENDED`                  | `ACTIVE`    | Admin reactivate                              | Admin permission and market access required        | Audit, timeline, reason                |
+| `ACTIVE`                     | `CLOSED`    | Admin close or governed closure path          | Closure policy must be explicit                    | Audit, timeline, terminal evidence     |
+| `SUSPENDED`                  | `CLOSED`    | Admin close after suspension                  | Closure policy must be explicit                    | Audit, timeline, terminal evidence     |
 
 ### Notes
 
@@ -58,17 +58,17 @@ States:
 
 ### Transition table
 
-| From | To | Trigger | Guards | Evidence |
-|---|---|---|---|---|
-| `NOT_STARTED` | `DRAFT` | Member begins KYC | Member authenticated | Draft snapshot |
-| `DRAFT` | `SUBMITTED` | Member submits | Required fields and documents present | Submission snapshot, document refs |
-| `SUBMITTED` | `UNDER_REVIEW` | Admin claims case | Admin permission and market access required | Review-start audit |
-| `UNDER_REVIEW` | `APPROVED` | Admin approves | Reviewer is authorized | Review decision, timeline |
-| `UNDER_REVIEW` | `REJECTED` | Admin rejects | Reason required | Review decision, timeline |
-| `UNDER_REVIEW` | `MORE_INFO_REQUIRED` | Admin requests more info | Reason required | Review decision, timeline |
-| `MORE_INFO_REQUIRED` | `SUBMITTED` | Member resubmits | New snapshot required | New submission version |
-| `APPROVED` | `REVERIFICATION_REQUIRED` | Policy requires re-check | Policy-driven | Timeline, audit |
-| `REVERIFICATION_REQUIRED` | `UNDER_REVIEW` | Admin starts review | Authorized reviewer | Review-start audit |
+| From                      | To                        | Trigger                  | Guards                                      | Evidence                           |
+| ------------------------- | ------------------------- | ------------------------ | ------------------------------------------- | ---------------------------------- |
+| `NOT_STARTED`             | `DRAFT`                   | Member begins KYC        | Member authenticated                        | Draft snapshot                     |
+| `DRAFT`                   | `SUBMITTED`               | Member submits           | Required fields and documents present       | Submission snapshot, document refs |
+| `SUBMITTED`               | `UNDER_REVIEW`            | Admin claims case        | Admin permission and market access required | Review-start audit                 |
+| `UNDER_REVIEW`            | `APPROVED`                | Admin approves           | Reviewer is authorized                      | Review decision, timeline          |
+| `UNDER_REVIEW`            | `REJECTED`                | Admin rejects            | Reason required                             | Review decision, timeline          |
+| `UNDER_REVIEW`            | `MORE_INFO_REQUIRED`      | Admin requests more info | Reason required                             | Review decision, timeline          |
+| `MORE_INFO_REQUIRED`      | `SUBMITTED`               | Member resubmits         | New snapshot required                       | New submission version             |
+| `APPROVED`                | `REVERIFICATION_REQUIRED` | Policy requires re-check | Policy-driven                               | Timeline, audit                    |
+| `REVERIFICATION_REQUIRED` | `UNDER_REVIEW`            | Admin starts review      | Authorized reviewer                         | Review-start audit                 |
 
 ### Notes
 
@@ -87,11 +87,11 @@ States:
 
 ### Transition table
 
-| From | To | Trigger | Guards | Evidence |
-|---|---|---|---|---|
-| `PENDING` | `APPROVED` | Admin approves | Market access and review permission required | Before/after values, reason |
-| `PENDING` | `REJECTED` | Admin rejects | Review permission required | Reason, reviewer, timeline |
-| `PENDING` | `CANCELLED` | Member cancels | Request still pending | Cancellation evidence |
+| From      | To          | Trigger        | Guards                                       | Evidence                    |
+| --------- | ----------- | -------------- | -------------------------------------------- | --------------------------- |
+| `PENDING` | `APPROVED`  | Admin approves | Market access and review permission required | Before/after values, reason |
+| `PENDING` | `REJECTED`  | Admin rejects  | Review permission required                   | Reason, reviewer, timeline  |
+| `PENDING` | `CANCELLED` | Member cancels | Request still pending                        | Cancellation evidence       |
 
 ### Notes
 
@@ -110,11 +110,11 @@ States:
 
 ### Transition table
 
-| From | To | Trigger | Guards | Evidence |
-|---|---|---|---|---|
-| `ACTIVE` | `ROTATED` | Member rotates QR or admin forces rotation | New token must be unpredictable | Rotation audit and new active row |
-| `ACTIVE` | `REVOKED` | Member or admin revokes QR | Revocation reason required | Revocation audit |
-| `ROTATED` | `REVOKED` | Old token expires or is revoked | Historical row stays immutable | Timeline |
+| From      | To        | Trigger                                    | Guards                          | Evidence                          |
+| --------- | --------- | ------------------------------------------ | ------------------------------- | --------------------------------- |
+| `ACTIVE`  | `ROTATED` | Member rotates QR or admin forces rotation | New token must be unpredictable | Rotation audit and new active row |
+| `ACTIVE`  | `REVOKED` | Member or admin revokes QR                 | Revocation reason required      | Revocation audit                  |
+| `ROTATED` | `REVOKED` | Old token expires or is revoked            | Historical row stays immutable  | Timeline                          |
 
 ### Notes
 

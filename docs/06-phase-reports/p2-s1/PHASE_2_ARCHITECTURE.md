@@ -146,17 +146,17 @@ Reuse the current database authority:
 
 ## 5. Proposed member-core module map
 
-| Module | Responsibility | Read dependencies | Write dependencies |
-|---|---|---|---|
-| Member Identity | member public record and lifecycle | accounts, auth session context | members, status history, audit, timeline |
-| Member Profile | profile fields and contact data | members, accounts | member_profiles, audit, timeline |
-| Member Market Context | current market and preferences | markets, member preference records | member_market_preferences, audit, timeline |
-| Member Referral | referral code, active referrer, and history | accounts, members | member_referrals, member_referral_history, audit, timeline |
-| Member QR | QR identity lifecycle | members | member_qr_identities, audit, timeline |
-| Member KYC | KYC case workflow and documents | members, markets | member_kyc_cases, member_kyc_documents, audit, timeline |
-| Country Review | account-country change request | accounts, markets, admins | member_account_country_change_requests, audit, timeline |
-| Discovery | merchant read-only discovery | merchants, markets | none |
-| Admin Member Ops | search and governed state changes | members, markets, audit, timelines | member status, KYC, QR, country review, referral correction, closure handling |
+| Module                | Responsibility                              | Read dependencies                  | Write dependencies                                                            |
+| --------------------- | ------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------- |
+| Member Identity       | member public record and lifecycle          | accounts, auth session context     | members, status history, audit, timeline                                      |
+| Member Profile        | profile fields and contact data             | members, accounts                  | member_profiles, audit, timeline                                              |
+| Member Market Context | current market and preferences              | markets, member preference records | member_market_preferences, audit, timeline                                    |
+| Member Referral       | referral code, active referrer, and history | accounts, members                  | member_referrals, member_referral_history, audit, timeline                    |
+| Member QR             | QR identity lifecycle                       | members                            | member_qr_identities, audit, timeline                                         |
+| Member KYC            | KYC case workflow and documents             | members, markets                   | member_kyc_cases, member_kyc_documents, audit, timeline                       |
+| Country Review        | account-country change request              | accounts, markets, admins          | member_account_country_change_requests, audit, timeline                       |
+| Discovery             | merchant read-only discovery                | merchants, markets                 | none                                                                          |
+| Admin Member Ops      | search and governed state changes           | members, markets, audit, timelines | member status, KYC, QR, country review, referral correction, closure handling |
 
 ## 6. Data flow
 

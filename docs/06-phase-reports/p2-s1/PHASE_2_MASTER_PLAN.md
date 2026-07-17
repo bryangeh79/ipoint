@@ -86,17 +86,17 @@ This phase is documentation only. It freezes the product direction, domain bound
 
 P2-S1 is the contract freeze and governance update. Later sub-phases are listed only as planning order.
 
-| Sub-phase | Focus | Output |
-|---|---|---|
-| P2-S1 | Architecture and Contract Freeze | These documents, plus governance updates |
-| P2-S2 | Member Schema and Forward Migrations | Member tables, constraints, and non-destructive migration order |
-| P2-S3 | Registration, OTP and Authentication | Sign-up, OTP, login, refresh, logout, password reset contracts |
-| P2-S4 | Member Identity, Referral and QR Foundation | Member identity, referral current-state/history model, QR token rules |
-| P2-S5 | Member Profile and Multi-Market Preferences | Profile, current market, enabled markets, and preference persistence |
-| P2-S6 | Member KYC Level 2 | KYC Level 2 schema, review, and evidence handling |
-| P2-S7 | Merchant Discovery by Current Market | Current-market discovery read model and deterministic sort rules |
-| P2-S8 | Admin Member Management and Audit | Suspend/reactivate, referral correction, country review, audit timelines |
-| P2-S9 | Live UI Integration, E2E and Final Acceptance | UI wiring, browser flows, E2E matrix, and acceptance gates |
+| Sub-phase | Focus                                         | Output                                                                   |
+| --------- | --------------------------------------------- | ------------------------------------------------------------------------ |
+| P2-S1     | Architecture and Contract Freeze              | These documents, plus governance updates                                 |
+| P2-S2     | Member Schema and Forward Migrations          | Member tables, constraints, and non-destructive migration order          |
+| P2-S3     | Registration, OTP and Authentication          | Sign-up, OTP, login, refresh, logout, password reset contracts           |
+| P2-S4     | Member Identity, Referral and QR Foundation   | Member identity, referral current-state/history model, QR token rules    |
+| P2-S5     | Member Profile and Multi-Market Preferences   | Profile, current market, enabled markets, and preference persistence     |
+| P2-S6     | Member KYC Level 2                            | KYC Level 2 schema, review, and evidence handling                        |
+| P2-S7     | Merchant Discovery by Current Market          | Current-market discovery read model and deterministic sort rules         |
+| P2-S8     | Admin Member Management and Audit             | Suspend/reactivate, referral correction, country review, audit timelines |
+| P2-S9     | Live UI Integration, E2E and Final Acceptance | UI wiring, browser flows, E2E matrix, and acceptance gates               |
 
 ## 6. Deliverable order
 

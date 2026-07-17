@@ -30,18 +30,18 @@ The stored request hash must be a stable hash of the normalized request payload 
 
 ## 4. Route coverage
 
-| Operation | Key scope | Payload fingerprint notes | Replay behavior | Mismatch behavior |
-|---|---|---|---|---|
-| Registration submit | Public actor + email + market | Include email, account country, market, referral input, terms version | Return the created account/member outcome | Reject with idempotency conflict |
-| OTP verification handoff | Public actor + otp_id | Include otp_id and code only | Return verified outcome or the same login handoff | Reject if payload differs |
-| KYC submit/resubmit | Member + member_id + case_id + market | Include case version, document references, form data | Return the same submission version | Reject if payload differs |
-| Account-country change request | Member + member_id | Include current and requested country and reason | Return the same pending request | Reject if payload differs |
-| Current market switch | Member + member_id + market | Include current and requested market plus reason | Return the same persisted current market | Reject if payload differs |
-| Admin KYC decision | Admin + case_id + market | Include decision, reason, evidence digest | Return the same decision result | Reject if payload differs |
-| Suspend | Admin + member_id + market | Include reason and status target | Return same status result | Reject if payload differs |
-| Reactivate | Admin + member_id + market | Include reason and status target | Return same status result | Reject if payload differs |
-| Referral correction | Admin + member_id + market | Include old and new referrer, correction reason, authorized actor, request ID, and occurred-at timestamp | Return same corrected relationship and history event | Reject if payload differs |
-| QR rotation | Member + member_id | Include rotation reason and previous QR state | Return same active QR replacement | Reject if payload differs |
+| Operation                      | Key scope                             | Payload fingerprint notes                                                                                | Replay behavior                                      | Mismatch behavior                |
+| ------------------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------- |
+| Registration submit            | Public actor + email + market         | Include email, account country, market, referral input, terms version                                    | Return the created account/member outcome            | Reject with idempotency conflict |
+| OTP verification handoff       | Public actor + otp_id                 | Include otp_id and code only                                                                             | Return verified outcome or the same login handoff    | Reject if payload differs        |
+| KYC submit/resubmit            | Member + member_id + case_id + market | Include case version, document references, form data                                                     | Return the same submission version                   | Reject if payload differs        |
+| Account-country change request | Member + member_id                    | Include current and requested country and reason                                                         | Return the same pending request                      | Reject if payload differs        |
+| Current market switch          | Member + member_id + market           | Include current and requested market plus reason                                                         | Return the same persisted current market             | Reject if payload differs        |
+| Admin KYC decision             | Admin + case_id + market              | Include decision, reason, evidence digest                                                                | Return the same decision result                      | Reject if payload differs        |
+| Suspend                        | Admin + member_id + market            | Include reason and status target                                                                         | Return same status result                            | Reject if payload differs        |
+| Reactivate                     | Admin + member_id + market            | Include reason and status target                                                                         | Return same status result                            | Reject if payload differs        |
+| Referral correction            | Admin + member_id + market            | Include old and new referrer, correction reason, authorized actor, request ID, and occurred-at timestamp | Return same corrected relationship and history event | Reject if payload differs        |
+| QR rotation                    | Member + member_id                    | Include rotation reason and previous QR state                                                            | Return same active QR replacement                    | Reject if payload differs        |
 
 ## 5. Concurrency rules
 

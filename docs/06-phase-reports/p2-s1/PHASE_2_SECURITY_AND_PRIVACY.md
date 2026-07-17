@@ -14,30 +14,30 @@ Phase 2 handles identity, account-country, current-market, referral, QR, and KYC
 
 ## 2. Assets
 
-| Asset | Why it matters |
-|---|---|
-| Email and password | Account takeover risk |
-| OTP codes | Single-factor verification gate |
-| Refresh tokens | Session persistence and replay risk |
-| Member ID and referral code | Public identity and referral tampering risk |
-| Current market preference | Market-context integrity and cache drift risk |
-| QR token | Merchant-facing identity token |
-| KYC documents | Highly sensitive personal data |
-| Account-country change requests | Jurisdiction and compliance risk |
-| Member status and suspension state | Access control risk |
-| Audit and timeline records | Forensic evidence |
+| Asset                              | Why it matters                                |
+| ---------------------------------- | --------------------------------------------- |
+| Email and password                 | Account takeover risk                         |
+| OTP codes                          | Single-factor verification gate               |
+| Refresh tokens                     | Session persistence and replay risk           |
+| Member ID and referral code        | Public identity and referral tampering risk   |
+| Current market preference          | Market-context integrity and cache drift risk |
+| QR token                           | Merchant-facing identity token                |
+| KYC documents                      | Highly sensitive personal data                |
+| Account-country change requests    | Jurisdiction and compliance risk              |
+| Member status and suspension state | Access control risk                           |
+| Audit and timeline records         | Forensic evidence                             |
 
 ## 3. Trust boundaries
 
-| Boundary | Risk | Required control |
-|---|---|---|
-| Browser -> API | Client tampering | Server validation, strict schemas |
-| Public auth -> session creation | Enumeration and brute force | Rate limiting, OTP limits, generic errors |
-| Member self-service -> member aggregate | Ownership abuse | Server-side ownership check |
-| Admin -> market-scoped records | Privilege escalation | Role + permission + market access |
-| API -> object storage | Document leakage | Signed URLs, short TTL, private buckets |
-| API -> logs/audit | Sensitive value leakage | Redaction and masking |
-| QR consumer -> member identity | Token cloning | Unpredictable tokens and rotation |
+| Boundary                                | Risk                        | Required control                          |
+| --------------------------------------- | --------------------------- | ----------------------------------------- |
+| Browser -> API                          | Client tampering            | Server validation, strict schemas         |
+| Public auth -> session creation         | Enumeration and brute force | Rate limiting, OTP limits, generic errors |
+| Member self-service -> member aggregate | Ownership abuse             | Server-side ownership check               |
+| Admin -> market-scoped records          | Privilege escalation        | Role + permission + market access         |
+| API -> object storage                   | Document leakage            | Signed URLs, short TTL, private buckets   |
+| API -> logs/audit                       | Sensitive value leakage     | Redaction and masking                     |
+| QR consumer -> member identity          | Token cloning               | Unpredictable tokens and rotation         |
 
 ## 4. Key threats and mitigations
 
