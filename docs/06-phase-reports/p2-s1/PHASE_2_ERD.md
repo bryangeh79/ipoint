@@ -12,12 +12,22 @@ date: 2026-07-17
 
 - Keep `accounts` as the authentication and account-country anchor.
 - Create a dedicated `members` aggregate for member-facing identity and lifecycle.
+- Do not duplicate mutable `account_country` on `members`; `accounts.account_country` is the single source of truth.
 - Use UUID primary keys internally.
 - Use separate public identifiers for member-facing references.
 - Keep public IDs unique and never reused.
 - Use exact decimal or integer representations where applicable.
 - Keep history append-only.
 - Keep sensitive documents outside the relational binary store.
+
+## 1.1 Market concept separation
+
+- **Account Country**: authoritative compliance anchor on `accounts.account_country`.
+- **Current Market**: exactly one active market selection per member, persisted in `member_market_preferences` with `is_current = true`.
+- **Available/Enabled Markets**: the set of member-eligible markets where `is_enabled = true` and the referenced market is ACTIVE.
+- Current Market must be independent of Account Country.
+- Current Market must be independent of the available/enabled list, except that the selected market must still be ACTIVE and member-accessible.
+- Do not use `primary_market_id` or any similar ambiguous single-field shortcut.
 
 ## 2. Entity overview
 
@@ -35,8 +45,6 @@ Suggested columns:
 | `referral_code` | text unique | Unique per member |
 | `status` | enum | `PENDING_EMAIL_VERIFICATION`, `ACTIVE`, `SUSPENDED`, `CLOSED` |
 | `kyc_level` | enum | `NONE`, `LEVEL_1`, `LEVEL_2` |
-| `account_country` | text | Snapshot of account country at member level for convenience only if duplicated; authoritative source remains `accounts.account_country` |
-| `primary_market_id` | UUID FK -> `markets.id` | Optional default market context |
 | `closed_at` | timestamptz | Terminal closure timestamp |
 | `created_at`, `updated_at` | timestamptz | Audit timestamps |
 | `archived_at` | timestamptz | Only for non-history mutable rows |
@@ -47,6 +55,7 @@ Constraints:
 - `public_member_id` unique
 - `referral_code` unique
 - `status` and `kyc_level` are independent
+- `members` must not contain a mutable `account_country` column
 
 ### 2.2 `member_profiles`
 
@@ -77,7 +86,7 @@ Constraints:
 
 ### 2.3 `member_market_preferences`
 
-Purpose: member market access and preference tracking.
+Purpose: member market access, enabled-market tracking, and current market persistence.
 
 Suggested columns:
 
@@ -87,7 +96,7 @@ Suggested columns:
 | `member_id` | UUID FK -> `members.id` | Member owner |
 | `market_id` | UUID FK -> `markets.id` | Enabled market |
 | `is_enabled` | boolean | Whether member can use the market |
-| `is_default` | boolean | Optional default context |
+| `is_current` | boolean | Exactly one current market per member |
 | `sort_order` | integer | UI ordering |
 | `last_selected_at` | timestamptz | Last current-market selection |
 | `created_at`, `updated_at` | timestamptz | Audit timestamps |
@@ -95,11 +104,13 @@ Suggested columns:
 Constraints:
 
 - unique(`member_id`, `market_id`)
-- one default market per member at most
+- exactly one current market per member
+- current market must reference an ACTIVE market
+- current market selection is persisted, not derived from session state alone
 
 ### 2.4 `member_referrals`
 
-Purpose: referral linkage and correction trail.
+Purpose: current direct referrer state for each member.
 
 Suggested columns:
 
@@ -109,21 +120,42 @@ Suggested columns:
 | `member_id` | UUID FK -> `members.id` | Referred member |
 | `referrer_member_id` | UUID FK -> `members.id` | Direct referrer only |
 | `referral_code_snapshot` | text | Immutable snapshot of code used |
-| `source` | text | Registration, admin correction, migration |
-| `status` | enum | `ACTIVE`, `CORRECTED`, `VOIDED` |
-| `created_by_account_id` | UUID FK -> `accounts.id` | If captured by member flow |
-| `corrected_by_admin_user_id` | UUID FK -> `admin_users.id` | Admin correction owner |
-| `correction_reason` | text | Required for correction |
+| `source` | text | Registration or admin correction |
+| `status` | enum | `ACTIVE`, `VOIDED` |
 | `created_at`, `updated_at` | timestamptz | Audit timestamps |
-| `archived_at` | timestamptz | For correction supersession only |
 
 Constraints:
 
-- one active referrer per member
+- one current direct referrer per member
 - `member_id != referrer_member_id`
 - no referral cycles
 
-### 2.5 `member_terms_acceptances`
+### 2.5 `member_referral_history`
+
+Purpose: immutable referral correction and assignment history.
+
+Suggested columns:
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | Internal key |
+| `member_id` | UUID FK -> `members.id` | Referred member |
+| `old_referrer_member_id` | UUID FK -> `members.id` | Previous referrer, if any |
+| `new_referrer_member_id` | UUID FK -> `members.id` | New referrer |
+| `correction_reason` | text | Required for admin correction |
+| `authorized_actor_type` | text | Admin or system actor type |
+| `authorized_actor_id` | UUID | Authorized actor identity |
+| `request_id` | text | Idempotency or request reference |
+| `occurred_at` | timestamptz | Event time |
+| `event_type` | text | `ASSIGNED`, `CORRECTED`, `VOIDED` |
+
+Constraints:
+
+- append-only
+- no physical delete
+- every correction row must preserve the prior state in history
+
+### 2.6 `member_terms_acceptances`
 
 Purpose: immutable consent evidence.
 
@@ -146,7 +178,7 @@ Constraints:
 - unique(`member_id`, `document_type`, `document_version`)
 - append-only
 
-### 2.6 `member_qr_identities`
+### 2.7 `member_qr_identities`
 
 Purpose: active and historical QR identity lifecycle.
 
@@ -157,7 +189,7 @@ Suggested columns:
 | `id` | UUID PK | Internal key |
 | `member_id` | UUID FK -> `members.id` | Owner |
 | `public_qr_id` | text unique | Public QR reference |
-| `token_hash` | text | Hash of unpredictable token |
+| `token_hash` | text | Hash of unpredictable token; no plaintext token storage |
 | `status` | enum | `ACTIVE`, `ROTATED`, `REVOKED` |
 | `rotated_from_id` | UUID FK -> `member_qr_identities.id` | Chain reference |
 | `rotated_to_id` | UUID FK -> `member_qr_identities.id` | Chain reference |
@@ -171,8 +203,9 @@ Constraints:
 - one active QR identity per member
 - no sensitive fields in token payload
 - token material is not stored in plain text
+- manual rotation and revocation only in Phase 2
 
-### 2.7 `member_kyc_cases`
+### 2.8 `member_kyc_cases`
 
 Purpose: KYC workflow head for each member.
 
@@ -197,7 +230,7 @@ Constraints:
 - one current KYC case per member
 - KYC status is independent from member status
 
-### 2.8 `member_kyc_documents`
+### 2.9 `member_kyc_documents`
 
 Purpose: document metadata only, not binary storage.
 
@@ -225,7 +258,7 @@ Constraints:
 - append-only metadata with no direct binary payload
 - file access is signed URL only
 
-### 2.9 `member_account_country_change_requests`
+### 2.10 `member_account_country_change_requests`
 
 Purpose: controlled review for account-country changes.
 
@@ -249,6 +282,7 @@ Suggested columns:
 Constraints:
 
 - one open request per member
+- pending request blocks duplicates until rejected, approved, or cancelled
 - approved requests update `accounts.account_country`
 - request history is append-only
 
@@ -302,7 +336,8 @@ Phase 2 should use them for:
 accounts 1--1 members
 members 1--1 member_profiles
 members 1--* member_market_preferences
-members 1--1 member_referrals (active)
+members 1--1 member_referrals (current)
+members 1--* member_referral_history
 members 1--* member_terms_acceptances
 members 1--* member_qr_identities
 members 1--1 member_kyc_cases
@@ -320,12 +355,15 @@ members 1--* member_kyc_history
 - `otps` stores email OTPs for verification and password reset.
 - `accounts.status` may remain the auth gating field, but member lifecycle must be represented independently in `members.status`.
 - `accounts.account_country` remains the authoritative country value.
+- `member_market_preferences` stores the authoritative current market row and enabled market rows.
+- `member_referrals` stores the current direct referrer state.
+- `member_referral_history` stores the immutable referral audit trail.
 
 ## 6. Soft delete and close strategy
 
 - Append-only tables: no physical delete, no update of historical rows.
 - Mutable profile or preference tables may use `archived_at` only if needed.
-- Closed members keep their public IDs, referral history, KYC history, QR history, and country-change history.
+- Closed members keep their public IDs, referral history, KYC history, QR history, and country-change history, but they cannot resume business operation automatically.
 - QR rotation and referral correction must append new rows or status transitions rather than overwrite history.
 
 ## 7. Sensitive fields
@@ -341,4 +379,3 @@ Sensitive fields include:
 - country-change notes
 
 These fields require masking, redaction, and audit visibility controls.
-

@@ -212,7 +212,7 @@ Rework until ChatGPT issues a final decision
 |---|---|
 | **Phase 0** | General ledger technical skeleton, DB foundation, Auth framework, RBAC, Market module, Audit infrastructure, Design System tokens, ORM/Schema tool approval |
 | **Phase 1** | Merchant Onboarding + MCP Ledger |
-| **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, wallet shell, referral) |
+| **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job |
 | **Phase 4** | Transaction Engine |
 | **Phase 5** | Agent & Commission Engine |

@@ -10,7 +10,7 @@ date: 2026-07-17
 
 ## 1. Threat model summary
 
-Phase 2 handles identity, account-country, referral, QR, and KYC data. The main risks are account takeover, enumeration, sensitive-data leakage, token replay, privilege abuse, and incorrect market scoping.
+Phase 2 handles identity, account-country, current-market, referral, QR, and KYC data. The main risks are account takeover, enumeration, sensitive-data leakage, token replay, privilege abuse, incorrect market scoping, and history corruption.
 
 ## 2. Assets
 
@@ -20,6 +20,7 @@ Phase 2 handles identity, account-country, referral, QR, and KYC data. The main 
 | OTP codes | Single-factor verification gate |
 | Refresh tokens | Session persistence and replay risk |
 | Member ID and referral code | Public identity and referral tampering risk |
+| Current market preference | Market-context integrity and cache drift risk |
 | QR token | Merchant-facing identity token |
 | KYC documents | Highly sensitive personal data |
 | Account-country change requests | Jurisdiction and compliance risk |
@@ -83,9 +84,11 @@ Phase 2 handles identity, account-country, referral, QR, and KYC data. The main 
 ### 4.7 QR identity
 
 - QR token material must be unpredictable and not derived from member ID, email, phone, or database ID.
-- Active QR identity should rotate on demand or policy event.
+- Active QR identity should rotate on demand or on explicit policy event only.
+- Phase 2 does not enforce automatic periodic rotation.
 - Revocation must immediately stop reuse.
 - The payload should be signed and versioned if rendered to merchants.
+- The database stores the public QR identity and token hash only; plaintext token material is never persisted.
 
 ### 4.8 KYC file access
 
@@ -115,10 +118,13 @@ Phase 2 handles identity, account-country, referral, QR, and KYC data. The main 
 
 ### 4.12 Referral tampering
 
-- A member may only bind one direct referrer.
+- A member may only have one active direct referrer at a time.
+- A member may not self-modify the referrer relationship.
 - Referrer must not equal the member.
 - Referral cycles must be rejected.
-- Admin correction must require a reason and audit event.
+- Admin correction must require a reason, request ID, authorized actor, and audit event.
+- Admin correction must run in a transaction and append immutable history rather than overwrite or delete the prior relationship.
+- Phase 2 does not calculate commission, but later commission systems must be able to trace historical referral state at transaction time.
 
 ### 4.13 Account Country and Current Market separation
 
@@ -126,6 +132,9 @@ Phase 2 handles identity, account-country, referral, QR, and KYC data. The main 
 - Current Market is a browsing and content context.
 - Switching Current Market must not mutate Account Country.
 - Account Country changes must go through review.
+- Current Market must be persisted as the single source of truth in member market preferences.
+- Session and request context may derive Current Market, but neither may become the authoritative source.
+- Cache must never become the source of truth for Current Market.
 
 ### 4.14 Suspended member permissions
 
@@ -134,6 +143,14 @@ Phase 2 handles identity, account-country, referral, QR, and KYC data. The main 
 - Sensitive endpoints should return a clear suspension error.
 - Existing sessions should be revoked or made non-authoritative when status changes.
 
+### 4.15 Closed member protection
+
+- CLOSED members cannot log in or perform any business operation.
+- Member-facing routes should only expose closed status and support handoff entry points.
+- Authorized admins may view closed-member data for audit and customer service.
+- Referral code and QR identity are no longer valid for CLOSED members.
+- CLOSED is terminal and cannot auto-recover.
+
 ## 5. Privacy controls
 
 - Minimize exposed profile fields in discovery views.
@@ -141,10 +158,10 @@ Phase 2 handles identity, account-country, referral, QR, and KYC data. The main 
 - Avoid displaying referral structure beyond what the caller is entitled to see.
 - Separate public member ID from internal account or member UUIDs.
 - Use least privilege for admin detail views.
+- Keep KYC retention policy per market configurable and auditable; do not hard-code retention years without Legal decision.
 
 ## 6. Observability rules
 
 - Every request must carry a request ID.
 - Security events should be recorded for failed logins, OTP abuse, token reuse, country-change approval, KYC review, suspension, and QR rotation.
 - Logs must remain useful without exposing secrets.
-

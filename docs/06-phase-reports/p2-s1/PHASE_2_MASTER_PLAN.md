@@ -46,8 +46,6 @@ This phase is documentation only. It freezes the product direction, domain bound
 - Receipts
 - QR payments
 - MCP debit flows
-- Wallet balances beyond member-facing shells
-- Ledgers beyond read-only planning references
 - Rewards
 - Commissions
 - Agent upgrades
@@ -56,6 +54,7 @@ This phase is documentation only. It freezes the product direction, domain bound
 - Production provider integrations
 - Cross-market transfers
 - Team rewards
+- Future money-moving or reward-module business behavior remains out of scope; only navigation placeholders or boundary notes are allowed
 
 ## 3. Locked rules
 
@@ -89,15 +88,15 @@ P2-S1 is the contract freeze and governance update. Later sub-phases are listed 
 
 | Sub-phase | Focus | Output |
 |---|---|---|
-| P2-S1 | Architecture and contract freeze | These documents, plus governance updates |
-| P2-S2 | Member identity and profile foundation | Implementation design for member profile and status storage |
-| P2-S3 | Market preference and current-market switching | Member market preference behavior and APIs |
-| P2-S4 | Referral and QR identity | Referral graph, QR token lifecycle, rotation, revocation |
-| P2-S5 | KYC and status lifecycle | KYC cases, documents, review flows, status separation |
-| P2-S6 | Merchant discovery read model | Discovery list, branch detail, and market-sensitive filtering |
-| P2-S7 | Admin member management | Suspend, reactivate, referral correction, country change review |
-| P2-S8 | Audit and timeline surfaces | Member timeline, audit, admin review history |
-| P2-S9 | UI, API, and PostgreSQL E2E plan | Cross-layer verification matrix and acceptance gates |
+| P2-S1 | Architecture and Contract Freeze | These documents, plus governance updates |
+| P2-S2 | Member Schema and Forward Migrations | Member tables, constraints, and non-destructive migration order |
+| P2-S3 | Registration, OTP and Authentication | Sign-up, OTP, login, refresh, logout, password reset contracts |
+| P2-S4 | Member Identity, Referral and QR Foundation | Member identity, referral current-state/history model, QR token rules |
+| P2-S5 | Member Profile and Multi-Market Preferences | Profile, current market, enabled markets, and preference persistence |
+| P2-S6 | Member KYC Level 2 | KYC Level 2 schema, review, and evidence handling |
+| P2-S7 | Merchant Discovery by Current Market | Current-market discovery read model and deterministic sort rules |
+| P2-S8 | Admin Member Management and Audit | Suspend/reactivate, referral correction, country review, audit timelines |
+| P2-S9 | Live UI Integration, E2E and Final Acceptance | UI wiring, browser flows, E2E matrix, and acceptance gates |
 
 ## 6. Deliverable order
 
@@ -113,7 +112,7 @@ P2-S1 is the contract freeze and governance update. Later sub-phases are listed 
 
 - All Phase 2 freeze documents exist under `docs/06-phase-reports/p2-s1/`.
 - `DECISION_LOG.md` records D-014.
-- `PHASE_REGISTRY.md` reflects Phase 2 authorization and P2-S1 in progress.
+- `PHASE_REGISTRY.md` reflects Phase 2 authorization and P2-S1 under review after the repair push.
 - No code, schema, migration, or UI file is changed.
 - No later-phase business behavior is introduced.
 - Scope leakage is explicitly checked and reported.

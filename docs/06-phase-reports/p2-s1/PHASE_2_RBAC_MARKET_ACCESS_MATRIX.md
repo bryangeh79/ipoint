@@ -20,11 +20,11 @@ date: 2026-07-17
 | Endpoint family | Actor | Permission | Market scope | Access conditions | Notes |
 |---|---|---|---|---|---|
 | `/auth/member/*` | Public/member | None | Registration market must be valid | OTP and rate-limit checks | Shared auth service contract |
-| `/members/me` | Member | Ownership | None | Authenticated member only | Own aggregate only |
+| `/members/me` | Member | Ownership | None | Authenticated member only; closed members are denied business operations | Own aggregate only |
 | `/members/me/profile` | Member | Ownership | None | Authenticated member only | Full self-profile access |
-| `/members/me/market` | Member | Ownership | Enabled markets only | Current market must be enabled | Switch and read current market |
+| `/members/me/market` | Member | Ownership | Enabled markets only | Current market must be enabled; selection must persist on success | Switch and read current market |
 | `/members/me/qr` | Member | Ownership | None | Authenticated member only | QR lifecycle controls |
-| `/members/me/referral` | Member | Ownership | None | Authenticated member only | Read-only self referral view |
+| `/members/me/referral` | Member | Ownership | None | Authenticated member only; no self-modify path | Read-only self referral view |
 | `/members/me/kyc` | Member | Ownership | None | Authenticated member only | KYC draft and submission |
 | `/members/me/account-country-change` | Member | Ownership | None | Authenticated member only | Request/cancel own change |
 | `/member-merchants` | Member | Ownership | Current market only | Authenticated member and enabled market | Read-only discovery |
@@ -35,7 +35,7 @@ date: 2026-07-17
 | `/admin/member-country-changes` | Admin | `member.country.change.review` | Market-filtered | Active grant required for filtered view | Review queue |
 | `/admin/members/:memberId/suspend` | Admin | `member.suspend` | Derived from member market | Admin, market grant, reason required | Suspension only |
 | `/admin/members/:memberId/reactivate` | Admin | `member.suspend` | Derived from member market | Admin, market grant, reason required | Reactivation only |
-| `/admin/members/:memberId/referral-correction` | Admin | `member.referral.correct` | Derived from member market | Admin, market grant, reason required | Super-admin policy may apply |
+| `/admin/members/:memberId/referral-correction` | Admin | `member.referral.correct` | Derived from member market | Admin, market grant, reason required; transaction must append immutable history | Super-admin policy may apply |
 | `/admin/members/:memberId/timeline` | Admin | `member.timeline.view` | Derived from member market | Admin, market grant | Timeline read-only |
 | `/admin/members/:memberId/audit` | Admin | `audit.view` | Derived from member market | Admin, market grant | Audit read-only |
 
@@ -58,6 +58,8 @@ date: 2026-07-17
 - Detail endpoints must resolve target resource market and compare it against the actor's grants.
 - Member self-service current market selection must only accept enabled markets.
 - Discovery must filter by current market, not by account country.
+- Current market persistence must be updated in the preference table, not treated as a session-only setting.
+- Closed members are denied all business operations, including member self-service writes.
 
 ## 5. Denial behavior
 
@@ -66,4 +68,3 @@ date: 2026-07-17
 - Missing market access returns `AUTH_MARKET_ACCESS_DENIED`.
 - Unauthorized ownership returns a member-ownership denial.
 - Invalid current market selection returns a market validation error.
-

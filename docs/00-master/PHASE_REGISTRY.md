@@ -14,9 +14,9 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Phase** | **P2-S1** | Phase 2 AUTHORIZED under D-014; P2-S1 IN_PROGRESS; P2-S2+ NOT_AUTHORIZED |
+| **Current Authorized Phase** | **P2-S1 documentation repair** | Phase 2 AUTHORIZED under D-014; P2-S1 UNDER_REVIEW after D-015; P2-S2+ NOT_AUTHORIZED |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
-| **Phase 2** | **AUTHORIZED** | P2-S1 documentation freeze authorized under D-014; later sub-phases remain NOT_AUTHORIZED |
+| **Phase 2** | **AUTHORIZED** | P2-S1 documentation freeze authorized under D-014; P2-S1 repair updated under D-015; later sub-phases remain NOT_AUTHORIZED |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
 | **Phase 1 Batch B** | **APPROVED** | P1-S5 through P1-S7 COMPLETE under D-012 |
 | **Phase 1 Final Batch** | **APPROVED** | P1-S8 and P1-S9 COMPLETE under D-013 |
@@ -67,7 +67,7 @@
 | **Phase 0** | General ledger technical skeleton, DB foundation, Auth framework, RBAC, Market module, Audit infrastructure, Design System tokens | **APPROVED** | Final acceptance approved under D-009 |
 | **Phase 0 closure** | Final integration, audit, acceptance, and governance closure | **CLOSED** | Closed under D-009; Phase 1 requires new authorization |
 | **Phase 1** | Merchant Onboarding + MCP Ledger | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21` under D-013. Pull Request to main AUTHORIZED. Phase branch: phase/1-merchant-onboarding-mcp |
-| **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, wallet shell, referral) | **AUTHORIZED** | P2-S1 freeze authorized under D-014 |
+| **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) | **AUTHORIZED** | P2-S1 freeze authorized under D-014; repair updated under D-015 |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **NOT_AUTHORIZED** | Note: renamed from original Roadmap sequence per C-01 |
 | **Phase 4** | Transaction Engine | **NOT_AUTHORIZED** | Draft, receipt, QR scan, atomic confirmation, MCP debit |
 | **Phase 5** | Agent & Commission Engine | **NOT_AUTHORIZED** | Referral, activation, 3 commission types. Five-level team rewards DEFERRED |
@@ -99,20 +99,20 @@
 
 | Sub-phase | Scope | Status | Next gate |
 |---|---|---|---|
-| **P2-S1** | Architecture and contract freeze | **IN_PROGRESS** | D-014 recorded |
-| **P2-S2** | Member identity and profile foundation | **NOT_AUTHORIZED** | Await future authorization |
-| **P2-S3** | Market preference and current-market switching | **NOT_AUTHORIZED** | Await future authorization |
-| **P2-S4** | Referral and QR identity | **NOT_AUTHORIZED** | Await future authorization |
-| **P2-S5** | KYC and status lifecycle | **NOT_AUTHORIZED** | Await future authorization |
-| **P2-S6** | Merchant discovery read model | **NOT_AUTHORIZED** | Await future authorization |
-| **P2-S7** | Admin member management | **NOT_AUTHORIZED** | Await future authorization |
-| **P2-S8** | Audit and timeline surfaces | **NOT_AUTHORIZED** | Await future authorization |
-| **P2-S9** | UI, API, and PostgreSQL E2E plan | **NOT_AUTHORIZED** | Await future authorization |
+| **P2-S1** | Architecture and contract freeze | **UNDER_REVIEW** | D-014 recorded; D-015 repair applied |
+| **P2-S2** | Member Schema and Forward Migrations | **NOT_AUTHORIZED** | Await future authorization |
+| **P2-S3** | Registration, OTP and Authentication | **NOT_AUTHORIZED** | Await future authorization |
+| **P2-S4** | Member Identity, Referral and QR Foundation | **NOT_AUTHORIZED** | Await future authorization |
+| **P2-S5** | Member Profile and Multi-Market Preferences | **NOT_AUTHORIZED** | Await future authorization |
+| **P2-S6** | Member KYC Level 2 | **NOT_AUTHORIZED** | Await future authorization |
+| **P2-S7** | Merchant Discovery by Current Market | **NOT_AUTHORIZED** | Await future authorization |
+| **P2-S8** | Admin Member Management and Audit | **NOT_AUTHORIZED** | Await future authorization |
+| **P2-S9** | Live UI Integration, E2E and Final Acceptance | **NOT_AUTHORIZED** | Await future authorization |
 
 ## Current allowed actions
 
-- Record D-014 in DECISION_LOG.md and synchronize this registry
-- Complete the P2-S1 documentation freeze on `task/p2-s1-architecture-contract-freeze`
+- Record D-015 in DECISION_LOG.md and synchronize this registry
+- Complete the P2-S1 documentation repair on `task/p2-s1-architecture-contract-freeze`
 - Commit and push the documentation-only Phase 2 freeze work
 - Verify the pushed remote head and confirm no code, schema, migration, or UI files changed
 - Maintain the lock on P2-S2 through P2-S9 until separate authorization arrives
@@ -134,4 +134,4 @@
 
 ---
 
-*Last updated: 2026-07-17 | Updated by: Codex CLI | Based on decisions D-001 through D-014 and the ChatGPT Command Center Phase 2 authorization*
+*Last updated: 2026-07-17 | Updated by: Codex CLI | Based on decisions D-001 through D-015 and the ChatGPT Command Center Phase 2 authorization*

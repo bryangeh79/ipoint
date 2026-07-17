@@ -40,6 +40,8 @@ States:
 - Member status is independent from KYC level.
 - Closing is terminal.
 - Suspended members must not be able to bypass permission checks through cached sessions.
+- Closed members cannot log in, cannot use member self-service, and cannot perform business operations.
+- Admins may view closed-member records for audit and support, but member-facing routes must only expose closed status and customer-service entry points.
 
 ## 3. KYC status
 
@@ -96,6 +98,7 @@ States:
 - Approval updates the authoritative account country.
 - Request history is retained even after approval.
 - The request may not be reused for a different country.
+- Only one pending change request may exist per member at a time. If a request is rejected, a new request may be created.
 
 ## 5. QR identity
 
@@ -117,23 +120,32 @@ States:
 
 - Only one QR identity may be active at a time.
 - Rotation creates a new active token and deactivates the old one.
-- The QR payload must not reveal email, phone, or internal IDs.
+- Rotation is manual in Phase 2; automatic periodic rotation is deferred to a later phase.
+- The QR payload must not reveal email, phone, internal IDs, or other sensitive data.
+- The QR database stores only the public QR identity and token hash, not plaintext token material.
 
 ## 6. Referral relationship
 
-States:
+Current state:
 
-- `ACTIVE`
-- `CORRECTED`
-- `VOIDED`
+- `member_referrals` stores the current direct referrer for the member.
+
+Immutable history:
+
+- `member_referral_history` stores assignment and correction events.
 
 ### Rules
 
-- One direct referrer per member.
+- Member cannot self-modify referrer.
+- One active direct referrer per member at a time.
 - No self-referral.
 - No referral cycles.
 - Admin correction must be explicit, reasoned, and auditable.
-- Referral correction does not create commission behavior in this phase.
+- Correction must run in a database transaction.
+- Cycle checks must run in the same transaction as the correction.
+- The prior relationship must remain preserved in history.
+- Future commission systems must trace referral history at transaction time.
+- Phase 2 does not calculate commission.
 
 ## 7. Terms and disclaimer acceptance
 
@@ -147,4 +159,3 @@ Rules:
 - Acceptance is versioned.
 - A later document version creates a new acceptance row.
 - Older acceptances remain for audit.
-

@@ -36,10 +36,11 @@ The stored request hash must be a stable hash of the normalized request payload 
 | OTP verification handoff | Public actor + otp_id | Include otp_id and code only | Return verified outcome or the same login handoff | Reject if payload differs |
 | KYC submit/resubmit | Member + member_id + case_id + market | Include case version, document references, form data | Return the same submission version | Reject if payload differs |
 | Account-country change request | Member + member_id | Include current and requested country and reason | Return the same pending request | Reject if payload differs |
+| Current market switch | Member + member_id + market | Include current and requested market plus reason | Return the same persisted current market | Reject if payload differs |
 | Admin KYC decision | Admin + case_id + market | Include decision, reason, evidence digest | Return the same decision result | Reject if payload differs |
 | Suspend | Admin + member_id + market | Include reason and status target | Return same status result | Reject if payload differs |
 | Reactivate | Admin + member_id + market | Include reason and status target | Return same status result | Reject if payload differs |
-| Referral correction | Admin + member_id + market | Include old and new referrer plus reason | Return same corrected relationship | Reject if payload differs |
+| Referral correction | Admin + member_id + market | Include old and new referrer, correction reason, authorized actor, request ID, and occurred-at timestamp | Return same corrected relationship and history event | Reject if payload differs |
 | QR rotation | Member + member_id | Include rotation reason and previous QR state | Return same active QR replacement | Reject if payload differs |
 
 ## 5. Concurrency rules
@@ -52,12 +53,12 @@ The stored request hash must be a stable hash of the normalized request payload 
 ## 6. Retention
 
 - Keep registration and country-change idempotency keys long enough to cover the full retry horizon.
+- Keep current-market switch idempotency keys long enough to prevent duplicate current-market history rows.
 - Keep admin decision idempotency keys at least as long as the audit retention period for the reviewed action.
 - Keep QR rotation idempotency keys long enough to prevent accidental duplicate rotations.
 
 ## 7. Response reuse rules
 
 - The stored response should be the authoritative logical result.
-- Replays must not create duplicate history rows, duplicate QR identities, or duplicate KYC submissions.
+- Replays must not create duplicate history rows, duplicate QR identities, duplicate KYC submissions, or duplicate current-market rows.
 - The response body may be reserialized, but the logical outcome must be unchanged.
-
