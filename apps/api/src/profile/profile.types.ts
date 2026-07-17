@@ -10,9 +10,13 @@ export class ProfileError extends Error {
 export interface ProfileResponse {
   id: string;
   memberId: string;
-  displayName: string;
+  displayName: string | null;
   fullName: string | null;
   phone: string | null;
+  phoneNormalized: string | null;
+  phoneVerificationStatus: string;
+  phoneVerifiedAt: string | null;
+  phoneChangedAt: string | null;
   birthDate: string | null;
   address: Record<string, unknown> | null;
   avatarObjectKey: string | null;
@@ -24,14 +28,14 @@ export interface ProfileResponse {
 }
 
 export interface UpdateProfileInput {
-  displayName?: string;
-  fullName?: string;
-  phone?: string;
-  birthDate?: string;
+  displayName?: string | null;
+  fullName?: string | null;
+  phone?: string | null;
+  birthDate?: string | null;
   address?: Record<string, unknown> | null;
-  avatarObjectKey?: string;
-  language?: string;
-  locale?: string;
+  avatarObjectKey?: string | null;
+  language?: string | null;
+  locale?: string | null;
   marketingOptIn?: boolean;
   gender?: string;
 }

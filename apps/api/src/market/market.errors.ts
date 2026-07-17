@@ -12,3 +12,9 @@ export function marketNotEnabledError(): MarketError {
 export function marketNotActiveError(): MarketError {
   return new MarketError('MARKET_NOT_ACTIVE', 'Market is not active.');
 }
+export function marketConfigError(): MarketError {
+  return new MarketError(
+    'CONFIG_ERROR',
+    'The configured fallback market is missing or inactive.',
+  );
+}

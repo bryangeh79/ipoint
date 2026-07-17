@@ -132,6 +132,10 @@ export class ConfigService {
     return this.config.AUTH_MEMBER_REFERRAL_CODE_LENGTH;
   }
 
+  get defaultFallbackMarketCode(): string {
+    return this.config.DEFAULT_FALLBACK_MARKET_CODE;
+  }
+
   get appVersion(): string {
     return this.config.APP_VERSION;
   }

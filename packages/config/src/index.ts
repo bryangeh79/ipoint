@@ -103,6 +103,7 @@ const serverEnvironmentSchema = z.object({
     .min(6)
     .max(16)
     .default(8),
+  DEFAULT_FALLBACK_MARKET_CODE: z.string().min(1).default('MY'),
   APP_VERSION: z.string().default('0.0.0'),
 });
 

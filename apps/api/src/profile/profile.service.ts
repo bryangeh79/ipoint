@@ -36,6 +36,10 @@ export class ProfileService {
       displayName: row.displayName,
       fullName: row.fullName,
       phone: row.phone,
+      phoneNormalized: row.phoneNormalized,
+      phoneVerificationStatus: row.phoneVerificationStatus,
+      phoneVerifiedAt: row.phoneVerifiedAt?.toISOString() ?? null,
+      phoneChangedAt: row.phoneChangedAt?.toISOString() ?? null,
       birthDate: row.birthDate,
       address: row.address as Record<string, unknown> | null,
       avatarObjectKey: row.avatarObjectKey,
@@ -47,6 +51,43 @@ export class ProfileService {
     };
   }
 
+  /**
+   * Normalize a phone number to canonical E.164 format.
+   * Only removes non-digit characters after the leading +.
+   */
+  private normalizeE164(phone: string): string {
+    // Strip all non-digit characters after the leading +
+    const digits = phone.slice(1).replace(/\D/g, '');
+    return `+${digits}`;
+  }
+
+  /**
+   * Check uniqueness of a phone number using the normalized form.
+   */
+  private async checkPhoneUniqueness(
+    phone: string,
+    memberId: string,
+  ): Promise<void> {
+    const normalized = this.normalizeE164(phone);
+    const existing = await this.database.db
+      .select({ id: memberProfiles.id })
+      .from(memberProfiles)
+      .where(
+        sql`${memberProfiles.phoneNormalized} = ${normalized} AND ${memberProfiles.memberId} != ${memberId}`,
+      )
+      .limit(1);
+    if (existing[0]) throw phoneDuplicateError();
+  }
+
+  /**
+   * Validate E.164 format and normalize.
+   * Returns the normalized version.
+   */
+  private validateAndNormalizePhone(phone: string): string {
+    if (!/^\+[1-9]\d{6,14}$/.test(phone)) throw phoneInvalidError();
+    return this.normalizeE164(phone);
+  }
+
   async getProfile(accountId: string): Promise<ProfileResponse> {
     const memberId = await this.resolveMemberId(accountId);
     const rows = await this.database.db
@@ -55,13 +96,17 @@ export class ProfileService {
       .where(eq(memberProfiles.memberId, memberId))
       .limit(1);
     if (!rows[0]) {
-      // Auto-create default profile
+      // Auto-create default profile with null displayName (no forced '')
       const now = new Date();
       const defaults = {
         memberId,
-        displayName: '',
+        displayName: null,
         fullName: null,
         phone: null,
+        phoneNormalized: null,
+        phoneVerificationStatus: 'NOT_PROVIDED',
+        phoneVerifiedAt: null,
+        phoneChangedAt: null,
         birthDate: null,
         address: null,
         avatarObjectKey: null,
@@ -96,37 +141,45 @@ export class ProfileService {
   ): Promise<ProfileResponse> {
     const memberId = await this.resolveMemberId(accountId);
 
+    // Validate displayName: allow null/undefined (no change), reject too short
     if (input.displayName !== undefined) {
-      const trimmed = input.displayName.trim();
-      if (trimmed.length < 2 || trimmed.length > 50)
-        throw displayNameInvalidError();
-      if (trimmed.length === 0) throw displayNameInvalidError();
+      if (input.displayName !== null) {
+        const trimmed = input.displayName.trim();
+        if (trimmed.length < 2 || trimmed.length > 50)
+          throw displayNameInvalidError();
+        if (trimmed.length === 0) throw displayNameInvalidError();
+      }
     }
 
+    // Phone validation: E.164 + uniqueness via phoneNormalized
+    let phoneNormalized: string | null = null;
     if (input.phone !== undefined) {
-      if (!/^\+[1-9]\d{6,14}$/.test(input.phone)) throw phoneInvalidError();
-      const existing = await this.database.db
-        .select({ id: memberProfiles.id })
-        .from(memberProfiles)
-        .where(
-          sql`${memberProfiles.phone} = ${input.phone} AND ${memberProfiles.memberId} != ${memberId}`,
-        )
-        .limit(1);
-      if (existing[0]) throw phoneDuplicateError();
+      if (input.phone !== null) {
+        phoneNormalized = this.validateAndNormalizePhone(input.phone);
+        await this.checkPhoneUniqueness(input.phone, memberId);
+      }
+      // phone cleared -> set verification to NOT_PROVIDED
     }
 
+    // Birth date validation
     if (input.birthDate !== undefined) {
-      const birth = new Date(input.birthDate);
-      if (Number.isNaN(birth.getTime()) || birth >= new Date())
-        throw birthDateInvalidError();
-      const now = new Date();
-      let age = now.getFullYear() - birth.getFullYear();
-      const monthDiff = now.getMonth() - birth.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate()))
-        age--;
-      if (age < 18) throw ageVerificationFailedError();
+      if (input.birthDate !== null) {
+        const birth = new Date(input.birthDate);
+        if (Number.isNaN(birth.getTime()) || birth >= new Date())
+          throw birthDateInvalidError();
+        const now = new Date();
+        let age = now.getFullYear() - birth.getFullYear();
+        const monthDiff = now.getMonth() - birth.getMonth();
+        if (
+          monthDiff < 0 ||
+          (monthDiff === 0 && now.getDate() < birth.getDate())
+        )
+          age--;
+        if (age < 18) throw ageVerificationFailedError();
+      }
     }
 
+    // Gender validation
     if (
       input.gender !== undefined &&
       !['male', 'female', 'prefer_not_to_say'].includes(input.gender)
@@ -134,22 +187,36 @@ export class ProfileService {
       throw genderInvalidError();
     }
 
+    // Build updateData from input fields
     const updateData: Record<string, unknown> = {};
-    const fields = [
+    const fields: (keyof UpdateProfileInput)[] = [
       'displayName',
       'fullName',
-      'phone',
       'birthDate',
       'address',
       'avatarObjectKey',
       'language',
       'locale',
       'marketingOptIn',
-    ] as const;
+    ];
     for (const field of fields) {
-      const key = field as keyof UpdateProfileInput;
-      if (input[key] !== undefined) {
-        updateData[field] = input[key];
+      if (input[field] !== undefined) {
+        updateData[field] = input[field] === null ? null : input[field];
+      }
+    }
+
+    // Phone-specific handling
+    if (input.phone !== undefined) {
+      if (input.phone === null) {
+        updateData['phone'] = null;
+        updateData['phoneNormalized'] = null;
+        updateData['phoneVerificationStatus'] = 'NOT_PROVIDED';
+        updateData['phoneChangedAt'] = null;
+      } else {
+        updateData['phone'] = input.phone;
+        updateData['phoneNormalized'] = phoneNormalized;
+        updateData['phoneVerificationStatus'] = 'PENDING';
+        updateData['phoneChangedAt'] = new Date();
       }
     }
 
@@ -157,9 +224,9 @@ export class ProfileService {
       return this.getProfile(accountId);
     }
 
+    // Upsert: use onConflictDoUpdate to either insert or update
     const upsertValues: Record<string, unknown> = {
       memberId,
-      displayName: input.displayName ?? '',
       ...updateData,
     };
 
