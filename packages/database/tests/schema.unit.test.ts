@@ -22,6 +22,18 @@ describe('database foundation schema', () => {
         'market_access',
         'audit_logs',
         'entity_timelines',
+        'members',
+        'member_profiles',
+        'member_market_preferences',
+        'member_referrals',
+        'member_referral_history',
+        'member_terms_acceptances',
+        'member_qr_identities',
+        'member_kyc_cases',
+        'member_kyc_documents',
+        'member_account_country_change_requests',
+        'member_status_history',
+        'member_kyc_history',
       ]),
     );
   });
@@ -96,6 +108,7 @@ describe('database foundation schema', () => {
         'access_token',
         'refresh_token',
         'code',
+        'token',
       ]),
     );
   });
@@ -110,6 +123,7 @@ describe('database foundation schema', () => {
       '0004_service_fee_package_management.sql',
       '0005_mcp_ledger_recharge.sql',
       '0006_mcp_adjustment_refund_governance.sql',
+      '0007_phase_2_member_schema_forward_migrations.sql',
     ]);
     const migration = await readFile(
       `${migrationsDirectory}/0000_database_foundation.sql`,

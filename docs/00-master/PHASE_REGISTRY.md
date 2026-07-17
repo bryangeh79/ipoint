@@ -2,8 +2,7 @@
 
 > Rules:
 > - Only ChatGPT Command Center may mark a Phase as APPROVED.
-> - Phase status values: NOT_AUTHORIZED / AUTHORIZED / PLANNING / IN_PROGRESS /| **P2-S1** | Architecture and contract freeze | **COMPLETE / APPROVED** / CHANGES_REQUIRED / APPROVED / BLOCKED
-| **P2-S2** | Member Schema and Forward Migrations | **AUTHORIZED** | D-016 authorizes schema and migration implementation; P2-S3+ NOT_AUTHORIZED |
+> - Phase status values: NOT_AUTHORIZED / AUTHORIZED / PLANNING / IN_PROGRESS / COMPLETE / APPROVED / BLOCKED
 > - OpenClaw updates status as decisions arrive.
 > - Before updating status, update DECISION_LOG.md with the authorizing decision.
 
@@ -15,9 +14,9 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Phase** | **P2-S1 GOVERNANCE AND EVIDENCE REPAIR ONLY** | Phase 2 P2-S2 authorized under D-016; P2-S1 APPROVED; P2-S3+ NOT_AUTHORIZED |
+| **Current Authorized Phase** | **P2-S2 MEMBER SCHEMA AND FORWARD MIGRATIONS** | Phase 2 P2-S2 authorized under D-016; P2-S1 APPROVED; P2-S3+ NOT_AUTHORIZED |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
-| **Phase 2** | **AUTHORIZED** | P2-S1 documentation freeze authorized under D-014; P2-S1 repair updated under D-015; later sub-phases remain NOT_AUTHORIZED |
+| **Phase 2** | **AUTHORIZED** | P2-S1 approved under D-016; P2-S2 authorized under D-016; later sub-phases remain NOT_AUTHORIZED |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
 | **Phase 1 Batch B** | **APPROVED** | P1-S5 through P1-S7 COMPLETE under D-012 |
 | **Phase 1 Final Batch** | **APPROVED** | P1-S8 and P1-S9 COMPLETE under D-013 |
@@ -100,8 +99,8 @@
 
 | Sub-phase | Scope | Status | Next gate |
 |---|---|---|---|
-| **P2-S1** | Architecture and contract freeze | **UNDER_REVIEW** | APPROVED at 8cdc0b29 under D-016 |
-| **P2-S2** | Member Schema and Forward Migrations | **NOT_AUTHORIZED** | Await future authorization |
+| **P2-S1** | Architecture and contract freeze | **COMPLETE / APPROVED** | Approved at `8cdc0b2938ee7ceedb89c13716c6dae07d029c2f` under D-016 |
+| **P2-S2** | Member Schema and Forward Migrations | **AUTHORIZED** | D-016 authorizes schema and migration implementation |
 | **P2-S3** | Registration, OTP and Authentication | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S4** | Member Identity, Referral and QR Foundation | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S5** | Member Profile and Multi-Market Preferences | **NOT_AUTHORIZED** | Await future authorization |
@@ -118,12 +117,12 @@
 
 ## Current prohibited actions
 
-- Start or implement P2-S2 through P2-S9 or any otherwise not-authorized phase
+- Start or implement P2-S3 through P2-S9 or any otherwise not-authorized phase
 - Push directly to `main`
 - Merge `main` or create a main PR for this documentation-only phase
 - Bypass required governance sync or branch protection
 - Use OpenClaw sub-agents for engineering execution or accept invalidated sub-agent output as evidence
-- OpenClaw writing production code or modifying implementation files
+- OpenClaw writing production code outside the authorized P2-S2 scope
 - Change LOCKED business rules
 - Hard-code CONFIGURABLE values
 - Implement DEFERRED modules
@@ -133,4 +132,4 @@
 
 ---
 
-*Last updated: 2026-07-17 | Updated by: Codex CLI | Based on decisions D-001 through D-015 and the ChatGPT Command Center Phase 2 authorization*
+*Last updated: 2026-07-17 | Updated by: Codex CLI | Based on decisions D-001 through D-016 and the ChatGPT Command Center Phase 2 authorization*

@@ -60,6 +60,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0004_service_fee_package_management.sql',
       '0005_mcp_ledger_recharge.sql',
       '0006_mcp_adjustment_refund_governance.sql',
+      '0007_phase_2_member_schema_forward_migrations.sql',
     ]);
   });
 
@@ -230,6 +231,69 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
     };
   }
 
+  async function createMemberFixture() {
+    const memberAccount = await connection.pool.query<{ id: string }>(
+      `INSERT INTO accounts (public_id, email, account_country)
+       VALUES ($1, $2, 'MY') RETURNING id`,
+      [`acct_${randomUUID()}`, `${randomUUID()}@example.com`],
+    );
+    const referrerAccount = await connection.pool.query<{ id: string }>(
+      `INSERT INTO accounts (public_id, email, account_country)
+       VALUES ($1, $2, 'MY') RETURNING id`,
+      [`acct_${randomUUID()}`, `${randomUUID()}@example.com`],
+    );
+    const adminAccount = await connection.pool.query<{ id: string }>(
+      `INSERT INTO accounts (public_id, email, account_country)
+       VALUES ($1, $2, 'MY') RETURNING id`,
+      [`acct_${randomUUID()}`, `${randomUUID()}@example.com`],
+    );
+    const market = await connection.pool.query<{ id: string }>(
+      `INSERT INTO markets (code, name, status, currency_code, timezone, default_locale)
+       VALUES ($1, 'Member Market', 'ACTIVE', 'MYR', 'Asia/Kuala_Lumpur', 'en-MY')
+       RETURNING id`,
+      [randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()],
+    );
+    const alternateMarket = await connection.pool.query<{ id: string }>(
+      `INSERT INTO markets (code, name, status, currency_code, timezone, default_locale)
+       VALUES ($1, 'Alternate Market', 'ACTIVE', 'MYR', 'Asia/Kuala_Lumpur', 'en-MY')
+       RETURNING id`,
+      [randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()],
+    );
+    const admin = await connection.pool.query<{ id: string }>(
+      `INSERT INTO admin_users (account_id, display_name)
+       VALUES ($1, 'Member Admin') RETURNING id`,
+      [adminAccount.rows[0]?.id],
+    );
+    const referrer = await connection.pool.query<{ id: string }>(
+      `INSERT INTO members
+        (account_id, public_member_id, referral_code, status, kyc_level)
+       VALUES ($1, $2, $3, 'ACTIVE', 'LEVEL_2') RETURNING id`,
+      [
+        referrerAccount.rows[0]?.id,
+        `mem_${randomUUID()}`,
+        `ref_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+      ],
+    );
+    const member = await connection.pool.query<{ id: string }>(
+      `INSERT INTO members
+        (account_id, public_member_id, referral_code, status, kyc_level)
+       VALUES ($1, $2, $3, 'ACTIVE', 'LEVEL_1') RETURNING id`,
+      [
+        memberAccount.rows[0]?.id,
+        `mem_${randomUUID()}`,
+        `ref_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+      ],
+    );
+    return {
+      accountId: memberAccount.rows[0]!.id,
+      adminId: admin.rows[0]!.id,
+      alternateMarketId: alternateMarket.rows[0]!.id,
+      marketId: market.rows[0]!.id,
+      memberId: member.rows[0]!.id,
+      referrerMemberId: referrer.rows[0]!.id,
+    };
+  }
+
   it('enforces merchant group and branch cardinality through foreign keys', async () => {
     const fixture = await createMerchantFixture();
     const secondMerchantId = await connection.pool.query<{ id: string }>(
@@ -304,6 +368,185 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
         [fixture.branchId, fixture.marketId],
       ),
     ).rejects.toMatchObject({ code: '23514' });
+  });
+
+  it('enforces member uniqueness, referral, and market preference constraints', async () => {
+    const fixture = await createMemberFixture();
+    await expect(
+      connection.pool.query(
+        `INSERT INTO members (account_id, public_member_id, referral_code)
+         VALUES ($1, $2, $3)`,
+        [
+          fixture.accountId,
+          `mem_${randomUUID()}`,
+          `ref_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+        ],
+      ),
+    ).rejects.toMatchObject({ code: '23505' });
+    await expect(
+      connection.pool.query(
+        `INSERT INTO members (account_id, public_member_id, referral_code)
+         VALUES ($1, $2, $3)`,
+        [
+          randomUUID(),
+          `mem_${randomUUID()}`,
+          `ref_${randomUUID().replaceAll('-', '').slice(0, 12)}`,
+        ],
+      ),
+    ).rejects.toMatchObject({ code: '23503' });
+    await expect(
+      connection.pool.query(
+        `INSERT INTO member_market_preferences
+          (member_id, market_id, is_current)
+         VALUES ($1, $2, true)`,
+        [fixture.memberId, randomUUID()],
+      ),
+    ).rejects.toMatchObject({ code: '23503' });
+    await connection.pool.query(
+      `INSERT INTO member_market_preferences
+        (member_id, market_id, is_enabled, is_current, sort_order)
+       VALUES ($1, $2, true, true, 0)`,
+      [fixture.memberId, fixture.marketId],
+    );
+    await expect(
+      connection.pool.query(
+        `INSERT INTO member_market_preferences
+          (member_id, market_id, is_enabled, is_current, sort_order)
+         VALUES ($1, $2, true, true, 1)`,
+        [fixture.memberId, fixture.alternateMarketId],
+      ),
+    ).rejects.toMatchObject({ code: '23505' });
+    await expect(
+      connection.pool.query(
+        `INSERT INTO member_referrals
+          (member_id, referrer_member_id, referral_code_snapshot, source)
+         VALUES ($1, $1, 'snapshot', 'REGISTRATION')`,
+        [fixture.memberId],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
+    await connection.pool.query(
+      `INSERT INTO member_referrals
+        (member_id, referrer_member_id, referral_code_snapshot, source)
+       VALUES ($1, $2, $3, 'REGISTRATION')`,
+      [fixture.memberId, fixture.referrerMemberId, 'snapshot'],
+    );
+    await expect(
+      connection.pool.query(
+        `INSERT INTO member_referrals
+          (member_id, referrer_member_id, referral_code_snapshot, source)
+         VALUES ($1, $2, $3, 'ADMIN_CORRECTION')`,
+        [fixture.memberId, fixture.referrerMemberId, 'snapshot-2'],
+      ),
+    ).rejects.toMatchObject({ code: '23505' });
+  });
+
+  it('enforces member QR, KYC, country change, and history constraints', async () => {
+    const fixture = await createMemberFixture();
+    const activeQrTokenHash = `${randomUUID().replaceAll('-', '')}${randomUUID().replaceAll('-', '')}`;
+    const rotatedQrTokenHash = `${randomUUID().replaceAll('-', '')}${randomUUID().replaceAll('-', '')}`;
+    await connection.pool.query(
+      `INSERT INTO member_qr_identities
+        (member_id, public_qr_id, token_hash, status, issued_at)
+       VALUES ($1, $2, $3, 'ACTIVE', now())`,
+      [fixture.memberId, `qr_${randomUUID()}`, activeQrTokenHash],
+    );
+    await expect(
+      connection.pool.query(
+        `INSERT INTO member_qr_identities
+          (member_id, public_qr_id, token_hash, status, issued_at)
+         VALUES ($1, $2, $3, 'ACTIVE', now())`,
+        [fixture.memberId, `qr_${randomUUID()}`, rotatedQrTokenHash],
+      ),
+    ).rejects.toMatchObject({ code: '23505' });
+    await connection.pool.query(
+      `INSERT INTO member_kyc_cases
+        (member_id, market_id, level_requested)
+       VALUES ($1, $2, 'LEVEL_2')`,
+      [fixture.memberId, fixture.marketId],
+    );
+    await expect(
+      connection.pool.query(
+        `INSERT INTO member_kyc_cases
+          (member_id, market_id, level_requested)
+         VALUES ($1, $2, 'LEVEL_1')`,
+        [fixture.memberId, fixture.marketId],
+      ),
+    ).rejects.toMatchObject({ code: '23505' });
+    await expect(
+      connection.pool.query(
+        `INSERT INTO member_account_country_change_requests
+          (member_id, account_id, current_country, requested_country, reason)
+         VALUES ($1, $2, 'MY', 'SG', 'move')`,
+        [fixture.memberId, fixture.accountId],
+      ),
+    ).resolves.toBeDefined();
+    await expect(
+      connection.pool.query(
+        `INSERT INTO member_account_country_change_requests
+          (member_id, account_id, current_country, requested_country, reason)
+         VALUES ($1, $2, 'MY', 'TH', 'move again')`,
+        [fixture.memberId, fixture.accountId],
+      ),
+    ).rejects.toMatchObject({ code: '23505' });
+    const terms = await connection.pool.query<{ id: string }>(
+      `INSERT INTO member_terms_acceptances
+        (member_id, document_type, document_version, locale)
+       VALUES ($1, 'TERMS', 'v1', 'en-MY') RETURNING id`,
+      [fixture.memberId],
+    );
+    await expect(
+      connection.pool.query(
+        `INSERT INTO member_terms_acceptances
+          (member_id, document_type, document_version, locale)
+         VALUES ($1, 'TERMS', 'v1', 'en-MY')`,
+        [fixture.memberId],
+      ),
+    ).rejects.toMatchObject({ code: '23505' });
+
+    const referralHistory = await connection.pool.query<{ id: string }>(
+      `INSERT INTO member_referral_history
+        (member_id, old_referrer_member_id, new_referrer_member_id, event_type,
+         correction_reason, authorized_actor_type, authorized_actor_id, request_id)
+       VALUES ($1, NULL, $2, 'ASSIGNED', 'initial', 'SYSTEM', $3, $4)
+       RETURNING id`,
+      [
+        fixture.memberId,
+        fixture.referrerMemberId,
+        fixture.adminId,
+        randomUUID(),
+      ],
+    );
+    const statusHistory = await connection.pool.query<{ id: string }>(
+      `INSERT INTO member_status_history
+        (member_id, from_status, to_status, actor_type, actor_id, reason)
+       VALUES ($1, 'ACTIVE', 'SUSPENDED', 'ADMIN_USER', $2, 'violation')
+       RETURNING id`,
+      [fixture.memberId, fixture.adminId],
+    );
+    const kycHistory = await connection.pool.query<{ id: string }>(
+      `INSERT INTO member_kyc_history
+        (member_kyc_case_id, event_type, actor_type, actor_id, summary, metadata)
+       VALUES (
+         (SELECT id FROM member_kyc_cases WHERE member_id = $1),
+         'SUBMITTED', 'SYSTEM', $2, 'submitted', '{"source":"test"}'
+       ) RETURNING id`,
+      [fixture.memberId, fixture.adminId],
+    );
+    for (const [table, id] of [
+      ['member_referral_history', referralHistory.rows[0]!.id],
+      ['member_status_history', statusHistory.rows[0]!.id],
+      ['member_kyc_history', kycHistory.rows[0]!.id],
+      ['member_terms_acceptances', terms.rows[0]!.id],
+    ] as const) {
+      await expect(
+        connection.pool.query(`UPDATE ${table} SET id = id WHERE id = $1`, [
+          id,
+        ]),
+      ).rejects.toMatchObject({ code: '55000' });
+      await expect(
+        connection.pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]),
+      ).rejects.toMatchObject({ code: '55000' });
+    }
   });
 
   it('posts MCP ledger entries atomically with scoped idempotency and no negative balance', async () => {

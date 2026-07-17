@@ -5,5 +5,6 @@
   "0003_merchant_api_support.sql": "4fdc9246cb7298adccef11a16973da9e864d134f0e815e17fb38e41ebb6782a5",
   "0004_service_fee_package_management.sql": "f8df637c15416f506fc48b4153a4c2f036e86c9023b9dfaef8c36079cb271b94",
   "0005_mcp_ledger_recharge.sql": "cfb63d6e4ff9a039dc90d2d579853e6888ec4af2a067231539424696af7692f3",
-  "0006_mcp_adjustment_refund_governance.sql": "fadc6ad60852167a1f837df2d06bd9ac920afffa86025415967f5f5ab03189f2"
+  "0006_mcp_adjustment_refund_governance.sql": "fadc6ad60852167a1f837df2d06bd9ac920afffa86025415967f5f5ab03189f2",
+  "0007_phase_2_member_schema_forward_migrations.sql": "6ef81c229be35a3cf2d5359c3af0596fa13ba4a2b585ef7e671455d47b171c05"
 }

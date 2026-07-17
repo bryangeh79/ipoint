@@ -2,6 +2,7 @@ import {
   bigint,
   boolean,
   check,
+  date,
   foreignKey,
   index,
   integer,
@@ -132,6 +133,52 @@ export const packageChangeRequestStatus = pgEnum(
 export const authAccountAccessType = pgEnum('auth_account_access_type', [
   'PRIMARY_OWNER',
 ]);
+export const memberStatus = pgEnum('member_status', [
+  'PENDING_EMAIL_VERIFICATION',
+  'ACTIVE',
+  'SUSPENDED',
+  'CLOSED',
+]);
+export const memberKycLevel = pgEnum('member_kyc_level', [
+  'NONE',
+  'LEVEL_1',
+  'LEVEL_2',
+]);
+export const memberReferralSource = pgEnum('member_referral_source', [
+  'REGISTRATION',
+  'ADMIN_CORRECTION',
+]);
+export const memberReferralStatus = pgEnum('member_referral_status', [
+  'ACTIVE',
+  'VOIDED',
+]);
+export const memberReferralHistoryEventType = pgEnum(
+  'member_referral_history_event_type',
+  ['ASSIGNED', 'CORRECTED', 'VOIDED'],
+);
+export const memberQrIdentityStatus = pgEnum('member_qr_identity_status', [
+  'ACTIVE',
+  'ROTATED',
+  'REVOKED',
+]);
+export const memberKycCaseStatus = pgEnum('member_kyc_case_status', [
+  'NOT_STARTED',
+  'DRAFT',
+  'SUBMITTED',
+  'UNDER_REVIEW',
+  'APPROVED',
+  'REJECTED',
+  'MORE_INFO_REQUIRED',
+  'REVERIFICATION_REQUIRED',
+]);
+export const memberKycDocumentScanStatus = pgEnum(
+  'member_kyc_document_scan_status',
+  ['PENDING', 'CLEAN', 'BLOCKED'],
+);
+export const memberAccountCountryChangeRequestStatus = pgEnum(
+  'member_account_country_change_request_status',
+  ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'],
+);
 
 export const accounts = pgTable(
   'accounts',
@@ -469,6 +516,374 @@ export const entityTimelines = pgTable(
     index('entity_timelines_entity_time_idx').on(
       table.entityType,
       table.entityId,
+      table.occurredAt,
+    ),
+  ],
+);
+
+export const members = pgTable(
+  'members',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    publicMemberId: text('public_member_id').notNull(),
+    referralCode: text('referral_code').notNull(),
+    status: memberStatus('status')
+      .notNull()
+      .default('PENDING_EMAIL_VERIFICATION'),
+    kycLevel: memberKycLevel('kyc_level').notNull().default('NONE'),
+    closedAt: utcTimestamp('closed_at'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+    archivedAt: utcTimestamp('archived_at'),
+  },
+  (table) => [
+    unique('members_account_unique').on(table.accountId),
+    unique('members_public_member_id_unique').on(table.publicMemberId),
+    unique('members_referral_code_unique').on(table.referralCode),
+    index('members_status_idx').on(table.status),
+  ],
+);
+
+export const memberProfiles = pgTable(
+  'member_profiles',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    displayName: text('display_name').notNull(),
+    fullName: text('full_name'),
+    phone: text('phone'),
+    birthDate: date('birth_date'),
+    address: jsonb('address'),
+    avatarObjectKey: text('avatar_object_key'),
+    language: text('language'),
+    locale: text('locale'),
+    marketingOptIn: boolean('marketing_opt_in').notNull().default(false),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+    archivedAt: utcTimestamp('archived_at'),
+  },
+  (table) => [unique('member_profiles_member_unique').on(table.memberId)],
+);
+
+export const memberMarketPreferences = pgTable(
+  'member_market_preferences',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    isEnabled: boolean('is_enabled').notNull().default(true),
+    isCurrent: boolean('is_current').notNull().default(false),
+    sortOrder: integer('sort_order').notNull().default(0),
+    lastSelectedAt: utcTimestamp('last_selected_at'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('member_market_preferences_member_market_unique').on(
+      table.memberId,
+      table.marketId,
+    ),
+    uniqueIndex('member_market_preferences_current_unique')
+      .on(table.memberId)
+      .where(sql`${table.isCurrent} = true`),
+    check(
+      'member_market_preferences_current_enabled_check',
+      sql`${table.isCurrent} = false or ${table.isEnabled} = true`,
+    ),
+    check(
+      'member_market_preferences_sort_order_check',
+      sql`${table.sortOrder} >= 0`,
+    ),
+  ],
+);
+
+export const memberReferrals = pgTable(
+  'member_referrals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    referrerMemberId: uuid('referrer_member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    referralCodeSnapshot: text('referral_code_snapshot').notNull(),
+    source: memberReferralSource('source').notNull(),
+    status: memberReferralStatus('status').notNull().default('ACTIVE'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('member_referrals_active_unique')
+      .on(table.memberId)
+      .where(sql`${table.status} = 'ACTIVE'`),
+    index('member_referrals_referrer_idx').on(table.referrerMemberId),
+    check(
+      'member_referrals_self_reference_check',
+      sql`${table.memberId} <> ${table.referrerMemberId}`,
+    ),
+  ],
+);
+
+export const memberReferralHistory = pgTable(
+  'member_referral_history',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    oldReferrerMemberId: uuid('old_referrer_member_id').references(
+      () => members.id,
+      { onDelete: 'restrict' },
+    ),
+    newReferrerMemberId: uuid('new_referrer_member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    eventType: memberReferralHistoryEventType('event_type').notNull(),
+    correctionReason: text('correction_reason').notNull(),
+    authorizedActorType: actorType('authorized_actor_type').notNull(),
+    authorizedActorId: uuid('authorized_actor_id'),
+    requestId: text('request_id').notNull(),
+    occurredAt: utcTimestamp('occurred_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('member_referral_history_member_time_idx').on(
+      table.memberId,
+      table.occurredAt,
+    ),
+    check(
+      'member_referral_history_self_reference_check',
+      sql`${table.memberId} <> ${table.newReferrerMemberId}`,
+    ),
+    check(
+      'member_referral_history_old_new_reference_check',
+      sql`${table.oldReferrerMemberId} is null or ${table.oldReferrerMemberId} <> ${table.newReferrerMemberId}`,
+    ),
+  ],
+);
+
+export const memberTermsAcceptances = pgTable(
+  'member_terms_acceptances',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    documentType: text('document_type').notNull(),
+    documentVersion: text('document_version').notNull(),
+    locale: text('locale'),
+    acceptedAt: utcTimestamp('accepted_at').notNull().defaultNow(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    deviceFingerprint: text('device_fingerprint'),
+  },
+  (table) => [
+    unique('member_terms_acceptance_unique').on(
+      table.memberId,
+      table.documentType,
+      table.documentVersion,
+    ),
+  ],
+);
+
+export const memberQrIdentities = pgTable(
+  'member_qr_identities',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    publicQrId: text('public_qr_id').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    status: memberQrIdentityStatus('status').notNull().default('ACTIVE'),
+    rotatedFromId: uuid('rotated_from_id'),
+    rotatedToId: uuid('rotated_to_id'),
+    issuedAt: utcTimestamp('issued_at').notNull().defaultNow(),
+    expiresAt: utcTimestamp('expires_at'),
+    revokedAt: utcTimestamp('revoked_at'),
+    reason: text('reason'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('member_qr_identities_public_qr_id_unique').on(table.publicQrId),
+    unique('member_qr_identities_token_hash_unique').on(table.tokenHash),
+    uniqueIndex('member_qr_identities_active_unique')
+      .on(table.memberId)
+      .where(sql`${table.status} = 'ACTIVE'`),
+    foreignKey({
+      columns: [table.rotatedFromId],
+      foreignColumns: [table.id],
+      name: 'member_qr_identities_rotated_from_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.rotatedToId],
+      foreignColumns: [table.id],
+      name: 'member_qr_identities_rotated_to_fk',
+    }).onDelete('restrict'),
+    check(
+      'member_qr_identities_token_hash_only_check',
+      sql`char_length(${table.tokenHash}) = 64`,
+    ),
+  ],
+);
+
+export const memberKycCases = pgTable(
+  'member_kyc_cases',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    status: memberKycCaseStatus('status').notNull().default('NOT_STARTED'),
+    version: integer('version').notNull().default(1),
+    levelRequested: memberKycLevel('level_requested').notNull(),
+    submittedAt: utcTimestamp('submitted_at'),
+    reviewedAt: utcTimestamp('reviewed_at'),
+    reviewedByAdminUserId: uuid('reviewed_by_admin_user_id').references(
+      () => adminUsers.id,
+      { onDelete: 'restrict' },
+    ),
+    decisionReason: text('decision_reason'),
+    reverificationRequiredAt: utcTimestamp('reverification_required_at'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('member_kyc_cases_member_unique').on(table.memberId),
+    index('member_kyc_cases_market_idx').on(table.marketId),
+    check('member_kyc_cases_version_check', sql`${table.version} > 0`),
+  ],
+);
+
+export const memberKycDocuments = pgTable(
+  'member_kyc_documents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberKycCaseId: uuid('member_kyc_case_id')
+      .notNull()
+      .references(() => memberKycCases.id, { onDelete: 'restrict' }),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    documentType: text('document_type').notNull(),
+    objectKey: text('object_key').notNull(),
+    originalFilename: text('original_filename').notNull(),
+    contentType: text('content_type').notNull(),
+    byteSize: numeric('byte_size', { precision: 20, scale: 0 }).notNull(),
+    sha256: text('sha256').notNull(),
+    scanStatus: memberKycDocumentScanStatus('scan_status')
+      .notNull()
+      .default('PENDING'),
+    classification: text('classification').notNull(),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    archivedAt: utcTimestamp('archived_at'),
+  },
+  (table) => [
+    unique('member_kyc_documents_object_key_unique').on(table.objectKey),
+    index('member_kyc_documents_case_idx').on(table.memberKycCaseId),
+    check('member_kyc_documents_byte_size_check', sql`${table.byteSize} > 0`),
+  ],
+);
+
+export const memberAccountCountryChangeRequests = pgTable(
+  'member_account_country_change_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    currentCountry: text('current_country').notNull(),
+    requestedCountry: text('requested_country').notNull(),
+    status: memberAccountCountryChangeRequestStatus('status')
+      .notNull()
+      .default('PENDING'),
+    reason: text('reason').notNull(),
+    reviewedByAdminUserId: uuid('reviewed_by_admin_user_id').references(
+      () => adminUsers.id,
+      { onDelete: 'restrict' },
+    ),
+    reviewReason: text('review_reason'),
+    submittedAt: utcTimestamp('submitted_at').notNull().defaultNow(),
+    reviewedAt: utcTimestamp('reviewed_at'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('member_account_country_change_requests_pending_unique')
+      .on(table.memberId)
+      .where(sql`${table.status} = 'PENDING'`),
+    index('member_account_country_change_requests_account_idx').on(
+      table.accountId,
+    ),
+    check(
+      'member_account_country_change_requests_current_country_check',
+      sql`${table.currentCountry} = upper(${table.currentCountry}) and char_length(${table.currentCountry}) = 2`,
+    ),
+    check(
+      'member_account_country_change_requests_requested_country_check',
+      sql`${table.requestedCountry} = upper(${table.requestedCountry}) and char_length(${table.requestedCountry}) = 2`,
+    ),
+  ],
+);
+
+export const memberStatusHistory = pgTable(
+  'member_status_history',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    fromStatus: memberStatus('from_status'),
+    toStatus: memberStatus('to_status').notNull(),
+    actorType: actorType('actor_type').notNull(),
+    actorId: uuid('actor_id'),
+    reason: text('reason'),
+    occurredAt: utcTimestamp('occurred_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('member_status_history_member_time_idx').on(
+      table.memberId,
+      table.occurredAt,
+    ),
+  ],
+);
+
+export const memberKycHistory = pgTable(
+  'member_kyc_history',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberKycCaseId: uuid('member_kyc_case_id')
+      .notNull()
+      .references(() => memberKycCases.id, { onDelete: 'restrict' }),
+    eventType: text('event_type').notNull(),
+    actorType: actorType('actor_type').notNull(),
+    actorId: uuid('actor_id'),
+    summary: text('summary').notNull(),
+    metadata: jsonb('metadata').notNull().default({}),
+    occurredAt: utcTimestamp('occurred_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('member_kyc_history_case_time_idx').on(
+      table.memberKycCaseId,
       table.occurredAt,
     ),
   ],
@@ -1212,6 +1627,18 @@ export const schema = {
   marketAccess,
   auditLogs,
   entityTimelines,
+  members,
+  memberProfiles,
+  memberMarketPreferences,
+  memberReferrals,
+  memberReferralHistory,
+  memberTermsAcceptances,
+  memberQrIdentities,
+  memberKycCases,
+  memberKycDocuments,
+  memberAccountCountryChangeRequests,
+  memberStatusHistory,
+  memberKycHistory,
   merchantGroups,
   merchantAccountAccess,
   merchantBranches,
