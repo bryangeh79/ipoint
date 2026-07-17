@@ -1,0 +1,228 @@
+.merchant-app .ip-page-container {
+  max-width: 1220px;
+}
+
+.merchant-app .ip-alert {
+  margin-bottom: var(--ip-space-3);
+}
+
+.merchant-progress {
+  padding: var(--ip-space-3) 0 var(--ip-space-4);
+}
+
+.merchant-progress > div {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--ip-space-1);
+  color: var(--ip-color-text-muted);
+}
+
+.merchant-progress strong {
+  color: var(--ip-color-primary-active);
+}
+
+.merchant-progress progress {
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--ip-radius-round);
+  background: var(--ip-color-surface-muted);
+}
+
+.merchant-progress progress::-webkit-progress-bar {
+  background: var(--ip-color-surface-muted);
+}
+
+.merchant-progress progress::-webkit-progress-value,
+.merchant-progress progress::-moz-progress-bar {
+  background: var(--ip-color-primary);
+}
+
+.merchant-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--ip-space-2);
+  margin-bottom: var(--ip-space-4);
+}
+
+.merchant-stat-grid--mcp {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.merchant-two-column {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: var(--ip-space-3);
+}
+
+.merchant-two-column--profile {
+  align-items: start;
+}
+
+.merchant-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ip-space-2);
+  margin-bottom: var(--ip-space-3);
+}
+
+.merchant-section-heading h2 {
+  margin: 0;
+  font-size: var(--ip-font-size-h3);
+}
+
+.merchant-checklist {
+  display: grid;
+  gap: var(--ip-space-2);
+  padding: 0;
+  margin: 0 0 var(--ip-space-3);
+  list-style: none;
+}
+
+.merchant-checklist li {
+  display: flex;
+  gap: var(--ip-space-2);
+  align-items: center;
+  padding: var(--ip-space-2);
+  border-radius: var(--ip-radius-sm);
+  background: var(--ip-color-warning-soft);
+}
+
+.merchant-checklist li.is-done {
+  background: var(--ip-color-success-soft);
+}
+
+.merchant-checklist li > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ip-color-surface);
+  color: var(--ip-color-primary-active);
+  font-weight: 800;
+}
+
+.merchant-checklist small,
+.merchant-definition-list small,
+.merchant-app td small {
+  display: block;
+  color: var(--ip-color-text-muted);
+}
+
+.merchant-definition-list {
+  display: grid;
+  gap: var(--ip-space-2);
+  margin: 0 0 var(--ip-space-3);
+}
+
+.merchant-definition-list div {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.35fr) 1fr;
+  gap: var(--ip-space-2);
+  padding-bottom: var(--ip-space-2);
+  border-bottom: 1px solid var(--ip-color-border);
+}
+
+.merchant-definition-list dt {
+  color: var(--ip-color-text-muted);
+}
+
+.merchant-definition-list dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.merchant-auth-card {
+  width: min(100%, 760px);
+  margin-inline: auto;
+}
+
+.merchant-panel {
+  padding-top: var(--ip-space-3);
+}
+
+.merchant-form fieldset {
+  display: grid;
+  gap: var(--ip-space-3);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.merchant-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ip-space-2);
+}
+
+.merchant-media-preview {
+  display: grid;
+  place-items: center;
+  min-height: 140px;
+  margin-bottom: var(--ip-space-2);
+  border: 1px dashed var(--ip-color-border-strong);
+  border-radius: var(--ip-radius-md);
+  background: color-mix(
+    in srgb,
+    var(--ip-color-primary-soft) 70%,
+    var(--ip-color-surface)
+  );
+  color: var(--ip-color-primary-active);
+  font-weight: 700;
+}
+
+.merchant-media-preview--logo {
+  width: 96px;
+  min-height: 96px;
+  margin: 0;
+  border-radius: var(--ip-radius-lg);
+}
+
+.merchant-media-row {
+  display: flex;
+  gap: var(--ip-space-2);
+  align-items: center;
+  margin-bottom: var(--ip-space-3);
+}
+
+.merchant-media-row p {
+  margin-bottom: 0;
+  color: var(--ip-color-text-muted);
+}
+
+.merchant-app .ip-filter-bar .ip-select {
+  min-width: 180px;
+}
+
+@media (max-width: 900px) {
+  .merchant-stat-grid,
+  .merchant-stat-grid--mcp {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .merchant-two-column {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .merchant-stat-grid,
+  .merchant-stat-grid--mcp,
+  .merchant-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .merchant-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .merchant-definition-list div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

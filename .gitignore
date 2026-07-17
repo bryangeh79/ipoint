@@ -35,3 +35,4 @@ scripts/p1-s4-task.md
 
 # Codex execution logs
 .codex-execution-logs/
+.playwright-cli/
