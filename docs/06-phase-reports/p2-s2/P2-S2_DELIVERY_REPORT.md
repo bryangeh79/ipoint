@@ -16,7 +16,7 @@ This repair pass verified the schema rules directly against
 the database test suite. The report below reflects the current code and the
 actual verification outcomes.
 
-Final status: P2-S2 REPAIR COMPLETE - AWAITING COMMAND CENTER REVIEW.
+Final status: P2-S2 FINAL REPAIR COMPLETE - AWAITING COMMAND CENTER REVIEW.
 
 ## 2. Files changed
 
