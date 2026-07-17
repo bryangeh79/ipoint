@@ -1203,6 +1203,139 @@ describe.skipIf(!databaseUrl)(
           code: 'AUTH_OTP_COOLDOWN',
         });
       });
+
+      describe('public member ID exhaustion', () => {
+        it('exhausts all publicMemberId retries and returns AUTH_IDENTIFIER_GENERATION_FAILED with full rollback', async () => {
+          await createActiveMarket();
+
+          const occupantEmail = `${randomUUID()}@example.com`;
+          const occupantInit = await auth.initiateRegistration({
+            email: occupantEmail,
+            password: 'Occupant-Password-123!',
+            accountCountry: 'MY',
+            referralCode: null,
+            termsVersion: 'v1',
+            disclaimerVersion: 'v1',
+            privacyVersion: 'v1',
+            locale: 'en-MY',
+          });
+          await auth.verifyRegistrationOtp(occupantInit.id, occupantInit.code);
+          const occupantResult = await auth.completeRegistration(
+            occupantInit.id,
+            randomUUID(),
+          );
+
+          vi.spyOn(
+            auth as unknown as {
+              generatePublicIdentifier: (prefix: string, len: number) => string;
+            },
+            'generatePublicIdentifier',
+          ).mockReturnValue(occupantResult.publicMemberId);
+
+          const email = `${randomUUID()}@example.com`;
+          const initiation = await auth.initiateRegistration({
+            email,
+            password: 'Exhaustion-Password-123!',
+            accountCountry: 'MY',
+            referralCode: null,
+            termsVersion: 'v1',
+            disclaimerVersion: 'v1',
+            privacyVersion: 'v1',
+            locale: 'en-MY',
+          });
+          await auth.verifyRegistrationOtp(initiation.id, initiation.code);
+
+          await expect(
+            auth.completeRegistration(initiation.id, randomUUID()),
+          ).rejects.toMatchObject({
+            code: 'AUTH_IDENTIFIER_GENERATION_FAILED',
+          });
+
+          const accountRows = await database.db
+            .select({ id: accounts.id })
+            .from(accounts)
+            .where(eq(accounts.email, email));
+          expect(accountRows).toHaveLength(0);
+
+          const otpRows = await database.db
+            .select({ usedAt: memberEmailOtps.usedAt })
+            .from(memberEmailOtps)
+            .where(eq(memberEmailOtps.id, initiation.id))
+            .limit(1);
+          expect(otpRows[0]?.usedAt).toBeNull();
+
+          vi.restoreAllMocks();
+        });
+      });
+    });
+
+    describe('referral code exhaustion', () => {
+      it('exhausts all referralCode retries and returns AUTH_IDENTIFIER_GENERATION_FAILED with full rollback', async () => {
+        await createActiveMarket();
+
+        const occupantEmail = `${randomUUID()}@example.com`;
+        const occupantInit = await auth.initiateRegistration({
+          email: occupantEmail,
+          password: 'Occupant-Password-123!',
+          accountCountry: 'MY',
+          referralCode: null,
+          termsVersion: 'v1',
+          disclaimerVersion: 'v1',
+          privacyVersion: 'v1',
+          locale: 'en-MY',
+        });
+        await auth.verifyRegistrationOtp(occupantInit.id, occupantInit.code);
+        const occupantResult = await auth.completeRegistration(
+          occupantInit.id,
+          randomUUID(),
+        );
+
+        let callCount = 0;
+        vi.spyOn(
+          auth as unknown as { generateToken: (len: number) => string },
+          'generateToken',
+        ).mockImplementation((len: number) => {
+          callCount += 1;
+          if (callCount <= 2) {
+            return `${randomUUID().replaceAll('-', '').slice(0, len).toUpperCase()}`;
+          }
+          return occupantResult.referralCode;
+        });
+
+        const email = `${randomUUID()}@example.com`;
+        const initiation = await auth.initiateRegistration({
+          email,
+          password: 'Exhaustion-Password-123!',
+          accountCountry: 'MY',
+          referralCode: null,
+          termsVersion: 'v1',
+          disclaimerVersion: 'v1',
+          privacyVersion: 'v1',
+          locale: 'en-MY',
+        });
+        await auth.verifyRegistrationOtp(initiation.id, initiation.code);
+
+        await expect(
+          auth.completeRegistration(initiation.id, randomUUID()),
+        ).rejects.toMatchObject({
+          code: 'AUTH_IDENTIFIER_GENERATION_FAILED',
+        });
+
+        const accountRows = await database.db
+          .select({ id: accounts.id })
+          .from(accounts)
+          .where(eq(accounts.email, email));
+        expect(accountRows).toHaveLength(0);
+
+        const otpRows = await database.db
+          .select({ usedAt: memberEmailOtps.usedAt })
+          .from(memberEmailOtps)
+          .where(eq(memberEmailOtps.id, initiation.id))
+          .limit(1);
+        expect(otpRows[0]?.usedAt).toBeNull();
+
+        vi.restoreAllMocks();
+      });
     });
   },
 );

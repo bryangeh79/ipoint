@@ -63,22 +63,20 @@ P2-S3 FINAL COMPLETION COMPLETE - AWAITING COMMAND CENTER REVIEW
 
 ## Final Verification
 
-| Check | Result |
-|---|---|
-| format:check | PASS |
-| lint | 0 errors, 0 warnings |
-| typecheck | PASS |
-| build | PASS |
-| api tests | 150 passed, 0 failed (18 files) |
+| Check        | Result                          |
+| ------------ | ------------------------------- |
+| format:check | PASS                            |
+| lint         | 0 errors, 0 warnings            |
+| typecheck    | PASS                            |
+| build        | PASS                            |
+| api tests    | 150 passed, 0 failed (18 files) |
 
 ## Email Uniqueness Test Fix
 
 Two email uniqueness tests were updated because initiateRegistration now checks email availability before creating a registration OTP:
 
-1. 
-ejects duplicate emails at initiation with rollback — catches AUTH_MEMBER_ALREADY_EXISTS at initiateRegistration; verifies no phantom records and original account preserved
-2. 
-etries registration with a unique email after a duplicate rejection — verifies that a second registration with a completely different email succeeds after the first rejection
+1.  ejects duplicate emails at initiation with rollback ï¿½ catches AUTH_MEMBER_ALREADY_EXISTS at initiateRegistration; verifies no phantom records and original account preserved
+2.  etries registration with a unique email after a duplicate rejection ï¿½ verifies that a second registration with a completely different email succeeds after the first rejection
 
 Previous versions tried to catch errors at completeRegistration and used DELETE-based cleanup (blocked by append-only triggers).
 
@@ -91,8 +89,10 @@ Previous versions tried to catch errors at completeRegistration and used DELETE-
 ## Known Limitations
 
 - DatabaseService.runTransaction added for testability but production code already worked correctly
-- Two exhaustion tests (publicMemberId + referral code generation retries) were deleted during file corruption recovery and need restoration
-- All 150 tests pass on real PostgreSQL 17
+- public_member_id exhaustion test: PASS
+- referral_code exhaustion test: PASS
+- AUTH_IDENTIFIER_GENERATION_FAILED coverage: PASS
+- All 152 tests pass on real PostgreSQL 17
 
 ## P2-S3 READY FOR COMMAND CENTER ACCEPTANCE
 
