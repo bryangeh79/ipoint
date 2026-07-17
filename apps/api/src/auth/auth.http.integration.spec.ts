@@ -16,9 +16,24 @@ describe.skipIf(!databaseUrl)('Auth HTTP integration', () => {
   let app: INestApplication;
   let server: Server;
   let auth: AuthService;
-  const email = `${randomUUID()}@example.com`;
+  let database: DatabaseService;
   const originalPassword = 'Original-Password-123!';
   const replacementPassword = 'Replacement-Password-456!';
+
+  async function createAccount() {
+    const email = `${randomUUID()}@example.com`;
+    const inserted = await database.db
+      .insert(accounts)
+      .values({
+        publicId: `acct_${randomUUID()}`,
+        email,
+        accountCountry: 'MY',
+        status: 'ACTIVE',
+      })
+      .returning({ id: accounts.id });
+    await auth.setPassword(inserted[0]?.id ?? '', originalPassword);
+    return email;
+  }
 
   beforeAll(async () => {
     vi.stubEnv('DATABASE_URL', databaseUrl ?? '');
@@ -39,19 +54,9 @@ describe.skipIf(!databaseUrl)('Auth HTTP integration', () => {
     });
     await app.init();
     server = app.getHttpServer() as Server;
-    const database = app.get(DatabaseService);
+    database = app.get(DatabaseService);
     await migrate(database.pool);
-    const inserted = await database.db
-      .insert(accounts)
-      .values({
-        publicId: `acct_${randomUUID()}`,
-        email,
-        accountCountry: 'MY',
-        status: 'ACTIVE',
-      })
-      .returning({ id: accounts.id });
     auth = app.get(AuthService);
-    await auth.setPassword(inserted[0]?.id ?? '', originalPassword);
   });
 
   afterAll(async () => {
@@ -60,6 +65,7 @@ describe.skipIf(!databaseUrl)('Auth HTTP integration', () => {
   });
 
   it('issues and verifies an email OTP without claiming a real send', async () => {
+    const email = `${randomUUID()}@example.com`;
     const issued = await supertest(server)
       .post('/api/v1/auth/otp/issue')
       .send({ destination: email, purpose: 'EMAIL_VERIFICATION' })
@@ -82,6 +88,7 @@ describe.skipIf(!databaseUrl)('Auth HTTP integration', () => {
   });
 
   it('logs in, rotates once, logs out, and denies invalid credentials', async () => {
+    const email = await createAccount();
     await supertest(server)
       .post('/api/v1/auth/login')
       .send({ email, password: 'Wrong-Password-123!' })
@@ -126,6 +133,7 @@ describe.skipIf(!databaseUrl)('Auth HTTP integration', () => {
   });
 
   it('resets a password with a verified account-bound OTP and revokes sessions', async () => {
+    const email = await createAccount();
     const active = await supertest(server)
       .post('/api/v1/auth/login')
       .send({ email, password: originalPassword })
