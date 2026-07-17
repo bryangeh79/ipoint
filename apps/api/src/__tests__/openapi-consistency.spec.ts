@@ -191,40 +191,40 @@ const expectedEndpoints: EndpointCheck[] = [
   },
 ];
 
-function getMethod(name: string): Function | undefined {
+function getMethod(name: string): object | undefined {
   const proto = AuthController.prototype;
   const desc = Object.getOwnPropertyDescriptor(proto, name);
-  return desc?.value;
+  return desc?.value as object | undefined;
 }
 
 function getApiOperation(name: string): Record<string, unknown> | undefined {
   const method = getMethod(name);
   if (!method) return undefined;
-  return Reflect.getMetadata('swagger/apiOperation', method);
+  return Reflect.getMetadata('swagger/apiOperation', method) as Record<string, unknown> | undefined;
 }
 
 function getApiResponses(name: string): Record<string, unknown> | undefined {
   const method = getMethod(name);
   if (!method) return undefined;
-  return Reflect.getMetadata('swagger/apiResponse', method);
+  return Reflect.getMetadata('swagger/apiResponse', method) as Record<string, unknown> | undefined;
 }
 
 function getApiParameters(name: string): unknown[] | undefined {
   const method = getMethod(name);
   if (!method) return undefined;
-  return Reflect.getMetadata('swagger/apiParameters', method);
+  return Reflect.getMetadata('swagger/apiParameters', method) as unknown[] | undefined;
 }
 
 function getApiSecurity(name: string): unknown[] | undefined {
   const method = getMethod(name);
   if (!method) return undefined;
-  return Reflect.getMetadata('swagger/apiSecurity', method);
+  return Reflect.getMetadata('swagger/apiSecurity', method) as unknown[] | undefined;
 }
 
 describe('OpenAPI Consistency (Reflection)', () => {
   // @ApiTags on controller class
   it('should have @ApiTags("Auth") on controller', () => {
-    const tags = Reflect.getMetadata('swagger/apiUseTags', AuthController);
+    const tags = Reflect.getMetadata('swagger/apiUseTags', AuthController) as unknown[] | undefined;
     expect(tags).toBeDefined();
     expect(Array.isArray(tags)).toBe(true);
     expect(tags).toContain('Auth');
@@ -271,9 +271,7 @@ describe('OpenAPI Consistency (Reflection)', () => {
       );
 
       it('should have error response descriptions mentioning AUTH_ error codes', () => {
-        const responses = getApiResponses(ep.methodName) as
-          | Record<string, unknown>
-          | undefined;
+        const responses = getApiResponses(ep.methodName);
         expect(responses).toBeDefined();
         const hasErrorDesc = Object.entries(responses!).some(
           ([status, resp]) =>

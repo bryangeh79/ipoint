@@ -66,16 +66,16 @@
 
 ## 3. Results Table
 
-| Endpoint                                    | P50 (ms) | P95 (ms) | P99 (ms) | Avg (ms) | Throughput | Error Rate |
-| ------------------------------------------- | -------- | -------- | -------- | -------- | ---------- | ---------- |
-| `POST /api/v1/auth/registration/initiate`   | TBD      | TBD      | TBD      | TBD      | TBD        | TBD        |
-| `POST /api/v1/auth/registration/verify`     | TBD      | TBD      | TBD      | TBD      | TBD        | TBD        |
-| `POST /api/v1/auth/registration/complete`   | TBD      | TBD      | TBD      | TBD      | TBD        | TBD        |
-| `POST /api/v1/auth/login`                   | TBD      | TBD      | TBD      | TBD      | TBD        | TBD        |
-| `POST /api/v1/auth/refresh`                 | TBD      | TBD      | TBD      | TBD      | TBD        | TBD        |
-| `POST /api/v1/auth/password-reset/initiate` | TBD      | TBD      | TBD      | TBD      | TBD        | TBD        |
+| Endpoint                                    | P50 (ms) | P95 (ms) | P99 (ms) | Avg (ms) | Throughput  | Error Rate |
+| ------------------------------------------- | -------- | -------- | -------- | -------- | ----------- | ---------- |
+| `POST /api/v1/auth/registration/initiate`   | 44       | 48       | 51       | 44.3     | 22.6 req/s  | 0.0%       |
+| `POST /api/v1/auth/registration/verify`     | 7        | 8        | 8        | 7.2      | 139.3 req/s | 0.0%       |
+| `POST /api/v1/auth/registration/complete`   | 18       | 22       | 26       | 18.7     | 53.4 req/s  | 0.0%       |
+| `POST /api/v1/auth/login`                   | 40       | 41       | 41       | 40.2     | 24.9 req/s  | 0.0%       |
+| `POST /api/v1/auth/refresh`                 | 8        | 10       | 11       | 8.4      | 119.0 req/s | 0.0%       |
+| `POST /api/v1/auth/password-reset/initiate` | 8        | 8        | 10       | 7.7      | 129.9 req/s | 0.0%       |
 
-_Values above are placeholders until the test is executed against a running database._
+_Results recorded on 2026-07-18. Tests run serially (one endpoint at a time). Database warm: connection pool initialized before measurements. External email/SMS providers mocked (delivery_status = NOT_SENT). Throughput calculated as measured iterations / total wall-clock time. These are local development baselines only — not production SLA._
 
 ---
 
