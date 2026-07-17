@@ -227,4 +227,21 @@
 | **Basis** | COMMAND CENTER ORDER (2026-07-17) |
 | **Status** | **APPROVED** |
 
+## D-013: Phase 1 final acceptance and main integration authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-013 |
+| **Date** | 2026-07-17 |
+| **Source** | ChatGPT Command Center — Phase 1 Final Acceptance |
+| **Old Rule** | Phase 1 IN_PROGRESS; Main merge NOT_AUTHORIZED |
+| **New Decision** | Phase 1 ACCEPTED at SHA `48239fea58716c3df0facbfa2c1b4a1865c05b21`. Pull Request to main AUTHORIZED. Phase 2 NOT_AUTHORIZED. |
+| **Reason** | All Phase 1 sub-phases complete and accepted |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 1 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | COMMAND CENTER ORDER (2026-07-17) |
+| **Status** | **APPROVED** |
+
 *— End of current entries. New decisions must be appended below —*
