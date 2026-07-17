@@ -236,8 +236,7 @@ export class McpService {
     });
     if (input.decision === 'COMPLETED') {
       const value = result as unknown as Record<string, unknown>;
-      const rawMcpAccountId =
-        value['mcpAccountId'] ?? value['mcp_account_id'];
+      const rawMcpAccountId = value['mcpAccountId'] ?? value['mcp_account_id'];
       const mcpAccountId =
         typeof rawMcpAccountId === 'string' ? rawMcpAccountId : '';
       const account = await this.accountById(
