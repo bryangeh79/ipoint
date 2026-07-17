@@ -245,10 +245,32 @@ export class AuthService {
   async initiateRegistration(
     input: RegistrationInitiationInput,
     metadata: RequestMetadata = {},
+    idempotencyKey: string | null = null,
   ): Promise<IssuedOtp> {
     const email = input.email.trim().toLowerCase();
     const accountCountry = input.accountCountry.trim().toUpperCase();
     const referralCode = input.referralCode?.trim().toUpperCase() ?? null;
+    const scope = 'member.registration.initiate';
+    const requestPayload = {
+      email,
+      password: input.password,
+      accountCountry,
+      referralCode,
+      termsVersion: input.termsVersion.trim(),
+      disclaimerVersion: input.disclaimerVersion.trim(),
+      privacyVersion: input.privacyVersion.trim(),
+      locale: input.locale.trim(),
+    };
+    if (idempotencyKey) {
+      const cached = await this.checkIdempotency<IssuedOtp>(
+        scope,
+        idempotencyKey,
+        requestPayload,
+      );
+      if (cached?.response) {
+        return cached.response;
+      }
+    }
     const now = new Date();
     await this.enforceCompositeRateLimit([
       [
@@ -324,7 +346,17 @@ export class AuthService {
       metadata,
       details: { purpose: 'REGISTRATION' },
     });
-    return { id, code, expiresAt };
+    const issued = { id, code, expiresAt };
+    if (idempotencyKey) {
+      await this.recordIdempotency(
+        scope,
+        idempotencyKey,
+        requestPayload,
+        issued,
+        202,
+      );
+    }
+    return issued;
   }
 
   async resendRegistrationOtp(

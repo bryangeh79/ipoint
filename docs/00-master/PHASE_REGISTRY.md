@@ -14,9 +14,9 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Work** | **P2-S3 REGISTRATION, OTP AND AUTHENTICATION** | Authorized under D-017 via D-016 phase authority |
+| **Current Authorized Work** | **P2-S3 COMPLETION REPAIR ONLY** | Changed to CHANGES_REQUIRED for completion repair under dispatch |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
-| **Phase 2** | **AUTHORIZED** | P2-S1 approved under D-016; P2-S2 COMPLETE / APPROVED under D-017; P2-S3 AUTHORIZED; later sub-phases remain NOT_AUTHORIZED |
+| **Phase 2** | **AUTHORIZED** | P2-S1 approved under D-016; P2-S2 COMPLETE / APPROVED under D-017; P2-S3 CHANGES_REQUIRED; later sub-phases remain NOT_AUTHORIZED |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
 | **Phase 1 Batch B** | **APPROVED** | P1-S5 through P1-S7 COMPLETE under D-012 |
 | **Phase 1 Final Batch** | **APPROVED** | P1-S8 and P1-S9 COMPLETE under D-013 |
@@ -101,7 +101,7 @@
 |---|---|---|---|
 | **P2-S1** | Architecture and contract freeze | **COMPLETE / APPROVED** | Approved at `8cdc0b2938ee7ceedb89c13716c6dae07d029c2f` under D-016 |
 | **P2-S2** | Member Schema and Forward Migrations | **COMPLETE / APPROVED** | Approved under D-017 |
-| **P2-S3** | Registration, OTP and Authentication | **AUTHORIZED** | Registration, OTP and Authentication |
+| **P2-S3** | Registration, OTP and Authentication | **CHANGES_REQUIRED** | Completion repair only |
 | **P2-S4** | Member Identity, Referral and QR Foundation | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S5** | Member Profile and Multi-Market Preferences | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S6** | Member KYC Level 2 | **NOT_AUTHORIZED** | Await future authorization |
@@ -111,7 +111,7 @@
 
 ## Current allowed actions
 
-- Execute P2-S3 Registration, OTP and Authentication
+- Execute P2-S3 completion repair only
 - Run all API and database integration tests for P2-S3 scope
 - Create docs/06-phase-reports/p2-s3/P2-S3_DELIVERY_REPORT.md
 - Maintain the lock on P2-S4 through P2-S9 until separate authorization arrives

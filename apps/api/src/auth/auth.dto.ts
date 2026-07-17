@@ -39,6 +39,7 @@ export const registrationInitiateSchema = z
   .object({
     email: z.email().trim().toLowerCase(),
     password: z.string().min(12).max(256),
+    idempotency_key: z.string().trim().min(8).max(128).optional(),
     account_country: z
       .string()
       .trim()
