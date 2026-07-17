@@ -243,6 +243,10 @@ export class AuthService {
       });
       throw new AuthError('AUTH_OTP_INVALID', 'The OTP is invalid.');
     }
+    // A verified, unconsumed OTP remains safe to verify idempotently. This lets
+    // clients complete an explicit verify step before the registration/reset
+    // transaction consumes the same proof.
+    if (otp.verifiedAt) return;
     if (!(await this.store.markOtpVerified(id, now))) {
       throw new AuthError('AUTH_OTP_INVALID', 'The OTP is invalid.');
     }
@@ -253,6 +257,32 @@ export class AuthService {
       metadata,
       details: { purpose: otp.purpose },
     });
+  }
+
+  async issuePasswordResetOtp(
+    email: string,
+    metadata: RequestMetadata = {},
+  ): Promise<IssuedOtp> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const identity = await this.store.findPasswordIdentity(normalizedEmail);
+    return this.issueOtp({
+      accountId: identity?.accountId,
+      destination: normalizedEmail,
+      purpose: 'PASSWORD_RESET',
+      metadata,
+    });
+  }
+
+  async resetPasswordFromOtp(
+    otpId: string,
+    newPassword: string,
+    metadata: RequestMetadata = {},
+  ): Promise<void> {
+    const otp = await this.store.findOtp(otpId);
+    if (!otp?.accountId || otp.purpose !== 'PASSWORD_RESET') {
+      throw new AuthError('AUTH_OTP_INVALID', 'The reset OTP is invalid.');
+    }
+    await this.resetPassword(otpId, otp.accountId, newPassword, metadata);
   }
 
   async consumeOtp(id: string): Promise<void> {

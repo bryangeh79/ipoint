@@ -19,7 +19,7 @@
     "test:api": "pnpm --filter @ipoint/api test",
     "test:database": "pnpm --filter @ipoint/database test",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
+    "test:e2e": "node scripts/run-e2e.mjs",
     "orm-poc": "pnpm --filter @ipoint/orm-comparison poc",
     "orm-poc:infra:up": "pnpm --filter @ipoint/orm-comparison infra:up",
     "orm-poc:infra:down": "pnpm --filter @ipoint/orm-comparison infra:down",
@@ -31,6 +31,7 @@
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
+    "@ipoint/database": "workspace:*",
     "@eslint/js": "9.39.1",
     "@playwright/test": "1.56.1",
     "@types/node": "24.10.1",
@@ -41,6 +42,7 @@
     "eslint": "9.39.1",
     "eslint-config-prettier": "10.1.8",
     "globals": "16.5.0",
+    "drizzle-orm": "0.45.2",
     "prettier": "3.7.3",
     "typescript": "5.9.3",
     "typescript-eslint": "8.48.0",

@@ -176,4 +176,72 @@
 | **Basis** | Phase 0 Final Acceptance Decision (2026-07-16) |
 | **Status** | **APPROVED** |
 
+## D-010: Phase 1 implementation authorized (P1-S1 approved, Batch A S2-S4 authorized)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-010 |
+| **Date** | 2026-07-17 |
+| **Source** | ChatGPT Command Center — CHATGPT_ACCOUNT_SESSION |
+| **Old Rule** | Phase 1 NOT_AUTHORIZED; Phase 0 CLOSED under D-009; Phase 1 awaited Big Phase Brief |
+| **New Decision** | **Phase 0:** CLOSED AND MERGED. **P1-S1:** APPROVED. **Phase 1:** IMPLEMENTATION AUTHORIZED. **Batch A (P1-S2, P1-S3, P1-S4):** AUTHORIZED. **P1-S5 and beyond:** NOT YET AUTHORIZED. **Main merge:** NOT AUTHORIZED until Phase 1 Batch A acceptance. **Special service fee range:** >0% AND <=100% — LOCKED (resolves O-07). Phase branch: `phase/1-merchant-onboarding-mcp`. Execution Engine: Codex CLI. OpenClaw sub-agents are not authorized for engineering execution. |
+| **Reason** | Phase 0 fully accepted and merged. Phase 1 Merchant Onboarding + MCP Ledger authorized with P1-S1 approved and Batch A (P1-S2 through P1-S4) authorized. Remaining sub-phases require separate authorization. Main branch remains protected until Batch A acceptance. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, docs/00-master/OPEN_QUESTIONS.md (O-07 resolved) |
+| **Affected Phases** | Phase 0, Phase 1, P1-S1, P1-S2, P1-S3, P1-S4, O-07 |
+| **Migration** | Governance file updates only; no code migration |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | CHATGPT_ACCOUNT_SESSION (2026-07-17) |
+| **Status** | **APPROVED** |
+
+## D-011: Phase 1 Batch A approved and Batch B authorized
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-011 |
+| **Date** | 2026-07-17 |
+| **Source** | ChatGPT Command Center — Batch B authorization |
+| **Old Rule** | Batch A CHANGES_REQUIRED (resolved via hygiene + checksum repair); P1-S5+ NOT_AUTHORIZED |
+| **New Decision** | Batch A APPROVED. Batch B (P1-S5, P1-S6, P1-S7) AUTHORIZED. P1-S8+ NOT_AUTHORIZED. Main merge NOT AUTHORIZED. |
+| **Reason** | Batch A repairs complete and accepted; Batch B authorized for Service Fee Package, MCP Ledger/Recharge, MCP Adjustment/Refund/Activation |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Batch A, Batch B, P1-S5, P1-S6, P1-S7 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | COMMAND CENTER ORDER (2026-07-17) |
+| **Status** | **APPROVED** |
+
+## D-012: Phase 1 Batch B approved and Final Batch authorized
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-012 |
+| **Date** | 2026-07-17 |
+| **Source** | ChatGPT Command Center — Final Batch authorization |
+| **Old Rule** | Batch B IN_PROGRESS; P1-S8+ NOT_AUTHORIZED |
+| **New Decision** | Batch B APPROVED. Final Batch (P1-S8, P1-S9) AUTHORIZED. Main merge NOT AUTHORIZED. |
+| **Reason** | Batch B implementation complete and accepted; Final Batch authorized for Merchant/Admin UI and Integration/E2E |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Batch B, Final Batch, P1-S8, P1-S9 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | COMMAND CENTER ORDER (2026-07-17) |
+| **Status** | **APPROVED** |
+
+## D-013: Phase 1 final acceptance and main integration authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-013 |
+| **Date** | 2026-07-17 |
+| **Source** | ChatGPT Command Center — Phase 1 Final Acceptance |
+| **Old Rule** | Phase 1 IN_PROGRESS; Main merge NOT_AUTHORIZED |
+| **New Decision** | Phase 1 ACCEPTED at SHA `48239fea58716c3df0facbfa2c1b4a1865c05b21`. Pull Request to main AUTHORIZED. Phase 2 NOT_AUTHORIZED. |
+| **Reason** | All Phase 1 sub-phases complete and accepted |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 1 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | COMMAND CENTER ORDER (2026-07-17) |
+| **Status** | **APPROVED** |
+
 *— End of current entries. New decisions must be appended below —*

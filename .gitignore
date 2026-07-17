@@ -23,3 +23,16 @@ SOUL.md
 TOOLS.md
 USER.md
 PROJECT_STATUS.md
+
+# Batch A hygiene - local/scratch/acceptance artifacts
+.acceptance/
+.acceptance-evidence/
+.local/
+.codex-*-result.txt
+.codex-p1-s4-dispatch.md
+.codex-*.md
+scripts/p1-s4-task.md
+
+# Codex execution logs
+.codex-execution-logs/
+.playwright-cli/

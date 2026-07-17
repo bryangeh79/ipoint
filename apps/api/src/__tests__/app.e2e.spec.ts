@@ -26,7 +26,10 @@ describe('App (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    configureApplication(app, { enableShutdownHooks: false });
+    configureApplication(app, {
+      enableShutdownHooks: false,
+      scanSwaggerRoutes: false,
+    });
     await app.init();
     server = app.getHttpServer() as Server;
   });

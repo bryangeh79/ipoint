@@ -5,6 +5,7 @@ import { ConfigService } from './config/config.service.js';
 
 interface ApplicationSetupOptions {
   enableShutdownHooks?: boolean;
+  scanSwaggerRoutes?: boolean;
 }
 
 export function configureApplication(
@@ -25,13 +26,28 @@ export function configureApplication(
   );
 
   const configService = app.get(ConfigService);
+  if (!configService.isProduction) {
+    app.enableCors({
+      origin: /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?$/u,
+      allowedHeaders: [
+        'authorization',
+        'content-type',
+        'idempotency-key',
+        'x-market-id',
+      ],
+      methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    });
+  }
   const swaggerConfig = new DocumentBuilder()
     .setTitle('iPoint API')
     .setDescription('iPoint Backend API')
     .setVersion(configService.appVersion)
     .addServer(`http://localhost:${configService.port}`)
     .build();
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  const scanSwaggerRoutes = options.scanSwaggerRoutes ?? !configService.isTest;
+  const document = !scanSwaggerRoutes
+    ? { ...swaggerConfig, paths: {} }
+    : SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/v1/docs', app, document);
 
   if (options.enableShutdownHooks ?? true) {

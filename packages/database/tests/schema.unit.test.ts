@@ -26,6 +26,58 @@ describe('database foundation schema', () => {
     );
   });
 
+  it('contains every Phase 1 merchant, package, and MCP entity', () => {
+    expect(Object.keys(expectedSchema)).toEqual(
+      expect.arrayContaining([
+        'merchant_groups',
+        'merchant_account_access',
+        'merchant_branches',
+        'merchant_profiles',
+        'merchant_api_idempotency_keys',
+        'merchant_profile_gallery_entries',
+        'merchant_applications',
+        'merchant_application_submissions',
+        'merchant_application_reviews',
+        'merchant_kyc_submissions',
+        'merchant_kyc_reviews',
+        'merchant_documents',
+        'merchant_referrals',
+        'merchant_terms_acceptances',
+        'merchant_status_history',
+        'merchant_id_counters',
+        'service_fee_profiles',
+        'service_fee_versions',
+        'special_percentages',
+        'merchant_package_assignments',
+        'mcp_accounts',
+        'mcp_ledger_entries',
+        'mcp_recharge_requests',
+        'mcp_refund_requests',
+        'mcp_adjustment_requests',
+        'mcp_adjustment_decisions',
+      ]),
+    );
+  });
+
+  it('keeps Phase 1 evidence and ledger tables mutation-free', () => {
+    for (const table of [
+      'merchant_application_submissions',
+      'merchant_application_reviews',
+      'merchant_kyc_submissions',
+      'merchant_kyc_reviews',
+      'merchant_documents',
+      'merchant_referrals',
+      'merchant_terms_acceptances',
+      'merchant_status_history',
+      'mcp_ledger_entries',
+      'mcp_adjustment_decisions',
+    ] as const) {
+      expect(expectedSchema[table]).not.toEqual(
+        expect.arrayContaining(['updated_at', 'archived_at', 'deleted_at']),
+      );
+    }
+  });
+
   it('stores only hashes for credentials, sessions, and OTP secrets', () => {
     expect(expectedSchema.credentials).toContain('secret_hash');
     expect(expectedSchema.sessions).toEqual(
@@ -53,6 +105,11 @@ describe('database foundation schema', () => {
     expect(Object.keys(checksums)).toEqual([
       '0000_database_foundation.sql',
       '0001_auth_session_access_expiry.sql',
+      '0002_phase_1_merchant_package_mcp.sql',
+      '0003_merchant_api_support.sql',
+      '0004_service_fee_package_management.sql',
+      '0005_mcp_ledger_recharge.sql',
+      '0006_mcp_adjustment_refund_governance.sql',
     ]);
     const migration = await readFile(
       `${migrationsDirectory}/0000_database_foundation.sql`,
@@ -61,5 +118,16 @@ describe('database foundation schema', () => {
     expect(migration).toContain('CREATE TRIGGER audit_logs_append_only');
     expect(migration).toContain('CREATE TRIGGER entity_timelines_append_only');
     expect(migration).not.toMatch(/member|merchant|wallet|commission|ipoint/iu);
+
+    const phaseOneMigration = await readFile(
+      `${migrationsDirectory}/0002_phase_1_merchant_package_mcp.sql`,
+      'utf8',
+    );
+    expect(phaseOneMigration).toContain('CREATE FUNCTION reject_update()');
+    expect(phaseOneMigration).toContain('CREATE FUNCTION reject_delete()');
+    expect(phaseOneMigration).toContain('CREATE FUNCTION generate_merchant_id');
+    expect(phaseOneMigration).not.toMatch(
+      /CREATE TABLE (transactions|receipts|rewards|commissions|advertisements)/iu,
+    );
   });
 });

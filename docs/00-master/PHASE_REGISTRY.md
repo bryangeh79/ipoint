@@ -14,7 +14,11 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Phase** | **NONE** | Phase 0 is CLOSED and APPROVED under D-009 |
+| **Current Authorized Phase** | **NONE** | Phase 1 ACCEPTED under D-013; Phase 2 NOT_AUTHORIZED |
+| **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
+| **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
+| **Phase 1 Batch B** | **APPROVED** | P1-S5 through P1-S7 COMPLETE under D-012 |
+| **Phase 1 Final Batch** | **APPROVED** | P1-S8 and P1-S9 COMPLETE under D-013 |
 | **P0-S1** | **COMPLETE** | Repository audit completed |
 | **P0-S2** | **COMPLETE** | Phase 0 application shells completed |
 | **P0-S3** | **COMPLETE** | Backend foundation independently re-validated after D-005 |
@@ -61,7 +65,7 @@
 |---|---|---|---|
 | **Phase 0** | General ledger technical skeleton, DB foundation, Auth framework, RBAC, Market module, Audit infrastructure, Design System tokens | **APPROVED** | Final acceptance approved under D-009 |
 | **Phase 0 closure** | Final integration, audit, acceptance, and governance closure | **CLOSED** | Closed under D-009; Phase 1 requires new authorization |
-| **Phase 1** | Merchant Onboarding + MCP Ledger | **NOT_AUTHORIZED** | Awaiting Big Phase Brief |
+| **Phase 1** | Merchant Onboarding + MCP Ledger | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21` under D-013. Pull Request to main AUTHORIZED. Phase branch: phase/1-merchant-onboarding-mcp |
 | **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, wallet shell, referral) | **NOT_AUTHORIZED** | Will be authorized after Phase 1 |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **NOT_AUTHORIZED** | Note: renamed from original Roadmap sequence per C-01 |
 | **Phase 4** | Transaction Engine | **NOT_AUTHORIZED** | Draft, receipt, QR scan, atomic confirmation, MCP debit |
@@ -76,29 +80,48 @@
 
 ---
 
+## Phase 1 sub-phase status
+
+| Sub-phase | Scope | Status | Next gate |
+|---|---|---|---|
+| **P1-S1** | Phase 1 planning & architecture approval | **COMPLETE** | Accepted under D-013 |
+| **P1-S2** | Merchant Schema and Migrations | **COMPLETE** | Commits e8870a92 |
+| **P1-S3** | Merchant Onboarding Domain/API | **COMPLETE** | Commits d40c4250, a5cc85f9 |
+| **P1-S4** | Merchant KYC and Review | **COMPLETE** | Batch A approved under D-011 |
+| **P1-S5** | Service Fee Package Management | **COMPLETE** | Batch B approved under D-012 |
+| **P1-S6** | MCP Ledger and Recharge | **COMPLETE** | Batch B approved under D-012 |
+| **P1-S7** | MCP Adjustment, Refund and Activation | **COMPLETE** | Batch B approved under D-012 |
+| **P1-S8** | Merchant/Admin UI | **COMPLETE** | Accepted under D-013 |
+| **P1-S9** | Integration, E2E and Final Acceptance | **COMPLETE** | Accepted under D-013 |
+
 ## Current allowed actions
 
-- ✅ Read and analyze project documentation and accepted Phase 0 evidence
-- ✅ Commit and push the D-009 governance closure to `origin/phase/0-engineering-foundation`
-- ✅ Poll the Phase 0 branch CI and verify all required jobs succeed
-- ✅ Mark PR #4 ready for review after the branch CI succeeds
-- ✅ Squash merge PR #4 to `main` only after every authorized merge gate passes
-- ✅ Poll and verify the post-merge `main` CI
-- ✅ Append Decision Log entries and update this registry only when a new decision is issued
+- ✅ Record D-013 in DECISION_LOG.md and synchronize this registry
+- ✅ Push the governance update to `phase/1-merchant-onboarding-mcp`
+- ✅ Create a Pull Request from `phase/1-merchant-onboarding-mcp` to `main`
+- ✅ Monitor and require all Pull Request CI checks to pass
+- ✅ Merge the authorized Pull Request to `main` after all required CI checks pass
+- ✅ Verify the merge commit, remote `main`, D-013, and absence of Phase 2 content
 
 ## Current prohibited actions
 
-- ❌ Start Phase 1, create a Phase 1 branch, or perform any Phase 1 work without a new ChatGPT Command Center authorization
+- ❌ Start or implement Phase 2 or any otherwise not-authorized phase
+- ❌ Push directly to `main`
+- ❌ Merge the Pull Request while any required CI check is pending or failed
+- ❌ Bypass required CI checks or branch protection
 - ❌ Use OpenClaw sub-agents for engineering execution or accept invalidated sub-agent output as evidence
-- ❌ Modify files outside the authorized Phase 0 governance closure scope
-- ❌ Change LOCKED business rules
+- ❌ OpenClaw writing production code or modifying source files
+- ❌ Change LOCKED business rules (special service fee: >0% AND <=100% — LOCKED per D-010)
 - ❌ Hard-code CONFIGURABLE values
 - ❌ Implement DEFERRED modules
 - ❌ Invent behavior for OPEN questions
+- ❌ Implement transaction snapshots, sale calculations, receipts, rewards, commissions, or advertising charging
+- ❌ Integrate fake or production payment/payout providers
+- ❌ Implement Receipt, QR, Transaction, Reward, Commission or Advertising behavior
+- ❌ Permit negative available MCP, ledger UPDATE/DELETE, maker self-approval, or MarketAccess bypass
 - ❌ Delete, clean, stash, or batch-add untracked files
-- ❌ Modify Merchant business schema or implement Merchant onboarding
-- ❌ Force push, rewrite `main` history, or use an ordinary merge or rebase merge for PR #4
+- ❌ Force push, reset, amend pushed history, or rewrite `main` history
 
 ---
 
-*Last updated: 2026-07-16 | Updated by: Codex CLI | Based on decisions D-001, D-002, D-003, D-004, D-005, D-006, D-007, D-008, D-009 and the ChatGPT Command Center Phase 0 Final Acceptance Decision*
+*Last updated: 2026-07-17 | Updated by: Codex CLI | Based on decisions D-001 through D-013 and the ChatGPT Command Center Phase 1 Final Acceptance*

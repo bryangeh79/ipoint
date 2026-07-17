@@ -93,8 +93,10 @@
 | **Description** | Admin PRD reserves special percentages (e.g., 8%, 12%). Allowed range and over-range authorization conditions not defined. |
 | **Affected Phases** | Phase 3 (Merchant Core) |
 | **Blocks Phase** | No (CONFIGURABLE) |
-| **Status** | **OPEN** |
-| **Decision needed by** | Before Phase 3 completion |
+| **Status** | **RESOLVED** |
+| **Resolution Decision ID** | D-010 |
+| **Resolution** | Special service fee range: >0% AND <=100%. LOCKED business rule. |
+| **Decision needed by** | Resolved 2026-07-17 |
 
 ---
 
