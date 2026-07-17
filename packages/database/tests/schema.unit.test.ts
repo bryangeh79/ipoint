@@ -1,7 +1,13 @@
 import { readFile } from 'node:fs/promises';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import { memberProfiles } from '../schema/index.js';
+import {
+  memberKycCases,
+  memberKycCaseStatus,
+  memberKycIdentificationType,
+  memberKycIdempotencyKeys,
+  memberProfiles,
+} from '../schema/index.js';
 import { expectedSchema } from '../src/expected-schema.js';
 import { calculateMigrationChecksums } from '../src/migration-checksums.js';
 import { migrationsDirectory } from '../src/paths.js';
@@ -32,6 +38,7 @@ describe('database foundation schema', () => {
         'member_terms_acceptances',
         'member_qr_identities',
         'member_kyc_cases',
+        'member_kyc_idempotency_keys',
         'member_kyc_documents',
         'member_account_country_change_requests',
         'member_status_history',
@@ -186,6 +193,85 @@ describe('database foundation schema', () => {
     );
   });
 
+  it('defines the complete KYC state machine and identification types', () => {
+    expect(memberKycCaseStatus.enumValues).toEqual([
+      'NOT_STARTED',
+      'DRAFT',
+      'SUBMITTED',
+      'UNDER_REVIEW',
+      'APPROVED',
+      'REJECTED',
+      'MORE_INFO_REQUIRED',
+      'REVERIFICATION_REQUIRED',
+    ]);
+    expect(memberKycIdentificationType.enumValues).toEqual([
+      'PASSPORT',
+      'NATIONAL_ID',
+      'DRIVING_LICENSE',
+      'RESIDENCE_PERMIT',
+      'OTHER',
+    ]);
+  });
+
+  it('defines KYC Level 2 data and submission snapshot columns', () => {
+    expect(expectedSchema.member_kyc_cases).toEqual(
+      expect.arrayContaining([
+        'legal_full_name',
+        'identification_type',
+        'identification_number',
+        'date_of_birth',
+        'nationality',
+        'residential_address',
+        'account_country_snapshot',
+        'submission_market_id',
+        'consent_version',
+        'submitted_at',
+      ]),
+    );
+
+    const config = getTableConfig(memberKycCases);
+    const columns = Object.fromEntries(
+      config.columns.map((column) => [column.name, column]),
+    );
+    expect(columns['identification_type']?.enumValues).toEqual(
+      memberKycIdentificationType.enumValues,
+    );
+    expect(columns['date_of_birth']?.columnType).toBe('PgDateString');
+    expect(columns['residential_address']?.columnType).toBe('PgJsonb');
+    expect(columns['submission_market_id']?.columnType).toBe('PgUUID');
+    expect(config.checks.map((constraint) => constraint.name)).toEqual(
+      expect.arrayContaining([
+        'member_kyc_cases_nationality_check',
+        'member_kyc_cases_account_country_snapshot_check',
+        'member_kyc_cases_residential_address_check',
+        'member_kyc_cases_level_2_submission_fields_check',
+      ]),
+    );
+  });
+
+  it('defines scoped KYC idempotency storage', () => {
+    expect(expectedSchema.member_kyc_idempotency_keys).toEqual([
+      'id',
+      'scope',
+      'key',
+      'request_hash',
+      'response',
+      'status_code',
+      'created_at',
+      'updated_at',
+    ]);
+    const config = getTableConfig(memberKycIdempotencyKeys);
+    expect(
+      config.uniqueConstraints.map((constraint) => constraint.name),
+    ).toContain('member_kyc_idempotency_scope_key_unique');
+    expect(config.checks.map((constraint) => constraint.name)).toEqual(
+      expect.arrayContaining([
+        'member_kyc_idempotency_request_hash_check',
+        'member_kyc_idempotency_result_check',
+      ]),
+    );
+  });
+
   it('keeps migrations explicit SQL and in the checksum set', async () => {
     const checksums = await calculateMigrationChecksums();
     expect(Object.keys(checksums)).toEqual([
@@ -200,6 +286,7 @@ describe('database foundation schema', () => {
       '0008_phase_2_member_registration_auth.sql',
       '0009_add_sessions_family_id_index.sql',
       '0010_member_profile_phone_and_default_market_hardening.sql',
+      '0011_member_kyc_level_2_hardening.sql',
     ]);
     const migration = await readFile(
       `${migrationsDirectory}/0000_database_foundation.sql`,
@@ -248,6 +335,23 @@ describe('database foundation schema', () => {
     );
     expect(memberProfileHardeningMigration).not.toMatch(
       /CREATE UNIQUE INDEX[^;]*member_market_preferences/iu,
+    );
+
+    const memberKycHardeningMigration = await readFile(
+      `${migrationsDirectory}/0011_member_kyc_level_2_hardening.sql`,
+      'utf8',
+    );
+    expect(memberKycHardeningMigration).toContain(
+      'CREATE TYPE member_kyc_identification_type AS ENUM',
+    );
+    expect(memberKycHardeningMigration).toContain(
+      'ADD COLUMN identification_number text',
+    );
+    expect(memberKycHardeningMigration).toContain(
+      'member_kyc_cases_level_2_submission_fields_check',
+    );
+    expect(memberKycHardeningMigration).toContain(
+      'CREATE TABLE member_kyc_idempotency_keys',
     );
   });
 });

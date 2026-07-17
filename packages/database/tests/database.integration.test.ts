@@ -64,6 +64,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0008_phase_2_member_registration_auth.sql',
       '0009_add_sessions_family_id_index.sql',
       '0010_member_profile_phone_and_default_market_hardening.sql',
+      '0011_member_kyc_level_2_hardening.sql',
     ]);
   });
 
@@ -469,10 +470,59 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
     );
     await expect(
       connection.pool.query(
+        `UPDATE member_kyc_cases
+         SET status = 'SUBMITTED', submitted_at = now()
+         WHERE member_id = $1`,
+        [fixture.memberId],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
+    await expect(
+      connection.pool.query(
+        `UPDATE member_kyc_cases
+         SET nationality = 'my'
+         WHERE member_id = $1`,
+        [fixture.memberId],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
+    await expect(
+      connection.pool.query(
+        `UPDATE member_kyc_cases
+         SET status = 'SUBMITTED',
+             legal_full_name = 'Kyc Test Member',
+             identification_type = 'NATIONAL_ID',
+             identification_number = 'SENSITIVE-ID-123',
+             date_of_birth = '1990-01-01',
+             nationality = 'MY',
+             residential_address = '{"line1":"Test address"}'::jsonb,
+             account_country_snapshot = 'MY',
+             submission_market_id = $2,
+             consent_version = 'kyc-v1',
+             submitted_at = now()
+         WHERE member_id = $1`,
+        [fixture.memberId, fixture.marketId],
+      ),
+    ).resolves.toBeDefined();
+    await expect(
+      connection.pool.query(
         `INSERT INTO member_kyc_cases
           (member_id, market_id, level_requested)
          VALUES ($1, $2, 'LEVEL_1')`,
         [fixture.memberId, fixture.marketId],
+      ),
+    ).rejects.toMatchObject({ code: '23505' });
+    const idempotencyScope = `ACCOUNT:${fixture.accountId}:KYC_SUBMIT:${fixture.memberId}:${fixture.marketId}`;
+    const idempotencyKey = randomUUID();
+    const requestHash = 'a'.repeat(64);
+    await connection.pool.query(
+      `INSERT INTO member_kyc_idempotency_keys (scope, key, request_hash)
+       VALUES ($1, $2, $3)`,
+      [idempotencyScope, idempotencyKey, requestHash],
+    );
+    await expect(
+      connection.pool.query(
+        `INSERT INTO member_kyc_idempotency_keys (scope, key, request_hash)
+         VALUES ($1, $2, $3)`,
+        [idempotencyScope, idempotencyKey, requestHash],
       ),
     ).rejects.toMatchObject({ code: '23505' });
     await expect(

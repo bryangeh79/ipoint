@@ -178,6 +178,10 @@ export const memberKycCaseStatus = pgEnum('member_kyc_case_status', [
   'MORE_INFO_REQUIRED',
   'REVERIFICATION_REQUIRED',
 ]);
+export const memberKycIdentificationType = pgEnum(
+  'member_kyc_identification_type',
+  ['PASSPORT', 'NATIONAL_ID', 'DRIVING_LICENSE', 'RESIDENCE_PERMIT', 'OTHER'],
+);
 export const memberKycDocumentScanStatus = pgEnum(
   'member_kyc_document_scan_status',
   ['PENDING', 'CLEAN', 'BLOCKED'],
@@ -893,6 +897,18 @@ export const memberKycCases = pgTable(
     status: memberKycCaseStatus('status').notNull().default('NOT_STARTED'),
     version: integer('version').notNull().default(1),
     levelRequested: memberKycLevel('level_requested').notNull(),
+    legalFullName: text('legal_full_name'),
+    identificationType: memberKycIdentificationType('identification_type'),
+    identificationNumber: text('identification_number'),
+    dateOfBirth: date('date_of_birth'),
+    nationality: text('nationality'),
+    residentialAddress: jsonb('residential_address'),
+    accountCountrySnapshot: text('account_country_snapshot'),
+    submissionMarketId: uuid('submission_market_id').references(
+      () => markets.id,
+      { onDelete: 'restrict' },
+    ),
+    consentVersion: text('consent_version'),
     submittedAt: utcTimestamp('submitted_at'),
     reviewedAt: utcTimestamp('reviewed_at'),
     reviewedByAdminUserId: uuid('reviewed_by_admin_user_id').references(
@@ -907,7 +923,54 @@ export const memberKycCases = pgTable(
   (table) => [
     unique('member_kyc_cases_member_unique').on(table.memberId),
     index('member_kyc_cases_market_idx').on(table.marketId),
+    index('member_kyc_cases_submission_market_idx').on(
+      table.submissionMarketId,
+    ),
     check('member_kyc_cases_version_check', sql`${table.version} > 0`),
+    check(
+      'member_kyc_cases_nationality_check',
+      sql`${table.nationality} is null or (${table.nationality} = upper(${table.nationality}) and char_length(${table.nationality}) = 2)`,
+    ),
+    check(
+      'member_kyc_cases_account_country_snapshot_check',
+      sql`${table.accountCountrySnapshot} is null or (${table.accountCountrySnapshot} = upper(${table.accountCountrySnapshot}) and char_length(${table.accountCountrySnapshot}) = 2)`,
+    ),
+    check(
+      'member_kyc_cases_residential_address_check',
+      sql`${table.residentialAddress} is null or jsonb_typeof(${table.residentialAddress}) = 'object'`,
+    ),
+    check(
+      'member_kyc_cases_level_2_submission_fields_check',
+      sql`${table.levelRequested} <> 'LEVEL_2' or ${table.status} in ('NOT_STARTED', 'DRAFT') or (${table.legalFullName} is not null and btrim(${table.legalFullName}) <> '' and ${table.identificationType} is not null and ${table.identificationNumber} is not null and btrim(${table.identificationNumber}) <> '' and ${table.dateOfBirth} is not null and ${table.nationality} is not null and ${table.residentialAddress} is not null and ${table.accountCountrySnapshot} is not null and ${table.submissionMarketId} is not null and ${table.consentVersion} is not null and btrim(${table.consentVersion}) <> '' and ${table.submittedAt} is not null)`,
+    ),
+  ],
+);
+
+export const memberKycIdempotencyKeys = pgTable(
+  'member_kyc_idempotency_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    scope: text('scope').notNull(),
+    key: text('key').notNull(),
+    requestHash: text('request_hash').notNull(),
+    response: jsonb('response'),
+    statusCode: integer('status_code'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('member_kyc_idempotency_scope_key_unique').on(
+      table.scope,
+      table.key,
+    ),
+    check(
+      'member_kyc_idempotency_request_hash_check',
+      sql`char_length(${table.requestHash}) = 64`,
+    ),
+    check(
+      'member_kyc_idempotency_result_check',
+      sql`(${table.response} is null and ${table.statusCode} is null) or (${table.response} is not null and ${table.statusCode} between 100 and 599)`,
+    ),
   ],
 );
 
@@ -1780,6 +1843,7 @@ export const schema = {
   memberTermsAcceptances,
   memberQrIdentities,
   memberKycCases,
+  memberKycIdempotencyKeys,
   memberKycDocuments,
   memberAccountCountryChangeRequests,
   memberStatusHistory,
