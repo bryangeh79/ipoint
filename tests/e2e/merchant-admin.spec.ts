@@ -235,12 +235,12 @@ test('merchant and admin complete the real UI to API to PostgreSQL lifecycle', a
     .fill('Test funds independently verified.');
   await rechargeCard.getByRole('button', { name: 'Complete recharge' }).click();
   await expect(
-    adminPage.getByText('100.0000000000', { exact: false }),
-  ).toBeVisible();
+    adminPage.getByRole('status').filter({ hasText: 'Operation completed' }),
+  ).toContainText('"status": "COMPLETED"');
 
   await merchantPage.reload();
   await expect(
-    merchantPage.getByText('ACTIVE', { exact: false }),
+    merchantPage.getByRole('heading', { name: 'ACTIVE', exact: true }),
   ).toBeVisible();
   await merchantPage.getByRole('link', { name: 'MCP' }).first().click();
   await expect(
