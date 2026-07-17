@@ -124,6 +124,8 @@ describe('database foundation schema', () => {
       '0005_mcp_ledger_recharge.sql',
       '0006_mcp_adjustment_refund_governance.sql',
       '0007_phase_2_member_schema_forward_migrations.sql',
+      '0008_phase_2_member_registration_auth.sql',
+      '0009_add_sessions_family_id_index.sql',
     ]);
     const migration = await readFile(
       `${migrationsDirectory}/0000_database_foundation.sql`,
