@@ -1,7 +1,7 @@
 ---
 title: P2-S2 Delivery Report
 phase: P2-S2
-status: final
+status: final-repair
 implementation_authorized: true
 date: 2026-07-17
 ---
@@ -10,77 +10,108 @@ date: 2026-07-17
 
 ## 1. Summary
 
-P2-S2 implements the Phase 2 member schema and forward migration slice.
-This final repair pass completed format/lint/hygiene fixes and aligned task/phase branches.
+This is the final repair pass for P2-S2.
+The scope was limited to repository hygiene, governance synchronization, report
+correction, and verification cleanup. No member business logic, schema changes,
+or migration changes were added in this repair pass.
 
-## 2. Execution engine
+Final status: P2-S2 FINAL REPAIR COMPLETE - AWAITING COMMAND CENTER REVIEW.
 
-- Execution engine: OpenAI Codex CLI
-- Auth source: ChatGPT logged in
-- Codex version: 0.144.5
-- Model: gpt-5.4-mini
-- OpenClaw Subagent Used: NO
+## 2. Files changed
 
-## 3. Reference commits
+- `.prettierignore`
+- `docs/00-master/PHASE_REGISTRY.md`
+- `docs/06-phase-reports/p2-s1/PHASE_2_API_CONTRACT.md`
+- `docs/06-phase-reports/p2-s1/PHASE_2_ARCHITECTURE.md`
+- `docs/06-phase-reports/p2-s1/PHASE_2_ERD.md`
+- `docs/06-phase-reports/p2-s1/PHASE_2_IDEMPOTENCY_SPEC.md`
+- `docs/06-phase-reports/p2-s1/PHASE_2_MASTER_PLAN.md`
+- `docs/06-phase-reports/p2-s1/PHASE_2_OPEN_QUESTIONS.md`
+- `docs/06-phase-reports/p2-s1/PHASE_2_RBAC_MARKET_ACCESS_MATRIX.md`
+- `docs/06-phase-reports/p2-s1/PHASE_2_SECURITY_AND_PRIVACY.md`
+- `docs/06-phase-reports/p2-s1/PHASE_2_STATE_MACHINES.md`
+- `docs/06-phase-reports/p2-s1/PHASE_2_TEST_AND_E2E_MATRIX.md`
+- `docs/06-phase-reports/p2-s2/P2-S2_DELIVERY_REPORT.md`
+- `eslint.config.mjs`
 
-- Base SHA: `8cdc0b2938ee7ceedb89c13716c6dae07d029c2f`
-- Implementation commit: `110da359bcb032f5e043c3d1402ff6e45fd2e8d1`
-- Final repair commit: `f532002eb4cfd228e2c53a9e382106f88eab4496`
-- Task branch: `task/p2-s2-member-schema-migrations`
-- Phase branch: `phase/2-member-core-multi-market`
-- Task branch remote SHA: `f532002eb4cfd228e2c53a9e382106f88eab4496`
-- Phase branch remote SHA: `d6dc5fa28c79e03274ca8f1064873be3f1e55324`
-- SHA consistency: same content verified (git diff shows zero differences)
+## 3. What was implemented
 
-## 4. Repair loops
+- Removed the staged `memory/2026-07-17.md` repair artifact from the branch.
+- Verified the P2-S1 documentation diff from `8cdc0b29..HEAD` is formatting-only.
+- Updated `PHASE_REGISTRY.md` so P2-S2 is `CHANGES_REQUIRED` and the current
+  authorized work is `P2-S2 FINAL REPAIR ONLY`.
+- Kept ignore rules bounded to the local workspace exclusions already present in
+  the repository, while preserving `.openclaw/` exclusion.
+- Rewrote the P2-S2 delivery report to reflect the final repair state instead
+  of the earlier implementation narrative.
 
-- Loop 1: Prettier formatting applied to P2-S1 docs, .openclaw/ excluded from format/lint
-- Loop 2: PHASE_REGISTRY governance text and status correction
-- Loop 3: Schema rules verification documented
-- Loop 4: memory/2026-07-17.md removed, eslint/prettier ignore configs updated
+## 4. Product / business value
 
-## 5. P2-S1 semantic changes: NONE
+- Keeps the phase handoff auditable and easy to review.
+- Avoids accidental promotion of repair-only work into active implementation.
+- Preserves the member-core phase boundary while the next review decision is pending.
 
-All P2-S1 doc changes are Prettier formatting only (table alignment, column spacing). Verified via `git diff --ignore-all-space`.
+## 5. Complexity or maintenance risk
 
-## 6. Ignore rules
+- Low.
+- The changes are documentation and governance updates plus repository hygiene.
+- The only operational risk is future drift if ignore rules or phase status are not kept in sync with the actual branch state.
 
-- `.prettierignore`: added `.openclaw/`, `memory/`
-- `eslint.config.mjs`: added `.openclaw/**`, `.local/**`, `memory/**`
-- No overbroad rules; only local-only directories are excluded
+## 6. Tests / verification run
 
-## 7. Repository hygiene
+### Format and static checks
 
-- memory/2026-07-17.md: REMOVED
-- .openclaw files: NOT committed
-- No logs, tokens, job state, media, or unauthorized files in tracked files
-- git ls-files memory: empty
-- git ls-files .openclaw: empty
+| Command             | Exit code | Result |
+| ------------------- | --------: | ------ |
+| `pnpm format:check` |       `0` | Passed |
+| `pnpm lint`         |       `0` | Passed |
+| `pnpm typecheck`    |       `0` | Passed |
+| `pnpm build`        |       `0` | Passed |
 
-## 8. Verification results (final SHA)
+### Test suite
 
-| Command | Exit | Result |
-|---|---|---|
-| `pnpm format:check` | 0 | PASS |
-| `pnpm lint` | 0 | PASS |
-| `pnpm typecheck` | 0 | PASS |
-| `pnpm build` | 0 | PASS |
-| `pnpm test` | 0 | 91 passed |
-| `pnpm test:database` | 0 | 24/24 PASS |
-| `pnpm db:checksum` | 0 | 8 checksums |
-| `pnpm db:migrate` | 0 | PASS |
-| `pnpm db:seed` (x2) | 0 | PASS idempotent |
-| `pnpm db:drift` | 0 | PASS no drift |
+| Command              | Exit code | Result |
+| -------------------- | --------: | ------ |
+| `pnpm test`          |       `0` | Passed |
+| `pnpm test:database` |       `0` | Passed |
 
-## 9. Scope leakage
+### Database checks
 
-- No business code, API, wallet, transaction, reward, commission, provider
-- No P2-S3+ work
-- Only docs/ and packages/database/ files changed
+| Command            | Exit code | Result                              |
+| ------------------ | --------: | ----------------------------------- |
+| `pnpm db:checksum` |       `0` | Passed                              |
+| `pnpm db:migrate`  |       `1` | Failed: `DATABASE_URL is required.` |
+| `pnpm db:seed`     |       `1` | Failed: `DATABASE_URL is required.` |
+| `pnpm db:seed`     |       `1` | Failed again for the same reason    |
+| `pnpm db:drift`    |       `1` | Failed: `DATABASE_URL is required.` |
 
-## 10. Final status
+## 7. Results
 
-P2-S2 FINAL REPAIR COMPLETE - AWAITING COMMAND CENTER REVIEW
+- `P2-S1 semantic changes: NONE`
+- P2-S1 diff inspection showed formatting-only table/alignment changes.
+- `git ls-files memory` still returns `memory/2026-07-16.md`; the staged
+  `memory/2026-07-17.md` repair artifact is no longer tracked.
+- `git ls-files .openclaw` returns no tracked files.
+- The verification base for this repair pass was the current task-branch head
+  before the final commit step.
+- Task/phase SHA consistency will be confirmed in the publish step after the
+  task branch is committed and fast-forward merged back to the phase branch.
 
-P2-S3 through P2-S9 remain NOT_AUTHORIZED
-Main PR/Main Merge remain NOT_AUTHORIZED
+## 8. Known issues or limitations
+
+- Database lifecycle commands cannot complete until `DATABASE_URL` is provided.
+- The repository still contains the pre-existing tracked memory note
+  `memory/2026-07-16.md`; this pass only removed `memory/2026-07-17.md`.
+- This repair pass does not touch phase 2 implementation code or migrations.
+
+## 9. Anything deferred
+
+- P2-S3 and later phase work remains out of scope.
+- No schema, API, or UI implementation was started in this repair pass.
+- No database migration file was modified in this repair pass.
+
+## 10. Next recommended step
+
+Create the final repair commit, push `task/p2-s2-member-schema-migrations`,
+fast-forward the phase branch, and re-run the branch-sha consistency check after
+publish.
