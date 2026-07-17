@@ -24,12 +24,16 @@ import type {
   CreateRechargeDto,
   CreateAdjustmentDto,
   AdjustmentDecisionDto,
+  AdjustmentActionDto,
   CreateRefundDto,
   LedgerQueryDto,
   ReviewRechargeDto,
   ReviewRefundDto,
 } from './dto/mcp.dto.js';
-import type { MerchantRequestContext } from './merchant.service.js';
+import {
+  MerchantService,
+  type MerchantRequestContext,
+} from './merchant.service.js';
 
 type DatabaseTransaction = Parameters<
   Parameters<Database['transaction']>[0]
@@ -40,6 +44,7 @@ export class McpService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(MerchantService) private readonly merchants: MerchantService,
   ) {}
 
   async summary(branchId: string) {
@@ -171,7 +176,7 @@ export class McpService {
     context: MerchantRequestContext,
   ) {
     const reviewHash = hash(input);
-    return this.database.db.transaction(async (tx) => {
+    const result = await this.database.db.transaction(async (tx) => {
       const locked = await tx.execute(sql`
         SELECT * FROM mcp_recharge_requests
         WHERE id = ${requestId} AND market_id = ${marketId} FOR UPDATE
@@ -229,6 +234,24 @@ export class McpService {
       });
       return updated;
     });
+    if (input.decision === 'COMPLETED') {
+      const value = result as unknown as Record<string, unknown>;
+      const rawMcpAccountId =
+        value['mcpAccountId'] ?? value['mcp_account_id'];
+      const mcpAccountId =
+        typeof rawMcpAccountId === 'string' ? rawMcpAccountId : '';
+      const account = await this.accountById(
+        this.database.db,
+        mcpAccountId,
+        marketId,
+      );
+      await this.merchants.reevaluateOperationalStatus(
+        account.merchantBranchId,
+        { type: 'ADMIN_USER', id: adminUserId },
+        'MCP recharge completion reevaluated activation policy.',
+      );
+    }
+    return result;
   }
 
   async createAdjustment(
@@ -289,6 +312,29 @@ export class McpService {
     }
   }
 
+  async createAdjustmentForBranch(
+    marketId: string,
+    branchId: string,
+    adminUserId: string,
+    input: CreateAdjustmentDto,
+    key: string,
+    context: MerchantRequestContext,
+  ) {
+    const account = await this.accountForBranch(
+      this.database.db,
+      branchId,
+      marketId,
+    );
+    return this.createAdjustment(
+      marketId,
+      account.id,
+      adminUserId,
+      input,
+      key,
+      context,
+    );
+  }
+
   async submitAdjustment(
     marketId: string,
     requestId: string,
@@ -332,6 +378,30 @@ export class McpService {
     input: AdjustmentDecisionDto,
     context: MerchantRequestContext,
   ) {
+    const decided = await this.approveAdjustment(
+      marketId,
+      requestId,
+      checkerId,
+      input,
+      context,
+    );
+    if (input.decision === 'REJECTED') return decided;
+    return this.executeAdjustment(
+      marketId,
+      requestId,
+      checkerId,
+      { reason: input.reason },
+      context,
+    );
+  }
+
+  async approveAdjustment(
+    marketId: string,
+    requestId: string,
+    checkerId: string,
+    input: AdjustmentDecisionDto,
+    context: MerchantRequestContext,
+  ) {
     return this.database.db.transaction(async (tx) => {
       const request = await this.lockAdjustment(tx, marketId, requestId);
       if (request.maker_admin_user_id === checkerId)
@@ -349,29 +419,10 @@ export class McpService {
         decision: input.decision,
         reason: input.reason,
       });
-      let ledgerEntryId: string | undefined;
-      if (input.decision === 'APPROVED') {
-        // Approval and execution share one transaction; execution re-validates the locked account.
-        await this.accountById(tx, String(request.mcp_account_id), marketId);
-        const debit = request.entry_type === 'MANUAL_DEBIT';
-        const delta = debit
-          ? `-${String(request.amount)}`
-          : String(request.amount);
-        const posting = await tx.execute(sql`
-          SELECT * FROM append_mcp_ledger_entry(
-            ${String(request.mcp_account_id)}::uuid, ${String(request.entry_type)}::mcp_entry_type,
-            ${debit ? 'DEBIT' : 'CREDIT'}::mcp_direction, ${String(request.amount)}::numeric,
-            ${delta}::numeric, ${delta}::numeric, 'ADJUSTMENT_REQUEST', ${requestId},
-            ${`adjustment:${requestId}`}, ${hash({ requestId, amount: request.amount, type: request.entry_type })},
-            'ADMIN_USER', ${checkerId}, ${input.reason}, now())
-        `);
-        ledgerEntryId = String(posting.rows[0]?.['entry_id']);
-      }
       const rows = await tx
         .update(mcpAdjustmentRequests)
         .set({
-          status: input.decision === 'APPROVED' ? 'EXECUTED' : 'REJECTED',
-          ledgerEntryId,
+          status: input.decision,
           version: sql`${mcpAdjustmentRequests.version} + 1`,
           updatedAt: new Date(),
         })
@@ -382,9 +433,64 @@ export class McpService {
         tx,
         checkerId,
         marketId,
-        input.decision === 'APPROVED'
-          ? 'MCP_ADJUSTMENT_EXECUTED'
-          : 'MCP_ADJUSTMENT_REJECTED',
+        `MCP_ADJUSTMENT_${input.decision}`,
+        'MCP_ADJUSTMENT_REQUEST',
+        requestId,
+        input.reason,
+        updated,
+        context,
+      );
+      return updated;
+    });
+  }
+
+  async executeAdjustment(
+    marketId: string,
+    requestId: string,
+    executorId: string,
+    input: AdjustmentActionDto,
+    context: MerchantRequestContext,
+  ) {
+    return this.database.db.transaction(async (tx) => {
+      const request = await this.lockAdjustment(tx, marketId, requestId);
+      if (request.status === 'EXECUTED') return request;
+      if (request.status !== 'APPROVED') throw this.stateConflict();
+      if (request.maker_admin_user_id === executorId)
+        throw new ForbiddenException({
+          code: 'MCP_MAKER_CHECKER_CONFLICT',
+          message: 'Maker cannot execute their own request.',
+        });
+      await this.admin(tx, executorId);
+      await this.accountById(tx, String(request.mcp_account_id), marketId);
+      const debit = request.entry_type === 'MANUAL_DEBIT';
+      const delta = debit
+        ? `-${String(request.amount)}`
+        : String(request.amount);
+      const posting = await tx.execute(sql`
+        SELECT * FROM append_mcp_ledger_entry(
+          ${String(request.mcp_account_id)}::uuid, ${String(request.entry_type)}::mcp_entry_type,
+          ${debit ? 'DEBIT' : 'CREDIT'}::mcp_direction, ${String(request.amount)}::numeric,
+          ${delta}::numeric, ${delta}::numeric, 'ADJUSTMENT_REQUEST', ${requestId},
+          ${`adjustment:${requestId}`}, ${hash({ requestId, amount: request.amount, type: request.entry_type })},
+          'ADMIN_USER', ${executorId}, ${input.reason}, now())
+      `);
+      const ledgerEntryId = String(posting.rows[0]?.['entry_id']);
+      const rows = await tx
+        .update(mcpAdjustmentRequests)
+        .set({
+          status: 'EXECUTED',
+          ledgerEntryId,
+          version: sql`${mcpAdjustmentRequests.version} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(mcpAdjustmentRequests.id, requestId))
+        .returning();
+      const updated = required(rows[0]);
+      await this.governanceAudit(
+        tx,
+        executorId,
+        marketId,
+        'MCP_ADJUSTMENT_EXECUTED',
         'MCP_ADJUSTMENT_REQUEST',
         requestId,
         input.reason,
@@ -449,6 +555,25 @@ export class McpService {
       if (rows[0]?.payloadHash === payloadHash) return rows[0];
       throw this.idempotencyConflict();
     }
+  }
+
+  async createAdminRefund(
+    marketId: string,
+    branchId: string,
+    adminUserId: string,
+    input: CreateRefundDto,
+    key: string,
+    context: MerchantRequestContext,
+  ) {
+    const adminRows = await this.database.db
+      .select({ accountId: adminUsers.accountId })
+      .from(adminUsers)
+      .where(eq(adminUsers.id, adminUserId))
+      .limit(1);
+    const admin = adminRows[0];
+    if (!admin) throw new NotFoundException({ code: 'ADMIN_NOT_FOUND' });
+    await this.accountForBranch(this.database.db, branchId, marketId);
+    return this.createRefund(branchId, admin.accountId, input, key, context);
   }
 
   async reviewRefund(

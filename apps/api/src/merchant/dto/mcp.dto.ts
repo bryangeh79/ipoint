@@ -53,6 +53,10 @@ export const adjustmentDecisionSchema = z
   })
   .strict();
 
+export const adjustmentActionSchema = z
+  .object({ reason: z.string().trim().min(1).max(2000) })
+  .strict();
+
 export const createRefundSchema = z
   .object({
     amount: mcpAmount,
@@ -72,5 +76,6 @@ export type ReviewRechargeDto = z.infer<typeof reviewRechargeSchema>;
 export type LedgerQueryDto = z.infer<typeof ledgerQuerySchema>;
 export type CreateAdjustmentDto = z.infer<typeof createAdjustmentSchema>;
 export type AdjustmentDecisionDto = z.infer<typeof adjustmentDecisionSchema>;
+export type AdjustmentActionDto = z.infer<typeof adjustmentActionSchema>;
 export type CreateRefundDto = z.infer<typeof createRefundSchema>;
 export type ReviewRefundDto = z.infer<typeof reviewRefundSchema>;

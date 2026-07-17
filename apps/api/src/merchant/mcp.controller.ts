@@ -23,12 +23,14 @@ import { RbacGuard, RequirePermission } from '../platform-access/rbac.guard.js';
 import {
   createRechargeSchema,
   createAdjustmentSchema,
+  adjustmentActionSchema,
   adjustmentDecisionSchema,
   createRefundSchema,
   ledgerQuerySchema,
   reviewRechargeSchema,
   reviewRefundSchema,
   type CreateAdjustmentDto,
+  type AdjustmentActionDto,
   type AdjustmentDecisionDto,
   type CreateRefundDto,
   type CreateRechargeDto,
@@ -160,6 +162,29 @@ export class McpController {
     );
   }
 
+  @Post('admin/markets/:marketId/merchants/:branchId/adjustments')
+  @UseGuards(AuthGuard, RbacGuard)
+  @RequirePermission('merchant.mcp.adjust', { marketScoped: true })
+  createBranchAdjustment(
+    @Param('marketId', new ParseUUIDPipe()) marketId: string,
+    @Param('branchId', new ParseUUIDPipe()) branchId: string,
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body(new ZodValidationPipe(createAdjustmentSchema))
+    input: CreateAdjustmentDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @Ip() ip: string,
+    @Req() request: Request,
+  ) {
+    return this.mcp.createAdjustmentForBranch(
+      marketId,
+      branchId,
+      requireAdminActor(actor),
+      input,
+      requireKey(key),
+      context(request, ip),
+    );
+  }
+
   @Post('admin/markets/:marketId/mcp/adjustments/:requestId/submit')
   @HttpCode(200)
   @UseGuards(AuthGuard, RbacGuard)
@@ -201,6 +226,50 @@ export class McpController {
     );
   }
 
+  @Post('admin/markets/:marketId/adjustments/:requestId/approve')
+  @HttpCode(200)
+  @UseGuards(AuthGuard, RbacGuard)
+  @RequirePermission('merchant.mcp.adjust.approve', { marketScoped: true })
+  approveAdjustment(
+    @Param('marketId', new ParseUUIDPipe()) marketId: string,
+    @Param('requestId', new ParseUUIDPipe()) requestId: string,
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body(new ZodValidationPipe(adjustmentActionSchema))
+    input: AdjustmentActionDto,
+    @Ip() ip: string,
+    @Req() request: Request,
+  ) {
+    return this.mcp.approveAdjustment(
+      marketId,
+      requestId,
+      requireAdminActor(actor),
+      { decision: 'APPROVED', reason: input.reason },
+      context(request, ip),
+    );
+  }
+
+  @Post('admin/markets/:marketId/adjustments/:requestId/execute')
+  @HttpCode(200)
+  @UseGuards(AuthGuard, RbacGuard)
+  @RequirePermission('merchant.mcp.adjust.execute', { marketScoped: true })
+  executeAdjustment(
+    @Param('marketId', new ParseUUIDPipe()) marketId: string,
+    @Param('requestId', new ParseUUIDPipe()) requestId: string,
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body(new ZodValidationPipe(adjustmentActionSchema))
+    input: AdjustmentActionDto,
+    @Ip() ip: string,
+    @Req() request: Request,
+  ) {
+    return this.mcp.executeAdjustment(
+      marketId,
+      requestId,
+      requireAdminActor(actor),
+      input,
+      context(request, ip),
+    );
+  }
+
   @Post('merchant/branches/:branchId/mcp/refunds')
   @UseGuards(AuthGuard, MerchantOwnershipGuard)
   createRefund(
@@ -220,11 +289,54 @@ export class McpController {
     );
   }
 
+  @Post('admin/markets/:marketId/merchants/:branchId/refund')
+  @UseGuards(AuthGuard, RbacGuard)
+  @RequirePermission('merchant.refund.manage', { marketScoped: true })
+  createAdminRefund(
+    @Param('marketId', new ParseUUIDPipe()) marketId: string,
+    @Param('branchId', new ParseUUIDPipe()) branchId: string,
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body(new ZodValidationPipe(createRefundSchema)) input: CreateRefundDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @Ip() ip: string,
+    @Req() request: Request,
+  ) {
+    return this.mcp.createAdminRefund(
+      marketId,
+      branchId,
+      requireAdminActor(actor),
+      input,
+      requireKey(key),
+      context(request, ip),
+    );
+  }
+
   @Post('admin/markets/:marketId/mcp/refunds/:requestId/review')
   @HttpCode(200)
   @UseGuards(AuthGuard, RbacGuard)
   @RequirePermission('merchant.refund.manage', { marketScoped: true })
   reviewRefund(
+    @Param('marketId', new ParseUUIDPipe()) marketId: string,
+    @Param('requestId', new ParseUUIDPipe()) requestId: string,
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body(new ZodValidationPipe(reviewRefundSchema)) input: ReviewRefundDto,
+    @Ip() ip: string,
+    @Req() request: Request,
+  ) {
+    return this.mcp.reviewRefund(
+      marketId,
+      requestId,
+      requireAdminActor(actor),
+      input,
+      context(request, ip),
+    );
+  }
+
+  @Post('admin/markets/:marketId/refund/:requestId/review')
+  @HttpCode(200)
+  @UseGuards(AuthGuard, RbacGuard)
+  @RequirePermission('merchant.refund.manage', { marketScoped: true })
+  reviewRefundAlias(
     @Param('marketId', new ParseUUIDPipe()) marketId: string,
     @Param('requestId', new ParseUUIDPipe()) requestId: string,
     @CurrentActor() actor: RequestActor | undefined,
