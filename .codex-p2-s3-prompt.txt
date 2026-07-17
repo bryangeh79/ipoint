@@ -1,0 +1,27 @@
+You are executing P2-S3 of the iPoint project. 
+
+PLEASE READ THE COMPLETE DISPATCH FILE FIRST:
+CAT C:\AI_WORKSPACE\iPoint App\.codex-p2-s3-dispatch.md
+
+Then execute ALL steps in order:
+
+PART 0: Governance closure — Append D-017 to DECISION_LOG.md using Node.js (NOT PowerShell), update PHASE_REGISTRY.md
+
+PART 1: Create branch task/p2-s3-registration-auth from d9e4496f
+
+PART 2: Implement P2-S3 — Registration, OTP, Login, Refresh Token, Logout, Password Reset, Referral at registration, Idempotency, Rate Limiting, Anti-enumeration, full tests
+
+PART 3: Run ALL verification commands
+
+PART 4: Create delivery report
+
+PART 5: Commit, push, sync branches
+
+IMPORTANT RULES:
+- Use Node.js for DECISION_LOG.md writes (not PowerShell, not cmd)
+- No force push, no reset, no stash, no amend
+- No Main PR, no merge to main
+- No P2-S4+ scope
+- No UI, no production email/SMS provider
+
+Report progress every 5 minutes with exit codes and any errors.

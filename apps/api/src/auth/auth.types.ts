@@ -5,6 +5,12 @@ export type AccountStatus =
   | 'LOCKED'
   | 'ARCHIVED';
 
+export type MemberStatus =
+  | 'PENDING_EMAIL_VERIFICATION'
+  | 'ACTIVE'
+  | 'SUSPENDED'
+  | 'CLOSED';
+
 export type OtpPurpose = 'EMAIL_VERIFICATION' | 'PASSWORD_RESET' | 'STEP_UP';
 
 export interface RequestMetadata {
@@ -30,6 +36,8 @@ export interface AuthTokens {
 export interface PasswordIdentity {
   accountId: string;
   status: AccountStatus;
+  memberId: string | null;
+  memberStatus: MemberStatus | null;
   secretHash: string;
 }
 
@@ -54,4 +62,28 @@ export interface OtpRecord {
   expiresAt: Date;
   verifiedAt: Date | null;
   consumedAt: Date | null;
+}
+
+export interface MemberEmailOtpRecord {
+  id: string;
+  purpose: 'REGISTRATION' | 'PASSWORD_RESET';
+  memberId: string | null;
+  accountId: string | null;
+  email: string;
+  accountCountry: string | null;
+  passwordHash: string | null;
+  referralCode: string | null;
+  referrerMemberId: string | null;
+  termsVersion: string | null;
+  disclaimerVersion: string | null;
+  privacyVersion: string | null;
+  locale: string | null;
+  otpHash: string;
+  otpVersion: number;
+  attempts: number;
+  maxAttempts: number;
+  expiresAt: Date;
+  resendAvailableAt: Date;
+  verifiedAt: Date | null;
+  usedAt: Date | null;
 }

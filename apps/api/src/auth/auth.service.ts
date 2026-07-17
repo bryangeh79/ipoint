@@ -28,6 +28,23 @@ export interface AuthSettings {
   refreshTtlSeconds: number;
   otpTtlSeconds: number;
   otpMaxAttempts: number;
+  otpResendCooldownSeconds: number;
+  idempotencyTtlSeconds: number;
+  registrationEmailRateLimitCount: number;
+  registrationEmailRateLimitWindowSeconds: number;
+  registrationIpRateLimitCount: number;
+  registrationIpRateLimitWindowSeconds: number;
+  loginEmailRateLimitCount: number;
+  loginEmailRateLimitWindowSeconds: number;
+  loginIpRateLimitCount: number;
+  loginIpRateLimitWindowSeconds: number;
+  passwordResetEmailRateLimitCount: number;
+  passwordResetEmailRateLimitWindowSeconds: number;
+  passwordResetIpRateLimitCount: number;
+  passwordResetIpRateLimitWindowSeconds: number;
+  memberPublicIdPrefix: string;
+  memberPublicIdLength: number;
+  memberReferralCodeLength: number;
 }
 
 export interface IssuedOtp {
