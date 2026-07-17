@@ -5,14 +5,7 @@ import { DatabaseService } from '../database/database.service.js';
 import { migrate } from '@ipoint/database';
 import type { Server } from 'node:http';
 import supertest from 'supertest';
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  it,
-  vi,
-} from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, it, vi } from 'vitest';
 import { AppModule } from '../app.module.js';
 import { configureApplication } from '../app.setup.js';
 import { AUTH_RATE_LIMITER } from '../auth/auth.constants.js';
@@ -71,4 +64,3 @@ describe.skipIf(!databaseUrl)('Market HTTP integration', () => {
     });
   });
 });
-

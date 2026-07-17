@@ -21,6 +21,7 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
 import { updateProfileSchema } from './profile.dto.js';
 import { ProfileService } from './profile.service.js';
 import type { UpdateProfileDto } from './profile.dto.js';
+import { ProfileError } from './profile.types.js';
 import type { ProfileResponse } from './profile.types.js';
 
 @ApiTags('Profile')
@@ -28,6 +29,17 @@ import type { ProfileResponse } from './profile.types.js';
 @UseGuards(AuthGuard)
 @ApiBearerAuth()
 export class ProfileController {
+  private async catchProfileError<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (error) {
+      if (error instanceof ProfileError) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
+  }
+
   constructor(
     @Inject(ProfileService) private readonly profileService: ProfileService,
   ) {}
@@ -45,7 +57,9 @@ export class ProfileController {
   async getProfile(
     @CurrentActor() actor: RequestActor,
   ): Promise<ProfileResponse> {
-    return this.catchProfileError(async () => this.profileService.getProfile(actor.accountId));
+    return this.catchProfileError(async () =>
+      this.profileService.getProfile(actor.accountId),
+    );
   }
 
   @Patch()
@@ -65,8 +79,8 @@ export class ProfileController {
     @CurrentActor() actor: RequestActor,
     @Body(new ZodValidationPipe(updateProfileSchema)) body: UpdateProfileDto,
   ): Promise<ProfileResponse> {
-    return this.catchProfileError(async () => this.profileService.updateProfile(actor.accountId, body, {}));
+    return this.catchProfileError(async () =>
+      this.profileService.updateProfile(actor.accountId, body, {}),
+    );
   }
 }
-
-

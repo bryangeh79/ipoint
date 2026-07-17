@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { randomUUID } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import type { DatabaseService } from '../database/database.service.js';
 import { MarketError } from './market.types.js';
