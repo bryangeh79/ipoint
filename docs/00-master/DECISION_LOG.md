@@ -193,4 +193,21 @@
 | **Basis** | CHATGPT_ACCOUNT_SESSION (2026-07-17) |
 | **Status** | **APPROVED** |
 
+## D-011: Phase 1 Batch A approved and Batch B authorized
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-011 |
+| **Date** | 2026-07-17 |
+| **Source** | ChatGPT Command Center — Batch B authorization |
+| **Old Rule** | Batch A CHANGES_REQUIRED (resolved via hygiene + checksum repair); P1-S5+ NOT_AUTHORIZED |
+| **New Decision** | Batch A APPROVED. Batch B (P1-S5, P1-S6, P1-S7) AUTHORIZED. P1-S8+ NOT_AUTHORIZED. Main merge NOT AUTHORIZED. |
+| **Reason** | Batch A repairs complete and accepted; Batch B authorized for Service Fee Package, MCP Ledger/Recharge, MCP Adjustment/Refund/Activation |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Batch A, Batch B, P1-S5, P1-S6, P1-S7 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | COMMAND CENTER ORDER (2026-07-17) |
+| **Status** | **APPROVED** |
+
 *— End of current entries. New decisions must be appended below —*

@@ -14,7 +14,7 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Phase** | **Phase 1** | Merchant Onboarding + MCP Ledger; IN_PROGRESS under D-010 |
+| **Current Authorized Phase** | **Phase 1** | Merchant Onboarding + MCP Ledger; IN_PROGRESS (Batch B) under D-011 |
 | **P0-S1** | **COMPLETE** | Repository audit completed |
 | **P0-S2** | **COMPLETE** | Phase 0 application shells completed |
 | **P0-S3** | **COMPLETE** | Backend foundation independently re-validated after D-005 |
@@ -61,7 +61,7 @@
 |---|---|---|---|
 | **Phase 0** | General ledger technical skeleton, DB foundation, Auth framework, RBAC, Market module, Audit infrastructure, Design System tokens | **APPROVED** | Final acceptance approved under D-009 |
 | **Phase 0 closure** | Final integration, audit, acceptance, and governance closure | **CLOSED** | Closed under D-009; Phase 1 requires new authorization |
-| **Phase 1** | Merchant Onboarding + MCP Ledger | **IN_PROGRESS** | P1-S1 APPROVED; P1-S2 COMPLETE; P1-S3 COMPLETE; P1-S4 IN_PROGRESS under D-010. P1-S5+ NOT YET AUTHORIZED. Main merge NOT AUTHORIZED. Phase branch: phase/1-merchant-onboarding-mcp |
+| **Phase 1** | Merchant Onboarding + MCP Ledger | **IN_PROGRESS** | Batch A APPROVED; P1-S2 through P1-S4 COMPLETE. Batch B P1-S5 through P1-S7 AUTHORIZED under D-011. P1-S8+ NOT_AUTHORIZED. Main merge NOT AUTHORIZED. Phase branch: phase/1-merchant-onboarding-mcp |
 | **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, wallet shell, referral) | **NOT_AUTHORIZED** | Will be authorized after Phase 1 |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **NOT_AUTHORIZED** | Note: renamed from original Roadmap sequence per C-01 |
 | **Phase 4** | Transaction Engine | **NOT_AUTHORIZED** | Draft, receipt, QR scan, atomic confirmation, MCP debit |
@@ -83,31 +83,38 @@
 | **P1-S1** | Phase 1 planning & architecture approval | **APPROVED** | D-010 |
 | **P1-S2** | Merchant Schema and Migrations | **COMPLETE** | Commits e8870a92 |
 | **P1-S3** | Merchant Onboarding Domain/API | **COMPLETE** | Commits d40c4250, a5cc85f9 |
-| **P1-S4** | Merchant KYC and Review | **IN_PROGRESS** | Codex CLI execution |
-| **P1-S5** | (future) | **NOT YET AUTHORIZED** | Requires separate authorization |
+| **P1-S4** | Merchant KYC and Review | **COMPLETE** | Batch A approved under D-011 |
+| **P1-S5** | Service Fee Package Management | **AUTHORIZED** | Execute first in Batch B |
+| **P1-S6** | MCP Ledger and Recharge | **AUTHORIZED** | Execute after P1-S5 integration |
+| **P1-S7** | MCP Adjustment, Refund and Activation | **AUTHORIZED** | Execute after P1-S6 integration |
+| **P1-S8+** | Future Phase 1 scope | **NOT_AUTHORIZED** | Requires separate authorization |
 
 ## Current allowed actions
 
-- ✅ Execute P1-S4 (Merchant KYC and Review) via Codex CLI
+- ✅ Execute P1-S5, P1-S6 and P1-S7 sequentially via Codex CLI
 - ✅ Record governance updates in DECISION_LOG.md and PHASE_REGISTRY.md
 - ✅ Monitor Codex CLI execution and collect evidence
-- ✅ After Batch A complete, submit one Batch A Milestone Report (only)
+- ✅ Integrate each completed task branch into `phase/1-merchant-onboarding-mcp`
+- ✅ After Batch B integration, submit `docs/06-phase-reports/BATCH_B_MILESTONE_REPORT.md`
 - ✅ Poll branch CI and verify all required jobs succeed
 - ✅ Append Decision Log entries and update this registry only when a new decision is issued
 
 ## Current prohibited actions
 
-- ❌ Enter P1-S5 or any not-yet-authorized sub-phase
-- ❌ Merge to `main` (main merge NOT AUTHORIZED until Phase 1 Batch A acceptance)
+- ❌ Enter P1-S8 or any later/not-authorized sub-phase
+- ❌ Merge to `main` (main merge NOT AUTHORIZED)
 - ❌ Use OpenClaw sub-agents for engineering execution or accept invalidated sub-agent output as evidence
 - ❌ OpenClaw writing production code or modifying source files
 - ❌ Change LOCKED business rules (special service fee: >0% AND <=100% — LOCKED per D-010)
 - ❌ Hard-code CONFIGURABLE values
 - ❌ Implement DEFERRED modules
 - ❌ Invent behavior for OPEN questions
+- ❌ Implement transaction snapshots, sale calculations, receipts, rewards, commissions, or advertising charging
+- ❌ Integrate fake or production payment/payout providers
+- ❌ Permit negative available MCP, ledger UPDATE/DELETE, maker self-approval, or MarketAccess bypass
 - ❌ Delete, clean, stash, or batch-add untracked files
 - ❌ Force push, rewrite `main` history
 
 ---
 
-*Last updated: 2026-07-17 | Updated by: Codex CLI | Based on decisions D-001 through D-010 and the ChatGPT Command Center Phase 1 Implementation Authorization*
+*Last updated: 2026-07-17 | Updated by: Codex CLI | Based on decisions D-001 through D-011 and the ChatGPT Command Center Phase 1 Batch B Authorization*
