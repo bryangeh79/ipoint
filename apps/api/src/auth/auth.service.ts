@@ -189,10 +189,14 @@ export class AuthService {
     refreshToken: string,
     metadata: RequestMetadata = {},
   ): Promise<AuthTokens> {
+    // Refresh rate limit: IP-based, configurable via env (default 30/60s)
     await this.enforceRateLimit(
       `refresh:${metadata.ipAddress ?? 'unknown'}`,
-      30,
-      60,
+      parseInt(process.env['AUTH_REFRESH_RATE_LIMIT_COUNT'] ?? '30', 10),
+      parseInt(
+        process.env['AUTH_REFRESH_RATE_LIMIT_WINDOW_SECONDS'] ?? '60',
+        10,
+      ),
     );
     const tokens = this.generateTokens();
     const now = new Date();

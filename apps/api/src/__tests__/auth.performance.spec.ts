@@ -69,14 +69,14 @@ function report(label: string, result: EndpointResult): void {
   const errorRate = (errors / timingsMs.length) * 100;
 
   // Store in global results accumulator
-   
+
   globalResults[label] = { p50, p95, p99, avg, throughput, errorRate };
 }
 
-function createInitiatePayload(email: string) {
+function createInitiatePayload(email: string, password?: string) {
   return {
     email,
-    password: `Perf-Test-${randomUUID().slice(0, 8)}!`,
+    password: password ?? `Perf-Test-${randomUUID().slice(0, 8)}!`,
     account_country: 'MY',
     referral_code: null,
     terms_version: 'v1',
@@ -120,6 +120,23 @@ describe.skipIf(!databaseUrl)('Auth Performance Baseline', () => {
     );
     vi.stubEnv('NODE_ENV', 'test');
     vi.stubEnv('LOG_LEVEL', 'silent');
+
+    // Disable rate limiting for performance measurements
+    vi.stubEnv('AUTH_REGISTRATION_EMAIL_RATE_LIMIT_COUNT', '1000');
+    vi.stubEnv('AUTH_REGISTRATION_EMAIL_RATE_LIMIT_WINDOW_SECONDS', '3600');
+    vi.stubEnv('AUTH_REGISTRATION_IP_RATE_LIMIT_COUNT', '1000');
+    vi.stubEnv('AUTH_REGISTRATION_IP_RATE_LIMIT_WINDOW_SECONDS', '3600');
+    vi.stubEnv('AUTH_LOGIN_EMAIL_RATE_LIMIT_COUNT', '1000');
+    vi.stubEnv('AUTH_LOGIN_EMAIL_RATE_LIMIT_WINDOW_SECONDS', '3600');
+    vi.stubEnv('AUTH_LOGIN_IP_RATE_LIMIT_COUNT', '1000');
+    vi.stubEnv('AUTH_LOGIN_IP_RATE_LIMIT_WINDOW_SECONDS', '3600');
+    vi.stubEnv('AUTH_PASSWORD_RESET_EMAIL_RATE_LIMIT_COUNT', '1000');
+    vi.stubEnv('AUTH_PASSWORD_RESET_EMAIL_RATE_LIMIT_WINDOW_SECONDS', '3600');
+    vi.stubEnv('AUTH_PASSWORD_RESET_IP_RATE_LIMIT_COUNT', '1000');
+    vi.stubEnv('AUTH_PASSWORD_RESET_IP_RATE_LIMIT_WINDOW_SECONDS', '3600');
+    // Refresh rate limit (env override; was hardcoded 30/60s)
+    vi.stubEnv('AUTH_REFRESH_RATE_LIMIT_COUNT', '1000');
+    vi.stubEnv('AUTH_REFRESH_RATE_LIMIT_WINDOW_SECONDS', '3600');
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -177,7 +194,10 @@ describe.skipIf(!databaseUrl)('Auth Performance Baseline', () => {
     }
 
     // Full registration flow for a persistent test member
-    const initPayload = createInitiatePayload(preCreatedEmail);
+    const initPayload = createInitiatePayload(
+      preCreatedEmail,
+      preCreatedPassword,
+    );
     const initRes = await supertest(server)
       .post('/api/v1/auth/registration/initiate')
       .send(initPayload)
