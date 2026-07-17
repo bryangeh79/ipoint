@@ -363,3 +363,21 @@
 **D-019-D — Unimplemented Error Codes**: AUTH_PASSWORD_WEAK, AUTH_FLOW_EXPIRED, and AUTH_IDEMPOTENCY_REQUIRED are removed from the public API contract's endpoint error response descriptions. They remain in the internal type union as reserved/future codes. Public contract must match real runtime behavior.
 
 **D-019-E — P2-S4 Acceptance**: P2-S4 (Registration & Auth Production Hardening) is **ACCEPTED FOR CLOSURE**. Branch: 	ask/p2-s4-auth-hardening. Commits: 91cc0f07, 2c61bb0e, 1dfb902f. All verification criteria satisfied.
+
+
+## D-020: P2-S5 Command Center Review - CHANGES_REQUIRED
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-020 |
+| **Date** | 2026-07-18 |
+| **Source** | ChatGPT Command Center - P2-S5 COMMAND CENTER REVIEW - CHANGES_REQUIRED |
+| **Old Rule** | P2-S5 FINAL HARDENING submitted for review; status awaited |
+| **New Decision** | P2-S5 = CHANGES_REQUIRED. Git verification confirmed: remote branch origin/task/p2-s5-member-profile-integration at SHA 640300a2 matches local HEAD. P2-S5 remote diff does NOT contain expected Phone Schema Migration, DB display_name NULL fix, or member_profiles phone fields. Migration 0010 exists ONLY as an untracked local file and is INCOMPLETE (missing phone constraint rules, no config-based fallback market, missing CHECK constraints). |
+| **Reason** | P2-S5 delivery failed Command Center review with 4 critical failures. All fixes must be implemented by Codex CLI only. |
+| **Affected Files** | packages/database/migrations/*, packages/database/schema/*, packages/database/tests/*, packages/config/src/index.ts, apps/api/src/config/*, apps/api/src/profile/*, apps/api/src/market/*, apps/api/src/country-change/*, docs/06-phase-reports/p2-s5/*, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | P2-S5 |
+| **Migration** | 0010_member_profile_phone_and_default_market_hardening.sql (new forward migration) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P2-S5 COMMAND CENTER REVIEW - CHANGES_REQUIRED (2026-07-18) |
+| **Status** | **APPROVED** |

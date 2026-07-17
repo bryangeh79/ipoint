@@ -212,11 +212,13 @@ export class ProfileService {
         updateData['phoneNormalized'] = null;
         updateData['phoneVerificationStatus'] = 'NOT_PROVIDED';
         updateData['phoneChangedAt'] = null;
+        updateData['phoneVerifiedAt'] = null;
       } else {
         updateData['phone'] = input.phone;
         updateData['phoneNormalized'] = phoneNormalized;
         updateData['phoneVerificationStatus'] = 'PENDING';
         updateData['phoneChangedAt'] = new Date();
+        updateData['phoneVerifiedAt'] = null;
       }
     }
 

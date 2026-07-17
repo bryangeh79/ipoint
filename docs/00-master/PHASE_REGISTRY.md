@@ -67,7 +67,7 @@
 | **Phase 0** | General ledger technical skeleton, DB foundation, Auth framework, RBAC, Market module, Audit infrastructure, Design System tokens | **APPROVED** | Final acceptance approved under D-009 |
 | **Phase 0 closure** | Final integration, audit, acceptance, and governance closure | **CLOSED** | Closed under D-009; Phase 1 requires new authorization |
 | **Phase 1** | Merchant Onboarding + MCP Ledger | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21` under D-013. Pull Request to main AUTHORIZED. Phase branch: phase/1-merchant-onboarding-mcp |
-| **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) | **AUTHORIZED** | P2-S1 freeze approved under D-016; P2-S2 now CHANGES_REQUIRED for final repair only |
+| **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) | **AUTHORIZED** | P2-S1 freeze approved under D-016; P2-S2 APPROVED under D-017; P2-S5 CHANGES_REQUIRED under D-020 |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **NOT_AUTHORIZED** | Note: renamed from original Roadmap sequence per C-01 |
 | **Phase 4** | Transaction Engine | **NOT_AUTHORIZED** | Draft, receipt, QR scan, atomic confirmation, MCP debit |
 | **Phase 5** | Agent & Commission Engine | **NOT_AUTHORIZED** | Referral, activation, 3 commission types. Five-level team rewards DEFERRED |
@@ -103,7 +103,7 @@
 | **P2-S2** | Member Schema and Forward Migrations | **COMPLETE / APPROVED** | Approved under D-017 |
 | **P2-S3** | Registration, OTP and Authentication | **CHANGES_REQUIRED** | Completion repair only |
 | **P2-S4** | Member Identity, Referral and QR Foundation | **NOT_AUTHORIZED** | Await future authorization |
-| **P2-S5** | Member Profile and Multi-Market Preferences | **NOT_AUTHORIZED** | Await future authorization |
+| **P2-S5** | Member Profile and Multi-Market Preferences | **CHANGES_REQUIRED** | P2-S5 DATABASE + BEHAVIOR COMPLETION ONLY under D-020 |
 | **P2-S6** | Member KYC Level 2 | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S7** | Merchant Discovery by Current Market | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S8** | Admin Member Management and Audit | **NOT_AUTHORIZED** | Await future authorization |
@@ -111,14 +111,15 @@
 
 ## Current allowed actions
 
+- Execute P2-S5 DATABASE + BEHAVIOR COMPLETION under D-020
 - Execute P2-S3 completion repair only
-- Run all API and database integration tests for P2-S3 scope
-- Create docs/06-phase-reports/p2-s3/P2-S3_DELIVERY_REPORT.md
-- Maintain the lock on P2-S4 through P2-S9 until separate authorization arrives
+- Run all API and database integration tests for P2-S3 and P2-S5 scope
+- Create docs/06-phase-reports/p2-s5/P2-S5_FINAL_DELIVERY_REPORT.md
+- Maintain the lock on P2-S6 through P2-S9 until separate authorization arrives
 
 ## Current prohibited actions
 
-- Start or implement P2-S4 through P2-S9 or any otherwise not-authorized phase
+- Start or implement P2-S6 through P2-S9 or any otherwise not-authorized phase
 - Push directly to `main`
 - Merge `main` or create a main PR for this documentation-only phase
 - Bypass required governance sync or branch protection
@@ -133,4 +134,4 @@
 
 ---
 
-*Last updated: 2026-07-17 | Updated by: Codex CLI | Based on decisions D-001 through D-017 and the ChatGPT Command Center Phase 2 authorization*
+*Last updated: 2026-07-18 | Updated by: OpenClaw | Based on decisions D-001 through D-020 and the ChatGPT Command Center Phase 2 authorization*

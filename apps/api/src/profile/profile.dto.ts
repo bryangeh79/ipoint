@@ -13,10 +13,15 @@ export const updateProfileSchema = z
   .object({
     displayName: z
       .string()
-      .trim()
-      .min(2)
       .max(50)
-      .refine((v) => v.trim().length > 0, 'Cannot be pure whitespace.')
+      .transform((value) => {
+        const trimmed = value.trim();
+        return trimmed.length === 0 ? null : trimmed;
+      })
+      .refine(
+        (value) => value === null || value.length >= 2,
+        'Display name must be at least 2 characters.',
+      )
       .optional()
       .nullable(),
     fullName: z.string().trim().optional().nullable(),

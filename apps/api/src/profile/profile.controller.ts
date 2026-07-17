@@ -34,7 +34,10 @@ export class ProfileController {
       return await fn();
     } catch (error) {
       if (error instanceof ProfileError) {
-        throw new BadRequestException(error.message);
+        throw new BadRequestException({
+          code: error.code,
+          message: error.message,
+        });
       }
       throw error;
     }

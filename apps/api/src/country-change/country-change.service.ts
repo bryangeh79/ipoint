@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   accounts,
   memberAccountCountryChangeRequests,
+  markets,
   members,
 } from '@ipoint/database';
 import { and, desc, eq, sql } from 'drizzle-orm';
@@ -103,6 +104,23 @@ export class CountryChangeService {
       );
     }
 
+    const activeCountryRows = await this.database.db
+      .select({ id: markets.id })
+      .from(markets)
+      .where(
+        and(
+          sql`upper(${markets.code}) = upper(${requestedCountry})`,
+          eq(markets.status, 'ACTIVE'),
+        ),
+      )
+      .limit(1);
+    if (!activeCountryRows[0]) {
+      throw new CountryChangeError(
+        'COUNTRY_CHANGE_INVALID_COUNTRY',
+        'The requested country is not an active market.',
+      );
+    }
+
     // Check no pending request exists (DB unique partial index also enforces this)
     const pendingRows = await this.database.db
       .select({ id: memberAccountCountryChangeRequests.id })
@@ -123,17 +141,33 @@ export class CountryChangeService {
     }
 
     // Insert the request
-    const inserted = await this.database.db
-      .insert(memberAccountCountryChangeRequests)
-      .values({
-        memberId,
-        accountId,
-        currentCountry,
-        requestedCountry,
-        status: 'PENDING',
-        reason,
-      })
-      .returning();
+    let inserted: (typeof memberAccountCountryChangeRequests.$inferSelect)[];
+    try {
+      inserted = await this.database.db
+        .insert(memberAccountCountryChangeRequests)
+        .values({
+          memberId,
+          accountId,
+          currentCountry,
+          requestedCountry,
+          status: 'PENDING',
+          reason,
+        })
+        .returning();
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === '23505'
+      ) {
+        throw new CountryChangeError(
+          'COUNTRY_CHANGE_ALREADY_PENDING',
+          'A country change request is already pending.',
+        );
+      }
+      throw error;
+    }
 
     const row = inserted[0] as CountryChangeRequestRow | undefined;
     if (!row) {
@@ -165,9 +199,23 @@ export class CountryChangeService {
     const request = rows[0] as CountryChangeRequestRow | undefined;
 
     if (!request) {
+      const latestRows = await this.database.db
+        .select()
+        .from(memberAccountCountryChangeRequests)
+        .where(eq(memberAccountCountryChangeRequests.memberId, memberId))
+        .orderBy(desc(memberAccountCountryChangeRequests.submittedAt))
+        .limit(1);
+      const latest = latestRows[0] as CountryChangeRequestRow | undefined;
+      if (!latest) {
+        throw new CountryChangeError(
+          'COUNTRY_CHANGE_NOT_FOUND',
+          'No country change request found.',
+        );
+      }
+      if (latest.status === 'CANCELLED') return this.toResponse(latest);
       throw new CountryChangeError(
-        'COUNTRY_CHANGE_NOT_FOUND',
-        'No pending country change request found.',
+        'COUNTRY_CHANGE_CANCEL_NOT_ALLOWED',
+        'Only pending country change requests can be cancelled.',
       );
     }
 

@@ -47,7 +47,9 @@ export class MarketController {
     try {
       return await this.marketService.getMarket(actor.accountId);
     } catch (e) {
-      if (e instanceof MarketError) throw new BadRequestException(e.message);
+      if (e instanceof MarketError) {
+        throw new BadRequestException({ code: e.code, message: e.message });
+      }
       throw e;
     }
   }
@@ -76,7 +78,9 @@ export class MarketController {
         body.marketId,
       );
     } catch (e) {
-      if (e instanceof MarketError) throw new BadRequestException(e.message);
+      if (e instanceof MarketError) {
+        throw new BadRequestException({ code: e.code, message: e.message });
+      }
       throw e;
     }
   }
