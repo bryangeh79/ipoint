@@ -19,28 +19,28 @@ date: 2026-07-17
 
 ## 2. Unit test matrix
 
-| Area | Cases |
-|---|---|
-| Auth | OTP expiry, OTP attempt limits, login success/failure, closed account login denied, refresh rotation, logout revocation, password reset handoff |
-| Member status | PENDING_EMAIL_VERIFICATION -> ACTIVE, ACTIVE -> SUSPENDED, SUSPENDED -> ACTIVE, CLOSED terminal behavior |
-| Profile | Immutable fields rejected, mutable fields accepted, masking rules applied |
-| Market selection | Enabled market accepted, disabled market rejected, current market persisted correctly, session/request context derived from persisted value |
-| Referral | Self-referral blocked, cycles blocked, single active referrer enforced, correction history preserved |
-| QR | Token unpredictability, manual rotation, revocation, one active QR only, no plaintext token storage |
-| KYC | Draft submit, resubmit, approval, rejection, more-info, reverification |
-| Country change | Pending, single pending request enforced, approve, reject, cancel, conflict handling |
-| Audit | Audit payload contents, redaction, actor and market consistency |
-| Member closure | CLOSED blocks login and business operations, audit-only visibility remains |
+| Area             | Cases                                                                                                                                           |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth             | OTP expiry, OTP attempt limits, login success/failure, closed account login denied, refresh rotation, logout revocation, password reset handoff |
+| Member status    | PENDING_EMAIL_VERIFICATION -> ACTIVE, ACTIVE -> SUSPENDED, SUSPENDED -> ACTIVE, CLOSED terminal behavior                                        |
+| Profile          | Immutable fields rejected, mutable fields accepted, masking rules applied                                                                       |
+| Market selection | Enabled market accepted, disabled market rejected, current market persisted correctly, session/request context derived from persisted value     |
+| Referral         | Self-referral blocked, cycles blocked, single active referrer enforced, correction history preserved                                            |
+| QR               | Token unpredictability, manual rotation, revocation, one active QR only, no plaintext token storage                                             |
+| KYC              | Draft submit, resubmit, approval, rejection, more-info, reverification                                                                          |
+| Country change   | Pending, single pending request enforced, approve, reject, cancel, conflict handling                                                            |
+| Audit            | Audit payload contents, redaction, actor and market consistency                                                                                 |
+| Member closure   | CLOSED blocks login and business operations, audit-only visibility remains                                                                      |
 
 ## 3. Integration test matrix
 
-| Area | Cases |
-|---|---|
-| Auth and member bootstrap | Registration, OTP verification, login, refresh, logout, password reset |
-| Member self-service | Read and edit profile, switch market, request QR rotation, submit KYC, request country change |
-| Admin review | List members, review KYC, review country changes, suspend/reactivate, referral correction with preserved history |
-| Discovery | Current-market merchant discovery only, branch detail correctness, deterministic stable ordering |
-| Security | Permission denied, market access denied, suspension denial, invalid ownership, request replay |
+| Area                      | Cases                                                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Auth and member bootstrap | Registration, OTP verification, login, refresh, logout, password reset                                           |
+| Member self-service       | Read and edit profile, switch market, request QR rotation, submit KYC, request country change                    |
+| Admin review              | List members, review KYC, review country changes, suspend/reactivate, referral correction with preserved history |
+| Discovery                 | Current-market merchant discovery only, branch detail correctness, deterministic stable ordering                 |
+| Security                  | Permission denied, market access denied, suspension denial, invalid ownership, request replay                    |
 
 ## 4. E2E scenarios
 

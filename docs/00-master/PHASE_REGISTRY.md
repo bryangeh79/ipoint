@@ -2,7 +2,7 @@
 
 > Rules:
 > - Only ChatGPT Command Center may mark a Phase as APPROVED.
-> - Phase status values: NOT_AUTHORIZED / AUTHORIZED / PLANNING / IN_PROGRESS / COMPLETE / APPROVED / BLOCKED
+> - Phase status values: NOT_AUTHORIZED / AUTHORIZED / PLANNING / IN_PROGRESS / UNDER_REVIEW / CHANGES_REQUIRED / APPROVED / BLOCKED / COMPLETE / APPROVED / BLOCKED
 > - OpenClaw updates status as decisions arrive.
 > - Before updating status, update DECISION_LOG.md with the authorizing decision.
 
@@ -100,7 +100,7 @@
 | Sub-phase | Scope | Status | Next gate |
 |---|---|---|---|
 | **P2-S1** | Architecture and contract freeze | **COMPLETE / APPROVED** | Approved at `8cdc0b2938ee7ceedb89c13716c6dae07d029c2f` under D-016 |
-| **P2-S2** | Member Schema and Forward Migrations | **AUTHORIZED** | D-016 authorizes schema and migration implementation |
+| **| **P2-S2** | Member Schema and Forward Migrations | **CHANGES_REQUIRED**** | D-016 authorizes schema and migration implementation |
 | **P2-S3** | Registration, OTP and Authentication | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S4** | Member Identity, Referral and QR Foundation | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S5** | Member Profile and Multi-Market Preferences | **NOT_AUTHORIZED** | Await future authorization |
@@ -122,7 +122,7 @@
 - Merge `main` or create a main PR for this documentation-only phase
 - Bypass required governance sync or branch protection
 - Use OpenClaw sub-agents for engineering execution or accept invalidated sub-agent output as evidence
-- OpenClaw writing production code outside the authorized P2-S2 scope
+- OpenClaw writing production code of any kind
 - Change LOCKED business rules
 - Hard-code CONFIGURABLE values
 - Implement DEFERRED modules

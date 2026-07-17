@@ -18,6 +18,7 @@ export default tseslint.config(
       '.acceptance-evidence/**',
       '.acceptance/**',
       '.local/**',
+      '.openclaw/**',
       'Concept/**',
       'memory/**',
       'tasks/**',

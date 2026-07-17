@@ -37,17 +37,17 @@ Purpose: top-level member aggregate anchored to one account.
 
 Suggested columns:
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID PK | Internal key |
-| `account_id` | UUID FK -> `accounts.id` | One-to-one with account |
-| `public_member_id` | text unique | Member-facing ID |
-| `referral_code` | text unique | Unique per member |
-| `status` | enum | `PENDING_EMAIL_VERIFICATION`, `ACTIVE`, `SUSPENDED`, `CLOSED` |
-| `kyc_level` | enum | `NONE`, `LEVEL_1`, `LEVEL_2` |
-| `closed_at` | timestamptz | Terminal closure timestamp |
-| `created_at`, `updated_at` | timestamptz | Audit timestamps |
-| `archived_at` | timestamptz | Only for non-history mutable rows |
+| Column                     | Type                     | Notes                                                         |
+| -------------------------- | ------------------------ | ------------------------------------------------------------- |
+| `id`                       | UUID PK                  | Internal key                                                  |
+| `account_id`               | UUID FK -> `accounts.id` | One-to-one with account                                       |
+| `public_member_id`         | text unique              | Member-facing ID                                              |
+| `referral_code`            | text unique              | Unique per member                                             |
+| `status`                   | enum                     | `PENDING_EMAIL_VERIFICATION`, `ACTIVE`, `SUSPENDED`, `CLOSED` |
+| `kyc_level`                | enum                     | `NONE`, `LEVEL_1`, `LEVEL_2`                                  |
+| `closed_at`                | timestamptz              | Terminal closure timestamp                                    |
+| `created_at`, `updated_at` | timestamptz              | Audit timestamps                                              |
+| `archived_at`              | timestamptz              | Only for non-history mutable rows                             |
 
 Constraints:
 
@@ -63,21 +63,21 @@ Purpose: mutable member profile data.
 
 Suggested columns:
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID PK | Internal key |
-| `member_id` | UUID FK -> `members.id` | One-to-one |
-| `display_name` | text | Public profile name |
-| `full_name` | text | KYC-linked, masked where needed |
-| `phone` | text | Sensitive |
-| `birth_date` | date | Sensitive |
-| `address` | jsonb | Sensitive |
-| `avatar_object_key` | text | Object storage reference |
-| `language` | text | Preference |
-| `locale` | text | Preference |
-| `marketing_opt_in` | boolean | Consent flag |
-| `created_at`, `updated_at` | timestamptz | Audit timestamps |
-| `archived_at` | timestamptz | Soft-delete for profile only |
+| Column                     | Type                    | Notes                           |
+| -------------------------- | ----------------------- | ------------------------------- |
+| `id`                       | UUID PK                 | Internal key                    |
+| `member_id`                | UUID FK -> `members.id` | One-to-one                      |
+| `display_name`             | text                    | Public profile name             |
+| `full_name`                | text                    | KYC-linked, masked where needed |
+| `phone`                    | text                    | Sensitive                       |
+| `birth_date`               | date                    | Sensitive                       |
+| `address`                  | jsonb                   | Sensitive                       |
+| `avatar_object_key`        | text                    | Object storage reference        |
+| `language`                 | text                    | Preference                      |
+| `locale`                   | text                    | Preference                      |
+| `marketing_opt_in`         | boolean                 | Consent flag                    |
+| `created_at`, `updated_at` | timestamptz             | Audit timestamps                |
+| `archived_at`              | timestamptz             | Soft-delete for profile only    |
 
 Constraints:
 
@@ -90,16 +90,16 @@ Purpose: member market access, enabled-market tracking, and current market persi
 
 Suggested columns:
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID PK | Internal key |
-| `member_id` | UUID FK -> `members.id` | Member owner |
-| `market_id` | UUID FK -> `markets.id` | Enabled market |
-| `is_enabled` | boolean | Whether member can use the market |
-| `is_current` | boolean | Exactly one current market per member |
-| `sort_order` | integer | UI ordering |
-| `last_selected_at` | timestamptz | Last current-market selection |
-| `created_at`, `updated_at` | timestamptz | Audit timestamps |
+| Column                     | Type                    | Notes                                 |
+| -------------------------- | ----------------------- | ------------------------------------- |
+| `id`                       | UUID PK                 | Internal key                          |
+| `member_id`                | UUID FK -> `members.id` | Member owner                          |
+| `market_id`                | UUID FK -> `markets.id` | Enabled market                        |
+| `is_enabled`               | boolean                 | Whether member can use the market     |
+| `is_current`               | boolean                 | Exactly one current market per member |
+| `sort_order`               | integer                 | UI ordering                           |
+| `last_selected_at`         | timestamptz             | Last current-market selection         |
+| `created_at`, `updated_at` | timestamptz             | Audit timestamps                      |
 
 Constraints:
 
@@ -114,15 +114,15 @@ Purpose: current direct referrer state for each member.
 
 Suggested columns:
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID PK | Internal key |
-| `member_id` | UUID FK -> `members.id` | Referred member |
-| `referrer_member_id` | UUID FK -> `members.id` | Direct referrer only |
-| `referral_code_snapshot` | text | Immutable snapshot of code used |
-| `source` | text | Registration or admin correction |
-| `status` | enum | `ACTIVE`, `VOIDED` |
-| `created_at`, `updated_at` | timestamptz | Audit timestamps |
+| Column                     | Type                    | Notes                            |
+| -------------------------- | ----------------------- | -------------------------------- |
+| `id`                       | UUID PK                 | Internal key                     |
+| `member_id`                | UUID FK -> `members.id` | Referred member                  |
+| `referrer_member_id`       | UUID FK -> `members.id` | Direct referrer only             |
+| `referral_code_snapshot`   | text                    | Immutable snapshot of code used  |
+| `source`                   | text                    | Registration or admin correction |
+| `status`                   | enum                    | `ACTIVE`, `VOIDED`               |
+| `created_at`, `updated_at` | timestamptz             | Audit timestamps                 |
 
 Constraints:
 
@@ -136,18 +136,18 @@ Purpose: immutable referral correction and assignment history.
 
 Suggested columns:
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID PK | Internal key |
-| `member_id` | UUID FK -> `members.id` | Referred member |
-| `old_referrer_member_id` | UUID FK -> `members.id` | Previous referrer, if any |
-| `new_referrer_member_id` | UUID FK -> `members.id` | New referrer |
-| `correction_reason` | text | Required for admin correction |
-| `authorized_actor_type` | text | Admin or system actor type |
-| `authorized_actor_id` | UUID | Authorized actor identity |
-| `request_id` | text | Idempotency or request reference |
-| `occurred_at` | timestamptz | Event time |
-| `event_type` | text | `ASSIGNED`, `CORRECTED`, `VOIDED` |
+| Column                   | Type                    | Notes                             |
+| ------------------------ | ----------------------- | --------------------------------- |
+| `id`                     | UUID PK                 | Internal key                      |
+| `member_id`              | UUID FK -> `members.id` | Referred member                   |
+| `old_referrer_member_id` | UUID FK -> `members.id` | Previous referrer, if any         |
+| `new_referrer_member_id` | UUID FK -> `members.id` | New referrer                      |
+| `correction_reason`      | text                    | Required for admin correction     |
+| `authorized_actor_type`  | text                    | Admin or system actor type        |
+| `authorized_actor_id`    | UUID                    | Authorized actor identity         |
+| `request_id`             | text                    | Idempotency or request reference  |
+| `occurred_at`            | timestamptz             | Event time                        |
+| `event_type`             | text                    | `ASSIGNED`, `CORRECTED`, `VOIDED` |
 
 Constraints:
 
@@ -161,17 +161,17 @@ Purpose: immutable consent evidence.
 
 Suggested columns:
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID PK | Internal key |
-| `member_id` | UUID FK -> `members.id` | Owner |
-| `document_type` | text | Terms, disclaimer, privacy policy |
-| `document_version` | text | Version snapshot |
-| `locale` | text | Content locale |
-| `accepted_at` | timestamptz | Event time |
-| `ip_address` | text | Evidence |
-| `user_agent` | text | Evidence |
-| `device_fingerprint` | text | Optional if approved |
+| Column               | Type                    | Notes                             |
+| -------------------- | ----------------------- | --------------------------------- |
+| `id`                 | UUID PK                 | Internal key                      |
+| `member_id`          | UUID FK -> `members.id` | Owner                             |
+| `document_type`      | text                    | Terms, disclaimer, privacy policy |
+| `document_version`   | text                    | Version snapshot                  |
+| `locale`             | text                    | Content locale                    |
+| `accepted_at`        | timestamptz             | Event time                        |
+| `ip_address`         | text                    | Evidence                          |
+| `user_agent`         | text                    | Evidence                          |
+| `device_fingerprint` | text                    | Optional if approved              |
 
 Constraints:
 
@@ -184,19 +184,19 @@ Purpose: active and historical QR identity lifecycle.
 
 Suggested columns:
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID PK | Internal key |
-| `member_id` | UUID FK -> `members.id` | Owner |
-| `public_qr_id` | text unique | Public QR reference |
-| `token_hash` | text | Hash of unpredictable token; no plaintext token storage |
-| `status` | enum | `ACTIVE`, `ROTATED`, `REVOKED` |
-| `rotated_from_id` | UUID FK -> `member_qr_identities.id` | Chain reference |
-| `rotated_to_id` | UUID FK -> `member_qr_identities.id` | Chain reference |
-| `issued_at` | timestamptz | Event time |
-| `expires_at` | timestamptz | Short-lived if token is rotating |
-| `revoked_at` | timestamptz | Revocation time |
-| `reason` | text | Rotation/revocation reason |
+| Column            | Type                                 | Notes                                                   |
+| ----------------- | ------------------------------------ | ------------------------------------------------------- |
+| `id`              | UUID PK                              | Internal key                                            |
+| `member_id`       | UUID FK -> `members.id`              | Owner                                                   |
+| `public_qr_id`    | text unique                          | Public QR reference                                     |
+| `token_hash`      | text                                 | Hash of unpredictable token; no plaintext token storage |
+| `status`          | enum                                 | `ACTIVE`, `ROTATED`, `REVOKED`                          |
+| `rotated_from_id` | UUID FK -> `member_qr_identities.id` | Chain reference                                         |
+| `rotated_to_id`   | UUID FK -> `member_qr_identities.id` | Chain reference                                         |
+| `issued_at`       | timestamptz                          | Event time                                              |
+| `expires_at`      | timestamptz                          | Short-lived if token is rotating                        |
+| `revoked_at`      | timestamptz                          | Revocation time                                         |
+| `reason`          | text                                 | Rotation/revocation reason                              |
 
 Constraints:
 
@@ -211,19 +211,19 @@ Purpose: KYC workflow head for each member.
 
 Suggested columns:
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID PK | Internal key |
-| `member_id` | UUID FK -> `members.id` | One open case per member |
-| `market_id` | UUID FK -> `markets.id` | Case market context if required |
-| `status` | enum | See state machine |
-| `version` | integer | Increment on resubmission/review |
-| `level_requested` | enum | `LEVEL_1`, `LEVEL_2` |
-| `submitted_at` | timestamptz | Current submission time |
-| `reviewed_at` | timestamptz | Review time |
-| `reviewed_by_admin_user_id` | UUID FK -> `admin_users.id` | Reviewer |
-| `decision_reason` | text | Required on review |
-| `reverification_required_at` | timestamptz | If later re-review is needed |
+| Column                       | Type                        | Notes                            |
+| ---------------------------- | --------------------------- | -------------------------------- |
+| `id`                         | UUID PK                     | Internal key                     |
+| `member_id`                  | UUID FK -> `members.id`     | One open case per member         |
+| `market_id`                  | UUID FK -> `markets.id`     | Case market context if required  |
+| `status`                     | enum                        | See state machine                |
+| `version`                    | integer                     | Increment on resubmission/review |
+| `level_requested`            | enum                        | `LEVEL_1`, `LEVEL_2`             |
+| `submitted_at`               | timestamptz                 | Current submission time          |
+| `reviewed_at`                | timestamptz                 | Review time                      |
+| `reviewed_by_admin_user_id`  | UUID FK -> `admin_users.id` | Reviewer                         |
+| `decision_reason`            | text                        | Required on review               |
+| `reverification_required_at` | timestamptz                 | If later re-review is needed     |
 
 Constraints:
 
@@ -236,22 +236,22 @@ Purpose: document metadata only, not binary storage.
 
 Suggested columns:
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID PK | Internal key |
-| `member_kyc_case_id` | UUID FK -> `member_kyc_cases.id` | Case owner |
-| `member_id` | UUID FK -> `members.id` | Convenience FK |
-| `market_id` | UUID FK -> `markets.id` | Scope |
-| `document_type` | text | Identity, address, selfie, etc. |
-| `object_key` | text unique | Private object storage key |
-| `original_filename` | text | Sensitive metadata |
-| `content_type` | text | MIME type |
-| `byte_size` | numeric | Exact size |
-| `sha256` | text | Integrity hash |
-| `scan_status` | text | Pending, clean, blocked |
-| `classification` | text | Private KYC |
-| `created_at` | timestamptz | Event time |
-| `archived_at` | timestamptz | Only if superseded by a new version |
+| Column               | Type                             | Notes                               |
+| -------------------- | -------------------------------- | ----------------------------------- |
+| `id`                 | UUID PK                          | Internal key                        |
+| `member_kyc_case_id` | UUID FK -> `member_kyc_cases.id` | Case owner                          |
+| `member_id`          | UUID FK -> `members.id`          | Convenience FK                      |
+| `market_id`          | UUID FK -> `markets.id`          | Scope                               |
+| `document_type`      | text                             | Identity, address, selfie, etc.     |
+| `object_key`         | text unique                      | Private object storage key          |
+| `original_filename`  | text                             | Sensitive metadata                  |
+| `content_type`       | text                             | MIME type                           |
+| `byte_size`          | numeric                          | Exact size                          |
+| `sha256`             | text                             | Integrity hash                      |
+| `scan_status`        | text                             | Pending, clean, blocked             |
+| `classification`     | text                             | Private KYC                         |
+| `created_at`         | timestamptz                      | Event time                          |
+| `archived_at`        | timestamptz                      | Only if superseded by a new version |
 
 Constraints:
 
@@ -264,20 +264,20 @@ Purpose: controlled review for account-country changes.
 
 Suggested columns:
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID PK | Internal key |
-| `member_id` | UUID FK -> `members.id` | Request owner |
-| `account_id` | UUID FK -> `accounts.id` | Authoritative account |
-| `current_country` | text | Snapshot |
-| `requested_country` | text | Requested value |
-| `status` | enum | `PENDING`, `APPROVED`, `REJECTED`, `CANCELLED` |
-| `reason` | text | Member reason |
-| `reviewed_by_admin_user_id` | UUID FK -> `admin_users.id` | Reviewer |
-| `review_reason` | text | Required for review |
-| `submitted_at` | timestamptz | Event time |
-| `reviewed_at` | timestamptz | Event time |
-| `created_at`, `updated_at` | timestamptz | Audit timestamps |
+| Column                      | Type                        | Notes                                          |
+| --------------------------- | --------------------------- | ---------------------------------------------- |
+| `id`                        | UUID PK                     | Internal key                                   |
+| `member_id`                 | UUID FK -> `members.id`     | Request owner                                  |
+| `account_id`                | UUID FK -> `accounts.id`    | Authoritative account                          |
+| `current_country`           | text                        | Snapshot                                       |
+| `requested_country`         | text                        | Requested value                                |
+| `status`                    | enum                        | `PENDING`, `APPROVED`, `REJECTED`, `CANCELLED` |
+| `reason`                    | text                        | Member reason                                  |
+| `reviewed_by_admin_user_id` | UUID FK -> `admin_users.id` | Reviewer                                       |
+| `review_reason`             | text                        | Required for review                            |
+| `submitted_at`              | timestamptz                 | Event time                                     |
+| `reviewed_at`               | timestamptz                 | Event time                                     |
+| `created_at`, `updated_at`  | timestamptz                 | Audit timestamps                               |
 
 Constraints:
 
