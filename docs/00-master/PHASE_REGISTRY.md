@@ -14,9 +14,9 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Phase** | **P2-S2 MEMBER SCHEMA AND FORWARD MIGRATIONS** | Phase 2 P2-S2 authorized under D-016; P2-S1 APPROVED; P2-S3+ NOT_AUTHORIZED |
+| **Current Authorized Work** | **P2-S2 FINAL REPAIR ONLY** | Limited to hygiene repair, verification, and report sync for P2-S2 |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
-| **Phase 2** | **AUTHORIZED** | P2-S1 approved under D-016; P2-S2 authorized under D-016; later sub-phases remain NOT_AUTHORIZED |
+| **Phase 2** | **AUTHORIZED** | P2-S1 approved under D-016; P2-S2 CHANGES_REQUIRED; later sub-phases remain NOT_AUTHORIZED |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
 | **Phase 1 Batch B** | **APPROVED** | P1-S5 through P1-S7 COMPLETE under D-012 |
 | **Phase 1 Final Batch** | **APPROVED** | P1-S8 and P1-S9 COMPLETE under D-013 |
@@ -67,7 +67,7 @@
 | **Phase 0** | General ledger technical skeleton, DB foundation, Auth framework, RBAC, Market module, Audit infrastructure, Design System tokens | **APPROVED** | Final acceptance approved under D-009 |
 | **Phase 0 closure** | Final integration, audit, acceptance, and governance closure | **CLOSED** | Closed under D-009; Phase 1 requires new authorization |
 | **Phase 1** | Merchant Onboarding + MCP Ledger | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21` under D-013. Pull Request to main AUTHORIZED. Phase branch: phase/1-merchant-onboarding-mcp |
-| **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) | **AUTHORIZED** | P2-S1 freeze authorized under D-014; repair updated under D-015 |
+| **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) | **AUTHORIZED** | P2-S1 freeze approved under D-016; P2-S2 now CHANGES_REQUIRED for final repair only |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **NOT_AUTHORIZED** | Note: renamed from original Roadmap sequence per C-01 |
 | **Phase 4** | Transaction Engine | **NOT_AUTHORIZED** | Draft, receipt, QR scan, atomic confirmation, MCP debit |
 | **Phase 5** | Agent & Commission Engine | **NOT_AUTHORIZED** | Referral, activation, 3 commission types. Five-level team rewards DEFERRED |
@@ -100,7 +100,7 @@
 | Sub-phase | Scope | Status | Next gate |
 |---|---|---|---|
 | **P2-S1** | Architecture and contract freeze | **COMPLETE / APPROVED** | Approved at `8cdc0b2938ee7ceedb89c13716c6dae07d029c2f` under D-016 |
-| **| **P2-S2** | Member Schema and Forward Migrations | **CHANGES_REQUIRED**** | D-016 authorizes schema and migration implementation |
+| **P2-S2** | Member Schema and Forward Migrations | **CHANGES_REQUIRED** | Final repair only; report, hygiene, and SHA sync work remains |
 | **P2-S3** | Registration, OTP and Authentication | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S4** | Member Identity, Referral and QR Foundation | **NOT_AUTHORIZED** | Await future authorization |
 | **P2-S5** | Member Profile and Multi-Market Preferences | **NOT_AUTHORIZED** | Await future authorization |
@@ -111,8 +111,8 @@
 
 ## Current allowed actions
 
-- Execute P2-S2 Member Schema and Forward Migrations
-- Run all database integration tests
+- Execute P2-S2 final repair only
+- Run verification and hygiene checks for the final SHA
 - Maintain the lock on P2-S3 through P2-S9 until separate authorization arrives
 
 ## Current prohibited actions
