@@ -26,6 +26,7 @@ export const foundationPermissions = [
   ['merchant.mcp.view', 'View merchant MCP accounts and ledgers'],
   ['merchant.mcp.recharge.review', 'Review MCP recharge requests'],
   ['merchant.mcp.refund.review', 'Review MCP refund requests'],
+  ['merchant.refund.manage', 'Manage merchant refund obligations'],
   ['merchant.mcp.adjust', 'Create manual MCP adjustments'],
   ['merchant.mcp.adjust.approve', 'Approve manual MCP adjustments'],
   ['merchant.mcp.adjust.execute', 'Execute approved MCP adjustments'],

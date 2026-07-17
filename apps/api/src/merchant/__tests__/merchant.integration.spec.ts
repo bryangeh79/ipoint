@@ -40,6 +40,8 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
   let merchantToken: string;
   let otherAccountToken: string;
   let adminToken: string;
+  let makerAdminId: string;
+  let checkerAdminToken: string;
   let unprivilegedAdminToken: string;
   const merchantEmail = `${randomUUID()}@example.com`;
   const merchantPassword = 'Merchant-Test-Password-123!';
@@ -89,6 +91,7 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
 
     const administration = app.get(AccessAdministrationService);
     const authorizedAdmin = await createAdmin('Authorized Admin');
+    makerAdminId = authorizedAdmin.adminUserId;
     const roleRows = await database.db
       .select({ id: roles.id })
       .from(roles)
@@ -105,6 +108,20 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
     );
     adminToken = (
       await auth.login(authorizedAdmin.email, authorizedAdmin.password)
+    ).accessToken;
+
+    const checkerAdmin = await createAdmin('Checker Admin');
+    await administration.assignRole(
+      checkerAdmin.adminUserId,
+      roleRows[0]?.id ?? '',
+      { adminUserId: checkerAdmin.adminUserId, reason: 'Checker test setup' },
+    );
+    await administration.grantMarketAccess(checkerAdmin.adminUserId, marketId, {
+      adminUserId: checkerAdmin.adminUserId,
+      reason: 'Checker test setup',
+    });
+    checkerAdminToken = (
+      await auth.login(checkerAdmin.email, checkerAdmin.password)
     ).accessToken;
 
     const unprivilegedAdmin = await createAdmin('Unprivileged Admin');
@@ -595,6 +612,134 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
     });
   });
 
+  it('enforces maker-checker adjustment and creates a reserved non-cash refund obligation', async () => {
+    const accountRows = await database.db
+      .select({ id: mcpAccounts.id })
+      .from(mcpAccounts)
+      .where(eq(mcpAccounts.merchantBranchId, branchId));
+    const mcpAccountId = accountRows[0]?.id ?? '';
+    const adjustmentPath = `/api/v1/admin/markets/${marketId}/mcp/accounts/${mcpAccountId}/adjustments`;
+    const adjustment = await supertest(server)
+      .post(adjustmentPath)
+      .set('authorization', `Bearer ${adminToken}`)
+      .set('idempotency-key', randomUUID())
+      .send({
+        type: 'MANUAL_CREDIT',
+        amount: '0.0000000001',
+        reason: 'Reconciliation correction.',
+        evidence: { ticket: 'FIN-001' },
+      })
+      .expect(201);
+    const adjustmentId = String((adjustment.body as { id: string }).id);
+    await supertest(server)
+      .post(
+        `/api/v1/admin/markets/${marketId}/mcp/adjustments/${adjustmentId}/submit`,
+      )
+      .set('authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    await supertest(server)
+      .post(
+        `/api/v1/admin/markets/${marketId}/mcp/adjustments/${adjustmentId}/decision`,
+      )
+      .set('authorization', `Bearer ${adminToken}`)
+      .send({ decision: 'APPROVED', reason: 'Self approval prohibited.' })
+      .expect(403);
+    const executed = await supertest(server)
+      .post(
+        `/api/v1/admin/markets/${marketId}/mcp/adjustments/${adjustmentId}/decision`,
+      )
+      .set('authorization', `Bearer ${checkerAdminToken}`)
+      .send({
+        decision: 'APPROVED',
+        reason: 'Evidence independently verified.',
+      })
+      .expect(200);
+    expect(executed.body).toMatchObject({
+      makerAdminUserId: makerAdminId,
+      status: 'EXECUTED',
+    });
+
+    const refund = await supertest(server)
+      .post(`/api/v1/merchant/branches/${branchId}/mcp/refunds`)
+      .set('authorization', `Bearer ${merchantToken}`)
+      .set('x-market-id', marketId)
+      .set('idempotency-key', randomUUID())
+      .send({ amount: '5', reason: 'Customer refund obligation.' })
+      .expect(201);
+    const refundId = String((refund.body as { id: string }).id);
+    const refundReviewPath = `/api/v1/admin/markets/${marketId}/mcp/refunds/${refundId}/review`;
+    await supertest(server)
+      .post(refundReviewPath)
+      .set('authorization', `Bearer ${adminToken}`)
+      .send({ decision: 'APPROVED', reason: 'Cannot skip review.' })
+      .expect(409);
+    await supertest(server)
+      .post(refundReviewPath)
+      .set('authorization', `Bearer ${adminToken}`)
+      .send({ decision: 'UNDER_REVIEW', reason: 'Evidence review started.' })
+      .expect(200);
+    await supertest(server)
+      .post(refundReviewPath)
+      .set('authorization', `Bearer ${adminToken}`)
+      .send({
+        decision: 'APPROVED',
+        reason: 'Obligation approved; no payout executed.',
+      })
+      .expect(200);
+
+    const summary = await supertest(server)
+      .get(`/api/v1/merchant/branches/${branchId}/mcp`)
+      .set('authorization', `Bearer ${merchantToken}`)
+      .set('x-market-id', marketId)
+      .expect(200);
+    expect(summary.body).toMatchObject({
+      total_balance: '125.0000000001',
+      available_balance: '120.0000000001',
+    });
+    const obligation = await database.pool.query<{
+      balance_delta: string;
+      available_delta: string;
+      metadata: { obligation: string; reserved: boolean };
+    }>(
+      `SELECT balance_delta::text, available_delta::text, metadata
+       FROM mcp_ledger_entries WHERE source_type = 'REFUND_REQUEST' AND source_id = $1`,
+      [refundId],
+    );
+    expect(obligation.rows).toEqual([
+      {
+        balance_delta: '0.0000000000',
+        available_delta: '-5.0000000000',
+        metadata: { obligation: 'NON_CASH', reserved: true },
+      },
+    ]);
+
+    const debit = await supertest(server)
+      .post(adjustmentPath)
+      .set('authorization', `Bearer ${adminToken}`)
+      .set('idempotency-key', randomUUID())
+      .send({
+        type: 'MANUAL_DEBIT',
+        amount: '25.0000000002',
+        reason: 'Governed debit for reactivation test.',
+        evidence: { ticket: 'FIN-002' },
+      })
+      .expect(201);
+    const debitId = String((debit.body as { id: string }).id);
+    await supertest(server)
+      .post(
+        `/api/v1/admin/markets/${marketId}/mcp/adjustments/${debitId}/submit`,
+      )
+      .set('authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    await supertest(server)
+      .post(
+        `/api/v1/admin/markets/${marketId}/mcp/adjustments/${debitId}/decision`,
+      )
+      .set('authorization', `Bearer ${checkerAdminToken}`)
+      .send({ decision: 'APPROVED', reason: 'Debit independently verified.' })
+      .expect(200);
+  });
+
   it('manages service-fee packages with exact rates, market access, and last-active protection', async () => {
     const packagePath = `/api/v1/admin/markets/${marketId}/packages`;
     await supertest(server)
@@ -707,7 +852,13 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       .from(mcpAccounts)
       .where(eq(mcpAccounts.merchantBranchId, branchId));
     await adminStatusAction('suspend', 'Operations hold.');
-    await adminStatusAction('reactivate', 'Operations cleared.');
+    const reactivated = await adminStatusAction(
+      'reactivate',
+      'Operations cleared.',
+    );
+    expect(reactivated.body).toMatchObject({
+      operational_status: 'PENDING_MCP',
+    });
     const after = await database.db
       .select({ balance: mcpAccounts.availableBalance })
       .from(mcpAccounts)
@@ -749,7 +900,7 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
   }
 
   async function adminStatusAction(action: string, reason: string) {
-    await supertest(server)
+    return supertest(server)
       .post(`/api/v1/admin/markets/${marketId}/merchants/${branchId}/${action}`)
       .set('authorization', `Bearer ${adminToken}`)
       .set('idempotency-key', randomUUID())

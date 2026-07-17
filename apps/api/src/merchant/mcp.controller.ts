@@ -22,15 +22,24 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
 import { RbacGuard, RequirePermission } from '../platform-access/rbac.guard.js';
 import {
   createRechargeSchema,
+  createAdjustmentSchema,
+  adjustmentDecisionSchema,
+  createRefundSchema,
   ledgerQuerySchema,
   reviewRechargeSchema,
+  reviewRefundSchema,
+  type CreateAdjustmentDto,
+  type AdjustmentDecisionDto,
+  type CreateRefundDto,
   type CreateRechargeDto,
   type LedgerQueryDto,
   type ReviewRechargeDto,
+  type ReviewRefundDto,
 } from './dto/mcp.dto.js';
 import { MerchantOwnershipGuard } from './guards/merchant-ownership.guard.js';
 import { McpService } from './mcp.service.js';
 import {
+  requireAccountActor,
   requireAdminActor,
   type MerchantRequestContext,
 } from './merchant.service.js';
@@ -120,6 +129,110 @@ export class McpController {
     @Req() request: Request,
   ) {
     return this.mcp.reviewRecharge(
+      marketId,
+      requestId,
+      requireAdminActor(actor),
+      input,
+      context(request, ip),
+    );
+  }
+
+  @Post('admin/markets/:marketId/mcp/accounts/:accountId/adjustments')
+  @UseGuards(AuthGuard, RbacGuard)
+  @RequirePermission('merchant.mcp.adjust', { marketScoped: true })
+  createAdjustment(
+    @Param('marketId', new ParseUUIDPipe()) marketId: string,
+    @Param('accountId', new ParseUUIDPipe()) accountId: string,
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body(new ZodValidationPipe(createAdjustmentSchema))
+    input: CreateAdjustmentDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @Ip() ip: string,
+    @Req() request: Request,
+  ) {
+    return this.mcp.createAdjustment(
+      marketId,
+      accountId,
+      requireAdminActor(actor),
+      input,
+      requireKey(key),
+      context(request, ip),
+    );
+  }
+
+  @Post('admin/markets/:marketId/mcp/adjustments/:requestId/submit')
+  @HttpCode(200)
+  @UseGuards(AuthGuard, RbacGuard)
+  @RequirePermission('merchant.mcp.adjust', { marketScoped: true })
+  submitAdjustment(
+    @Param('marketId', new ParseUUIDPipe()) marketId: string,
+    @Param('requestId', new ParseUUIDPipe()) requestId: string,
+    @CurrentActor() actor: RequestActor | undefined,
+    @Ip() ip: string,
+    @Req() request: Request,
+  ) {
+    return this.mcp.submitAdjustment(
+      marketId,
+      requestId,
+      requireAdminActor(actor),
+      context(request, ip),
+    );
+  }
+
+  @Post('admin/markets/:marketId/mcp/adjustments/:requestId/decision')
+  @HttpCode(200)
+  @UseGuards(AuthGuard, RbacGuard)
+  @RequirePermission('merchant.mcp.adjust.approve', { marketScoped: true })
+  decideAdjustment(
+    @Param('marketId', new ParseUUIDPipe()) marketId: string,
+    @Param('requestId', new ParseUUIDPipe()) requestId: string,
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body(new ZodValidationPipe(adjustmentDecisionSchema))
+    input: AdjustmentDecisionDto,
+    @Ip() ip: string,
+    @Req() request: Request,
+  ) {
+    return this.mcp.decideAdjustment(
+      marketId,
+      requestId,
+      requireAdminActor(actor),
+      input,
+      context(request, ip),
+    );
+  }
+
+  @Post('merchant/branches/:branchId/mcp/refunds')
+  @UseGuards(AuthGuard, MerchantOwnershipGuard)
+  createRefund(
+    @Param('branchId', new ParseUUIDPipe()) branchId: string,
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body(new ZodValidationPipe(createRefundSchema)) input: CreateRefundDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @Ip() ip: string,
+    @Req() request: Request,
+  ) {
+    return this.mcp.createRefund(
+      branchId,
+      requireAccountActor(actor),
+      input,
+      requireKey(key),
+      context(request, ip),
+    );
+  }
+
+  @Post('admin/markets/:marketId/mcp/refunds/:requestId/review')
+  @HttpCode(200)
+  @UseGuards(AuthGuard, RbacGuard)
+  @RequirePermission('merchant.refund.manage', { marketScoped: true })
+  reviewRefund(
+    @Param('marketId', new ParseUUIDPipe()) marketId: string,
+    @Param('requestId', new ParseUUIDPipe()) requestId: string,
+    @CurrentActor() actor: RequestActor | undefined,
+    @Body(new ZodValidationPipe(reviewRefundSchema)) input: ReviewRefundDto,
+    @Ip() ip: string,
+    @Req() request: Request,
+  ) {
+    return this.mcp.reviewRefund(
       marketId,
       requestId,
       requireAdminActor(actor),

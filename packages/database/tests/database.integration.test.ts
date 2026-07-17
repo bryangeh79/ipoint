@@ -59,6 +59,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0003_merchant_api_support.sql',
       '0004_service_fee_package_management.sql',
       '0005_mcp_ledger_recharge.sql',
+      '0006_mcp_adjustment_refund_governance.sql',
     ]);
   });
 
@@ -178,7 +179,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
     `);
     expect(counts.rows[0]).toEqual({
       roles: '2',
-      permissions: '22',
+      permissions: '23',
       profiles: '6',
       versions: '6',
     });
@@ -535,15 +536,33 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
     const adjustment = await connection.pool.query<{ id: string }>(
       `INSERT INTO mcp_adjustment_requests
         (mcp_account_id, market_id, maker_admin_user_id, entry_type, amount,
-         reason, idempotency_key)
-       VALUES ($1, $2, $3, 'MANUAL_CREDIT', 1, 'test', $4) RETURNING id`,
+         reason, idempotency_key, payload_hash)
+       VALUES ($1, $2, $3, 'MANUAL_CREDIT', 1, 'test', $4,
+         repeat('e', 64)) RETURNING id`,
       [mcpAccount.rows[0]?.id, fixture.marketId, fixture.adminId, randomUUID()],
+    );
+    await expect(
+      connection.pool.query(
+        `INSERT INTO mcp_adjustment_decisions
+          (adjustment_request_id, market_id, checker_admin_user_id, decision, reason)
+         VALUES ($1, $2, $3, 'APPROVED', 'self approval')`,
+        [adjustment.rows[0]?.id, fixture.marketId, fixture.adminId],
+      ),
+    ).rejects.toMatchObject({ code: '42501' });
+    const checker = await connection.pool.query<{ id: string }>(
+      `WITH checker_account AS (
+         INSERT INTO accounts (public_id, email, account_country)
+         VALUES ($1, $2, 'MY') RETURNING id
+       )
+       INSERT INTO admin_users (account_id, display_name)
+       SELECT id, 'Independent Checker' FROM checker_account RETURNING id`,
+      [`acct_${randomUUID()}`, `${randomUUID()}@example.com`],
     );
     const decision = await connection.pool.query<{ id: string }>(
       `INSERT INTO mcp_adjustment_decisions
         (adjustment_request_id, market_id, checker_admin_user_id, decision, reason)
        VALUES ($1, $2, $3, 'APPROVED', 'verified') RETURNING id`,
-      [adjustment.rows[0]?.id, fixture.marketId, fixture.adminId],
+      [adjustment.rows[0]?.id, fixture.marketId, checker.rows[0]?.id],
     );
 
     const appendOnlyRows = [

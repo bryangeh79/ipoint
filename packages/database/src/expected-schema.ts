@@ -386,6 +386,7 @@ export const expectedSchema = {
     'ledger_entry_id',
     'created_at',
     'updated_at',
+    'payload_hash',
   ],
   mcp_adjustment_requests: [
     'id',
@@ -402,6 +403,7 @@ export const expectedSchema = {
     'version',
     'created_at',
     'updated_at',
+    'payload_hash',
   ],
   mcp_adjustment_decisions: [
     'id',

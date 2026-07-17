@@ -1475,7 +1475,11 @@ export class MerchantService {
           if (branch.status !== 'SUSPENDED') {
             invalidTransition(branch.status, 'REACTIVATE');
           }
-          const derived = await this.deriveOperationalStatus(tx, branch.id);
+          const derived = await this.deriveOperationalStatus(
+            tx,
+            branch.id,
+            false,
+          );
           branch = await this.recordOperationalTransition(
             tx,
             branch,
@@ -1538,6 +1542,7 @@ export class MerchantService {
   private async deriveOperationalStatus(
     tx: DatabaseTransaction,
     branchId: string,
+    preserveInitialActivation = true,
   ): Promise<OperationalStatus> {
     const applicationRows = await tx
       .select({ status: merchantApplications.status })
@@ -1587,7 +1592,8 @@ export class MerchantService {
         ),
       )
       .limit(1);
-    return mcpRows[0]?.meetsActivationThreshold || activeHistory.length > 0
+    return mcpRows[0]?.meetsActivationThreshold ||
+      (preserveInitialActivation && activeHistory.length > 0)
       ? 'ACTIVE'
       : 'PENDING_MCP';
   }
