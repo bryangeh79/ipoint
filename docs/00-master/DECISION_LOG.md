@@ -341,7 +341,7 @@
 |---|---|
 | **Decision ID** | D-019 |
 | **Date** | 2026-07-18 |
-| **Source** | ChatGPT Command Center — P2-S4 final acceptance review |
+| **Source** | ChatGPT Command Center â€” P2-S4 final acceptance review |
 | **Old Rule** | No formal standard for response casing, route conventions, or error code contract scope |
 | **New Decision** | See below (5 sub-decisions) |
 | **Reason** | P2-S4 delivery acceptance; formalize contract standards and infrastructure backlog |
@@ -354,15 +354,15 @@
 
 ### Sub-decisions
 
-**D-019-A — Response Field Casing**: camelCase is the canonical standard for all new API responses. Currently mixed fields (token responses in camelCase, OTP responses in snake_case) are NOT modified in P2-S4 to avoid breaking consumers. A dedicated compatibility phase is required before enforcing uniform camelCase.
+**D-019-A â€” Response Field Casing**: camelCase is the canonical standard for all new API responses. Currently mixed fields (token responses in camelCase, OTP responses in snake_case) are NOT modified in P2-S4 to avoid breaking consumers. A dedicated compatibility phase is required before enforcing uniform camelCase.
 
-**D-019-B — Canonical Routes**: Non-member paths under /auth/ are canonical. Member aliases under /auth/member/ are retained temporarily and marked deprecated: true in OpenAPI. No new aliases may be created. Removal requires a future API version migration.
+**D-019-B â€” Canonical Routes**: Non-member paths under /auth/ are canonical. Member aliases under /auth/member/ are retained temporarily and marked deprecated: true in OpenAPI. No new aliases may be created. Removal requires a future API version migration.
 
-**D-019-C — Redis Rate Limiter**: InMemoryRateLimiter is accepted for single-instance dev/test. Redis distributed rate limiter is declared a hard prerequisite before: multi-API-instance deployment, horizontal scaling, load-balanced multi-node, or production public launch. Backlog item AUTH-INFRA-001 created.
+**D-019-C â€” Redis Rate Limiter**: InMemoryRateLimiter is accepted for single-instance dev/test. Redis distributed rate limiter is declared a hard prerequisite before: multi-API-instance deployment, horizontal scaling, load-balanced multi-node, or production public launch. Backlog item AUTH-INFRA-001 created.
 
-**D-019-D — Unimplemented Error Codes**: AUTH_PASSWORD_WEAK, AUTH_FLOW_EXPIRED, and AUTH_IDEMPOTENCY_REQUIRED are removed from the public API contract's endpoint error response descriptions. They remain in the internal type union as reserved/future codes. Public contract must match real runtime behavior.
+**D-019-D â€” Unimplemented Error Codes**: AUTH_PASSWORD_WEAK, AUTH_FLOW_EXPIRED, and AUTH_IDEMPOTENCY_REQUIRED are removed from the public API contract's endpoint error response descriptions. They remain in the internal type union as reserved/future codes. Public contract must match real runtime behavior.
 
-**D-019-E — P2-S4 Acceptance**: P2-S4 (Registration & Auth Production Hardening) is **ACCEPTED FOR CLOSURE**. Branch: 	ask/p2-s4-auth-hardening. Commits: 91cc0f07, 2c61bb0e, 1dfb902f. All verification criteria satisfied.
+**D-019-E â€” P2-S4 Acceptance**: P2-S4 (Registration & Auth Production Hardening) is **ACCEPTED FOR CLOSURE**. Branch: 	ask/p2-s4-auth-hardening. Commits: 91cc0f07, 2c61bb0e, 1dfb902f. All verification criteria satisfied.
 
 
 ## D-020: P2-S5 Command Center Review - CHANGES_REQUIRED
@@ -380,4 +380,22 @@
 | **Migration** | 0010_member_profile_phone_and_default_market_hardening.sql (new forward migration) |
 | **Approver** | ChatGPT Command Center |
 | **Basis** | P2-S5 COMMAND CENTER REVIEW - CHANGES_REQUIRED (2026-07-18) |
+| **Status** | **APPROVED** |
+
+
+## D-021: P2-S5 final acceptance and P2-S6 authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-021 |
+| **Date** | 2026-07-18 |
+| **Source** | ChatGPT Command Center - P2-S5 COMMAND CENTER FINAL DECISION - APPROVED |
+| **Old Rule** | P2-S5 CHANGES_REQUIRED; P2-S6 NOT_AUTHORIZED |
+| **New Decision** | P2-S5 APPROVED at SHA c089e7365ba7cccaa1a24612ee60cba79469910c. P2-S6 (Member KYC Level 2) AUTHORIZED. P2-S7 through P2-S9 remain NOT_AUTHORIZED. Main PR/Main Merge remain NOT_AUTHORIZED. |
+| **Reason** | P2-S5 full host verification completed: 359 tests passed, 0 failed, 0 skipped. All DB commands exit 0. Branches synchronized. |
+| **Affected Files** | docs/06-phase-reports/p2-s5/P2-S5_FINAL_DELIVERY_REPORT.md, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | P2-S5, P2-S6 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P2-S5 COMMAND CENTER FINAL DECISION - APPROVED (2026-07-18) |
 | **Status** | **APPROVED** |
