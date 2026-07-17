@@ -210,4 +210,21 @@
 | **Basis** | COMMAND CENTER ORDER (2026-07-17) |
 | **Status** | **APPROVED** |
 
+## D-012: Phase 1 Batch B approved and Final Batch authorized
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-012 |
+| **Date** | 2026-07-17 |
+| **Source** | ChatGPT Command Center — Final Batch authorization |
+| **Old Rule** | Batch B IN_PROGRESS; P1-S8+ NOT_AUTHORIZED |
+| **New Decision** | Batch B APPROVED. Final Batch (P1-S8, P1-S9) AUTHORIZED. Main merge NOT AUTHORIZED. |
+| **Reason** | Batch B implementation complete and accepted; Final Batch authorized for Merchant/Admin UI and Integration/E2E |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Batch B, Final Batch, P1-S8, P1-S9 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | COMMAND CENTER ORDER (2026-07-17) |
+| **Status** | **APPROVED** |
+
 *— End of current entries. New decisions must be appended below —*
