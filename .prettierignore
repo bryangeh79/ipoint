@@ -15,9 +15,7 @@ pnpm-lock.yaml
 .acceptance/
 .local/
 .openclaw/
-.codex-*.md
-Concept/
 memory/
-tasks/
+.codex-*.md
 DECISIONS.md
 GEMINI.md
