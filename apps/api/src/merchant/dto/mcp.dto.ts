@@ -32,6 +32,45 @@ export const ledgerQuerySchema = z
   })
   .strict();
 
+export const createAdjustmentSchema = z
+  .object({
+    type: z.enum(['MANUAL_CREDIT', 'MANUAL_DEBIT']),
+    amount: mcpAmount,
+    reason: z.string().trim().min(1).max(2000),
+    evidence: z
+      .record(z.string(), z.unknown())
+      .refine(
+        (value) => Object.keys(value).length > 0,
+        'Evidence is required.',
+      ),
+  })
+  .strict();
+
+export const adjustmentDecisionSchema = z
+  .object({
+    decision: z.enum(['APPROVED', 'REJECTED']),
+    reason: z.string().trim().min(1).max(2000),
+  })
+  .strict();
+
+export const createRefundSchema = z
+  .object({
+    amount: mcpAmount,
+    reason: z.string().trim().min(1).max(2000),
+  })
+  .strict();
+
+export const reviewRefundSchema = z
+  .object({
+    decision: z.enum(['UNDER_REVIEW', 'APPROVED', 'REJECTED']),
+    reason: z.string().trim().min(1).max(2000),
+  })
+  .strict();
+
 export type CreateRechargeDto = z.infer<typeof createRechargeSchema>;
 export type ReviewRechargeDto = z.infer<typeof reviewRechargeSchema>;
 export type LedgerQueryDto = z.infer<typeof ledgerQuerySchema>;
+export type CreateAdjustmentDto = z.infer<typeof createAdjustmentSchema>;
+export type AdjustmentDecisionDto = z.infer<typeof adjustmentDecisionSchema>;
+export type CreateRefundDto = z.infer<typeof createRefundSchema>;
+export type ReviewRefundDto = z.infer<typeof reviewRefundSchema>;

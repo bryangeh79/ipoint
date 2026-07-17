@@ -1105,6 +1105,7 @@ export const mcpRefundRequests = pgTable(
     status: refundState('status').notNull().default('PENDING'),
     reason: text('reason').notNull(),
     idempotencyKey: text('idempotency_key').notNull(),
+    payloadHash: text('payload_hash').notNull(),
     reviewedByAdminUserId: uuid('reviewed_by_admin_user_id').references(
       () => adminUsers.id,
       { onDelete: 'restrict' },
@@ -1145,6 +1146,7 @@ export const mcpAdjustmentRequests = pgTable(
     evidence: jsonb('evidence').notNull().default({}),
     status: adjustmentState('status').notNull().default('DRAFT'),
     idempotencyKey: text('idempotency_key').notNull(),
+    payloadHash: text('payload_hash').notNull(),
     ledgerEntryId: uuid('ledger_entry_id').references(
       () => mcpLedgerEntries.id,
       { onDelete: 'restrict' },
