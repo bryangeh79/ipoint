@@ -63,6 +63,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0007_phase_2_member_schema_forward_migrations.sql',
       '0008_phase_2_member_registration_auth.sql',
       '0009_add_sessions_family_id_index.sql',
+      '0010_member_profile_phone_and_default_market_hardening.sql',
     ]);
   });
 

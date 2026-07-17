@@ -63,7 +63,13 @@ describe.skipIf(!databaseUrl)('Country Change HTTP integration', () => {
       .from(markets)
       .where(eq(markets.code, code))
       .limit(1);
-    if (existing[0]) return existing[0].id;
+    if (existing[0]) {
+      await database.db
+        .update(markets)
+        .set({ status: 'ACTIVE' })
+        .where(eq(markets.id, existing[0].id));
+      return existing[0].id;
+    }
     const inserted = await database.db
       .insert(markets)
       .values({
@@ -195,7 +201,7 @@ describe.skipIf(!databaseUrl)('Country Change HTTP integration', () => {
         .post('/api/v1/members/me/account-country-change')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
-          requested_country: 'TH',
+          requested_country: 'SG',
           reason: 'Changed my mind',
         })
         .expect(409);
@@ -324,7 +330,7 @@ describe.skipIf(!databaseUrl)('Country Change HTTP integration', () => {
       );
     });
 
-    it('cannot cancel an already cancelled request', async () => {
+    it('returns an already cancelled request idempotently', async () => {
       const { email } = await createMemberAccount();
       const accessToken = await getAccessToken(email);
 
@@ -340,15 +346,13 @@ describe.skipIf(!databaseUrl)('Country Change HTTP integration', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      // Try to cancel again - should return 404 since there's no PENDING
+      // Repeating the cancellation is idempotent.
       const res = await supertest(server)
         .delete('/api/v1/members/me/account-country-change')
         .set('Authorization', `Bearer ${accessToken}`)
-        .expect(404);
+        .expect(200);
 
-      expect((res.body as ErrorBody).error.code).toBe(
-        'COUNTRY_CHANGE_NOT_FOUND',
-      );
+      expect((res.body as CountryChangeBody).status).toBe('CANCELLED');
     });
   });
 });
