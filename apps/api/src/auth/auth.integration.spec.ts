@@ -3,7 +3,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   accounts,
   credentials,
+  markets,
   otps,
+  members,
   securityEvents,
   sessions,
 } from '@ipoint/database';
@@ -30,6 +32,23 @@ describe.skipIf(!databaseUrl)('auth foundation integration', () => {
     refreshTtlSeconds: 3600,
     otpTtlSeconds: 600,
     otpMaxAttempts: 5,
+    otpResendCooldownSeconds: 30,
+    idempotencyTtlSeconds: 86_400,
+    registrationEmailRateLimitCount: 3,
+    registrationEmailRateLimitWindowSeconds: 60,
+    registrationIpRateLimitCount: 5,
+    registrationIpRateLimitWindowSeconds: 60,
+    loginEmailRateLimitCount: 5,
+    loginEmailRateLimitWindowSeconds: 300,
+    loginIpRateLimitCount: 10,
+    loginIpRateLimitWindowSeconds: 300,
+    passwordResetEmailRateLimitCount: 3,
+    passwordResetEmailRateLimitWindowSeconds: 300,
+    passwordResetIpRateLimitCount: 5,
+    passwordResetIpRateLimitWindowSeconds: 300,
+    memberPublicIdPrefix: 'IPM',
+    memberPublicIdLength: 10,
+    memberReferralCodeLength: 8,
   };
 
   beforeAll(async () => {
@@ -62,7 +81,29 @@ describe.skipIf(!databaseUrl)('auth foundation integration', () => {
       new PostgresAuthStore(database),
       new InMemoryRateLimiter(),
       settings,
+      database,
     );
+  }
+
+  async function createActiveMarket(code = 'MY') {
+    const existing = await database.db
+      .select({ id: markets.id })
+      .from(markets)
+      .where(eq(markets.code, code))
+      .limit(1);
+    if (existing[0]) return existing[0].id;
+    const inserted = await database.db
+      .insert(markets)
+      .values({
+        code,
+        name: `${code} Market`,
+        status: 'ACTIVE',
+        currencyCode: 'MYR',
+        timezone: 'Asia/Kuala_Lumpur',
+        defaultLocale: 'en-MY',
+      })
+      .returning({ id: markets.id });
+    return inserted[0]?.id ?? '';
   }
 
   it('stores password hashes only and enforces account status', async () => {
@@ -107,6 +148,80 @@ describe.skipIf(!databaseUrl)('auth foundation integration', () => {
     await expect(auth.login(email, password)).resolves.toHaveProperty(
       'accessToken',
     );
+  });
+
+  it('blocks login for inactive members while preserving merchant-only access', async () => {
+    const memberEmail = `${randomUUID()}@example.com`;
+    const memberAccount = await database.db
+      .insert(accounts)
+      .values({
+        publicId: `acct_${randomUUID()}`,
+        email: memberEmail,
+        accountCountry: 'MY',
+        status: 'ACTIVE',
+      })
+      .returning({ id: accounts.id });
+    await auth.setPassword(memberAccount[0]?.id ?? '', password);
+    await database.db.insert(members).values({
+      accountId: memberAccount[0]!.id,
+      publicMemberId: `mem_${randomUUID()}`,
+      referralCode: `REF${randomUUID().replaceAll('-', '').slice(0, 8)}`,
+      status: 'PENDING_EMAIL_VERIFICATION',
+      kycLevel: 'NONE',
+    });
+    await expect(auth.login(memberEmail, password)).rejects.toMatchObject({
+      code: 'AUTH_MEMBER_INACTIVE',
+    });
+    await database.db
+      .update(members)
+      .set({ status: 'ACTIVE', kycLevel: 'LEVEL_1' })
+      .where(eq(members.accountId, memberAccount[0]!.id));
+    await expect(auth.login(memberEmail, password)).resolves.toHaveProperty(
+      'accessToken',
+    );
+    await database.db
+      .update(members)
+      .set({ status: 'SUSPENDED' })
+      .where(eq(members.accountId, memberAccount[0]!.id));
+    await expect(auth.login(memberEmail, password)).rejects.toMatchObject({
+      code: 'AUTH_MEMBER_INACTIVE',
+    });
+    await database.db
+      .update(members)
+      .set({ status: 'CLOSED', closedAt: new Date() })
+      .where(eq(members.accountId, memberAccount[0]!.id));
+    await expect(auth.login(memberEmail, password)).rejects.toMatchObject({
+      code: 'AUTH_MEMBER_INACTIVE',
+    });
+  });
+
+  it('registers a member atomically and supports idempotent completion', async () => {
+    await createActiveMarket();
+    const idempotencyKey = randomUUID();
+    const initiation = await auth.initiateRegistration({
+      email: `${randomUUID()}@example.com`,
+      password: 'Registration-Password-123!',
+      accountCountry: 'MY',
+      referralCode: null,
+      termsVersion: 'v1',
+      disclaimerVersion: 'v1',
+      privacyVersion: 'v1',
+      locale: 'en-MY',
+    });
+    await auth.verifyRegistrationOtp(initiation.id, initiation.code);
+    const completed = await auth.completeRegistration(
+      initiation.id,
+      idempotencyKey,
+    );
+    expect(completed).toMatchObject({
+      accountId: expect.any(String) as unknown,
+      memberId: expect.any(String) as unknown,
+    });
+    const repeated = await auth.completeRegistration(
+      initiation.id,
+      idempotencyKey,
+    );
+    expect(repeated).toEqual(completed);
   });
 
   it('creates, resolves, rotates, detects reuse, and revokes sessions', async () => {

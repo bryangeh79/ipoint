@@ -1,5 +1,28 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import {
+  createHash,
+  randomBytes,
+  randomUUID,
+  timingSafeEqual,
+} from 'node:crypto';
+import {
+  accounts,
+  auditLogs,
+  authIdempotencyKeys,
+  credentials,
+  entityTimelines,
+  markets,
+  memberEmailOtps,
+  memberProfiles,
+  memberReferralHistory,
+  memberReferrals,
+  memberStatusHistory,
+  memberTermsAcceptances,
+  members,
+  sessions,
+} from '@ipoint/database';
+import { and, eq, isNull } from 'drizzle-orm';
+import { DatabaseService } from '../database/database.service.js';
 import {
   AUTH_RATE_LIMITER,
   AUTH_SETTINGS,
@@ -47,6 +70,30 @@ export interface AuthSettings {
   memberReferralCodeLength: number;
 }
 
+export interface RegistrationInitiationInput {
+  email: string;
+  password: string;
+  accountCountry: string;
+  referralCode?: string | null;
+  termsVersion: string;
+  disclaimerVersion: string;
+  privacyVersion: string;
+  locale: string;
+}
+
+export interface RegistrationCompletionResult {
+  accountId: string;
+  memberId: string;
+  publicMemberId: string;
+  referralCode: string;
+}
+
+interface IdempotencyRecord<T = unknown> {
+  requestHash: string;
+  response: T | null;
+  statusCode: number | null;
+}
+
 export interface IssuedOtp {
   id: string;
   code: string;
@@ -61,6 +108,7 @@ export class AuthService {
     @Inject(AUTH_STORE) private readonly store: AuthStorePort,
     @Inject(AUTH_RATE_LIMITER) private readonly rateLimiter: RateLimitPort,
     @Inject(AUTH_SETTINGS) private readonly settings: AuthSettings,
+    @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {}
 
   async setPassword(accountId: string, password: string): Promise<void> {
@@ -74,11 +122,18 @@ export class AuthService {
     metadata: RequestMetadata = {},
   ): Promise<AuthTokens> {
     const normalizedEmail = email.trim().toLowerCase();
-    await this.enforceRateLimit(
-      `login:${metadata.ipAddress ?? 'unknown'}:${normalizedEmail}`,
-      5,
-      300,
-    );
+    await this.enforceCompositeRateLimit([
+      [
+        `login:email:${normalizedEmail}`,
+        this.settings.loginEmailRateLimitCount,
+        this.settings.loginEmailRateLimitWindowSeconds,
+      ],
+      [
+        `login:ip:${metadata.ipAddress ?? 'unknown'}`,
+        this.settings.loginIpRateLimitCount,
+        this.settings.loginIpRateLimitWindowSeconds,
+      ],
+    ]);
     const identity = await this.store.findPasswordIdentity(normalizedEmail);
     const valid = identity
       ? await this.passwordHasher.verify(password, identity.secretHash)
@@ -95,7 +150,7 @@ export class AuthService {
         'The supplied credentials are invalid.',
       );
     }
-    this.assertActive(identity.status);
+    this.assertLoginAllowed(identity.status, identity.memberStatus);
     const tokens = await this.createSession(
       identity.accountId,
       randomUUID(),
@@ -184,6 +239,576 @@ export class AuthService {
       eventType: 'AUTH_LOGOUT',
       result: 'SUCCESS',
       metadata,
+    });
+  }
+
+  async initiateRegistration(
+    input: RegistrationInitiationInput,
+    metadata: RequestMetadata = {},
+  ): Promise<IssuedOtp> {
+    const email = input.email.trim().toLowerCase();
+    const accountCountry = input.accountCountry.trim().toUpperCase();
+    const referralCode = input.referralCode?.trim().toUpperCase() ?? null;
+    const now = new Date();
+    await this.enforceCompositeRateLimit([
+      [
+        `registration:email:${email}`,
+        this.settings.registrationEmailRateLimitCount,
+        this.settings.registrationEmailRateLimitWindowSeconds,
+      ],
+      [
+        `registration:ip:${metadata.ipAddress ?? 'unknown'}`,
+        this.settings.registrationIpRateLimitCount,
+        this.settings.registrationIpRateLimitWindowSeconds,
+      ],
+    ]);
+    await this.assertEmailAvailable(email);
+    const passwordHash = await this.passwordHasher.hash(input.password);
+    const existing = await this.database.db
+      .select({
+        id: memberEmailOtps.id,
+        otpVersion: memberEmailOtps.otpVersion,
+      })
+      .from(memberEmailOtps)
+      .where(
+        and(
+          eq(memberEmailOtps.email, email),
+          eq(memberEmailOtps.purpose, 'REGISTRATION'),
+          isNull(memberEmailOtps.usedAt),
+        ),
+      )
+      .limit(1);
+    const id = existing[0]?.id ?? randomUUID();
+    const code = createOtpCode();
+    const expiresAt = new Date(
+      now.getTime() + this.settings.otpTtlSeconds * 1000,
+    );
+    const resendAvailableAt = new Date(
+      now.getTime() + this.settings.otpResendCooldownSeconds * 1000,
+    );
+    const values = {
+      purpose: 'REGISTRATION' as const,
+      email,
+      accountCountry,
+      passwordHash,
+      referralCode,
+      referrerMemberId: null,
+      termsVersion: input.termsVersion.trim(),
+      disclaimerVersion: input.disclaimerVersion.trim(),
+      privacyVersion: input.privacyVersion.trim(),
+      locale: input.locale.trim(),
+      otpHash: hashOtpCode(id, code, this.settings.otpPepper),
+      otpVersion: existing[0] ? existing[0].otpVersion + 1 : 1,
+      attempts: 0,
+      maxAttempts: this.settings.otpMaxAttempts,
+      expiresAt,
+      resendAvailableAt,
+      verifiedAt: null,
+      usedAt: null,
+      updatedAt: now,
+    };
+    if (existing[0]) {
+      await this.database.db
+        .update(memberEmailOtps)
+        .set(values)
+        .where(eq(memberEmailOtps.id, id));
+    } else {
+      await this.database.db.insert(memberEmailOtps).values({
+        id,
+        ...values,
+      });
+    }
+    await this.store.recordSecurityEvent({
+      eventType: 'AUTH_REGISTRATION_OTP_ISSUED',
+      result: 'SUCCESS',
+      metadata,
+      details: { purpose: 'REGISTRATION' },
+    });
+    return { id, code, expiresAt };
+  }
+
+  async resendRegistrationOtp(
+    otpId: string,
+    metadata: RequestMetadata = {},
+  ): Promise<IssuedOtp> {
+    const now = new Date();
+    const otp = await this.requireRegistrationOtp(otpId);
+    if (otp.usedAt) {
+      throw new AuthError(
+        'AUTH_FLOW_INVALID',
+        'The registration flow is invalid.',
+      );
+    }
+    if (otp.resendAvailableAt > now) {
+      throw new AuthError(
+        'AUTH_OTP_COOLDOWN',
+        'Please wait before resending.',
+        {
+          retryAfterSeconds: Math.max(
+            1,
+            Math.ceil((otp.resendAvailableAt.getTime() - now.getTime()) / 1000),
+          ),
+        },
+      );
+    }
+    const code = createOtpCode();
+    const expiresAt = new Date(
+      now.getTime() + this.settings.otpTtlSeconds * 1000,
+    );
+    const resendAvailableAt = new Date(
+      now.getTime() + this.settings.otpResendCooldownSeconds * 1000,
+    );
+    await this.database.db
+      .update(memberEmailOtps)
+      .set({
+        otpHash: hashOtpCode(otp.id, code, this.settings.otpPepper),
+        otpVersion: otp.otpVersion + 1,
+        attempts: 0,
+        expiresAt,
+        resendAvailableAt,
+        verifiedAt: null,
+        updatedAt: now,
+      })
+      .where(eq(memberEmailOtps.id, otp.id));
+    await this.store.recordSecurityEvent({
+      eventType: 'AUTH_REGISTRATION_OTP_RESENT',
+      result: 'SUCCESS',
+      metadata,
+      details: { purpose: 'REGISTRATION' },
+    });
+    return { id: otp.id, code, expiresAt };
+  }
+
+  async verifyRegistrationOtp(
+    otpId: string,
+    code: string,
+    metadata: RequestMetadata = {},
+  ): Promise<void> {
+    await this.verifyMemberOtp(otpId, code, 'REGISTRATION', metadata);
+  }
+
+  async completeRegistration(
+    otpId: string,
+    idempotencyKey: string,
+    metadata: RequestMetadata = {},
+  ): Promise<RegistrationCompletionResult> {
+    const scope = 'member.registration.complete';
+    const requestPayload = { otpId };
+    const cached = await this.checkIdempotency(
+      scope,
+      idempotencyKey,
+      requestPayload,
+    );
+    if (cached?.response) {
+      return cached.response as RegistrationCompletionResult;
+    }
+    const now = new Date();
+    const result = await this.database.db.transaction(async (tx) => {
+      const otpRows = await tx
+        .select()
+        .from(memberEmailOtps)
+        .where(eq(memberEmailOtps.id, otpId))
+        .limit(1);
+      const otp = otpRows[0];
+      if (
+        !otp ||
+        otp.purpose !== 'REGISTRATION' ||
+        otp.usedAt ||
+        !otp.verifiedAt
+      ) {
+        throw new AuthError(
+          'AUTH_FLOW_INVALID',
+          'The registration flow is invalid.',
+        );
+      }
+      const marketRows = await tx
+        .select({ id: markets.id })
+        .from(markets)
+        .where(
+          and(
+            eq(markets.code, otp.accountCountry ?? ''),
+            eq(markets.status, 'ACTIVE'),
+          ),
+        )
+        .limit(1);
+      const marketId = marketRows[0]?.id;
+      if (!marketId) {
+        throw new AuthError(
+          'AUTH_MARKET_INVALID',
+          'The account country is invalid.',
+        );
+      }
+      const accountExists = await tx
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(eq(accounts.email, otp.email))
+        .limit(1);
+      if (accountExists[0]) {
+        throw new AuthError(
+          'AUTH_MEMBER_ALREADY_EXISTS',
+          'An account with this email already exists.',
+        );
+      }
+      const accountPublicId = this.generatePublicIdentifier('acct', 16);
+      const memberPublicId = this.generatePublicIdentifier(
+        this.settings.memberPublicIdPrefix,
+        this.settings.memberPublicIdLength,
+      );
+      const memberReferralCode = this.generateToken(
+        this.settings.memberReferralCodeLength,
+      );
+
+      const accountInsert = await tx
+        .insert(accounts)
+        .values({
+          publicId: accountPublicId,
+          email: otp.email,
+          accountCountry: otp.accountCountry ?? '',
+          status: 'ACTIVE',
+          emailVerifiedAt: now,
+        })
+        .returning({ id: accounts.id });
+      const accountId = accountInsert[0]?.id;
+      if (!accountId) {
+        throw new Error('Account insert did not return an id.');
+      }
+
+      let referrerMemberId: string | null = null;
+      let referralCodeSnapshot: string | null = null;
+      if (otp.referralCode) {
+        const referrerRows = await tx
+          .select({
+            id: members.id,
+            accountId: members.accountId,
+            referralCode: members.referralCode,
+          })
+          .from(members)
+          .where(eq(members.referralCode, otp.referralCode))
+          .limit(1);
+        const referrer = referrerRows[0];
+        if (!referrer) {
+          throw new AuthError(
+            'AUTH_REFERRAL_INVALID',
+            'The referral code is invalid.',
+          );
+        }
+        if (referrer.accountId === accountId) {
+          throw new AuthError(
+            'AUTH_REFERRAL_INVALID',
+            'Self-referral is not allowed.',
+          );
+        }
+        referrerMemberId = referrer.id;
+        referralCodeSnapshot = referrer.referralCode;
+      }
+
+      await tx.insert(credentials).values({
+        accountId,
+        type: 'PASSWORD',
+        secretHash: otp.passwordHash ?? '',
+        hashAlgorithm: 'scrypt',
+        hashVersion: 1,
+      });
+
+      const memberInsert = await tx
+        .insert(members)
+        .values({
+          accountId,
+          publicMemberId: memberPublicId,
+          referralCode: memberReferralCode,
+          status: 'ACTIVE',
+          kycLevel: 'LEVEL_1',
+        })
+        .returning({ id: members.id });
+      const memberId = memberInsert[0]?.id;
+      if (!memberId) {
+        throw new Error('Member insert did not return an id.');
+      }
+
+      await tx.insert(memberProfiles).values({
+        memberId,
+        displayName: otp.email.split('@')[0] ?? otp.email,
+        locale: otp.locale,
+      });
+
+      if (referrerMemberId) {
+        await tx.insert(memberReferrals).values({
+          memberId,
+          referrerMemberId,
+          referralCodeSnapshot: referralCodeSnapshot ?? otp.referralCode ?? '',
+          source: 'REGISTRATION',
+          status: 'ACTIVE',
+        });
+        await tx.insert(memberReferralHistory).values({
+          memberId,
+          oldReferrerMemberId: null,
+          newReferrerMemberId: referrerMemberId,
+          eventType: 'ASSIGNED',
+          correctionReason: 'Registration referral assignment',
+          authorizedActorType: 'SYSTEM',
+          authorizedActorId: null,
+          requestId: idempotencyKey,
+        });
+      }
+
+      for (const document of [
+        { type: 'TERMS', version: otp.termsVersion ?? '' },
+        { type: 'DISCLAIMER', version: otp.disclaimerVersion ?? '' },
+        { type: 'PRIVACY', version: otp.privacyVersion ?? '' },
+      ]) {
+        await tx.insert(memberTermsAcceptances).values({
+          memberId,
+          documentType: document.type,
+          documentVersion: document.version,
+          locale: otp.locale,
+          ipAddress: metadata.ipAddress,
+          userAgent: metadata.userAgent,
+        });
+      }
+
+      await tx.insert(memberStatusHistory).values({
+        memberId,
+        fromStatus: 'PENDING_EMAIL_VERIFICATION',
+        toStatus: 'ACTIVE',
+        actorType: 'SYSTEM',
+        actorId: null,
+        reason: 'Registration completed',
+      });
+
+      await tx
+        .update(memberEmailOtps)
+        .set({ usedAt: now, updatedAt: now })
+        .where(eq(memberEmailOtps.id, otpId));
+
+      const response: RegistrationCompletionResult = {
+        accountId,
+        memberId,
+        publicMemberId: memberPublicId,
+        referralCode: memberReferralCode,
+      };
+
+      await tx.insert(auditLogs).values({
+        actorType: 'SYSTEM',
+        action: 'auth.member.registration.completed',
+        entityType: 'member',
+        entityId: memberId,
+        after: response,
+        result: 'SUCCESS',
+        requestId: metadata.requestId,
+        ipAddress: metadata.ipAddress,
+      });
+
+      await tx.insert(entityTimelines).values({
+        entityType: 'member',
+        entityId: memberId,
+        eventType: 'member.registered',
+        actorType: 'SYSTEM',
+        actorId: null,
+        marketId,
+        summary: 'Member registration completed.',
+        metadata: {
+          accountId,
+          otpId,
+          referralCode: otp.referralCode,
+        },
+      });
+
+      return response;
+    });
+
+    await this.recordIdempotency(
+      scope,
+      idempotencyKey,
+      requestPayload,
+      result,
+      200,
+    );
+    return result;
+  }
+
+  async initiatePasswordReset(
+    email: string,
+    metadata: RequestMetadata = {},
+  ): Promise<IssuedOtp> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const now = new Date();
+    await this.enforceCompositeRateLimit([
+      [
+        `password-reset:email:${normalizedEmail}`,
+        this.settings.passwordResetEmailRateLimitCount,
+        this.settings.passwordResetEmailRateLimitWindowSeconds,
+      ],
+      [
+        `password-reset:ip:${metadata.ipAddress ?? 'unknown'}`,
+        this.settings.passwordResetIpRateLimitCount,
+        this.settings.passwordResetIpRateLimitWindowSeconds,
+      ],
+    ]);
+    const identity = await this.store.findPasswordIdentity(normalizedEmail);
+    const existing = await this.database.db
+      .select({
+        id: memberEmailOtps.id,
+        otpVersion: memberEmailOtps.otpVersion,
+      })
+      .from(memberEmailOtps)
+      .where(
+        and(
+          eq(memberEmailOtps.email, normalizedEmail),
+          eq(memberEmailOtps.purpose, 'PASSWORD_RESET'),
+          isNull(memberEmailOtps.usedAt),
+        ),
+      )
+      .limit(1);
+    const id = existing[0]?.id ?? randomUUID();
+    const code = createOtpCode();
+    const expiresAt = new Date(
+      now.getTime() + this.settings.otpTtlSeconds * 1000,
+    );
+    const values = {
+      purpose: 'PASSWORD_RESET' as const,
+      memberId: identity?.memberId ?? null,
+      accountId: identity?.accountId ?? null,
+      email: normalizedEmail,
+      accountCountry: null,
+      passwordHash: null,
+      referralCode: null,
+      referrerMemberId: null,
+      termsVersion: null,
+      disclaimerVersion: null,
+      privacyVersion: null,
+      locale: null,
+      otpHash: hashOtpCode(id, code, this.settings.otpPepper),
+      otpVersion: existing[0] ? existing[0].otpVersion + 1 : 1,
+      attempts: 0,
+      maxAttempts: this.settings.otpMaxAttempts,
+      expiresAt,
+      resendAvailableAt: new Date(
+        now.getTime() + this.settings.otpResendCooldownSeconds * 1000,
+      ),
+      verifiedAt: null,
+      usedAt: null,
+      updatedAt: now,
+    };
+    if (existing[0]) {
+      await this.database.db
+        .update(memberEmailOtps)
+        .set(values)
+        .where(eq(memberEmailOtps.id, id));
+    } else {
+      await this.database.db.insert(memberEmailOtps).values({
+        id,
+        ...values,
+      });
+    }
+    await this.store.recordSecurityEvent({
+      accountId: identity?.accountId ?? undefined,
+      eventType: 'AUTH_PASSWORD_RESET_OTP_ISSUED',
+      result: 'SUCCESS',
+      metadata,
+      details: { purpose: 'PASSWORD_RESET' },
+    });
+    return { id, code, expiresAt };
+  }
+
+  async verifyPasswordResetOtp(
+    otpId: string,
+    code: string,
+    metadata: RequestMetadata = {},
+  ): Promise<void> {
+    await this.verifyMemberOtp(otpId, code, 'PASSWORD_RESET', metadata);
+  }
+
+  async completePasswordReset(
+    otpId: string,
+    newPassword: string,
+    idempotencyKey: string,
+    metadata: RequestMetadata = {},
+  ): Promise<void> {
+    const scope = 'member.password-reset.complete';
+    const requestPayload = { otpId };
+    const cached = await this.checkIdempotency(
+      scope,
+      idempotencyKey,
+      requestPayload,
+    );
+    if (cached) return;
+    const now = new Date();
+    const secretHash = await this.passwordHasher.hash(newPassword);
+    await this.database.db.transaction(async (tx) => {
+      const otpRows = await tx
+        .select()
+        .from(memberEmailOtps)
+        .where(eq(memberEmailOtps.id, otpId))
+        .limit(1);
+      const otp = otpRows[0];
+      if (
+        !otp ||
+        otp.purpose !== 'PASSWORD_RESET' ||
+        !otp.accountId ||
+        otp.usedAt ||
+        !otp.verifiedAt
+      ) {
+        throw new AuthError(
+          'AUTH_FLOW_INVALID',
+          'The password reset flow is invalid.',
+        );
+      }
+      await tx
+        .insert(credentials)
+        .values({
+          accountId: otp.accountId,
+          type: 'PASSWORD',
+          secretHash,
+          hashAlgorithm: 'scrypt',
+          hashVersion: 1,
+        })
+        .onConflictDoUpdate({
+          target: [credentials.accountId, credentials.type],
+          set: {
+            secretHash,
+            hashAlgorithm: 'scrypt',
+            hashVersion: 1,
+            updatedAt: now,
+            revokedAt: null,
+          },
+        });
+      await tx
+        .update(sessions)
+        .set({ revokedAt: now, revokeReason: 'PASSWORD_RESET' })
+        .where(
+          and(
+            eq(sessions.accountId, otp.accountId),
+            isNull(sessions.revokedAt),
+          ),
+        );
+      await tx
+        .update(memberEmailOtps)
+        .set({ usedAt: now, updatedAt: now })
+        .where(eq(memberEmailOtps.id, otpId));
+      await tx.insert(auditLogs).values({
+        actorType: 'SYSTEM',
+        action: 'auth.member.password_reset.completed',
+        entityType: 'account',
+        entityId: otp.accountId,
+        result: 'SUCCESS',
+        requestId: metadata.requestId,
+        ipAddress: metadata.ipAddress,
+        after: { accountId: otp.accountId },
+      });
+    });
+    await this.recordIdempotency(
+      scope,
+      idempotencyKey,
+      requestPayload,
+      { ok: true },
+      200,
+    );
+    await this.store.recordSecurityEvent({
+      accountId: undefined,
+      eventType: 'AUTH_PASSWORD_RESET_COMPLETED',
+      result: 'SUCCESS',
+      metadata,
+      details: { otpId },
     });
   }
 
@@ -333,12 +958,123 @@ export class AuthService {
     });
   }
 
-  private assertActive(status: string): void {
-    if (status !== 'ACTIVE') {
+  private assertLoginAllowed(
+    accountStatus: string,
+    memberStatus: string | null,
+  ): void {
+    if (accountStatus !== 'ACTIVE') {
       throw new AuthError(
         'AUTH_ACCOUNT_INACTIVE',
         'The account is not active.',
       );
+    }
+    if (memberStatus && memberStatus !== 'ACTIVE') {
+      throw new AuthError('AUTH_MEMBER_INACTIVE', 'The member is not active.');
+    }
+  }
+
+  private async assertEmailAvailable(email: string): Promise<void> {
+    const account = await this.database.db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(eq(accounts.email, email))
+      .limit(1);
+    if (account[0]) {
+      throw new AuthError(
+        'AUTH_MEMBER_ALREADY_EXISTS',
+        'An account with this email already exists.',
+      );
+    }
+  }
+
+  private async requireRegistrationOtp(otpId: string) {
+    const otpRows = await this.database.db
+      .select()
+      .from(memberEmailOtps)
+      .where(eq(memberEmailOtps.id, otpId))
+      .limit(1);
+    const otp = otpRows[0];
+    if (!otp || otp.purpose !== 'REGISTRATION') {
+      throw new AuthError(
+        'AUTH_FLOW_INVALID',
+        'The registration flow is invalid.',
+      );
+    }
+    return otp;
+  }
+
+  private async verifyMemberOtp(
+    otpId: string,
+    code: string,
+    purpose: 'REGISTRATION' | 'PASSWORD_RESET',
+    metadata: RequestMetadata,
+  ): Promise<void> {
+    const otpRows = await this.database.db
+      .select()
+      .from(memberEmailOtps)
+      .where(eq(memberEmailOtps.id, otpId))
+      .limit(1);
+    const otp = otpRows[0];
+    const now = new Date();
+    if (!otp || otp.purpose !== purpose || otp.usedAt) {
+      throw new AuthError('AUTH_OTP_INVALID', 'The OTP is invalid.');
+    }
+    if (otp.expiresAt <= now) {
+      throw new AuthError('AUTH_OTP_EXPIRED', 'The OTP has expired.');
+    }
+    if (otp.attempts >= otp.maxAttempts) {
+      throw new AuthError(
+        'AUTH_OTP_ATTEMPTS_EXHAUSTED',
+        'The OTP attempt limit has been reached.',
+      );
+    }
+    const actual = Buffer.from(
+      hashOtpCode(otpId, code, this.settings.otpPepper),
+      'hex',
+    );
+    const expected = Buffer.from(otp.otpHash, 'hex');
+    if (
+      actual.length !== expected.length ||
+      !timingSafeEqual(actual, expected)
+    ) {
+      const attempts = otp.attempts + 1;
+      await this.database.db
+        .update(memberEmailOtps)
+        .set({ attempts, updatedAt: now })
+        .where(eq(memberEmailOtps.id, otpId));
+      await this.store.recordSecurityEvent({
+        accountId: otp.accountId ?? undefined,
+        eventType: 'AUTH_MEMBER_OTP_VERIFY_FAILED',
+        result: 'FAILURE',
+        metadata,
+        details: { purpose, attempts },
+      });
+      throw new AuthError('AUTH_OTP_INVALID', 'The OTP is invalid.');
+    }
+    if (otp.verifiedAt) {
+      return;
+    }
+    await this.database.db
+      .update(memberEmailOtps)
+      .set({ verifiedAt: now, updatedAt: now })
+      .where(eq(memberEmailOtps.id, otpId));
+    await this.store.recordSecurityEvent({
+      accountId: otp.accountId ?? undefined,
+      eventType:
+        purpose === 'REGISTRATION'
+          ? 'AUTH_REGISTRATION_OTP_VERIFIED'
+          : 'AUTH_PASSWORD_RESET_OTP_VERIFIED',
+      result: 'SUCCESS',
+      metadata,
+      details: { purpose },
+    });
+  }
+
+  private async enforceCompositeRateLimit(
+    buckets: Array<[string, number, number]>,
+  ): Promise<void> {
+    for (const [key, limit, windowSeconds] of buckets) {
+      await this.enforceRateLimit(key, limit, windowSeconds);
     }
   }
 
@@ -350,6 +1086,113 @@ export class AuthService {
     if (!(await this.rateLimiter.consume(key, limit, windowSeconds))) {
       throw new AuthError('AUTH_RATE_LIMITED', 'Too many requests.');
     }
+  }
+
+  private async checkIdempotency<T = unknown>(
+    scope: string,
+    key: string,
+    payload: unknown,
+  ): Promise<IdempotencyRecord<T> | null> {
+    const requestHash = this.hashJson(payload);
+    const rows = await this.database.db
+      .select()
+      .from(authIdempotencyKeys)
+      .where(
+        and(
+          eq(authIdempotencyKeys.scope, scope),
+          eq(authIdempotencyKeys.key, key),
+        ),
+      )
+      .limit(1);
+    const record = rows[0];
+    if (!record) return null;
+    if (record.requestHash !== requestHash) {
+      throw new AuthError(
+        'AUTH_IDEMPOTENCY_CONFLICT',
+        'The idempotency key was already used for a different request.',
+      );
+    }
+    if (!record.response || record.statusCode === null) {
+      throw new AuthError(
+        'AUTH_IDEMPOTENCY_CONFLICT',
+        'The idempotency key is still in progress.',
+      );
+    }
+    return {
+      requestHash,
+      response: record.response as T,
+      statusCode: record.statusCode,
+    };
+  }
+
+  private async recordIdempotency<T = unknown>(
+    scope: string,
+    key: string,
+    payload: unknown,
+    response: T,
+    statusCode: number,
+  ): Promise<void> {
+    const requestHash = this.hashJson(payload);
+    const responseHash = this.hashJson(response);
+    const now = new Date();
+    const expiresAt = new Date(
+      now.getTime() + this.settings.idempotencyTtlSeconds * 1000,
+    );
+    try {
+      await this.database.db.insert(authIdempotencyKeys).values({
+        scope,
+        key,
+        requestHash,
+        responseHash,
+        response,
+        statusCode,
+        expiresAt,
+      });
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        !('code' in error) ||
+        (error as { code?: string }).code !== '23505'
+      ) {
+        throw error;
+      }
+      const existing = await this.database.db
+        .select()
+        .from(authIdempotencyKeys)
+        .where(
+          and(
+            eq(authIdempotencyKeys.scope, scope),
+            eq(authIdempotencyKeys.key, key),
+          ),
+        )
+        .limit(1);
+      const record = existing[0];
+      if (!record || record.requestHash !== requestHash) {
+        throw new AuthError(
+          'AUTH_IDEMPOTENCY_CONFLICT',
+          'The idempotency key was already used for a different request.',
+        );
+      }
+    }
+  }
+
+  private hashJson(value: unknown): string {
+    return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  }
+
+  private generateToken(length: number): string {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const bytes = randomBytes(length);
+    let token = '';
+    for (let index = 0; index < length; index += 1) {
+      const n = bytes[index];
+      token += alphabet[n! % alphabet.length];
+    }
+    return token;
+  }
+
+  private generatePublicIdentifier(prefix: string, length: number): string {
+    return `${prefix.toUpperCase()}_${this.generateToken(length)}`;
   }
 
   private generateTokens(): AuthTokens {

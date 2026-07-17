@@ -392,7 +392,10 @@ export const memberEmailOtps = pgTable(
       'member_email_otps_code_hash_only_check',
       sql`char_length(${table.otpHash}) = 64`,
     ),
-    check('member_email_otps_expiry_check', sql`${table.expiresAt} > ${table.createdAt}`),
+    check(
+      'member_email_otps_expiry_check',
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
     check(
       'member_email_otps_resend_check',
       sql`${table.resendAvailableAt} >= ${table.createdAt}`,

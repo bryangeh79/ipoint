@@ -335,32 +335,29 @@ export class PostgresAuthStore implements AuthStorePort {
     return rows[0]?.status ?? null;
   }
 
-  async findMemberEmailOtp(id: string): Promise<
-    | {
-        id: string;
-        purpose: 'REGISTRATION' | 'PASSWORD_RESET';
-        memberId: string | null;
-        accountId: string | null;
-        email: string;
-        accountCountry: string | null;
-        passwordHash: string | null;
-        referralCode: string | null;
-        referrerMemberId: string | null;
-        termsVersion: string | null;
-        disclaimerVersion: string | null;
-        privacyVersion: string | null;
-        locale: string | null;
-        otpHash: string;
-        otpVersion: number;
-        attempts: number;
-        maxAttempts: number;
-        expiresAt: Date;
-        resendAvailableAt: Date;
-        verifiedAt: Date | null;
-        usedAt: Date | null;
-      }
-    | null
-  > {
+  async findMemberEmailOtp(id: string): Promise<{
+    id: string;
+    purpose: 'REGISTRATION' | 'PASSWORD_RESET';
+    memberId: string | null;
+    accountId: string | null;
+    email: string;
+    accountCountry: string | null;
+    passwordHash: string | null;
+    referralCode: string | null;
+    referrerMemberId: string | null;
+    termsVersion: string | null;
+    disclaimerVersion: string | null;
+    privacyVersion: string | null;
+    locale: string | null;
+    otpHash: string;
+    otpVersion: number;
+    attempts: number;
+    maxAttempts: number;
+    expiresAt: Date;
+    resendAvailableAt: Date;
+    verifiedAt: Date | null;
+    usedAt: Date | null;
+  } | null> {
     const rows = await this.database.db
       .select()
       .from(memberEmailOtps)

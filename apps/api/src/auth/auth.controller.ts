@@ -19,12 +19,24 @@ import { ConfigService } from '../config/config.service.js';
 import {
   issueOtpSchema,
   loginSchema,
+  passwordResetCompleteSchema,
+  passwordResetInitiateSchema,
+  passwordResetVerifySchema,
   refreshSchema,
+  registrationCompleteSchema,
+  registrationInitiateSchema,
+  registrationResendSchema,
   resetPasswordSchema,
   verifyOtpSchema,
   type IssueOtpDto,
+  type PasswordResetCompleteDto,
+  type PasswordResetInitiateDto,
+  type PasswordResetVerifyDto,
   type LoginDto,
   type RefreshDto,
+  type RegistrationCompleteDto,
+  type RegistrationInitiateDto,
+  type RegistrationResendDto,
   type ResetPasswordDto,
   type VerifyOtpDto,
 } from './auth.dto.js';
@@ -107,6 +119,135 @@ export class AuthController {
     };
   }
 
+  @Post('registration/initiate')
+  @HttpCode(202)
+  async initiateRegistration(
+    @Body(new ZodValidationPipe(registrationInitiateSchema))
+    input: RegistrationInitiateDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    const metadata = context(request, ipAddress);
+    const otp = await this.handle(() =>
+      this.auth.initiateRegistration(
+        {
+          email: input.email,
+          password: input.password,
+          accountCountry: input.account_country,
+          referralCode: input.referral_code ?? null,
+          termsVersion: input.terms_version,
+          disclaimerVersion: input.disclaimer_version,
+          privacyVersion: input.privacy_version,
+          locale: input.locale,
+        },
+        metadata,
+      ),
+    );
+    return this.issueOtpResponse(otp);
+  }
+
+  @Post('registration/resend')
+  @HttpCode(202)
+  async resendRegistrationOtp(
+    @Body(new ZodValidationPipe(registrationResendSchema))
+    input: RegistrationResendDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    const otp = await this.handle(() =>
+      this.auth.resendRegistrationOtp(
+        input.otp_id,
+        context(request, ipAddress),
+      ),
+    );
+    return this.issueOtpResponse(otp);
+  }
+
+  @Post('registration/verify')
+  @HttpCode(200)
+  async verifyRegistrationOtp(
+    @Body(new ZodValidationPipe(verifyOtpSchema))
+    input: VerifyOtpDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    await this.handle(() =>
+      this.auth.verifyRegistrationOtp(
+        input.otp_id,
+        input.code,
+        context(request, ipAddress),
+      ),
+    );
+    return { verified: true };
+  }
+
+  @Post('registration/complete')
+  @HttpCode(200)
+  async completeRegistration(
+    @Body(new ZodValidationPipe(registrationCompleteSchema))
+    input: RegistrationCompleteDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    return this.handle(() =>
+      this.auth.completeRegistration(
+        input.otp_id,
+        input.idempotency_key,
+        context(request, ipAddress),
+      ),
+    );
+  }
+
+  @Post('password-reset/initiate')
+  @HttpCode(202)
+  async initiatePasswordReset(
+    @Body(new ZodValidationPipe(passwordResetInitiateSchema))
+    input: PasswordResetInitiateDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    const otp = await this.handle(() =>
+      this.auth.initiatePasswordReset(input.email, context(request, ipAddress)),
+    );
+    return this.issueOtpResponse(otp);
+  }
+
+  @Post('password-reset/verify')
+  @HttpCode(200)
+  async verifyPasswordResetOtp(
+    @Body(new ZodValidationPipe(passwordResetVerifySchema))
+    input: PasswordResetVerifyDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    await this.handle(() =>
+      this.auth.verifyPasswordResetOtp(
+        input.otp_id,
+        input.code,
+        context(request, ipAddress),
+      ),
+    );
+    return { verified: true };
+  }
+
+  @Post('password-reset/complete')
+  @HttpCode(204)
+  async completePasswordReset(
+    @Body(new ZodValidationPipe(passwordResetCompleteSchema))
+    input: PasswordResetCompleteDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ): Promise<void> {
+    await this.handle(() =>
+      this.auth.completePasswordReset(
+        input.otp_id,
+        input.new_password,
+        input.idempotency_key,
+        context(request, ipAddress),
+      ),
+    );
+  }
+
   @Post('otp/verify')
   @HttpCode(200)
   async verifyOtp(
@@ -154,6 +295,7 @@ export class AuthController {
       if (
         error.code === 'AUTH_INVALID_CREDENTIALS' ||
         error.code === 'AUTH_ACCOUNT_INACTIVE' ||
+        error.code === 'AUTH_MEMBER_INACTIVE' ||
         error.code === 'AUTH_SESSION_INVALID' ||
         error.code === 'AUTH_REFRESH_REUSED'
       ) {
@@ -162,11 +304,37 @@ export class AuthController {
           message: error.message,
         });
       }
+      if (error.code === 'AUTH_OTP_COOLDOWN') {
+        throw new HttpException(
+          { code: error.code, message: error.message },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+      if (
+        error.code === 'AUTH_IDEMPOTENCY_CONFLICT' ||
+        error.code === 'AUTH_MEMBER_ALREADY_EXISTS'
+      ) {
+        throw new HttpException(
+          { code: error.code, message: error.message },
+          HttpStatus.CONFLICT,
+        );
+      }
       throw new BadRequestException({
         code: error.code,
         message: error.message,
       });
     }
+  }
+
+  private issueOtpResponse(otp: { id: string; code: string; expiresAt: Date }) {
+    const exposeDevelopmentCode =
+      this.config.isDevelopment || this.config.isTest;
+    return {
+      otp_id: otp.id,
+      expires_at: otp.expiresAt,
+      delivery_status: 'NOT_SENT' as const,
+      ...(exposeDevelopmentCode ? { development_code: otp.code } : {}),
+    };
   }
 }
 

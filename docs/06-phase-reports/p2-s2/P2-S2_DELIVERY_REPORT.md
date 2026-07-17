@@ -59,18 +59,18 @@ All P2-S1 doc changes are Prettier formatting only (table alignment, column spac
 
 ## 8. Verification results (final SHA)
 
-| Command | Exit | Result |
-|---|---|---|
-| `pnpm format:check` | 0 | PASS |
-| `pnpm lint` | 0 | PASS |
-| `pnpm typecheck` | 0 | PASS |
-| `pnpm build` | 0 | PASS |
-| `pnpm test` | 0 | 91 passed |
-| `pnpm test:database` | 0 | 24/24 PASS |
-| `pnpm db:checksum` | 0 | 8 checksums |
-| `pnpm db:migrate` | 0 | PASS |
-| `pnpm db:seed` (x2) | 0 | PASS idempotent |
-| `pnpm db:drift` | 0 | PASS no drift |
+| Command              | Exit | Result          |
+| -------------------- | ---- | --------------- |
+| `pnpm format:check`  | 0    | PASS            |
+| `pnpm lint`          | 0    | PASS            |
+| `pnpm typecheck`     | 0    | PASS            |
+| `pnpm build`         | 0    | PASS            |
+| `pnpm test`          | 0    | 91 passed       |
+| `pnpm test:database` | 0    | 24/24 PASS      |
+| `pnpm db:checksum`   | 0    | 8 checksums     |
+| `pnpm db:migrate`    | 0    | PASS            |
+| `pnpm db:seed` (x2)  | 0    | PASS idempotent |
+| `pnpm db:drift`      | 0    | PASS no drift   |
 
 ## 9. Scope leakage
 
