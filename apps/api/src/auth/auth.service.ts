@@ -243,6 +243,10 @@ export class AuthService {
       });
       throw new AuthError('AUTH_OTP_INVALID', 'The OTP is invalid.');
     }
+    // A verified, unconsumed OTP remains safe to verify idempotently. This lets
+    // clients complete an explicit verify step before the registration/reset
+    // transaction consumes the same proof.
+    if (otp.verifiedAt) return;
     if (!(await this.store.markOtpVerified(id, now))) {
       throw new AuthError('AUTH_OTP_INVALID', 'The OTP is invalid.');
     }
