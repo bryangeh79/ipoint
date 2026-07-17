@@ -16,8 +16,8 @@ phases:
         title: Configure PostgreSQL Redis Prisma and Docker Compose
         priority: P0
         status: completed
-        dependencies: [IP-P0-001]
         owner: codex
+        dependencies: [IP-P0-001]
         reviewer: gemini
       - id: IP-P0-003
         title: Configure GitHub Actions quality gates
@@ -43,31 +43,36 @@ phases:
   - id: P1
     title: Identity access market and audit foundations
     status: planned
-
   - id: P2
     title: Member core
     status: planned
-
   - id: P3
     title: Merchant core
     status: planned
-
   - id: P4
     title: MCP and transaction ledger
     status: planned
-
   - id: P5
     title: Daily iPoint reward engine
     status: planned
-
   - id: P6
     title: Admin operations
     status: planned
-
   - id: P7
     title: Referral agent and commission
     status: planned
-
   - id: P8
     title: Redemption advertising reporting and release hardening
     status: planned
+
+backlog:
+  - id: AUTH-INFRA-001
+    title: Distributed Redis Rate Limiter
+    target_phase: Production Infrastructure / Deployment Hardening Phase
+    prerequisite: Before multi-API-instance, horizontal scaling, load-balanced multi-node, or production public launch
+    current_state: InMemoryRateLimiter (single-instance baseline)
+    implementation_note: RateLimitPort interface already abstracted; requires Redis client + sliding-window or token-bucket implementation
+    risk: Attackers can bypass per-instance rate limits by rotating through instances
+    decision_ref: D-019-C
+    status: BACKLOG
+    priority: BLOCKER BEFORE MULTI-INSTANCE PRODUCTION

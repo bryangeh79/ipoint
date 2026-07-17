@@ -216,4 +216,3 @@ if (errors.length > 0) {
   console.log('\n✅ All runtime OpenAPI validations passed.');
   process.exit(0);
 }
-

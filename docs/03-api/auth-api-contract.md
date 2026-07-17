@@ -3,7 +3,10 @@
 > **Document Status**: FROZEN — v1.0  
 > **Last Updated**: 2026-07-18  
 > **Classification**: LOCKED (approved product rules — implement as specified)  
-> **Authority**: Phase 2 — Sprint 4A (API Contract Freeze)
+> **Authority**: Phase 2 — Sprint 4A (API Contract Freeze)  
+> **Command Center Acceptance**: D-019 (2026-07-18) — P2-S4 ACCEPTED FOR CLOSURE  
+> **Canonical Response Casing**: `camelCase` (legacy mixed fields temporarily compatible)  
+> **Canonical Routes**: Non-member paths under `/auth/` are canonical. Member aliases are **deprecated**.
 
 ---
 
@@ -716,18 +719,49 @@ The following endpoints have thorough test coverage in `auth.http.integration.sp
 | `POST /auth/member/password-reset/verify`   | Alias of `/auth/password-reset/verify`            |
 | `POST /auth/member/password-reset/complete` | Alias of `/auth/password-reset/complete`          |
 
-### 9.2 Needs Command Center Decision (Potential Breaking Changes)
+### 9.2 Command Center Decisions (D-019)
 
-| Item                                                | Decision Required                                                                                 | Impact                                                   |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| **Response field casing**                           | Choose: standardize all responses to `camelCase` or `snake_case`? Currently mixed.                | Breaks frontend if changed; affects `api-client` package |
-| **Member route path variant resolution**            | Decide: keep member aliases or deprecate them?                                                    | If kept, frontend should use one convention consistently |
-| **Rate limit configurability**                      | Should hardcoded limits (refresh: 30/60s, OTP issue: 5/3600s) be configurable via `AuthSettings`? | Non-breaking to add; needed for production tuning        |
-| **InMemoryRateLimiter → Redis**                     | Decision to implement distributed rate limiter for production                                     | Blocking for production deployment per `auth/README.md`  |
-| **`AUTH_PASSWORD_WEAK` implementation**             | Define password strength policy                                                                   | Currently type-union only; no enforcement                |
-| **`AUTH_FLOW_EXPIRED` implementation**              | Define when flow expiry applies                                                                   | Currently type-union only; no enforcement                |
-| **`AUTH_IDEMPOTENCY_REQUIRED` implementation**      | Define when it would be thrown                                                                    | Currently type-union only; no enforcement                |
-| **`POST /auth/member/password-reset/request` path** | Path uses `request` while non-member uses `initiate`. Choose single convention.                   | Breaking if changed; consistency improvement             |
+The following decisions apply as of P2-S4 acceptance (2026-07-18).
+
+**Response Field Casing**
+
+- **Decision**: `camelCase` is the canonical standard for all new API responses.
+- **Legacy**: Currently mixed responses (token responses in camelCase, OTP responses in snake_case, completion responses in camelCase) are NOT modified in this phase to avoid breaking existing consumers.
+- **Contract marker**: Each endpoint table should note `Canonical: camelCase | Legacy: mixed fields temporarily compatible`.
+- **Migration**: A dedicated compatibility/migration phase is required before enforcing uniform camelCase.
+
+**Member Route Path Variants**
+
+- **Canonical route**: The non-member paths under `/auth/` are canonical (e.g., `/auth/registration/initiate`).
+- **Aliases**: Member alias paths under `/auth/member/` are **retained temporarily** to avoid breaking existing callers.
+- **Deprecation**: All aliases MUST be marked `deprecated: true` in the OpenAPI spec.
+- **No new aliases**: No additional route aliases may be created.
+- **Future removal**: Alias deletion must occur in a dedicated API version migration phase.
+
+**Rate Limit Configurability**
+
+- Refresh rate limit (was hardcoded 30/60s): **RESOLVED** — now configurable via `AUTH_REFRESH_RATE_LIMIT_COUNT` / `AUTH_REFRESH_RATE_LIMIT_WINDOW_SECONDS` env vars (default: 30/60).
+- Generic OTP issue rate limit (5/3600s): Remains hardcoded but should be made configurable in a follow-up.
+
+**InMemoryRateLimiter → Redis**
+
+- **Decision**: Deferred. Current InMemoryRateLimiter is acceptable for single-instance development and testing.
+- **Prerequisite**: Redis must be implemented BEFORE any of these conditions occur: multi-API-instance deployment, horizontal scaling, load-balanced multi-node, or production public launch.
+- **Backlog item**: `AUTH-INFRA-001` — Distributed Redis Rate Limiter.
+- **Risk**: ACCEPTED for single-instance phase; BLOCKER before multi-instance production.
+
+**Unimplemented Error Codes (AUTH_PASSWORD_WEAK, AUTH_FLOW_EXPIRED, AUTH_IDEMPOTENCY_REQUIRED)**
+
+- **Decision**: These codes are NOT part of the public runtime contract. They must be:
+  1. Removed from endpoint-level error response descriptions in this contract.
+  2. Kept in the internal type union as reserved/future codes.
+  3. NOT deleted from production code to avoid breaking references.
+- **Rationale**: Public contract must match real runtime behavior exactly.
+
+**POST /auth/member/password-reset/request Path**
+
+- **Decision**: Canonical path is `/auth/password-reset/initiate`. The member alias `/auth/member/password-reset/request` is retained temporarily and marked deprecated.
+- **Future**: Rename to `/auth/member/password-reset/initiate` in a future API version migration.
 
 ---
 

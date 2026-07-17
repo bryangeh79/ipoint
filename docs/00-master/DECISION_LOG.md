@@ -334,3 +334,32 @@
 | **Approver** | Bryan |
 | **Basis** | Drizzle Proxy investigation 2026-07-17/18 - all known workarounds exhausted |
 | **Status** | **APPROVED** |
+
+## D-019: Auth API Compatibility and Production Hardening Decisions
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-019 |
+| **Date** | 2026-07-18 |
+| **Source** | ChatGPT Command Center — P2-S4 final acceptance review |
+| **Old Rule** | No formal standard for response casing, route conventions, or error code contract scope |
+| **New Decision** | See below (5 sub-decisions) |
+| **Reason** | P2-S4 delivery acceptance; formalize contract standards and infrastructure backlog |
+| **Affected Files** | docs/03-api/auth-api-contract.md, docs/05-security/auth-security-review.md, docs/06-phase-reports/p2-s4/P2-S4_DELIVERY_REPORT.md |
+| **Affected Phases** | P2-S4 |
+| **Migration** | NONE (documentation and backlog only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P2-S4 final acceptance (2026-07-18) |
+| **Status** | **APPROVED** |
+
+### Sub-decisions
+
+**D-019-A — Response Field Casing**: camelCase is the canonical standard for all new API responses. Currently mixed fields (token responses in camelCase, OTP responses in snake_case) are NOT modified in P2-S4 to avoid breaking consumers. A dedicated compatibility phase is required before enforcing uniform camelCase.
+
+**D-019-B — Canonical Routes**: Non-member paths under /auth/ are canonical. Member aliases under /auth/member/ are retained temporarily and marked deprecated: true in OpenAPI. No new aliases may be created. Removal requires a future API version migration.
+
+**D-019-C — Redis Rate Limiter**: InMemoryRateLimiter is accepted for single-instance dev/test. Redis distributed rate limiter is declared a hard prerequisite before: multi-API-instance deployment, horizontal scaling, load-balanced multi-node, or production public launch. Backlog item AUTH-INFRA-001 created.
+
+**D-019-D — Unimplemented Error Codes**: AUTH_PASSWORD_WEAK, AUTH_FLOW_EXPIRED, and AUTH_IDEMPOTENCY_REQUIRED are removed from the public API contract's endpoint error response descriptions. They remain in the internal type union as reserved/future codes. Public contract must match real runtime behavior.
+
+**D-019-E — P2-S4 Acceptance**: P2-S4 (Registration & Auth Production Hardening) is **ACCEPTED FOR CLOSURE**. Branch: 	ask/p2-s4-auth-hardening. Commits: 91cc0f07, 2c61bb0e, 1dfb902f. All verification criteria satisfied.

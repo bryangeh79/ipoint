@@ -200,31 +200,41 @@ function getMethod(name: string): object | undefined {
 function getApiOperation(name: string): Record<string, unknown> | undefined {
   const method = getMethod(name);
   if (!method) return undefined;
-  return Reflect.getMetadata('swagger/apiOperation', method) as Record<string, unknown> | undefined;
+  return Reflect.getMetadata('swagger/apiOperation', method) as
+    | Record<string, unknown>
+    | undefined;
 }
 
 function getApiResponses(name: string): Record<string, unknown> | undefined {
   const method = getMethod(name);
   if (!method) return undefined;
-  return Reflect.getMetadata('swagger/apiResponse', method) as Record<string, unknown> | undefined;
+  return Reflect.getMetadata('swagger/apiResponse', method) as
+    | Record<string, unknown>
+    | undefined;
 }
 
 function getApiParameters(name: string): unknown[] | undefined {
   const method = getMethod(name);
   if (!method) return undefined;
-  return Reflect.getMetadata('swagger/apiParameters', method) as unknown[] | undefined;
+  return Reflect.getMetadata('swagger/apiParameters', method) as
+    | unknown[]
+    | undefined;
 }
 
 function getApiSecurity(name: string): unknown[] | undefined {
   const method = getMethod(name);
   if (!method) return undefined;
-  return Reflect.getMetadata('swagger/apiSecurity', method) as unknown[] | undefined;
+  return Reflect.getMetadata('swagger/apiSecurity', method) as
+    | unknown[]
+    | undefined;
 }
 
 describe('OpenAPI Consistency (Reflection)', () => {
   // @ApiTags on controller class
   it('should have @ApiTags("Auth") on controller', () => {
-    const tags = Reflect.getMetadata('swagger/apiUseTags', AuthController) as unknown[] | undefined;
+    const tags = Reflect.getMetadata('swagger/apiUseTags', AuthController) as
+      | unknown[]
+      | undefined;
     expect(tags).toBeDefined();
     expect(Array.isArray(tags)).toBe(true);
     expect(tags).toContain('Auth');

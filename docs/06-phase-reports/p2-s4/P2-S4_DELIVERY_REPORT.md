@@ -492,19 +492,34 @@ nothing to commit, working tree clean
 
 ---
 
-## 14. Command Center Decisions Required
+## 14. Command Center Decisions � D-019 (2026-07-18)
 
-| #   | Item                                    | Options                                                                                   | Recommendation                                   |
-| --- | --------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| 1   | **Response field casing**               | (a) Standardize all to camelCase (breaks existing) (b) Keep mixed (cosmetic only)         | (a) — Standardize to camelCase for consistency   |
-| 2   | **Member route path variants**          | (a) Keep both (b) Deprecate aliases (c) Rename to single convention                       | (a) — Keep both, document preference             |
-| 3   | **InMemoryRateLimiter → Redis**         | (a) Defer to production phase (b) Implement now                                           | (a) — Defer; single-instance works for MVP       |
-| 4   | **AUTH_PASSWORD_WEAK**                  | (a) Define policy (b) Remove unused code (c) Keep as reserved                             | (c) — Keep as reserved for future implementation |
-| 5   | **AUTH_FLOW_EXPIRED**                   | (a) Remove unused code (b) Implement flow expiry (c) Keep as reserved                     | (c) — Keep as reserved                           |
-| 6   | **AUTH_IDEMPOTENCY_REQUIRED**           | (a) Remove unused code (b) Implement enforcement (c) Keep as reserved                     | (c) — Keep as reserved                           |
-| 7   | **/member/password-reset/request path** | (a) Keep as-is (b) Rename to /initiate (breaking) (c) Rename other to /request (breaking) | (a) — Keep as-is                                 |
+All decisions were submitted to and approved by ChatGPT Command Center on 2026-07-18. Full detail recorded in docs/00-master/DECISION_LOG.md (D-019).
 
----
+### 14.1 Response Field Casing
+
+- **Decision**: camelCase is canonical standard.
+- **Impact**: Non-breaking. Legacy mixed fields retained temporarily.
+- **Migration**: Requires dedicated compatibility phase before enforcing uniform camelCase.
+- **Status**: **APPROVED**
+
+### 14.2 Member Route Path Variants
+
+- **Decision**: Non-member /auth/ paths are canonical. Member aliases retained temporarily, marked deprecated in OpenAPI.
+- **Impact**: Non-breaking. No new aliases permitted.
+- **Migration**: Alias removal in future API version migration.
+- **Status**: **APPROVED**
+
+### 14.3 InMemoryRateLimiter ? Redis
+
+- **Decision**: Deferred. **Prerequisite before**: multi-API-instance, horizontal scaling, load-balanced multi-node, production launch.
+- **Backlog**: AUTH-INFRA-001 (Distributed Redis Rate Limiter) created.
+- **Status**: **APPROVED � BLOCKER BEFORE MULTI-INSTANCE PRODUCTION**
+
+### 14.4 Unimplemented Error Codes
+
+- **Decision**: AUTH_PASSWORD_WEAK, AUTH_FLOW_EXPIRED, AUTH_IDEMPOTENCY_REQUIRED removed from public contract endpoint error responses. Retained as internal reserved codes.
+- **Status**: **APPROVED**
 
 ## 15. Final Readiness
 

@@ -248,3 +248,19 @@ $ pnpm build
 | Self-referral prevention                           | ✅     | Referral code cannot match own account                             |
 | Safe error filter                                  | ✅     | `AllExceptionsFilter` sanitizes internal details                   |
 | Audit logging                                      | ✅     | Security events + audit logs on all auth operations                |
+
+---
+
+## Command Center Disposition (D-019, 2026-07-18)
+
+### AHS-002 (MEDIUM) � Registration Email Enumeration
+
+**Disposition**: Accept current risk. Rate limiting (3/60s email, 5/60s IP) makes bulk enumeration impractical. No code changes in P2-S4.
+
+### AHS-003 (MEDIUM) � In-Memory Rate Limiter
+
+**Disposition**: Deferred. Linked to backlog item **AUTH-INFRA-001** (Distributed Redis Rate Limiter). Accepted for current single-instance phase. **BLOCKER before multi-instance production.**
+
+### AHS-004 (MEDIUM) � Resend OTP Resets Attempt Counter
+
+**Disposition**: Accept current risk. Resend cooldown (60s default) + rate limiting provide adequate MVP protection. No code changes in P2-S4.
