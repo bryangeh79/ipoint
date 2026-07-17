@@ -10,6 +10,7 @@ import { MerchantModule } from './merchant/merchant.module.js';
 import { ProfileModule } from './profile/profile.module.js';
 import { MarketModule } from './market/market.module.js';
 import { CountryChangeModule } from './country-change/country-change.module.js';
+import { KycModule } from './kyc/kyc.module.js';
 import {
   RequestIdMiddleware,
   resolveRequestId,
@@ -47,6 +48,7 @@ import {
     ProfileModule,
     MarketModule,
     CountryChangeModule,
+    KycModule,
   ],
 })
 export class AppModule implements NestModule {
