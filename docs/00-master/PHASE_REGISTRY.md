@@ -14,7 +14,7 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Work** | **P2-S3 COMPLETION REPAIR ONLY** | Changed to CHANGES_REQUIRED for completion repair under dispatch |
+| **Current Authorized Work** | **P2-S3 FINAL COMPLETION** | Changed to CHANGES_REQUIRED for completion repair under dispatch |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
 | **Phase 2** | **AUTHORIZED** | P2-S1 approved under D-016; P2-S2 COMPLETE / APPROVED under D-017; P2-S3 CHANGES_REQUIRED; later sub-phases remain NOT_AUTHORIZED |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
