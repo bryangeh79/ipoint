@@ -148,6 +148,9 @@ export const memberKycLevel = pgEnum('member_kyc_level', [
   'LEVEL_1',
   'LEVEL_2',
 ]);
+
+export type PhoneVerificationStatus = 'NOT_PROVIDED' | 'PENDING' | 'VERIFIED';
+
 export const memberReferralSource = pgEnum('member_referral_source', [
   'REGISTRATION',
   'ADMIN_CORRECTION',
@@ -660,9 +663,22 @@ export const memberProfiles = pgTable(
     memberId: uuid('member_id')
       .notNull()
       .references(() => members.id, { onDelete: 'restrict' }),
-    displayName: text('display_name').notNull(),
+    displayName: text('display_name'),
     fullName: text('full_name'),
     phone: text('phone'),
+    phoneNormalized: text('phone_normalized'),
+    phoneVerificationStatus: text('phone_verification_status')
+      .$type<PhoneVerificationStatus>()
+      .notNull()
+      .default('NOT_PROVIDED'),
+    phoneChangedAt: timestamp('phone_changed_at', {
+      withTimezone: true,
+      precision: 6,
+    }),
+    phoneVerifiedAt: timestamp('phone_verified_at', {
+      withTimezone: true,
+      precision: 6,
+    }),
     birthDate: date('birth_date'),
     address: jsonb('address'),
     avatarObjectKey: text('avatar_object_key'),
@@ -673,7 +689,28 @@ export const memberProfiles = pgTable(
     updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
     archivedAt: utcTimestamp('archived_at'),
   },
-  (table) => [unique('member_profiles_member_unique').on(table.memberId)],
+  (table) => [
+    unique('member_profiles_member_unique').on(table.memberId),
+    uniqueIndex('member_profiles_phone_normalized_unique')
+      .on(table.phoneNormalized)
+      .where(sql`${table.phoneNormalized} is not null`),
+    check(
+      'check_phone_verification_status',
+      sql`${table.phoneVerificationStatus} in ('NOT_PROVIDED', 'PENDING', 'VERIFIED')`,
+    ),
+    check(
+      'check_phone_null_consistency',
+      sql`(${table.phone} is null and ${table.phoneNormalized} is null and ${table.phoneVerificationStatus} = 'NOT_PROVIDED' and ${table.phoneVerifiedAt} is null) or (${table.phone} is not null)`,
+    ),
+    check(
+      'check_phone_pending_consistency',
+      sql`(${table.phoneVerificationStatus} in ('NOT_PROVIDED', 'PENDING') and ${table.phoneNormalized} is not null and ${table.phoneVerifiedAt} is null) or (${table.phoneVerificationStatus} = 'VERIFIED') or (${table.phone} is null and ${table.phoneVerificationStatus} = 'NOT_PROVIDED')`,
+    ),
+    check(
+      'check_phone_verified_consistency',
+      sql`(${table.phoneVerificationStatus} = 'VERIFIED' and ${table.phoneNormalized} is not null and ${table.phoneVerifiedAt} is not null) or (${table.phoneVerificationStatus} != 'VERIFIED')`,
+    ),
+  ],
 );
 
 export const memberMarketPreferences = pgTable(

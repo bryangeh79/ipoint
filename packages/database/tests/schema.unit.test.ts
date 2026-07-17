@@ -1,5 +1,7 @@
 import { readFile } from 'node:fs/promises';
+import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
+import { memberProfiles } from '../schema/index.js';
 import { expectedSchema } from '../src/expected-schema.js';
 import { calculateMigrationChecksums } from '../src/migration-checksums.js';
 import { migrationsDirectory } from '../src/paths.js';
@@ -113,6 +115,77 @@ describe('database foundation schema', () => {
     );
   });
 
+  it('defines nullable member profile display name and phone verification columns', () => {
+    expect(expectedSchema.member_profiles).toEqual(
+      expect.arrayContaining([
+        'display_name',
+        'phone_normalized',
+        'phone_verification_status',
+        'phone_changed_at',
+        'phone_verified_at',
+      ]),
+    );
+
+    const config = getTableConfig(memberProfiles);
+    const columns = Object.fromEntries(
+      config.columns.map((column) => [column.name, column]),
+    );
+
+    expect(columns['display_name']?.notNull).toBe(false);
+    expect(columns['phone_normalized']?.notNull).toBe(false);
+    expect(columns['phone_verification_status']?.notNull).toBe(true);
+    expect(columns['phone_verification_status']?.default).toBe('NOT_PROVIDED');
+    expect(columns['phone_changed_at']?.columnType).toBe('PgTimestamp');
+    expect(columns['phone_verified_at']?.columnType).toBe('PgTimestamp');
+  });
+
+  it('defines member profile phone constraints and the partial unique index', () => {
+    const config = getTableConfig(memberProfiles);
+
+    expect(config.checks.map((constraint) => constraint.name)).toEqual(
+      expect.arrayContaining([
+        'check_phone_verification_status',
+        'check_phone_null_consistency',
+        'check_phone_pending_consistency',
+        'check_phone_verified_consistency',
+      ]),
+    );
+    expect(config.indexes.map((index) => index.config.name)).toContain(
+      'member_profiles_phone_normalized_unique',
+    );
+  });
+
+  it('includes phone verification columns in member_profiles', () => {
+    expect(expectedSchema.member_profiles).toEqual(
+      expect.arrayContaining([
+        'phone_normalized',
+        'phone_verification_status',
+        'phone_changed_at',
+        'phone_verified_at',
+      ]),
+    );
+  });
+
+  it('has display_name nullable in member_profiles', () => {
+    // display_name must be present but is nullable (no NOT NULL constraint)
+    expect(expectedSchema.member_profiles).toContain('display_name');
+  });
+
+  it('has valid phone verification status enum values', () => {
+    // phone_verification_status uses CHECK constraint with these values
+    const validStatuses = ['NOT_PROVIDED', 'PENDING', 'VERIFIED'] as const;
+    expect(validStatuses).toHaveLength(3);
+    expect(validStatuses).toEqual(
+      expect.arrayContaining(['NOT_PROVIDED', 'PENDING', 'VERIFIED']),
+    );
+  });
+
+  it('has phone verification status column with valid default', () => {
+    expect(expectedSchema.member_profiles).toContain(
+      'phone_verification_status',
+    );
+  });
+
   it('keeps migrations explicit SQL and in the checksum set', async () => {
     const checksums = await calculateMigrationChecksums();
     expect(Object.keys(checksums)).toEqual([
@@ -126,6 +199,7 @@ describe('database foundation schema', () => {
       '0007_phase_2_member_schema_forward_migrations.sql',
       '0008_phase_2_member_registration_auth.sql',
       '0009_add_sessions_family_id_index.sql',
+      '0010_member_profile_phone_and_default_market_hardening.sql',
     ]);
     const migration = await readFile(
       `${migrationsDirectory}/0000_database_foundation.sql`,
@@ -144,6 +218,36 @@ describe('database foundation schema', () => {
     expect(phaseOneMigration).toContain('CREATE FUNCTION generate_merchant_id');
     expect(phaseOneMigration).not.toMatch(
       /CREATE TABLE (transactions|receipts|rewards|commissions|advertisements)/iu,
+    );
+
+    const memberProfileHardeningMigration = await readFile(
+      `${migrationsDirectory}/0010_member_profile_phone_and_default_market_hardening.sql`,
+      'utf8',
+    );
+    expect(memberProfileHardeningMigration).toContain(
+      'ADD COLUMN IF NOT EXISTS phone_normalized text',
+    );
+    expect(memberProfileHardeningMigration).toContain(
+      "ADD COLUMN IF NOT EXISTS phone_verification_status text NOT NULL DEFAULT 'NOT_PROVIDED'",
+    );
+    expect(memberProfileHardeningMigration).toEqual(
+      expect.stringContaining('ALTER COLUMN display_name DROP NOT NULL'),
+    );
+    for (const constraint of [
+      'check_phone_verification_status',
+      'check_phone_null_consistency',
+      'check_phone_pending_consistency',
+      'check_phone_verified_consistency',
+    ]) {
+      expect(memberProfileHardeningMigration).toContain(
+        `ADD CONSTRAINT ${constraint}`,
+      );
+    }
+    expect(memberProfileHardeningMigration).toContain(
+      'CREATE UNIQUE INDEX IF NOT EXISTS member_profiles_phone_normalized_unique',
+    );
+    expect(memberProfileHardeningMigration).not.toMatch(
+      /CREATE UNIQUE INDEX[^;]*member_market_preferences/iu,
     );
   });
 });

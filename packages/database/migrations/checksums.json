@@ -8,5 +8,6 @@
   "0006_mcp_adjustment_refund_governance.sql": "fadc6ad60852167a1f837df2d06bd9ac920afffa86025415967f5f5ab03189f2",
   "0007_phase_2_member_schema_forward_migrations.sql": "6ef81c229be35a3cf2d5359c3af0596fa13ba4a2b585ef7e671455d47b171c05",
   "0008_phase_2_member_registration_auth.sql": "2c09d5f7e4c07823676d8741b30e8bb207ec169e98ab5a07cca58293ad9c2d95",
-  "0009_add_sessions_family_id_index.sql": "b9f6a2661dbe3d2aea183223987cbf49f480a17630b943636fa6d9d585da1a31"
+  "0009_add_sessions_family_id_index.sql": "b9f6a2661dbe3d2aea183223987cbf49f480a17630b943636fa6d9d585da1a31",
+  "0010_member_profile_phone_and_default_market_hardening.sql": "fdfa95310a18c3932a0b8c02e57e3bf99fc50766d5242d169b140384a3fae516"
 }
