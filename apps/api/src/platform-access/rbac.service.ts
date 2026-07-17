@@ -52,14 +52,21 @@ export class RbacService {
     if (permissionRows.length === 0) return false;
     if (!input.marketId) return true;
 
+    return this.hasMarketAccess(input.adminUserId, input.marketId);
+  }
+
+  async hasMarketAccess(
+    adminUserId: string,
+    marketId: string,
+  ): Promise<boolean> {
     const marketRows = await this.database.db
       .select({ accessId: marketAccess.id })
       .from(marketAccess)
       .innerJoin(markets, eq(markets.id, marketAccess.marketId))
       .where(
         and(
-          eq(marketAccess.adminUserId, input.adminUserId),
-          eq(marketAccess.marketId, input.marketId),
+          eq(marketAccess.adminUserId, adminUserId),
+          eq(marketAccess.marketId, marketId),
           isNull(marketAccess.revokedAt),
           eq(markets.status, 'ACTIVE'),
         ),

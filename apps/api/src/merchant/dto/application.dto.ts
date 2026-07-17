@@ -29,6 +29,25 @@ export const merchantApplicationQueueSchema = z
   })
   .strict();
 
+export const merchantListSchema = z
+  .object({
+    query: z.string().trim().max(200).optional(),
+    status: z
+      .enum([
+        'PENDING_APPLICATION',
+        'PENDING_KYC',
+        'PENDING_MCP',
+        'ACTIVE',
+        'SUSPENDED',
+        'CLOSURE_PENDING',
+        'CLOSED',
+      ])
+      .optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    offset: z.coerce.number().int().min(0).default(0),
+  })
+  .strict();
+
 export const merchantStatusActionSchema = z
   .object({ reason: z.string().trim().min(1).max(2000) })
   .strict();
@@ -42,6 +61,7 @@ export type ReviewMerchantApplicationDto = z.infer<
 export type MerchantApplicationQueueDto = z.infer<
   typeof merchantApplicationQueueSchema
 >;
+export type MerchantListDto = z.infer<typeof merchantListSchema>;
 export type MerchantStatusActionDto = z.infer<
   typeof merchantStatusActionSchema
 >;

@@ -49,9 +49,10 @@ export class RbacGuard implements CanActivate {
     const allowed = await this.rbac.isAllowed({
       adminUserId,
       permission: requirement.permission,
-      ...(marketId ? { marketId } : {}),
     });
     if (!allowed) return this.deny();
+    if (marketId && !(await this.rbac.hasMarketAccess(adminUserId, marketId)))
+      return this.denyMarket();
     return true;
   }
 
@@ -59,6 +60,13 @@ export class RbacGuard implements CanActivate {
     throw new ForbiddenException({
       code: 'AUTH_PERMISSION_DENIED',
       message: 'Permission denied.',
+    });
+  }
+
+  private denyMarket(): never {
+    throw new ForbiddenException({
+      code: 'AUTH_MARKET_ACCESS_DENIED',
+      message: 'Market access denied.',
     });
   }
 }

@@ -22,10 +22,12 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
 import { RbacGuard, RequirePermission } from '../platform-access/rbac.guard.js';
 import {
   merchantApplicationQueueSchema,
+  merchantListSchema,
   merchantStatusActionSchema,
   reviewMerchantApplicationSchema,
   submitMerchantApplicationSchema,
   type MerchantApplicationQueueDto,
+  type MerchantListDto,
   type MerchantStatusActionDto,
   type ReviewMerchantApplicationDto,
   type SubmitMerchantApplicationDto,
@@ -231,6 +233,16 @@ export class MerchantController {
     query: MerchantApplicationQueueDto,
   ) {
     return this.merchants.listApplications(marketId, query);
+  }
+
+  @Get('admin/markets/:marketId/merchants')
+  @UseGuards(AuthGuard, RbacGuard)
+  @RequirePermission('merchant.view', { marketScoped: true })
+  listMerchants(
+    @Param('marketId', new ParseUUIDPipe()) marketId: string,
+    @Query(new ZodValidationPipe(merchantListSchema)) query: MerchantListDto,
+  ) {
+    return this.merchants.listMerchants(marketId, query);
   }
 
   @Get('admin/markets/:marketId/merchants/kyc')

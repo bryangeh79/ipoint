@@ -31,6 +31,7 @@ import { AuditService } from '../platform-access/audit.service.js';
 import { MarketService } from '../platform-access/market.service.js';
 import type {
   MerchantApplicationQueueDto,
+  MerchantListDto,
   MerchantStatusActionDto,
   ReviewMerchantApplicationDto,
   SubmitMerchantApplicationDto,
@@ -1209,6 +1210,31 @@ export class MerchantService {
         'KYC documents must exist on this branch and match the required document types.',
       );
     }
+  }
+
+  async listMerchants(marketId: string, query: MerchantListDto) {
+    const search = query.query ? `%${query.query}%` : null;
+    const result = await this.database.pool.query(
+      `SELECT b.id AS branch_id, b.merchant_id, b.name, b.status,
+              b.market_id, b.created_at, a.status AS application_status,
+              k.status AS kyc_status, m.id AS mcp_account_id,
+              m.available_balance::text AS available_balance
+       FROM merchant_branches b
+       LEFT JOIN merchant_applications a ON a.merchant_branch_id = b.id
+       LEFT JOIN merchant_kyc_submissions k ON k.id = (
+         SELECT id FROM merchant_kyc_submissions
+         WHERE merchant_branch_id = b.id
+         ORDER BY submission_version DESC LIMIT 1
+       )
+       LEFT JOIN mcp_accounts m ON m.merchant_branch_id = b.id
+       WHERE b.market_id = $1
+         AND ($2::text IS NULL OR b.status::text = $2)
+         AND ($3::text IS NULL OR b.name ILIKE $3 OR b.merchant_id ILIKE $3)
+       ORDER BY b.created_at DESC
+       LIMIT $4 OFFSET $5`,
+      [marketId, query.status ?? null, search, query.limit, query.offset],
+    );
+    return { items: result.rows, limit: query.limit, offset: query.offset };
   }
 
   async listApplications(marketId: string, query: MerchantApplicationQueueDto) {
