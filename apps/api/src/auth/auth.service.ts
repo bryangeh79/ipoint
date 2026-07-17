@@ -255,6 +255,32 @@ export class AuthService {
     });
   }
 
+  async issuePasswordResetOtp(
+    email: string,
+    metadata: RequestMetadata = {},
+  ): Promise<IssuedOtp> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const identity = await this.store.findPasswordIdentity(normalizedEmail);
+    return this.issueOtp({
+      accountId: identity?.accountId,
+      destination: normalizedEmail,
+      purpose: 'PASSWORD_RESET',
+      metadata,
+    });
+  }
+
+  async resetPasswordFromOtp(
+    otpId: string,
+    newPassword: string,
+    metadata: RequestMetadata = {},
+  ): Promise<void> {
+    const otp = await this.store.findOtp(otpId);
+    if (!otp?.accountId || otp.purpose !== 'PASSWORD_RESET') {
+      throw new AuthError('AUTH_OTP_INVALID', 'The reset OTP is invalid.');
+    }
+    await this.resetPassword(otpId, otp.accountId, newPassword, metadata);
+  }
+
   async consumeOtp(id: string): Promise<void> {
     if (!(await this.store.consumeOtp(id, new Date()))) {
       throw new AuthError('AUTH_OTP_INVALID', 'The OTP cannot be consumed.');

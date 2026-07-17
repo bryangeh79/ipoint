@@ -14,6 +14,7 @@ import {
   SearchField,
   Select,
   SideNavigation,
+  Skeleton,
   StatCard,
   Table,
   Tabs,
@@ -85,6 +86,7 @@ export function AdminApp() {
   const [page, setPage] = useState<AdminPage>('overview');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notice, setNotice] = useState<string>();
+  const forcedState = new URLSearchParams(window.location.search).get('state');
   const items = navigation.map((item) => ({ ...item, href: `#${item.id}` }));
   const navigate = (item: NavigationItem) => {
     setPage(item.id as AdminPage);
@@ -139,8 +141,62 @@ export function AdminApp() {
           {notice}
         </Alert>
       ) : null}
-      {renderPage(page, setNotice)}
+      {forcedState ? (
+        <WorkspaceState state={forcedState} />
+      ) : (
+        renderPage(page, setNotice)
+      )}
     </AppShell>
+  );
+}
+
+function WorkspaceState({ state }: { state: string }) {
+  if (state === 'loading') {
+    return (
+      <section aria-label="Loading admin workspace" className="admin-loading">
+        <Skeleton width="35%" height={28} />
+        <Skeleton width="68%" height={18} />
+        <div className="admin-stat-grid">
+          {Array.from({ length: 4 }, (_, index) => (
+            <Skeleton key={index} height={128} />
+          ))}
+        </div>
+      </section>
+    );
+  }
+  const copy = {
+    empty: [
+      'No records in this market',
+      'Change authorized filters or wait for the first merchant submission.',
+    ],
+    offline: [
+      'Admin workspace is offline',
+      'Reconnect before reviewing or changing merchant and MCP records.',
+    ],
+    forbidden: [
+      'Permission denied',
+      'Your role, market access, or action permission does not allow this operation.',
+    ],
+    expired: [
+      'Admin session expired',
+      'Sign in and complete step-up verification before continuing.',
+    ],
+  }[state] ?? [
+    'Unable to load admin data',
+    'Retry safely; no privileged action was submitted.',
+  ];
+  return (
+    <EmptyState
+      title={copy[0]}
+      description={copy[1]}
+      action={
+        <Button
+          onClick={() => window.location.assign(window.location.pathname)}
+        >
+          Retry
+        </Button>
+      }
+    />
   );
 }
 
