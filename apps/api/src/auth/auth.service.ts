@@ -1125,11 +1125,14 @@ export class AuthService {
       actual.length !== expected.length ||
       !timingSafeEqual(actual, expected)
     ) {
-      const attempts = otp.attempts + 1;
-      await this.database.db
-        .update(memberEmailOtps)
-        .set({ attempts, updatedAt: now })
-        .where(eq(memberEmailOtps.id, otpId));
+      // Atomic increment to prevent concurrent brute-force bypass.
+      // The WHERE clause ensures we never count beyond max_attempts.
+      const result = await this.database.pool.query<{ attempts: number }>(
+        `UPDATE member_email_otps SET attempts = attempts + 1, updated_at = $2
+         WHERE id = $1 AND attempts < max_attempts RETURNING attempts`,
+        [otpId, now],
+      );
+      const attempts = result.rows[0]?.attempts ?? otp.attempts + 1;
       await this.store.recordSecurityEvent({
         accountId: otp.accountId ?? undefined,
         eventType: 'AUTH_MEMBER_OTP_VERIFY_FAILED',
