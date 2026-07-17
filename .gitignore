@@ -36,3 +36,6 @@ scripts/p1-s4-task.md
 # Codex execution logs
 .codex-execution-logs/
 .playwright-cli/
+
+.codex-p2-s3-dispatch.md
+.codex-p2-s3-prompt.txt

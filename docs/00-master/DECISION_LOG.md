@@ -297,4 +297,23 @@
 | **Basis** | P2-S1 COMMAND CENTER FINAL DECISION - APPROVED (2026-07-17) |
 | **Status** | **APPROVED** |
 
+
+
+## D-017: P2-S2 final acceptance and P2-S3 authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-017 |
+| **Date** | 2026-07-17 |
+| **Source** | ChatGPT Command Center - P2-S2 final acceptance and P2-S3 authorization |
+| **Old Rule** | P2-S2 CHANGES_REQUIRED under repair; P2-S3 NOT_AUTHORIZED |
+| **New Decision** | P2-S2 APPROVED at SHA d9e4496fdc40fa8ff20d5d625a6dfc534aba7529. Member Schema and Forward Migration complete. Task branch `task/p2-s2-member-schema-migrations` and phase branch `phase/2-member-core-multi-market` are fully synchronized at identical SHA. format, lint, typecheck, build, tests, checksum, migrate, seed (idempotent x2), drift all passing. Memory file removed, ignore rules correct. P2-S3 (Registration, OTP and Authentication) AUTHORIZED. P2-S4 through P2-S9 remain NOT_AUTHORIZED. Main PR/Main Merge remain NOT_AUTHORIZED. |
+| **Reason** | P2-S2 final repair complete. All Command Center hygiene directives satisfied. Branches synchronized. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, packages/database/schema/*, packages/database/migrations/*, docs/06-phase-reports/p2-s2/* |
+| **Affected Phases** | P2-S2, P2-S3, P2-S4, P2-S5, P2-S6, P2-S7, P2-S8, P2-S9 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P2-S2 COMMAND CENTER FINAL DECISION - APPROVED (2026-07-17) |
+| **Status** | **APPROVED** |
+
 *— End of current entries. New decisions must be appended below —*

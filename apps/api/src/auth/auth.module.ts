@@ -28,6 +28,30 @@ import { InMemoryRateLimiter } from './rate-limit.port.js';
         refreshTtlSeconds: config.authRefreshTtlSeconds,
         otpTtlSeconds: config.authOtpTtlSeconds,
         otpMaxAttempts: config.authOtpMaxAttempts,
+        otpResendCooldownSeconds: config.authOtpResendCooldownSeconds,
+        idempotencyTtlSeconds: config.authIdempotencyTtlSeconds,
+        registrationEmailRateLimitCount:
+          config.authRegistrationEmailRateLimitCount,
+        registrationEmailRateLimitWindowSeconds:
+          config.authRegistrationEmailRateLimitWindowSeconds,
+        registrationIpRateLimitCount: config.authRegistrationIpRateLimitCount,
+        registrationIpRateLimitWindowSeconds:
+          config.authRegistrationIpRateLimitWindowSeconds,
+        loginEmailRateLimitCount: config.authLoginEmailRateLimitCount,
+        loginEmailRateLimitWindowSeconds:
+          config.authLoginEmailRateLimitWindowSeconds,
+        loginIpRateLimitCount: config.authLoginIpRateLimitCount,
+        loginIpRateLimitWindowSeconds: config.authLoginIpRateLimitWindowSeconds,
+        passwordResetEmailRateLimitCount:
+          config.authPasswordResetEmailRateLimitCount,
+        passwordResetEmailRateLimitWindowSeconds:
+          config.authPasswordResetEmailRateLimitWindowSeconds,
+        passwordResetIpRateLimitCount: config.authPasswordResetIpRateLimitCount,
+        passwordResetIpRateLimitWindowSeconds:
+          config.authPasswordResetIpRateLimitWindowSeconds,
+        memberPublicIdPrefix: config.authMemberPublicIdPrefix,
+        memberPublicIdLength: config.authMemberPublicIdLength,
+        memberReferralCodeLength: config.authMemberReferralCodeLength,
       }),
     },
     AuthService,

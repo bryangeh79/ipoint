@@ -1,9 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
+  memberEmailOtps,
   accounts,
   adminUsers,
   credentials,
   otps,
+  members,
   securityEvents,
   sessions,
 } from '@ipoint/database';
@@ -33,6 +35,8 @@ export class PostgresAuthStore implements AuthStorePort {
       .select({
         accountId: accounts.id,
         status: accounts.status,
+        memberId: members.id,
+        memberStatus: members.status,
         secretHash: credentials.secretHash,
       })
       .from(accounts)
@@ -43,6 +47,7 @@ export class PostgresAuthStore implements AuthStorePort {
           eq(credentials.type, 'PASSWORD'),
         ),
       )
+      .leftJoin(members, eq(members.accountId, accounts.id))
       .where(eq(accounts.email, email))
       .limit(1);
     return rows[0] ?? null;
@@ -328,5 +333,36 @@ export class PostgresAuthStore implements AuthStorePort {
       .where(eq(accounts.id, accountId))
       .limit(1);
     return rows[0]?.status ?? null;
+  }
+
+  async findMemberEmailOtp(id: string): Promise<{
+    id: string;
+    purpose: 'REGISTRATION' | 'PASSWORD_RESET';
+    memberId: string | null;
+    accountId: string | null;
+    email: string;
+    accountCountry: string | null;
+    passwordHash: string | null;
+    referralCode: string | null;
+    referrerMemberId: string | null;
+    termsVersion: string | null;
+    disclaimerVersion: string | null;
+    privacyVersion: string | null;
+    locale: string | null;
+    otpHash: string;
+    otpVersion: number;
+    attempts: number;
+    maxAttempts: number;
+    expiresAt: Date;
+    resendAvailableAt: Date;
+    verifiedAt: Date | null;
+    usedAt: Date | null;
+  } | null> {
+    const rows = await this.database.db
+      .select()
+      .from(memberEmailOtps)
+      .where(eq(memberEmailOtps.id, id))
+      .limit(1);
+    return rows[0] ?? null;
   }
 }

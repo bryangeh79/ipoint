@@ -35,6 +35,10 @@ export const otpPurpose = pgEnum('otp_purpose', [
   'PASSWORD_RESET',
   'STEP_UP',
 ]);
+export const memberEmailOtpPurpose = pgEnum('member_email_otp_purpose', [
+  'REGISTRATION',
+  'PASSWORD_RESET',
+]);
 export const marketStatus = pgEnum('market_status', ['ACTIVE', 'INACTIVE']);
 export const adminStatus = pgEnum('admin_status', [
   'ACTIVE',
@@ -302,6 +306,108 @@ export const otps = pgTable(
       sql`${table.attempts} >= 0 and ${table.attempts} <= ${table.maxAttempts}`,
     ),
     check('otps_expiry_check', sql`${table.expiresAt} > ${table.createdAt}`),
+  ],
+);
+
+export const authIdempotencyKeys = pgTable(
+  'auth_idempotency_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    scope: text('scope').notNull(),
+    key: text('key').notNull(),
+    requestHash: text('request_hash').notNull(),
+    responseHash: text('response_hash'),
+    response: jsonb('response'),
+    statusCode: integer('status_code'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    expiresAt: utcTimestamp('expires_at').notNull(),
+  },
+  (table) => [
+    unique('auth_idempotency_scope_key_unique').on(table.scope, table.key),
+    check(
+      'auth_idempotency_request_hash_check',
+      sql`char_length(${table.requestHash}) = 64`,
+    ),
+    check(
+      'auth_idempotency_response_hash_check',
+      sql`${table.responseHash} is null or char_length(${table.responseHash}) = 64`,
+    ),
+    check(
+      'auth_idempotency_result_check',
+      sql`(${table.response} is null and ${table.statusCode} is null) or (${table.response} is not null and ${table.statusCode} between 200 and 299)`,
+    ),
+  ],
+);
+
+export const memberEmailOtps = pgTable(
+  'member_email_otps',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    purpose: memberEmailOtpPurpose('purpose').notNull(),
+    memberId: uuid('member_id').references(() => members.id, {
+      onDelete: 'restrict',
+    }),
+    accountId: uuid('account_id').references(() => accounts.id, {
+      onDelete: 'restrict',
+    }),
+    email: text('email').notNull(),
+    accountCountry: text('account_country'),
+    passwordHash: text('password_hash'),
+    referralCode: text('referral_code'),
+    referrerMemberId: uuid('referrer_member_id').references(() => members.id, {
+      onDelete: 'restrict',
+    }),
+    termsVersion: text('terms_version'),
+    disclaimerVersion: text('disclaimer_version'),
+    privacyVersion: text('privacy_version'),
+    locale: text('locale'),
+    otpHash: text('otp_hash').notNull(),
+    otpVersion: integer('otp_version').notNull().default(1),
+    attempts: integer('attempts').notNull().default(0),
+    maxAttempts: integer('max_attempts').notNull(),
+    expiresAt: utcTimestamp('expires_at').notNull(),
+    resendAvailableAt: utcTimestamp('resend_available_at').notNull(),
+    verifiedAt: utcTimestamp('verified_at'),
+    usedAt: utcTimestamp('used_at'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('member_email_otps_active_unique')
+      .on(table.email, table.purpose)
+      .where(sql`${table.usedAt} is null`),
+    index('member_email_otps_account_idx').on(table.accountId),
+    index('member_email_otps_member_idx').on(table.memberId),
+    check(
+      'member_email_otps_email_check',
+      sql`${table.email} = lower(${table.email})`,
+    ),
+    check('member_email_otps_attempts_check', sql`${table.attempts} >= 0`),
+    check(
+      'member_email_otps_max_attempts_check',
+      sql`${table.maxAttempts} > 0`,
+    ),
+    check('member_email_otps_version_check', sql`${table.otpVersion} > 0`),
+    check(
+      'member_email_otps_code_hash_only_check',
+      sql`char_length(${table.otpHash}) = 64`,
+    ),
+    check(
+      'member_email_otps_expiry_check',
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
+    check(
+      'member_email_otps_resend_check',
+      sql`${table.resendAvailableAt} >= ${table.createdAt}`,
+    ),
+    check(
+      'member_email_otps_registration_payload_check',
+      sql`
+        (${table.purpose} = 'REGISTRATION' and ${table.accountCountry} is not null and ${table.passwordHash} is not null and ${table.termsVersion} is not null and ${table.disclaimerVersion} is not null and ${table.privacyVersion} is not null and ${table.locale} is not null)
+        or
+        (${table.purpose} = 'PASSWORD_RESET' and ${table.accountCountry} is null and ${table.passwordHash} is null and ${table.termsVersion} is null and ${table.disclaimerVersion} is null and ${table.privacyVersion} is null)
+      `,
+    ),
   ],
 );
 
@@ -1617,6 +1723,8 @@ export const schema = {
   credentials,
   sessions,
   otps,
+  authIdempotencyKeys,
+  memberEmailOtps,
   securityEvents,
   markets,
   adminUsers,

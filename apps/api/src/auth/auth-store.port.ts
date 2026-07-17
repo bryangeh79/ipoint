@@ -1,5 +1,6 @@
 import type {
   AccountStatus,
+  MemberEmailOtpRecord,
   OtpPurpose,
   OtpRecord,
   PasswordIdentity,
@@ -65,4 +66,5 @@ export interface AuthStorePort {
     details?: Record<string, unknown>;
   }): Promise<void>;
   getAccountStatus(accountId: string): Promise<AccountStatus | null>;
+  findMemberEmailOtp(id: string): Promise<MemberEmailOtpRecord | null>;
 }
