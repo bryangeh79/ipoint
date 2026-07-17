@@ -43,6 +43,10 @@ describe('CountryChangeService', () => {
       { accountCountry: currentCountry },
     ]);
 
+    // Mock for validating the requested country against active markets
+    queryBuilder.limit.mockResolvedValueOnce([{ id: 'market-id' }]);
+
+    // Mock for checking whether a pending request already exists
     if (options.pendingRequest) {
       queryBuilder.limit.mockResolvedValueOnce([{ id: randomUUID() }]);
     } else {
@@ -260,6 +264,9 @@ describe('CountryChangeService', () => {
       ]);
 
       // find pending request - none found
+      db.limit.mockResolvedValueOnce([]);
+
+      // find latest request - none found
       db.limit.mockResolvedValueOnce([]);
 
       const databaseMock = { db };

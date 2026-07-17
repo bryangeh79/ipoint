@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
+import type { ConfigService } from '../config/config.service.js';
 import type { DatabaseService } from '../database/database.service.js';
 import { MarketError } from './market.types.js';
 import { MarketService } from './market.service.js';
@@ -24,7 +25,8 @@ describe('MarketService', () => {
   }
 
   function makeService(db: ReturnType<typeof createMockDb>) {
-    return new MarketService({ db } as unknown as DatabaseService);
+    const config = { defaultFallbackMarketCode: 'MY' } as ConfigService;
+    return new MarketService({ db } as unknown as DatabaseService, config);
   }
 
   it('getMarket: throws for missing member', async () => {

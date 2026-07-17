@@ -111,10 +111,11 @@
 
 ## Current allowed actions
 
-- Execute P2-S5 DATABASE + BEHAVIOR COMPLETION under D-020
+- Execute P2-S5 HOST VERIFICATION AND FINAL INTEGRATION under D-021
 - Execute P2-S3 completion repair only
 - Run all API and database integration tests for P2-S3 and P2-S5 scope
 - Create docs/06-phase-reports/p2-s5/P2-S5_FINAL_DELIVERY_REPORT.md
+- Integrate task branch into phase/2-member-core-multi-market after verification passes
 - Maintain the lock on P2-S6 through P2-S9 until separate authorization arrives
 
 ## Current prohibited actions
