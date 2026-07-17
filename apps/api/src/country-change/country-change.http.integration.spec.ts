@@ -78,7 +78,10 @@ describe.skipIf(!databaseUrl)('Country Change HTTP integration', () => {
     return inserted[0]?.id ?? '';
   }
 
-  async function createMemberAccount(): Promise<{ email: string; accountId: string }> {
+  async function createMemberAccount(): Promise<{
+    email: string;
+    accountId: string;
+  }> {
     const { email, accountId } = await createAccount();
     await database.db.insert(members).values({
       accountId,
@@ -168,7 +171,9 @@ describe.skipIf(!databaseUrl)('Country Change HTTP integration', () => {
         })
         .expect(400);
 
-      expect((res.body as ErrorBody).error.code).toBe('COUNTRY_CHANGE_COUNTRY_SAME');
+      expect((res.body as ErrorBody).error.code).toBe(
+        'COUNTRY_CHANGE_COUNTRY_SAME',
+      );
     });
 
     it('rejects when a pending request already exists', async () => {
@@ -195,7 +200,9 @@ describe.skipIf(!databaseUrl)('Country Change HTTP integration', () => {
         })
         .expect(409);
 
-      expect((res.body as ErrorBody).error.code).toBe('COUNTRY_CHANGE_ALREADY_PENDING');
+      expect((res.body as ErrorBody).error.code).toBe(
+        'COUNTRY_CHANGE_ALREADY_PENDING',
+      );
     });
 
     it('rejects unauthenticated requests', async () => {
@@ -312,7 +319,9 @@ describe.skipIf(!databaseUrl)('Country Change HTTP integration', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(404);
 
-      expect((res.body as ErrorBody).error.code).toBe('COUNTRY_CHANGE_NOT_FOUND');
+      expect((res.body as ErrorBody).error.code).toBe(
+        'COUNTRY_CHANGE_NOT_FOUND',
+      );
     });
 
     it('cannot cancel an already cancelled request', async () => {
@@ -337,7 +346,9 @@ describe.skipIf(!databaseUrl)('Country Change HTTP integration', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(404);
 
-      expect((res.body as ErrorBody).error.code).toBe('COUNTRY_CHANGE_NOT_FOUND');
+      expect((res.body as ErrorBody).error.code).toBe(
+        'COUNTRY_CHANGE_NOT_FOUND',
+      );
     });
   });
 });

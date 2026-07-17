@@ -39,7 +39,9 @@ describe('CountryChangeService', () => {
     );
 
     // Mock for getting account country
-    queryBuilder.limit.mockResolvedValueOnce([{ accountCountry: currentCountry }]);
+    queryBuilder.limit.mockResolvedValueOnce([
+      { accountCountry: currentCountry },
+    ]);
 
     if (options.pendingRequest) {
       queryBuilder.limit.mockResolvedValueOnce([{ id: randomUUID() }]);
@@ -74,7 +76,9 @@ describe('CountryChangeService', () => {
     const databaseService = { db: queryBuilder };
 
     return {
-      service: new CountryChangeService(databaseService as unknown as DatabaseService),
+      service: new CountryChangeService(
+        databaseService as unknown as DatabaseService,
+      ),
       db: databaseService,
     };
   }
@@ -115,9 +119,9 @@ describe('CountryChangeService', () => {
         pendingRequest: false,
       });
 
-      await expect(
-        svc2.submit(accountId, 'MY', 'No change'),
-      ).rejects.toThrow(CountryChangeError);
+      await expect(svc2.submit(accountId, 'MY', 'No change')).rejects.toThrow(
+        CountryChangeError,
+      );
     });
 
     it('rejects when a pending request already exists', async () => {
@@ -149,7 +153,9 @@ describe('CountryChangeService', () => {
       };
 
       const databaseMock = { db };
-      const service = new CountryChangeService(databaseMock as unknown as DatabaseService);
+      const service = new CountryChangeService(
+        databaseMock as unknown as DatabaseService,
+      );
 
       await expect(
         service.submit(accountId2, 'SG', 'Moving to Singapore'),
@@ -223,7 +229,9 @@ describe('CountryChangeService', () => {
       ]);
 
       const databaseMock = { db };
-      const service = new CountryChangeService(databaseMock as unknown as DatabaseService);
+      const service = new CountryChangeService(
+        databaseMock as unknown as DatabaseService,
+      );
 
       const result = await service.cancel(cancelAccountId);
       expect(result.status).toBe('CANCELLED');
@@ -255,7 +263,9 @@ describe('CountryChangeService', () => {
       db.limit.mockResolvedValueOnce([]);
 
       const databaseMock = { db };
-      const service = new CountryChangeService(databaseMock as unknown as DatabaseService);
+      const service = new CountryChangeService(
+        databaseMock as unknown as DatabaseService,
+      );
 
       await expect(service.cancel(cancelAccountId)).rejects.toMatchObject({
         code: 'COUNTRY_CHANGE_NOT_FOUND',
@@ -325,7 +335,9 @@ describe('CountryChangeService', () => {
       db.select.mockReturnValue(mockQuery);
 
       const databaseMock = { db };
-      const service = new CountryChangeService(databaseMock as unknown as DatabaseService);
+      const service = new CountryChangeService(
+        databaseMock as unknown as DatabaseService,
+      );
 
       const results = await service.findRequests(findAccountId);
       expect(results).toHaveLength(1);
@@ -356,7 +368,7 @@ describe('CountryChangeService', () => {
         { id: findMemberId, accountId: findAccountId },
       ]);
 
-const mockQuery = {
+      const mockQuery = {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         orderBy: vi.fn().mockReturnThis(),
@@ -374,12 +386,12 @@ const mockQuery = {
       db.select.mockReturnValue(mockQuery);
 
       const databaseMock = { db };
-      const service = new CountryChangeService(databaseMock as unknown as DatabaseService);
+      const service = new CountryChangeService(
+        databaseMock as unknown as DatabaseService,
+      );
 
       const results = await service.findRequests(findAccountId);
       expect(results).toHaveLength(0);
     });
   });
 });
-
-
