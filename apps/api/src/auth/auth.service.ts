@@ -434,6 +434,23 @@ export class AuthService {
     if (cached?.response) {
       return cached.response as RegistrationCompletionResult;
     }
+    const requestHash = this.hashJson(requestPayload);
+    const existingRecords = await this.database.db
+      .select({ key: authIdempotencyKeys.key })
+      .from(authIdempotencyKeys)
+      .where(
+        and(
+          eq(authIdempotencyKeys.scope, scope),
+          eq(authIdempotencyKeys.requestHash, requestHash),
+        ),
+      )
+      .limit(1);
+    if (existingRecords[0] && existingRecords[0].key !== idempotencyKey) {
+      throw new AuthError(
+        'AUTH_IDEMPOTENCY_CONFLICT',
+        'The idempotency key was already used for a different request.',
+      );
+    }
     const now = new Date();
     const result = await this.database.db.transaction(async (tx) => {
       const otpRows = await tx

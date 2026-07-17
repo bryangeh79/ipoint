@@ -45,7 +45,14 @@ export const registrationInitiateSchema = z
       .trim()
       .toUpperCase()
       .regex(/^[A-Z]{2}$/u),
-    referral_code: z.string().trim().min(1).max(64).nullable().optional(),
+    referral_code: z
+      .string()
+      .trim()
+      .min(8)
+      .max(64)
+      .regex(/^[A-Za-z0-9]+$/u)
+      .nullable()
+      .optional(),
     terms_version: z.string().trim().min(1).max(64),
     disclaimer_version: z.string().trim().min(1).max(64),
     privacy_version: z.string().trim().min(1).max(64),

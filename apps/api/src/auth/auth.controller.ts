@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Headers,
   HttpCode,
   HttpException,
@@ -53,7 +54,6 @@ export class AuthController {
   ) {}
 
   @Post('login')
-  @Post('member/login')
   @HttpCode(200)
   login(
     @Body(new ZodValidationPipe(loginSchema)) input: LoginDto,
@@ -65,8 +65,17 @@ export class AuthController {
     );
   }
 
+  @Post('member/login')
+  @HttpCode(200)
+  memberLogin(
+    @Body(new ZodValidationPipe(loginSchema)) input: LoginDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    return this.login(input, ipAddress, request);
+  }
+
   @Post('refresh')
-  @Post('member/refresh')
   @HttpCode(200)
   refresh(
     @Body(new ZodValidationPipe(refreshSchema)) input: RefreshDto,
@@ -81,8 +90,17 @@ export class AuthController {
     );
   }
 
+  @Post('member/refresh')
+  @HttpCode(200)
+  memberRefresh(
+    @Body(new ZodValidationPipe(refreshSchema)) input: RefreshDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    return this.refresh(input, ipAddress, request);
+  }
+
   @Post('logout')
-  @Post('member/logout')
   @HttpCode(204)
   @UseGuards(AuthGuard)
   async logout(
@@ -93,6 +111,17 @@ export class AuthController {
     await this.handle(() =>
       this.auth.logout(authorization.slice(7), context(request, ipAddress)),
     );
+  }
+
+  @Post('member/logout')
+  @HttpCode(204)
+  @UseGuards(AuthGuard)
+  async memberLogout(
+    @Headers('authorization') authorization: string,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ): Promise<void> {
+    await this.logout(authorization, ipAddress, request);
   }
 
   @Post('otp/issue')
@@ -123,7 +152,6 @@ export class AuthController {
   }
 
   @Post('registration/initiate')
-  @Post('member/register')
   @HttpCode(202)
   async initiateRegistration(
     @Body(new ZodValidationPipe(registrationInitiateSchema))
@@ -151,8 +179,18 @@ export class AuthController {
     return this.issueOtpResponse(otp);
   }
 
+  @Post('member/register')
+  @HttpCode(202)
+  async memberInitiateRegistration(
+    @Body(new ZodValidationPipe(registrationInitiateSchema))
+    input: RegistrationInitiateDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    return this.initiateRegistration(input, ipAddress, request);
+  }
+
   @Post('registration/resend')
-  @Post('member/register/resend-otp')
   @HttpCode(202)
   async resendRegistrationOtp(
     @Body(new ZodValidationPipe(registrationResendSchema))
@@ -169,8 +207,18 @@ export class AuthController {
     return this.issueOtpResponse(otp);
   }
 
+  @Post('member/register/resend-otp')
+  @HttpCode(202)
+  async memberResendRegistrationOtp(
+    @Body(new ZodValidationPipe(registrationResendSchema))
+    input: RegistrationResendDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    return this.resendRegistrationOtp(input, ipAddress, request);
+  }
+
   @Post('registration/verify')
-  @Post('member/register/verify')
   @HttpCode(200)
   async verifyRegistrationOtp(
     @Body(new ZodValidationPipe(verifyOtpSchema))
@@ -188,8 +236,18 @@ export class AuthController {
     return { verified: true };
   }
 
+  @Post('member/register/verify')
+  @HttpCode(200)
+  async memberVerifyRegistrationOtp(
+    @Body(new ZodValidationPipe(verifyOtpSchema))
+    input: VerifyOtpDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    return this.verifyRegistrationOtp(input, ipAddress, request);
+  }
+
   @Post('registration/complete')
-  @Post('member/register/complete')
   @HttpCode(200)
   async completeRegistration(
     @Body(new ZodValidationPipe(registrationCompleteSchema))
@@ -206,8 +264,18 @@ export class AuthController {
     );
   }
 
+  @Post('member/register/complete')
+  @HttpCode(200)
+  async memberCompleteRegistration(
+    @Body(new ZodValidationPipe(registrationCompleteSchema))
+    input: RegistrationCompleteDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    return this.completeRegistration(input, ipAddress, request);
+  }
+
   @Post('password-reset/initiate')
-  @Post('member/password-reset/request')
   @HttpCode(202)
   async initiatePasswordReset(
     @Body(new ZodValidationPipe(passwordResetInitiateSchema))
@@ -221,8 +289,18 @@ export class AuthController {
     return this.issueOtpResponse(otp);
   }
 
+  @Post('member/password-reset/request')
+  @HttpCode(202)
+  async memberInitiatePasswordReset(
+    @Body(new ZodValidationPipe(passwordResetInitiateSchema))
+    input: PasswordResetInitiateDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    return this.initiatePasswordReset(input, ipAddress, request);
+  }
+
   @Post('password-reset/verify')
-  @Post('member/password-reset/verify')
   @HttpCode(200)
   async verifyPasswordResetOtp(
     @Body(new ZodValidationPipe(passwordResetVerifySchema))
@@ -240,8 +318,18 @@ export class AuthController {
     return { verified: true };
   }
 
+  @Post('member/password-reset/verify')
+  @HttpCode(200)
+  async memberVerifyPasswordResetOtp(
+    @Body(new ZodValidationPipe(passwordResetVerifySchema))
+    input: PasswordResetVerifyDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    return this.verifyPasswordResetOtp(input, ipAddress, request);
+  }
+
   @Post('password-reset/complete')
-  @Post('member/password-reset/complete')
   @HttpCode(204)
   async completePasswordReset(
     @Body(new ZodValidationPipe(passwordResetCompleteSchema))
@@ -257,6 +345,17 @@ export class AuthController {
         context(request, ipAddress),
       ),
     );
+  }
+
+  @Post('member/password-reset/complete')
+  @HttpCode(204)
+  async memberCompletePasswordReset(
+    @Body(new ZodValidationPipe(passwordResetCompleteSchema))
+    input: PasswordResetCompleteDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ): Promise<void> {
+    await this.completePasswordReset(input, ipAddress, request);
   }
 
   @Post('otp/verify')
@@ -306,11 +405,16 @@ export class AuthController {
       if (
         error.code === 'AUTH_INVALID_CREDENTIALS' ||
         error.code === 'AUTH_ACCOUNT_INACTIVE' ||
-        error.code === 'AUTH_MEMBER_INACTIVE' ||
         error.code === 'AUTH_SESSION_INVALID' ||
         error.code === 'AUTH_REFRESH_REUSED'
       ) {
         throw new UnauthorizedException({
+          code: error.code,
+          message: error.message,
+        });
+      }
+      if (error.code === 'AUTH_MEMBER_INACTIVE') {
+        throw new ForbiddenException({
           code: error.code,
           message: error.message,
         });
