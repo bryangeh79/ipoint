@@ -16,7 +16,8 @@ export type AuthErrorCode =
   | 'AUTH_REFERRAL_INVALID'
   | 'AUTH_FLOW_INVALID'
   | 'AUTH_FLOW_EXPIRED'
-  | 'AUTH_OTP_COOLDOWN';
+  | 'AUTH_OTP_COOLDOWN'
+  | 'AUTH_IDENTIFIER_GENERATION_FAILED';
 
 export class AuthError extends Error {
   readonly retryAfterSeconds?: number;

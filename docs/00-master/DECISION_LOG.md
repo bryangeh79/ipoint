@@ -317,3 +317,20 @@
 | **Status** | **APPROVED** |
 
 *— End of current entries. New decisions must be appended below —*
+
+## D-018: P2-S3 test recovery - Drizzle Proxy refactor to stable test boundary
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-018 |
+| **Date** | 2026-07-18 |
+| **Source** | Bryan & OpenClaw root cause investigation |
+| **Old Rule** | Tests injected INSERT failure via vi.spyOn(database.db.transaction) and direct property assignment on Drizzle Proxy objects |
+| **New Decision** | Add DatabaseService.runTransaction<T>(cb) wrapper. Replace 6 Drizzle Proxy injection tests with 3 stable spy-based tests. Email uniqueness tests updated: initiateRegistration checks email availability, so duplicate catch at initiation not completion. |
+| **Reason** | Drizzle v0.45.2 Proxy blocks vi.spyOn/direct assignment/Object.defineProperty. PL/pgSQL trigger and pool.query approaches also failed. runTransaction provides stable spyable boundary without behavior change. |
+| **Affected Files** | database.service.ts, auth.service.ts, auth.integration.spec.ts |
+| **Affected Phases** | P2-S3 |
+| **Migration** | NONE |
+| **Approver** | Bryan |
+| **Basis** | Drizzle Proxy investigation 2026-07-17/18 - all known workarounds exhausted |
+| **Status** | **APPROVED** |

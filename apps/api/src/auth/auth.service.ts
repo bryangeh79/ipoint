@@ -452,7 +452,7 @@ export class AuthService {
       );
     }
     const now = new Date();
-    const result = await this.database.db.transaction(async (tx) => {
+    const result = await this.database.runTransaction(async (tx) => {
       const otpRows = await tx
         .select()
         .from(memberEmailOtps)
@@ -499,13 +499,52 @@ export class AuthService {
         );
       }
       const accountPublicId = this.generatePublicIdentifier('acct', 16);
-      const memberPublicId = this.generatePublicIdentifier(
-        this.settings.memberPublicIdPrefix,
-        this.settings.memberPublicIdLength,
-      );
-      const memberReferralCode = this.generateToken(
-        this.settings.memberReferralCodeLength,
-      );
+      const identifierAttemptLimit = 5;
+      let memberPublicId: string | null = null;
+      let memberReferralCode: string | null = null;
+
+      for (let attempt = 0; attempt < identifierAttemptLimit; attempt += 1) {
+        const candidate = this.generatePublicIdentifier(
+          this.settings.memberPublicIdPrefix,
+          this.settings.memberPublicIdLength,
+        );
+        const conflict = await tx
+          .select({ id: members.id })
+          .from(members)
+          .where(eq(members.publicMemberId, candidate))
+          .limit(1);
+        if (!conflict[0]) {
+          memberPublicId = candidate;
+          break;
+        }
+      }
+      if (!memberPublicId) {
+        throw new AuthError(
+          'AUTH_IDENTIFIER_GENERATION_FAILED',
+          'A unique member identifier could not be generated.',
+        );
+      }
+
+      for (let attempt = 0; attempt < identifierAttemptLimit; attempt += 1) {
+        const candidate = this.generateToken(
+          this.settings.memberReferralCodeLength,
+        );
+        const conflict = await tx
+          .select({ id: members.id })
+          .from(members)
+          .where(eq(members.referralCode, candidate))
+          .limit(1);
+        if (!conflict[0]) {
+          memberReferralCode = candidate;
+          break;
+        }
+      }
+      if (!memberReferralCode) {
+        throw new AuthError(
+          'AUTH_IDENTIFIER_GENERATION_FAILED',
+          'A unique referral code could not be generated.',
+        );
+      }
 
       const accountInsert = await tx
         .insert(accounts)
@@ -783,7 +822,7 @@ export class AuthService {
     if (cached) return;
     const now = new Date();
     const secretHash = await this.passwordHasher.hash(newPassword);
-    await this.database.db.transaction(async (tx) => {
+    await this.database.runTransaction(async (tx) => {
       const otpRows = await tx
         .select()
         .from(memberEmailOtps)

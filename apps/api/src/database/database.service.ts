@@ -14,6 +14,18 @@ export class DatabaseService implements OnApplicationShutdown {
     this.pool = database.pool;
   }
 
+  async runTransaction<T>(
+    cb: (
+      tx: Database['transaction'] extends (cb: infer C) => unknown
+        ? C extends (tx: infer T) => unknown
+          ? T
+          : never
+        : never,
+    ) => Promise<T>,
+  ): Promise<T> {
+    return this.db.transaction(cb);
+  }
+
   async onApplicationShutdown(): Promise<void> {
     await this.pool.end();
   }

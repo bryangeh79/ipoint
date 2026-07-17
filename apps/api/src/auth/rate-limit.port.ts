@@ -10,6 +10,10 @@ interface Bucket {
 export class InMemoryRateLimiter implements RateLimitPort {
   private readonly buckets = new Map<string, Bucket>();
 
+  clear(): void {
+    this.buckets.clear();
+  }
+
   consume(key: string, limit: number, windowSeconds: number): Promise<boolean> {
     const now = Date.now();
     const current = this.buckets.get(key);
