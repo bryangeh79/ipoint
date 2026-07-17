@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@ipoint/api-client": "workspace:*",
     "@ipoint/ui": "workspace:*",
     "@ipoint/design-tokens": "workspace:*",
     "react": "19.2.1",

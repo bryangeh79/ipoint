@@ -1,34 +1,33 @@
 import {
+  ApiClient,
+  createIdempotencyKey,
+  describeApiError,
+} from '@ipoint/api-client';
+import {
   Alert,
   AppShell,
   Badge,
-  BottomNavigation,
   Button,
   Card,
-  Drawer,
   EmptyState,
-  FilterBar,
   FormField,
   Input,
   PageHeader,
-  SearchField,
-  Select,
   SideNavigation,
   Skeleton,
-  StatCard,
   Table,
   Tabs,
-  Textarea,
   TopBar,
   type NavigationItem,
 } from '@ipoint/ui';
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
-  canExecuteAdjustment,
-  filterMerchants,
-  kycDiff,
-  type MerchantListItem,
-} from './admin-model.js';
+  useCallback,
+  useEffect,
+  useId,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 
 type AdminPage =
   | 'overview'
@@ -37,73 +36,64 @@ type AdminPage =
   | 'packages'
   | 'mcp'
   | 'audit';
+type JsonRecord = Record<string, unknown>;
+interface AdminContext {
+  marketId: string;
+  branchId?: string;
+  accountId?: string;
+}
 
+const apiBaseUrl: string =
+  typeof import.meta.env.VITE_API_BASE_URL === 'string'
+    ? import.meta.env.VITE_API_BASE_URL
+    : '/api/v1';
+const api = new ApiClient(apiBaseUrl, 'ipoint.admin.session');
+const contextKey = 'ipoint.admin.context';
 const navigation: ReadonlyArray<NavigationItem> = [
   { id: 'overview', label: 'Overview' },
   { id: 'merchants', label: 'Merchants' },
-  { id: 'reviews', label: 'Reviews', badge: '5' },
+  { id: 'reviews', label: 'Reviews' },
   { id: 'packages', label: 'Packages' },
   { id: 'mcp', label: 'MCP' },
   { id: 'audit', label: 'Audit' },
 ];
 
-const merchantRows = [
-  {
-    id: 'MY-OF-000127',
-    name: 'Northstar Coffee',
-    market: 'MY',
-    application: 'APPROVED',
-    kyc: 'RESUBMISSION_REQUIRED',
-    status: 'PENDING_KYC',
-  },
-  {
-    id: 'MY-ON-000128',
-    name: 'Atlas Home',
-    market: 'MY',
-    application: 'SUBMITTED',
-    kyc: 'DRAFT',
-    status: 'PENDING_APPLICATION',
-  },
-  {
-    id: 'MY-OF-000119',
-    name: 'Kite & Co',
-    market: 'MY',
-    application: 'APPROVED',
-    kyc: 'APPROVED',
-    status: 'ACTIVE',
-  },
-  {
-    id: 'MY-OF-000102',
-    name: 'Greenfield Market',
-    market: 'MY',
-    application: 'APPROVED',
-    kyc: 'APPROVED',
-    status: 'SUSPENDED',
-  },
-] as const;
-
 export function AdminApp() {
   const [page, setPage] = useState<AdminPage>('overview');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [notice, setNotice] = useState<string>();
+  const [context, setContextState] = useState<AdminContext | undefined>(
+    readContext,
+  );
+  const [sessionVersion, setSessionVersion] = useState(0);
+  const [expired, setExpired] = useState(false);
   const forcedState = new URLSearchParams(window.location.search).get('state');
-  const items = navigation.map((item) => ({ ...item, href: `#${item.id}` }));
-  const navigate = (item: NavigationItem) => {
-    setPage(item.id as AdminPage);
-    setDrawerOpen(false);
+  useEffect(() => {
+    const changed = () => setSessionVersion((value) => value + 1);
+    const sessionExpired = () => {
+      setExpired(true);
+      changed();
+    };
+    window.addEventListener('ipoint:session-changed', changed);
+    window.addEventListener('ipoint:session-expired', sessionExpired);
+    return () => {
+      window.removeEventListener('ipoint:session-changed', changed);
+      window.removeEventListener('ipoint:session-expired', sessionExpired);
+    };
+  }, []);
+  const updateContext = (value: AdminContext) => {
+    window.localStorage.setItem(contextKey, JSON.stringify(value));
+    setContextState(value);
   };
+  const items = navigation.map((item) => ({ ...item, href: `#${item.id}` }));
   return (
     <AppShell
       className="admin-app"
       topBar={
         <TopBar
           brand={<Wordmark />}
-          onMenuClick={() => setDrawerOpen(true)}
           actions={
-            <>
-              <Badge tone="info">Malaysia</Badge>
-              <Badge tone="success">Finance Admin</Badge>
-            </>
+            <Badge tone={api.tokens ? 'success' : 'warning'}>
+              {api.tokens ? 'Live API' : 'Sign in'}
+            </Badge>
           }
         />
       }
@@ -111,1104 +101,1124 @@ export function AdminApp() {
         <SideNavigation
           items={items}
           activeId={page}
-          onNavigate={navigate}
+          onNavigate={(item) => setPage(item.id as AdminPage)}
           label="Admin navigation"
         />
       }
-      bottomNavigation={
-        <BottomNavigation
-          items={items.slice(0, 5)}
-          activeId={page}
-          onNavigate={navigate}
-          label="Admin mobile navigation"
-        />
-      }
     >
-      <Drawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        title="Admin navigation"
-        placement="left"
-      >
-        <SideNavigation items={items} activeId={page} onNavigate={navigate} />
-      </Drawer>
-      {notice ? (
-        <Alert
-          tone="success"
-          title="Action recorded"
-          onDismiss={() => setNotice(undefined)}
-        >
-          {notice}
+      {expired ? (
+        <Alert tone="error" title="Session expired">
+          Refresh failed. Log in again; no server data was lost.
         </Alert>
       ) : null}
       {forcedState ? (
-        <WorkspaceState state={forcedState} />
+        <ForcedState state={forcedState} />
       ) : (
-        renderPage(page, setNotice)
+        <AdminPageView
+          key={`${page}-${sessionVersion}`}
+          page={page}
+          context={context}
+          onContext={updateContext}
+        />
       )}
     </AppShell>
   );
 }
 
-function WorkspaceState({ state }: { state: string }) {
-  if (state === 'loading') {
-    return (
-      <section aria-label="Loading admin workspace" className="admin-loading">
-        <Skeleton width="35%" height={28} />
-        <Skeleton width="68%" height={18} />
-        <div className="admin-stat-grid">
-          {Array.from({ length: 4 }, (_, index) => (
-            <Skeleton key={index} height={128} />
-          ))}
-        </div>
-      </section>
-    );
-  }
-  const copy = {
-    empty: [
-      'No records in this market',
-      'Change authorized filters or wait for the first merchant submission.',
-    ],
-    offline: [
-      'Admin workspace is offline',
-      'Reconnect before reviewing or changing merchant and MCP records.',
-    ],
-    forbidden: [
-      'Permission denied',
-      'Your role, market access, or action permission does not allow this operation.',
-    ],
-    expired: [
-      'Admin session expired',
-      'Sign in and complete step-up verification before continuing.',
-    ],
-  }[state] ?? [
-    'Unable to load admin data',
-    'Retry safely; no privileged action was submitted.',
-  ];
-  return (
-    <EmptyState
-      title={copy[0]}
-      description={copy[1]}
-      action={
-        <Button
-          onClick={() => window.location.assign(window.location.pathname)}
-        >
-          Retry
-        </Button>
-      }
-    />
-  );
-}
-
-function renderPage(page: AdminPage, onSaved: (message: string) => void) {
+function AdminPageView({
+  page,
+  context,
+  onContext,
+}: {
+  page: AdminPage;
+  context?: AdminContext;
+  onContext: (value: AdminContext) => void;
+}) {
+  if (!api.tokens || !context)
+    return <AdminLogin context={context} onContext={onContext} />;
   switch (page) {
     case 'merchants':
-      return <MerchantsPage onSaved={onSaved} />;
+      return <MerchantsPage context={context} onContext={onContext} />;
     case 'reviews':
-      return <ReviewsPage onSaved={onSaved} />;
+      return <ReviewsPage context={context} />;
     case 'packages':
-      return <PackagesPage onSaved={onSaved} />;
+      return <PackagesPage context={context} />;
     case 'mcp':
-      return <McpPage onSaved={onSaved} />;
+      return <McpPage context={context} />;
     case 'audit':
-      return <AuditPage />;
+      return <AuditPage context={context} />;
     default:
-      return <OverviewPage />;
+      return <OverviewPage context={context} />;
   }
 }
 
-function OverviewPage() {
+function AdminLogin({
+  context,
+  onContext,
+}: {
+  context?: AdminContext;
+  onContext: (value: AdminContext) => void;
+}) {
+  const [error, setError] = useState<unknown>();
   return (
     <>
       <PageHeader
-        eyebrow="Operations cockpit"
-        title="Merchant onboarding"
-        description="Review market-scoped work, financial controls, and activation blockers."
+        eyebrow="Protected operations"
+        title="Admin login"
+        description="Role, MarketAccess, and Action Permission remain server-enforced."
       />
-      <section className="admin-stat-grid" aria-label="Admin summary">
-        <StatCard
-          label="Applications awaiting review"
-          value="3"
-          helper="Oldest: 18 hours"
-        />
-        <StatCard label="KYC actions" value="2" helper="1 resubmission" />
-        <StatCard
-          label="MCP recharge requests"
-          value="4"
-          helper="286.00 MCP total"
-        />
-        <StatCard label="Maker / Checker" value="1" helper="Awaiting checker" />
-      </section>
-      <div className="admin-two-column">
-        <Card>
-          <SectionHeading title="Priority queue" badge="5 open" />
-          <ul className="admin-priority-list">
-            <PriorityItem
-              label="KYC resubmission"
-              merchant="MY-OF-000127 · Northstar Coffee"
-              age="26 min"
-              tone="warning"
-            />
-            <PriorityItem
-              label="Recharge review"
-              merchant="MY-OF-000119 · Kite & Co"
-              age="41 min"
-              tone="info"
-            />
-            <PriorityItem
-              label="Manual debit approval"
-              merchant="MY-OF-000102 · Greenfield Market"
-              age="1 h"
-              tone="error"
-            />
-          </ul>
-        </Card>
-        <Card>
-          <SectionHeading
-            title="Control health"
-            badge="Normal"
-            tone="success"
+      {error ? <ErrorAlert error={error} /> : null}
+      <Card className="admin-auth-card">
+        <LiveForm
+          submitLabel="Login"
+          onSubmit={async (data) => {
+            setError(undefined);
+            try {
+              await api.login(text(data, 'email'), text(data, 'password'));
+              onContext({
+                marketId: text(data, 'marketId'),
+                branchId: optional(data, 'branchId'),
+                accountId: optional(data, 'accountId'),
+              });
+            } catch (caught) {
+              setError(caught);
+            }
+          }}
+        >
+          <Field name="email" label="Admin email" type="email" required />
+          <Field
+            name="password"
+            label="Password"
+            type="password"
+            minLength={12}
+            required
           />
-          <DefinitionList
-            items={[
-              ['Market access', 'Malaysia · Active grant'],
-              ['Action permissions', '12 effective permissions'],
-              ['Ledger reconciliation', 'No discrepancy'],
-              ['Last audit append', '18 seconds ago'],
-            ]}
+          <Field
+            name="marketId"
+            label="Market ID"
+            defaultValue={context?.marketId}
+            required
           />
-        </Card>
-      </div>
+          <Field
+            name="branchId"
+            label="Branch ID (optional)"
+            defaultValue={context?.branchId}
+          />
+          <Field
+            name="accountId"
+            label="MCP account ID (optional)"
+            defaultValue={context?.accountId}
+          />
+        </LiveForm>
+      </Card>
     </>
   );
 }
 
-function MerchantsPage({ onSaved }: { onSaved: (message: string) => void }) {
-  const [query, setQuery] = useState('');
-  const [status, setStatus] = useState('ALL');
-  const [selected, setSelected] = useState<MerchantListItem>(merchantRows[0]);
-  const rows = useMemo(
-    () => filterMerchants(merchantRows, query, status),
-    [query, status],
+function OverviewPage({ context }: { context: AdminContext }) {
+  const resource = useResource(
+    () =>
+      api.request<{ items: JsonRecord[] }>(
+        `/admin/markets/${context.marketId}/merchants?limit=20`,
+      ),
+    [context.marketId],
   );
+  return (
+    <Boundary resource={resource}>
+      {(data) => (
+        <>
+          <PageHeader
+            eyebrow="Market operations"
+            title="Admin command center"
+            description="Merchant state is loaded from the live market-scoped API."
+            actions={
+              <Button variant="secondary" onClick={resource.reload}>
+                Refresh
+              </Button>
+            }
+          />
+          <div className="admin-stat-grid">
+            <Metric title="Merchants" value={String(data.items.length)} />
+            <Metric
+              title="Active"
+              value={String(
+                data.items.filter((item) => item.status === 'ACTIVE').length,
+              )}
+            />
+            <Metric
+              title="Pending review"
+              value={String(
+                data.items.filter((item) =>
+                  String(item.status).startsWith('PENDING'),
+                ).length,
+              )}
+            />
+          </div>
+          <Card>
+            <Json value={data.items.slice(0, 5)} />
+          </Card>
+        </>
+      )}
+    </Boundary>
+  );
+}
+
+function MerchantsPage({
+  context,
+  onContext,
+}: {
+  context: AdminContext;
+  onContext: (value: AdminContext) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [error, setError] = useState<unknown>();
+  const [notice, setNotice] = useState('');
+  const resource = useResource(
+    () =>
+      api.request<{ items: JsonRecord[] }>(
+        `/admin/markets/${context.marketId}/merchants?limit=100${query ? `&query=${encodeURIComponent(query)}` : ''}`,
+      ),
+    [context.marketId, query],
+  );
+  const statusAction = async (
+    branchId: string,
+    action: 'suspend' | 'reactivate',
+  ) => {
+    setError(undefined);
+    try {
+      await api.request(
+        `/admin/markets/${context.marketId}/merchants/${branchId}/${action}`,
+        {
+          method: 'POST',
+          idempotencyKey: createIdempotencyKey(),
+          body: { reason: `${action} requested from Admin workspace.` },
+        },
+      );
+      setNotice(`${action} completed.`);
+      resource.reload();
+    } catch (caught) {
+      setError(caught);
+    }
+  };
+  return (
+    <Boundary resource={resource} empty={(data) => data.items.length === 0}>
+      {(data) => (
+        <>
+          <PageHeader
+            eyebrow="Market-scoped directory"
+            title="Merchants"
+            description="Search and operational status controls use live APIs."
+          />
+          {error ? <ErrorAlert error={error} /> : null}
+          {notice ? <Alert tone="success">{notice}</Alert> : null}
+          <Card>
+            <FormField label="Search merchants" htmlFor="merchant-search">
+              <Input
+                id="merchant-search"
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.currentTarget.value)}
+              />
+            </FormField>
+            <Table>
+              <thead>
+                <tr>
+                  <th>Merchant</th>
+                  <th>Status</th>
+                  <th>Application</th>
+                  <th>KYC</th>
+                  <th>MCP</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((item) => (
+                  <tr key={String(item.branch_id)}>
+                    <td>
+                      <Button
+                        variant="ghost"
+                        onClick={() =>
+                          onContext({
+                            ...context,
+                            branchId: String(item.branch_id),
+                            accountId:
+                              stringValue(item.mcp_account_id) ||
+                              context.accountId,
+                          })
+                        }
+                      >
+                        {String(item.name)}
+                        <small>{String(item.merchant_id)}</small>
+                      </Button>
+                    </td>
+                    <td>
+                      <Status value={String(item.status)} />
+                    </td>
+                    <td>{display(item.application_status, 'DRAFT')}</td>
+                    <td>{display(item.kyc_status, 'DRAFT')}</td>
+                    <td>{display(item.available_balance, '0')}</td>
+                    <td>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          statusAction(
+                            String(item.branch_id),
+                            item.status === 'SUSPENDED'
+                              ? 'reactivate'
+                              : 'suspend',
+                          )
+                        }
+                      >
+                        {item.status === 'SUSPENDED' ? 'Reactivate' : 'Suspend'}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </Card>
+        </>
+      )}
+    </Boundary>
+  );
+}
+
+function ReviewsPage({ context }: { context: AdminContext }) {
+  const [tab, setTab] = useState('application');
+  const [error, setError] = useState<unknown>();
+  const [notice, setNotice] = useState('');
+  const resource = useResource(
+    async () => ({
+      applications: await api.request<JsonRecord[]>(
+        `/admin/markets/${context.marketId}/merchants/applications`,
+      ),
+      kyc: await api.request<JsonRecord[]>(
+        `/admin/markets/${context.marketId}/merchants/kyc`,
+      ),
+    }),
+    [context.marketId],
+  );
+  const review = async (
+    branchId: string,
+    type: 'application' | 'kyc',
+    decision: string,
+  ) => {
+    setError(undefined);
+    try {
+      if (type === 'kyc')
+        await api.request(
+          `/admin/markets/${context.marketId}/merchants/${branchId}/kyc/review`,
+        );
+      await api.request(
+        `/admin/markets/${context.marketId}/merchants/${branchId}/${type}/review`,
+        {
+          method: 'POST',
+          idempotencyKey: createIdempotencyKey(),
+          body:
+            type === 'kyc'
+              ? {
+                  decision,
+                  reason: 'Evidence verified in Admin workspace.',
+                  rejected_fields: [],
+                }
+              : { decision, reason: 'Application evidence verified.' },
+        },
+      );
+      setNotice(`${type} ${decision.toLowerCase()}.`);
+      resource.reload();
+    } catch (caught) {
+      setError(caught);
+    }
+  };
+  return (
+    <Boundary resource={resource}>
+      {(data) => {
+        const items = tab === 'application' ? data.applications : data.kyc;
+        return (
+          <>
+            <PageHeader
+              eyebrow="Independent decisions"
+              title="Application and KYC reviews"
+              description="Application and KYC remain separate state machines."
+            />
+            {error ? <ErrorAlert error={error} /> : null}
+            {notice ? <Alert tone="success">{notice}</Alert> : null}
+            <Card>
+              <Tabs
+                label="Review queues"
+                activeId={tab}
+                onChange={setTab}
+                tabs={[
+                  { id: 'application', label: 'Application review' },
+                  { id: 'kyc', label: 'KYC review' },
+                ]}
+              />
+              {items.length === 0 ? (
+                <EmptyState
+                  title="Queue is empty"
+                  description="No submitted records require review."
+                />
+              ) : (
+                <Table>
+                  <thead>
+                    <tr>
+                      <th>Branch</th>
+                      <th>Status</th>
+                      <th>Version</th>
+                      <th>Decision</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item) => {
+                      const branchId = String(
+                        item.branchId ??
+                          item.branch_id ??
+                          item.merchantBranchId ??
+                          item.merchant_branch_id,
+                      );
+                      return (
+                        <tr key={display(item.id, branchId)}>
+                          <td>{branchId}</td>
+                          <td>{String(item.status)}</td>
+                          <td>
+                            {display(
+                              item.submissionVersion ?? item.submission_version,
+                            )}
+                          </td>
+                          <td>
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                review(
+                                  branchId,
+                                  tab as 'application' | 'kyc',
+                                  'APPROVED',
+                                )
+                              }
+                            >
+                              Approve
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </Table>
+              )}
+            </Card>
+          </>
+        );
+      }}
+    </Boundary>
+  );
+}
+
+function PackagesPage({ context }: { context: AdminContext }) {
+  const [error, setError] = useState<unknown>();
+  const [result, setResult] = useState<unknown>();
+  const run = async (operation: () => Promise<unknown>) => {
+    setError(undefined);
+    try {
+      setResult(await operation());
+    } catch (caught) {
+      setError(caught);
+    }
+  };
+  const post = (
+    path: string,
+    body: unknown,
+    method: 'POST' | 'PATCH' = 'POST',
+  ) =>
+    api.request(path, { method, body, idempotencyKey: createIdempotencyKey() });
   return (
     <>
       <PageHeader
-        eyebrow="Market-scoped directory"
-        title="Merchants"
-        description="Search, filter, review, suspend, and reactivate without deleting history."
+        eyebrow="Versioned commercial rules"
+        title="Service fee packages"
+        description="Create profiles, versions, special rates, and assignments without mutable rate history."
       />
-      <Card>
-        <FilterBar
-          search={
-            <SearchField
-              label="Search merchants"
-              placeholder="Merchant ID or name"
-              value={query}
-              onChange={(event) => setQuery(event.currentTarget.value)}
-              onClear={() => setQuery('')}
-            />
-          }
-          filters={
-            <Select
-              aria-label="Filter by operational status"
-              value={status}
-              onChange={(event) => setStatus(event.currentTarget.value)}
-            >
-              <option value="ALL">All statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="PENDING_APPLICATION">Pending application</option>
-              <option value="PENDING_KYC">Pending KYC</option>
-              <option value="SUSPENDED">Suspended</option>
-            </Select>
-          }
-          resultSummary={`${rows.length} merchants in authorized market`}
-        />
-        {rows.length ? (
-          <Table>
-            <thead>
-              <tr>
-                <th>Merchant</th>
-                <th>Application</th>
-                <th>KYC</th>
-                <th>Operational status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    <strong>{row.name}</strong>
-                    <small>
-                      {row.id} · {row.market}
-                    </small>
-                  </td>
-                  <td>
-                    <StatusBadge value={row.application} />
-                  </td>
-                  <td>
-                    <StatusBadge value={row.kyc} />
-                  </td>
-                  <td>
-                    <StatusBadge value={row.status} />
-                  </td>
-                  <td>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setSelected(row)}
-                    >
-                      View details
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        ) : (
-          <EmptyState
-            title="No merchants match"
-            description="Adjust the market-safe filters to find a merchant."
-          />
-        )}
-      </Card>
-      <Card className="admin-detail-card">
-        <SectionHeading title={selected.name} badge={selected.id} />
-        <div className="admin-detail-grid">
-          <DefinitionList
-            items={[
-              ['Application', selected.application],
-              ['KYC', selected.kyc],
-              ['Operational status', selected.status],
-              ['MCP available', '86.0000000000'],
-              ['Default package', 'Growth C · version 3'],
-            ]}
-          />
-          <ActionForm
-            title="Suspend / Reactivate merchant"
-            submitLabel={
-              selected.status === 'SUSPENDED'
-                ? 'Reactivate merchant'
-                : 'Suspend merchant'
-            }
-            tone={selected.status === 'SUSPENDED' ? 'primary' : 'danger'}
-            onSubmit={() =>
-              onSaved(
-                `${selected.id} status action recorded with reason, audit, and timeline.`,
+      {error ? <ErrorAlert error={error} /> : null}
+      {result ? (
+        <Alert tone="success" title="Package operation completed">
+          <Json value={result} />
+        </Alert>
+      ) : null}
+      <div className="admin-two-column">
+        <Card>
+          <Heading title="Create package profile" />
+          <LiveForm
+            submitLabel="Create profile"
+            onSubmit={(data) =>
+              run(() =>
+                post(`/admin/markets/${context.marketId}/packages`, {
+                  code: text(data, 'code'),
+                  name: text(data, 'name'),
+                  description: optional(data, 'description'),
+                }),
               )
             }
           >
-            <FormField label="Mandatory reason" htmlFor="status-reason">
-              <Textarea id="status-reason" rows={4} required />
-            </FormField>
-            <Alert tone="info">
-              Application, KYC, and MCP positions are preserved.
-            </Alert>
-          </ActionForm>
-        </div>
-      </Card>
+            <Field name="code" label="Code" required />
+            <Field name="name" label="Name" required />
+            <Field name="description" label="Description" />
+          </LiveForm>
+        </Card>
+        <Card>
+          <Heading title="Create and activate version" />
+          <LiveForm
+            submitLabel="Create version"
+            onSubmit={(data) =>
+              run(() =>
+                post(
+                  `/admin/markets/${context.marketId}/packages/${text(data, 'packageId')}/versions`,
+                  {
+                    rate: text(data, 'rate'),
+                    effective_from: text(data, 'effectiveFrom'),
+                    effective_to: optional(data, 'effectiveTo'),
+                  },
+                ),
+              )
+            }
+          >
+            <Field name="packageId" label="Package ID" required />
+            <Field name="rate" label="Exact rate" required />
+            <Field
+              name="effectiveFrom"
+              label="Effective from"
+              defaultValue="2026-01-01T00:00:00.000Z"
+              required
+            />
+            <Field name="effectiveTo" label="Effective to" />
+          </LiveForm>
+          <LiveForm
+            submitLabel="Activate version"
+            onSubmit={(data) =>
+              run(() =>
+                post(
+                  `/admin/markets/${context.marketId}/packages/${text(data, 'packageId')}/versions/${text(data, 'versionId')}/activate`,
+                  undefined,
+                  'PATCH',
+                ),
+              )
+            }
+          >
+            <Field name="packageId" label="Package ID" required />
+            <Field name="versionId" label="Version ID" required />
+          </LiveForm>
+        </Card>
+        <Card>
+          <Heading title="Special percentage" />
+          <LiveForm
+            submitLabel="Create special percentage"
+            onSubmit={(data) =>
+              run(() =>
+                post(`/admin/markets/${context.marketId}/special-percentages`, {
+                  rate: text(data, 'rate'),
+                  description: text(data, 'description'),
+                }),
+              )
+            }
+          >
+            <Field name="rate" label="Rate (>0 and <=100)" required />
+            <Field name="description" label="Description" required />
+          </LiveForm>
+        </Card>
+        <Card>
+          <Heading title="Assign and set default" />
+          <LiveForm
+            submitLabel="Assign package"
+            onSubmit={(data) =>
+              run(() =>
+                post(
+                  `/admin/markets/${context.marketId}/merchants/${text(data, 'branchId')}/packages/assignments`,
+                  {
+                    service_fee_version_id: text(data, 'versionId'),
+                    is_default: data.get('isDefault') === 'true',
+                  },
+                ),
+              )
+            }
+          >
+            <Field
+              name="branchId"
+              label="Branch ID"
+              defaultValue={context.branchId}
+              required
+            />
+            <Field name="versionId" label="Version ID" required />
+            <Field
+              name="isDefault"
+              label="Default (true/false)"
+              defaultValue="true"
+              required
+            />
+          </LiveForm>
+          <LiveForm
+            submitLabel="Set default"
+            onSubmit={(data) =>
+              run(() =>
+                post(
+                  `/admin/markets/${context.marketId}/merchants/${text(data, 'branchId')}/packages/assignments/${text(data, 'assignmentId')}/set-default`,
+                  undefined,
+                  'PATCH',
+                ),
+              )
+            }
+          >
+            <Field
+              name="branchId"
+              label="Branch ID"
+              defaultValue={context.branchId}
+              required
+            />
+            <Field name="assignmentId" label="Assignment ID" required />
+          </LiveForm>
+        </Card>
+      </div>
     </>
   );
 }
 
-function ReviewsPage({ onSaved }: { onSaved: (message: string) => void }) {
-  const [tab, setTab] = useState('application');
-  const diff = kycDiff(
-    {
-      registered_name: 'Northstar Coffee Sdn Bhd',
-      registration_number: '202601127K',
-      registered_address: '12 Jalan Ampang, 50450 Kuala Lumpur',
-      pic_identity: '********4431',
-    },
-    {
-      registered_name: 'Northstar Coffee Sdn Bhd',
-      registration_number: '202601127K',
-      registered_address: '8 Jalan Ampang, 50450 Kuala Lumpur',
-      pic_identity: '********4431',
-    },
+function McpPage({ context }: { context: AdminContext }) {
+  const [error, setError] = useState<unknown>();
+  const [result, setResult] = useState<unknown>();
+  const resource = useResource(
+    async () =>
+      context.accountId
+        ? {
+            account: await api.request<JsonRecord>(
+              `/admin/markets/${context.marketId}/mcp/accounts/${context.accountId}`,
+            ),
+            ledger: await api.request<{ items: JsonRecord[] }>(
+              `/admin/markets/${context.marketId}/mcp/accounts/${context.accountId}/ledger`,
+            ),
+          }
+        : { account: {}, ledger: { items: [] } },
+    [context.marketId, context.accountId],
   );
+  const run = async (operation: () => Promise<unknown>, reload = false) => {
+    setError(undefined);
+    try {
+      setResult(await operation());
+      if (reload) resource.reload();
+    } catch (caught) {
+      setError(caught);
+    }
+  };
+  const request = (path: string, body?: unknown) =>
+    api.request(path, {
+      method: 'POST',
+      body,
+      idempotencyKey: createIdempotencyKey(),
+    });
   return (
-    <>
-      <PageHeader
-        eyebrow="Independent decisions"
-        title="Application and KYC review"
-        description="Application, KYC, and operational activation remain separate state machines."
-      />
-      <Card>
-        <Tabs
-          label="Review queues"
-          activeId={tab}
-          onChange={setTab}
-          tabs={[
-            { id: 'application', label: 'Application review' },
-            { id: 'kyc', label: 'KYC review' },
-          ]}
-        />
-        <div className="admin-panel" role="tabpanel" id={`ip-panel-${tab}`}>
-          {tab === 'application' ? (
-            <ReviewLayout
-              title="Atlas Home · MY-ON-000128"
-              meta="Application version 1 · Submitted 52 minutes ago"
-              onSaved={onSaved}
-            />
+    <Boundary resource={resource}>
+      {(data) => (
+        <>
+          <PageHeader
+            eyebrow="Governed financial operations"
+            title="MCP operations"
+            description="Recharge, refund, and adjustment actions are real server writes; no provider payment is triggered."
+          />
+          {error ? <ErrorAlert error={error} /> : null}
+          {result ? (
+            <Alert tone="success" title="Operation completed">
+              <Json value={result} />
+            </Alert>
+          ) : null}
+          {!context.accountId ? (
+            <Alert tone="warning">
+              Select a merchant with an MCP account from the Merchants screen.
+            </Alert>
           ) : (
             <>
-              <SectionHeading
-                title="Northstar Coffee · KYC version 3"
-                badge="Resubmitted"
-                tone="warning"
-              />
-              <Alert tone="info" title="Side-by-side immutable snapshot">
-                Changed fields are highlighted. Sensitive identity values stay
-                masked.
-              </Alert>
-              <Table>
-                <thead>
-                  <tr>
-                    <th>Field</th>
-                    <th>Previous version</th>
-                    <th>Current version</th>
-                    <th>Diff</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {diff.map((row) => (
-                    <tr
-                      key={row.field}
-                      className={row.changed ? 'is-changed' : ''}
-                    >
-                      <td>{label(row.field)}</td>
-                      <td>{row.previous}</td>
-                      <td>{row.current}</td>
-                      <td>
-                        {row.changed ? (
-                          <Badge tone="warning">Changed</Badge>
-                        ) : (
-                          <Badge>Unchanged</Badge>
-                        )}
-                      </td>
+              <div className="admin-stat-grid">
+                <Metric
+                  title="Available"
+                  value={display(data.account.available_balance, '0')}
+                />
+                <Metric
+                  title="Total"
+                  value={display(data.account.total_balance, '0')}
+                />
+                <Metric title="Status" value={display(data.account.status)} />
+              </div>
+              <Card>
+                <Table>
+                  <thead>
+                    <tr>
+                      <th>Seq</th>
+                      <th>Type</th>
+                      <th>Direction</th>
+                      <th>Amount</th>
                     </tr>
-                  ))}
-                </tbody>
-              </Table>
-              <DecisionForm subject="KYC" onSaved={onSaved} />
+                  </thead>
+                  <tbody>
+                    {data.ledger.items.map((item) => (
+                      <tr key={String(item.id)}>
+                        <td>{String(item.sequence)}</td>
+                        <td>{String(item.entryType ?? item.entry_type)}</td>
+                        <td>{String(item.direction)}</td>
+                        <td>{String(item.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </Card>
             </>
           )}
-        </div>
-      </Card>
-    </>
-  );
-}
-
-function ReviewLayout({
-  title,
-  meta,
-  onSaved,
-}: {
-  title: string;
-  meta: string;
-  onSaved: (message: string) => void;
-}) {
-  return (
-    <div className="admin-review-layout">
-      <div>
-        <SectionHeading title={title} badge="Submitted" tone="warning" />
-        <p className="admin-muted">{meta}</p>
-        <DefinitionList
-          items={[
-            ['Display name', 'Atlas Home'],
-            ['Channel', 'Online'],
-            ['Market', 'Malaysia'],
-            ['Referrer', 'IPT-MY-018842'],
-            ['Terms', 'Merchant Terms v1.2 / Disclaimer v1.1'],
-          ]}
-        />
-      </div>
-      <DecisionForm subject="Application" onSaved={onSaved} />
-    </div>
-  );
-}
-
-function DecisionForm({
-  subject,
-  onSaved,
-}: {
-  subject: string;
-  onSaved: (message: string) => void;
-}) {
-  return (
-    <ActionForm
-      title={`${subject} decision`}
-      submitLabel="Record decision"
-      onSubmit={() =>
-        onSaved(
-          `${subject} decision appended with audit and timeline evidence.`,
-        )
-      }
-    >
-      <FormField label="Decision" htmlFor={`${subject}-decision`}>
-        <Select id={`${subject}-decision`} required>
-          <option value="">Select decision</option>
-          <option>APPROVED</option>
-          <option>REJECTED</option>
-          <option>RESUBMISSION_REQUIRED</option>
-        </Select>
-      </FormField>
-      <FormField label="Reason" htmlFor={`${subject}-reason`}>
-        <Textarea id={`${subject}-reason`} rows={5} required />
-      </FormField>
-      {subject === 'KYC' ? (
-        <FormField label="Rejected fields" htmlFor="rejected-fields">
-          <Input id="rejected-fields" placeholder="registered_address" />
-        </FormField>
-      ) : null}
-    </ActionForm>
-  );
-}
-
-function PackagesPage({ onSaved }: { onSaved: (message: string) => void }) {
-  const [tab, setTab] = useState('versions');
-  return (
-    <>
-      <PageHeader
-        eyebrow="Exact decimal · effective-time rules"
-        title="Package governance"
-        description="Create drafts and new versions; never overwrite a used rate."
-      />
-      <Card>
-        <Tabs
-          label="Package operations"
-          activeId={tab}
-          onChange={setTab}
-          tabs={[
-            { id: 'versions', label: 'Versions' },
-            { id: 'special', label: 'Special percentage' },
-            { id: 'assign', label: 'Assignment' },
-          ]}
-        />
-        <div className="admin-panel" role="tabpanel" id={`ip-panel-${tab}`}>
-          {tab === 'versions' ? (
-            <>
-              <Table>
-                <thead>
-                  <tr>
-                    <th>Package</th>
-                    <th>Version</th>
-                    <th>Rate</th>
-                    <th>Effective window</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Growth C</td>
-                    <td>v3</td>
-                    <td>10.000000%</td>
-                    <td>01 Jul 2026 → Open</td>
-                    <td>
-                      <Badge tone="success">Active</Badge>
-                    </td>
-                    <td>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() =>
-                          onSaved(
-                            'Active history remains immutable; a new draft will be created.',
-                          )
-                        }
-                      >
-                        New version
-                      </Button>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Growth C</td>
-                    <td>v4</td>
-                    <td>9.500000%</td>
-                    <td>01 Aug 2026 → Open</td>
-                    <td>
-                      <Badge>Draft</Badge>
-                    </td>
-                    <td className="admin-button-row">
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          onSaved(
-                            'Draft version activated after conflict checks.',
-                          )
-                        }
-                      >
-                        Activate
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => onSaved('Draft version update opened.')}
-                      >
-                        Update
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() =>
-                          onSaved(
-                            'Draft version cancelled without deleting history.',
-                          )
-                        }
-                      >
-                        Cancel
-                      </Button>
-                    </td>
-                  </tr>
-                </tbody>
-              </Table>
-              <ActionForm
-                title="Create package version"
-                submitLabel="Create draft version"
-                onSubmit={() =>
-                  onSaved(
-                    'Package draft version created with exact rate and effective window.',
+          <div className="admin-two-column">
+            <Card>
+              <Heading title="Recharge create / review" />
+              <LiveForm
+                submitLabel="Create recharge"
+                onSubmit={(form) =>
+                  run(() =>
+                    request(
+                      `/admin/markets/${context.marketId}/merchants/${text(form, 'branchId')}/recharge`,
+                      {
+                        amount: text(form, 'amount'),
+                        reason: text(form, 'reason'),
+                      },
+                    ),
                   )
                 }
               >
-                <FormGrid>
-                  <TextField
-                    id="package-rate"
-                    label="Rate (%)"
-                    placeholder="10.000000"
-                  />
-                  <TextField
-                    id="package-effective"
-                    label="Effective from"
-                    type="datetime-local"
-                  />
-                </FormGrid>
-              </ActionForm>
-            </>
-          ) : null}
-          {tab === 'special' ? (
-            <ActionForm
-              title="Create approved special percentage"
-              submitLabel="Create special percentage"
-              onSubmit={() =>
-                onSaved(
-                  'Special percentage created within the locked >0 and <=100 range.',
-                )
-              }
-            >
-              <TextField
-                id="special-rate"
-                label="Exact rate (%)"
-                placeholder="8.000000"
-              />
-              <FormField label="Business reason" htmlFor="special-reason">
-                <Textarea id="special-reason" rows={4} required />
-              </FormField>
-              <Alert tone="info">
-                Allowed range is greater than 0 and less than or equal to 100.
-                Increment and threshold are not invented.
-              </Alert>
-            </ActionForm>
-          ) : null}
-          {tab === 'assign' ? (
-            <ActionForm
-              title="Assign and set default"
-              submitLabel="Assign package"
-              onSubmit={() =>
-                onSaved(
-                  'Package assignment created; default uniqueness will be enforced atomically.',
-                )
-              }
-            >
-              <FormGrid>
-                <TextField
-                  id="assign-merchant"
-                  label="Merchant ID"
-                  value="MY-OF-000127"
+                <Field
+                  name="branchId"
+                  label="Branch ID"
+                  defaultValue={context.branchId}
+                  required
                 />
-                <FormField label="Package version" htmlFor="assign-package">
-                  <Select id="assign-package">
-                    <option>Growth C · v3 · 10%</option>
-                    <option>Cafe Special · 8%</option>
-                  </Select>
-                </FormField>
-              </FormGrid>
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  onSaved('Selected assignment set as the only active default.')
-                }
-              >
-                Set selected as default
-              </Button>
-            </ActionForm>
-          ) : null}
-        </div>
-      </Card>
-    </>
-  );
-}
-
-function McpPage({ onSaved }: { onSaved: (message: string) => void }) {
-  const [tab, setTab] = useState('account');
-  const executable = canExecuteAdjustment({
-    status: 'APPROVED',
-    makerId: 'admin-maker-17',
-    checkerId: 'admin-checker-09',
-    currentActorId: 'admin-checker-09',
-  });
-  return (
-    <>
-      <PageHeader
-        eyebrow="Append-only financial controls"
-        title="MCP operations"
-        description="Recharge uses normal review. Manual credit and debit always use Maker / Checker."
-      />
-      <section className="admin-stat-grid admin-stat-grid--mcp">
-        <StatCard label="Available" value="86.00 MCP" helper="MY-OF-000127" />
-        <StatCard
-          label="Ledger sequence"
-          value="#21"
-          helper="No gaps detected"
-        />
-        <StatCard
-          label="Reconciliation"
-          value="Matched"
-          helper="Available + frozen = total"
-        />
-      </section>
-      <Card>
-        <Tabs
-          label="MCP operations"
-          activeId={tab}
-          onChange={setTab}
-          tabs={[
-            { id: 'account', label: 'Account and ledger' },
-            { id: 'recharge', label: 'Recharge review' },
-            { id: 'refund', label: 'Refund review' },
-            { id: 'adjustment', label: 'Maker / Checker' },
-          ]}
-        />
-        <div className="admin-panel" role="tabpanel" id={`ip-panel-${tab}`}>
-          {tab === 'account' ? <LedgerView /> : null}
-          {tab === 'recharge' ? (
-            <ActionForm
-              title="Recharge REQ-00083"
-              submitLabel="Record recharge decision"
-              onSubmit={() =>
-                onSaved(
-                  'Recharge completed or failed exactly once; no Maker / Checker applied.',
-                )
-              }
-            >
-              <DefinitionList
-                items={[
-                  ['Merchant', 'MY-OF-000119 · Kite & Co'],
-                  ['Amount', '200.0000000000 MCP'],
-                  ['Status', 'PROCESSING'],
-                  ['Reference', 'Manual bank evidence · metadata only'],
-                ]}
-              />
-              <FormField label="Decision" htmlFor="recharge-decision">
-                <Select id="recharge-decision">
-                  <option>COMPLETED</option>
-                  <option>FAILED</option>
-                </Select>
-              </FormField>
-              <FormField label="Reason" htmlFor="recharge-review-reason">
-                <Textarea id="recharge-review-reason" rows={4} required />
-              </FormField>
-            </ActionForm>
-          ) : null}
-          {tab === 'refund' ? (
-            <ActionForm
-              title="Refund foundation RF-00014"
-              submitLabel="Record refund review"
-              onSubmit={() =>
-                onSaved(
-                  'Refund review recorded; approval creates only a ledger debit and non-cash obligation.',
-                )
-              }
-            >
-              <DefinitionList
-                items={[
-                  ['Merchant', 'MY-OF-000102 · Greenfield Market'],
-                  ['Eligible MCP', '58.0000000000'],
-                  ['Requested MCP', '40.0000000000'],
-                  ['Status', 'UNDER_REVIEW'],
-                ]}
-              />
-              <FormField label="Decision" htmlFor="refund-decision">
-                <Select id="refund-decision">
-                  <option>APPROVED</option>
-                  <option>REJECTED</option>
-                </Select>
-              </FormField>
-              <FormField label="Reason" htmlFor="refund-review-reason">
-                <Textarea id="refund-review-reason" rows={4} required />
-              </FormField>
-              <Alert tone="warning">
-                No bank, gateway, payment, or payout call is performed.
-              </Alert>
-            </ActionForm>
-          ) : null}
-          {tab === 'adjustment' ? (
-            <div className="admin-adjustment-grid">
-              <ActionForm
-                title="1 · Maker creates request"
-                submitLabel="Submit for checker approval"
-                onSubmit={() =>
-                  onSaved(
-                    'Manual adjustment submitted by maker with immutable reason and evidence.',
+                <Field name="amount" label="Amount" required />
+                <Field name="reason" label="Reason" required />
+              </LiveForm>
+              <LiveForm
+                submitLabel="Complete recharge"
+                onSubmit={(form) =>
+                  run(
+                    () =>
+                      request(
+                        `/admin/markets/${context.marketId}/recharge/${text(form, 'requestId')}/review`,
+                        { decision: 'COMPLETED', reason: text(form, 'reason') },
+                      ),
+                    true,
                   )
                 }
               >
-                <FormField label="Type" htmlFor="adjustment-type">
-                  <Select id="adjustment-type">
-                    <option>MANUAL_CREDIT</option>
-                    <option>MANUAL_DEBIT</option>
-                  </Select>
-                </FormField>
-                <TextField
-                  id="adjustment-amount"
-                  label="Exact MCP amount"
-                  placeholder="10.0000000000"
-                />
-                <FormField
-                  label="Reason and evidence"
-                  htmlFor="adjustment-reason"
-                >
-                  <Textarea id="adjustment-reason" rows={4} required />
-                </FormField>
-              </ActionForm>
-              <ActionForm
-                title="2 · Checker decides"
-                submitLabel="Approve as checker"
-                onSubmit={() => onSaved('Distinct checker decision appended.')}
+                <Field name="requestId" label="Recharge request ID" required />
+                <Field name="reason" label="Review reason" required />
+              </LiveForm>
+            </Card>
+            <Card>
+              <Heading title="Refund create / review" />
+              <LiveForm
+                submitLabel="Create refund"
+                onSubmit={(form) =>
+                  run(() =>
+                    request(
+                      `/admin/markets/${context.marketId}/merchants/${text(form, 'branchId')}/refund`,
+                      {
+                        amount: text(form, 'amount'),
+                        reason: text(form, 'reason'),
+                      },
+                    ),
+                  )
+                }
               >
-                <DefinitionList
-                  items={[
-                    ['Request', 'ADJ-00031'],
-                    ['Maker', 'admin-maker-17'],
-                    ['Checker', 'admin-checker-09'],
-                    ['Status', 'PENDING_APPROVAL'],
-                  ]}
+                <Field
+                  name="branchId"
+                  label="Branch ID"
+                  defaultValue={context.branchId}
+                  required
                 />
-                <FormField label="Decision reason" htmlFor="checker-reason">
-                  <Textarea id="checker-reason" rows={4} required />
-                </FormField>
-              </ActionForm>
-              <Card>
-                <SectionHeading
-                  title="3 · Execute approved adjustment"
-                  badge="Approved"
-                  tone="success"
+                <Field name="amount" label="Amount" required />
+                <Field name="reason" label="Reason" required />
+              </LiveForm>
+              <LiveForm
+                submitLabel="Advance refund review"
+                onSubmit={(form) =>
+                  run(
+                    () =>
+                      request(
+                        `/admin/markets/${context.marketId}/refund/${text(form, 'requestId')}/review`,
+                        {
+                          decision: text(form, 'decision'),
+                          reason: text(form, 'reason'),
+                        },
+                      ),
+                    true,
+                  )
+                }
+              >
+                <Field name="requestId" label="Refund request ID" required />
+                <Field
+                  name="decision"
+                  label="UNDER_REVIEW / APPROVED / REJECTED"
+                  required
                 />
-                <DefinitionList
-                  items={[
-                    ['Separation', 'Maker ≠ Checker'],
-                    ['Available after', '96.0000000000 MCP'],
-                    ['Idempotency', 'Ready'],
-                    ['Audit context', 'Complete'],
-                  ]}
+                <Field name="reason" label="Review reason" required />
+              </LiveForm>
+            </Card>
+            <Card>
+              <Heading title="Maker / Checker adjustment" />
+              <LiveForm
+                submitLabel="Maker creates request"
+                onSubmit={(form) =>
+                  run(() =>
+                    request(
+                      `/admin/markets/${context.marketId}/merchants/${text(form, 'branchId')}/adjustments`,
+                      {
+                        type: text(form, 'type'),
+                        amount: text(form, 'amount'),
+                        reason: text(form, 'reason'),
+                        evidence: { ticket: text(form, 'ticket') },
+                      },
+                    ),
+                  )
+                }
+              >
+                <Field
+                  name="branchId"
+                  label="Branch ID"
+                  defaultValue={context.branchId}
+                  required
                 />
-                <Button
-                  disabled={!executable}
-                  onClick={() =>
-                    onSaved(
-                      'Approved adjustment executed once and appended to the MCP ledger.',
-                    )
-                  }
-                >
-                  Execute exactly once
-                </Button>
-              </Card>
-            </div>
-          ) : null}
-        </div>
-      </Card>
-    </>
+                <Field
+                  name="type"
+                  label="MANUAL_CREDIT / MANUAL_DEBIT"
+                  defaultValue="MANUAL_CREDIT"
+                  required
+                />
+                <Field name="amount" label="Amount" required />
+                <Field name="reason" label="Reason" required />
+                <Field name="ticket" label="Evidence ticket" required />
+              </LiveForm>
+              <LiveForm
+                submitLabel="Maker submits"
+                onSubmit={(form) =>
+                  run(() =>
+                    request(
+                      `/admin/markets/${context.marketId}/mcp/adjustments/${text(form, 'requestId')}/submit`,
+                    ),
+                  )
+                }
+              >
+                <Field
+                  name="requestId"
+                  label="Adjustment request ID"
+                  required
+                />
+              </LiveForm>
+              <LiveForm
+                submitLabel="Checker approves"
+                onSubmit={(form) =>
+                  run(() =>
+                    request(
+                      `/admin/markets/${context.marketId}/adjustments/${text(form, 'requestId')}/approve`,
+                      { reason: text(form, 'reason') },
+                    ),
+                  )
+                }
+              >
+                <Field
+                  name="requestId"
+                  label="Adjustment request ID"
+                  required
+                />
+                <Field name="reason" label="Approval reason" required />
+              </LiveForm>
+              <LiveForm
+                submitLabel="Execute exactly once"
+                onSubmit={(form) =>
+                  run(
+                    () =>
+                      request(
+                        `/admin/markets/${context.marketId}/adjustments/${text(form, 'requestId')}/execute`,
+                        { reason: text(form, 'reason') },
+                      ),
+                    true,
+                  )
+                }
+              >
+                <Field
+                  name="requestId"
+                  label="Adjustment request ID"
+                  required
+                />
+                <Field name="reason" label="Execution reason" required />
+              </LiveForm>
+            </Card>
+          </div>
+        </>
+      )}
+    </Boundary>
   );
 }
 
-function LedgerView() {
-  const rows = [
-    [
-      '#21',
-      'RECHARGE',
-      'CREDIT',
-      '100.0000000000',
-      '86.0000000000',
-      'REQ-00082',
-    ],
-    [
-      '#20',
-      'MANUAL_DEBIT',
-      'DEBIT',
-      '14.0000000000',
-      '-14.0000000000',
-      'ADJ-00029',
-    ],
-  ];
-  return (
-    <Table>
-      <thead>
-        <tr>
-          <th>Sequence</th>
-          <th>Type</th>
-          <th>Direction</th>
-          <th>Amount</th>
-          <th>Delta</th>
-          <th>Source</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row[0]}>
-            {row.map((cell) => (
-              <td key={cell}>{cell}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </Table>
-  );
-}
-
-function AuditPage() {
-  const [query, setQuery] = useState('');
-  const events = [
-    {
-      time: '13:18:04',
-      type: 'AuditLog',
-      action: 'MCP_ADJUSTMENT_APPROVED',
-      actor: 'admin-checker-09',
-      entity: 'ADJ-00031',
-      result: 'SUCCESS',
-    },
-    {
-      time: '13:17:42',
-      type: 'EntityTimeline',
-      action: 'MERCHANT_KYC_RESUBMITTED',
-      actor: 'account-000127',
-      entity: 'MY-OF-000127',
-      result: 'SUCCESS',
-    },
-    {
-      time: '13:15:16',
-      type: 'AuditLog',
-      action: 'MERCHANT_SUSPENDED',
-      actor: 'admin-ops-03',
-      entity: 'MY-OF-000102',
-      result: 'SUCCESS',
-    },
-  ];
-  const filtered = events.filter((event) =>
-    `${event.action} ${event.actor} ${event.entity}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
+function AuditPage({ context }: { context: AdminContext }) {
+  const [entityId, setEntityId] = useState(context.branchId ?? '');
+  const [version, setVersion] = useState(0);
+  const resource = useResource(
+    () =>
+      entityId
+        ? api.request<{ logs: JsonRecord[]; timeline: JsonRecord[] }>(
+            `/admin/audit?entityType=merchant_branch&entityId=${encodeURIComponent(entityId)}`,
+          )
+        : Promise.resolve({ logs: [], timeline: [] }),
+    [entityId, version],
   );
   return (
-    <>
-      <PageHeader
-        eyebrow="Append-only evidence"
-        title="Audit log and entity timeline"
-        description="Audit answers who changed what; timeline explains what happened to the entity."
-      />
-      <Card>
-        <FilterBar
-          search={
-            <SearchField
-              label="Search audit evidence"
-              placeholder="Action, actor, entity"
-              value={query}
-              onChange={(event) => setQuery(event.currentTarget.value)}
-              onClear={() => setQuery('')}
-            />
-          }
-          filters={
-            <Select aria-label="Evidence type">
-              <option>All evidence</option>
-              <option>AuditLog</option>
-              <option>EntityTimeline</option>
-            </Select>
-          }
-          resultSummary={`${filtered.length} events`}
-        />
-        {filtered.length ? (
-          <Table>
-            <thead>
-              <tr>
-                <th>Time (UTC)</th>
-                <th>Evidence</th>
-                <th>Action</th>
-                <th>Actor</th>
-                <th>Entity</th>
-                <th>Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((event) => (
-                <tr key={`${event.time}-${event.action}`}>
-                  <td>{event.time}</td>
-                  <td>
-                    <Badge tone={event.type === 'AuditLog' ? 'info' : 'brand'}>
-                      {event.type}
-                    </Badge>
-                  </td>
-                  <td>{event.action}</td>
-                  <td>{event.actor}</td>
-                  <td>{event.entity}</td>
-                  <td>
-                    <Badge tone="success">{event.result}</Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        ) : (
-          <EmptyState
-            title="No evidence matches"
-            description="Clear the search to restore the immutable event list."
+    <Boundary resource={resource}>
+      {(data) => (
+        <>
+          <PageHeader
+            eyebrow="Immutable evidence"
+            title="Audit log and entity timeline"
+            description="MarketAccess-filtered privileged action history."
           />
-        )}
-      </Card>
-    </>
+          <Card>
+            <FormField label="Merchant branch ID" htmlFor="audit-entity">
+              <Input
+                id="audit-entity"
+                value={entityId}
+                onChange={(event) => setEntityId(event.currentTarget.value)}
+              />
+            </FormField>
+            <Button onClick={() => setVersion((value) => value + 1)}>
+              Load audit
+            </Button>
+          </Card>
+          <div className="admin-two-column">
+            <Card>
+              <Heading title="Audit logs" />
+              <Json value={data.logs} />
+            </Card>
+            <Card>
+              <Heading title="Entity timeline" />
+              <Json value={data.timeline} />
+            </Card>
+          </div>
+        </>
+      )}
+    </Boundary>
   );
 }
 
-function ActionForm({
-  title,
+interface Resource<T> {
+  data?: T;
+  error?: unknown;
+  loading: boolean;
+  reload: () => void;
+}
+function useResource<T>(
+  loader: () => Promise<T>,
+  dependencies: ReadonlyArray<unknown>,
+): Resource<T> {
+  const [data, setData] = useState<T>();
+  const [error, setError] = useState<unknown>();
+  const [loading, setLoading] = useState(true);
+  const [version, setVersion] = useState(0);
+  const reload = useCallback(() => setVersion((value) => value + 1), []);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError(undefined);
+    loader()
+      .then((value) => {
+        if (active) setData(value);
+      })
+      .catch((caught: unknown) => {
+        if (active) setError(caught);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [...dependencies, version]);
+  return { data, error, loading, reload };
+}
+function Boundary<T>({
+  resource,
+  children,
+  empty,
+}: {
+  resource: Resource<T>;
+  children: (data: T) => ReactNode;
+  empty?: (data: T) => boolean;
+}) {
+  if (resource.loading) return <Loading />;
+  if (resource.error)
+    return <ErrorState error={resource.error} retry={resource.reload} />;
+  if (resource.data === undefined || empty?.(resource.data))
+    return (
+      <EmptyState
+        title="No records found"
+        description="The live API returned an empty result."
+        action={<Button onClick={resource.reload}>Retry</Button>}
+      />
+    );
+  return children(resource.data);
+}
+function LiveForm({
+  children,
   submitLabel,
   onSubmit,
-  children,
-  tone = 'primary',
 }: {
-  title: string;
-  submitLabel: string;
-  onSubmit: () => void;
   children: ReactNode;
-  tone?: 'primary' | 'danger';
+  submitLabel: string;
+  onSubmit: (data: FormData) => void | Promise<void>;
 }) {
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    onSubmit();
-  };
+  const [pending, setPending] = useState(false);
   return (
-    <form className="admin-action-form" onSubmit={submit}>
-      <h3>{title}</h3>
+    <form
+      className="admin-action-form"
+      onSubmit={async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setPending(true);
+        try {
+          await onSubmit(new FormData(event.currentTarget));
+        } finally {
+          setPending(false);
+        }
+      }}
+    >
       {children}
-      <Button type="submit" variant={tone}>
-        {submitLabel}
+      <Button type="submit" disabled={pending}>
+        {pending ? 'Working…' : submitLabel}
       </Button>
     </form>
   );
 }
-
-function TextField({
-  id,
-  label: fieldLabel,
-  value,
-  ...props
-}: {
-  id: string;
+function Field(props: {
+  name: string;
   label: string;
-  value?: string;
-} & React.InputHTMLAttributes<HTMLInputElement>) {
+  type?: string;
+  required?: boolean;
+  defaultValue?: string;
+  minLength?: number;
+}) {
+  const id = useId();
   return (
-    <FormField label={fieldLabel} htmlFor={id}>
-      <Input id={id} defaultValue={value} required {...props} />
+    <FormField label={props.label} htmlFor={id}>
+      <Input id={id} {...props} />
     </FormField>
   );
 }
-
-function FormGrid({ children }: { children: ReactNode }) {
-  return <div className="admin-form-grid">{children}</div>;
+function ErrorAlert({ error }: { error: unknown }) {
+  const value = describeApiError(error);
+  return (
+    <Alert tone="error" title={value.title}>
+      {value.detail}
+    </Alert>
+  );
 }
-
-function SectionHeading({
-  title,
-  badge,
-  tone = 'neutral',
-}: {
-  title: string;
-  badge: string;
-  tone?: 'neutral' | 'success' | 'warning';
-}) {
+function ErrorState({ error, retry }: { error: unknown; retry: () => void }) {
+  const value = describeApiError(error);
+  return (
+    <EmptyState
+      title={value.title}
+      description={value.detail}
+      action={<Button onClick={retry}>Retry</Button>}
+    />
+  );
+}
+function Loading() {
+  return (
+    <section aria-label="Loading admin workspace" className="admin-loading">
+      <Skeleton width="35%" height={28} />
+      <Skeleton height={180} />
+    </section>
+  );
+}
+function ForcedState({ state }: { state: string }) {
+  if (state === 'loading') return <Loading />;
+  const values: Record<string, [string, string]> = {
+    empty: ['No operational records', 'This market has no matching records.'],
+    offline: ['You are offline', 'Reconnect before making privileged changes.'],
+    forbidden: ['Permission denied', 'Your role lacks this action permission.'],
+    market: [
+      'Market access denied',
+      'Your administrator account cannot access this market.',
+    ],
+    expired: ['Session expired', 'Log in again to continue.'],
+    error: [
+      'Unable to load admin workspace',
+      'Retry or use the request ID when contacting support.',
+    ],
+  };
+  const value = values[state] ?? values.error!;
+  return <EmptyState title={value[0]} description={value[1]} />;
+}
+function Metric({ title, value }: { title: string; value: string }) {
+  return (
+    <Card>
+      <small>{title}</small>
+      <h2>{value}</h2>
+    </Card>
+  );
+}
+function Heading({ title }: { title: string }) {
   return (
     <div className="admin-section-heading">
       <h2>{title}</h2>
-      <Badge tone={tone}>{badge}</Badge>
     </div>
   );
 }
-
-function DefinitionList({
-  items,
-}: {
-  items: ReadonlyArray<readonly [string, string]>;
-}) {
+function Status({ value }: { value: string }) {
   return (
-    <dl className="admin-definition-list">
-      {items.map(([term, value]) => (
-        <div key={term}>
-          <dt>{term}</dt>
-          <dd>{value}</dd>
-        </div>
-      ))}
-    </dl>
+    <Badge
+      tone={
+        value === 'ACTIVE'
+          ? 'success'
+          : value === 'SUSPENDED'
+            ? 'error'
+            : 'warning'
+      }
+    >
+      {value.replaceAll('_', ' ')}
+    </Badge>
   );
 }
-
-function PriorityItem({
-  label: itemLabel,
-  merchant,
-  age,
-  tone,
-}: {
-  label: string;
-  merchant: string;
-  age: string;
-  tone: 'warning' | 'info' | 'error';
-}) {
+function Json({ value }: { value: unknown }) {
   return (
-    <li>
-      <Badge tone={tone}>{itemLabel}</Badge>
-      <div>
-        <strong>{merchant}</strong>
-        <small>{age} ago</small>
-      </div>
-    </li>
+    <pre className="admin-live-json">{JSON.stringify(value, null, 2)}</pre>
   );
 }
-
-function StatusBadge({ value }: { value: string }) {
-  const tone =
-    value === 'ACTIVE' || value === 'APPROVED'
-      ? 'success'
-      : value === 'SUSPENDED' || value === 'REJECTED'
-        ? 'error'
-        : value.includes('PENDING') ||
-            value.includes('SUBMISSION') ||
-            value === 'SUBMITTED'
-          ? 'warning'
-          : 'neutral';
-  return <Badge tone={tone}>{label(value)}</Badge>;
-}
-
 function Wordmark() {
   return (
-    <span className="ip-wordmark">
-      <span aria-hidden="true">i</span>Point <small>Admin</small>
+    <span className="admin-wordmark">
+      <span aria-hidden="true">i</span>
+      <strong>Point</strong>
+      <small>Admin</small>
     </span>
   );
 }
-function label(value: string) {
-  return value
-    .replaceAll('_', ' ')
-    .toLowerCase()
-    .replace(/^./, (character) => character.toUpperCase());
+function text(data: FormData, key: string): string {
+  const value = data.get(key);
+  return typeof value === 'string' ? value.trim() : '';
+}
+function optional(data: FormData, key: string): string | undefined {
+  return text(data, key) || undefined;
+}
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+function display(value: unknown, fallback = ''): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean')
+    return `${value}`;
+  return fallback;
+}
+function readContext(): AdminContext | undefined {
+  const value = window.localStorage.getItem(contextKey);
+  if (!value) return undefined;
+  try {
+    return JSON.parse(value) as AdminContext;
+  } catch {
+    return undefined;
+  }
 }

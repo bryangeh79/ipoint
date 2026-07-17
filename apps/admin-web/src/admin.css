@@ -1,6 +1,16 @@
 .admin-app .ip-page-container {
   max-width: 1360px;
 }
+.admin-live-json {
+  max-height: 24rem;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ip-color-text-muted);
+}
 .admin-app .ip-alert {
   margin-bottom: var(--ip-space-3);
 }
