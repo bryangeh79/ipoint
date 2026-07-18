@@ -7,7 +7,7 @@ import { migrate } from '../src/migration-runner.js';
 import { verifyMigrationChecksums } from '../src/migration-checksums.js';
 import { assertNoSchemaDrift } from '../src/drift-check.js';
 import { accounts, auditLogs, entityTimelines } from '../schema/index.js';
-import { seedFoundation } from '../seeds/foundation.js';
+import { foundationPermissions, seedFoundation } from '../seeds/foundation.js';
 import { migrationsDirectory } from '../src/paths.js';
 
 const databaseUrl = process.env['DATABASE_URL'];
@@ -359,20 +359,25 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       permissions: string;
       profiles: string;
       versions: string;
-    }>(`
+    }>(
+      `
       SELECT
-        (SELECT count(*) FROM roles) AS roles,
-        (SELECT count(*) FROM permissions) AS permissions,
+        (SELECT count(*) FROM roles
+          WHERE code IN ('SUPER_ADMIN', 'VIEWER')) AS roles,
+        (SELECT count(*) FROM permissions
+          WHERE code = ANY($1::text[])) AS permissions,
         (SELECT count(*) FROM service_fee_profiles
           WHERE market_id IS NULL AND code IN ('A', 'B', 'C', 'D', 'E', 'F')) AS profiles,
         (SELECT count(*) FROM service_fee_versions v
           JOIN service_fee_profiles p ON p.id = v.service_fee_profile_id
           WHERE v.market_id IS NULL AND p.market_id IS NULL
             AND p.code IN ('A', 'B', 'C', 'D', 'E', 'F')) AS versions
-    `);
+    `,
+      [foundationPermissions.map(([code]) => code)],
+    );
     expect(counts.rows[0]).toEqual({
       roles: '2',
-      permissions: '24',
+      permissions: String(foundationPermissions.length),
       profiles: '6',
       versions: '6',
     });

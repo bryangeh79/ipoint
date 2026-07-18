@@ -7,6 +7,16 @@ const memberStatuses = [
   'CLOSED',
 ] as const;
 const kycLevels = ['NONE', 'LEVEL_1', 'LEVEL_2'] as const;
+const kycStatuses = [
+  'NOT_STARTED',
+  'DRAFT',
+  'SUBMITTED',
+  'UNDER_REVIEW',
+  'APPROVED',
+  'REJECTED',
+  'MORE_INFO_REQUIRED',
+  'REVERIFICATION_REQUIRED',
+] as const;
 const optionalDate = z
   .string()
   .datetime({ offset: true })
@@ -21,8 +31,11 @@ export const memberListQuerySchema = z
     pageSize: z.coerce.number().int().min(1).max(100).default(20),
     query: z.string().trim().min(1).max(200).optional(),
     status: z.enum(memberStatuses).optional(),
+    accountCountry: z.string().trim().length(2).toUpperCase().optional(),
     kycLevel: z.enum(kycLevels).optional(),
+    kycStatus: z.enum(kycStatuses).optional(),
     marketId: z.string().uuid().optional(),
+    currentMarket: z.string().uuid().optional(),
     createdAfter: optionalDate,
     createdBefore: optionalDate,
     sort: z
@@ -35,6 +48,16 @@ export const memberListQuerySchema = z
       .default('createdAt:desc'),
   })
   .strict()
+  .refine(
+    (value) =>
+      !value.marketId ||
+      !value.currentMarket ||
+      value.marketId === value.currentMarket,
+    {
+      message: 'marketId and currentMarket must match when both are provided.',
+      path: ['currentMarket'],
+    },
+  )
   .refine(
     (value) =>
       !value.createdAfter ||

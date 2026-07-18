@@ -14,6 +14,7 @@ import {
   memberProfiles,
   memberStatusHistory,
   members,
+  merchantGroups,
   migrate,
   permissions,
   roleAssignments,
@@ -61,8 +62,17 @@ interface MemberBody {
 }
 
 interface MemberListBody {
-  members: Array<{ publicMemberId: string; currentMarketId: string }>;
+  members: Array<{
+    publicMemberId: string;
+    currentMarketId: string;
+    status: string;
+    kycLevel: string;
+    accountCountry: string;
+    createdAt: string;
+  }>;
   total: number;
+  page: number;
+  pageSize: number;
 }
 
 interface NotesListBody {
@@ -144,19 +154,21 @@ describe.skipIf(!databaseUrl)('Admin Member HTTP integration', () => {
     email: string;
     memberId: string;
     publicMemberId: string;
+    referralCode: string;
     rawPhone: string;
   }> {
     const account = await createAccount();
     const publicMemberId = `mem_${randomUUID()}`;
+    const referralCode = randomUUID()
+      .replaceAll('-', '')
+      .slice(0, 8)
+      .toUpperCase();
     const inserted = await database.db
       .insert(members)
       .values({
         accountId: account.accountId,
         publicMemberId,
-        referralCode: randomUUID()
-          .replaceAll('-', '')
-          .slice(0, 8)
-          .toUpperCase(),
+        referralCode,
         status: 'ACTIVE',
         kycLevel: 'LEVEL_1',
       })
@@ -179,7 +191,17 @@ describe.skipIf(!databaseUrl)('Admin Member HTTP integration', () => {
       isCurrent: true,
       sortOrder: 0,
     });
-    return { ...account, memberId, publicMemberId, rawPhone };
+    return { ...account, memberId, publicMemberId, referralCode, rawPhone };
+  }
+
+  async function createMerchantToken(marketId: string): Promise<string> {
+    const account = await createAccount();
+    await database.db.insert(merchantGroups).values({
+      accountId: account.accountId,
+      marketId,
+      name: `HTTP Test Merchant ${randomUUID()}`,
+    });
+    return getAccessToken(account.email);
   }
 
   async function getAccessToken(email: string): Promise<string> {
@@ -355,6 +377,15 @@ describe.skipIf(!databaseUrl)('Admin Member HTTP integration', () => {
         'AUTH_PERMISSION_DENIED',
       );
 
+      const merchantToken = await createMerchantToken(primaryMarketId);
+      const merchant = await supertest(server)
+        .get('/api/v1/admin/members')
+        .set(authorized(merchantToken))
+        .expect(403);
+      expect((merchant.body as ErrorBody).error.code).toBe(
+        'AUTH_PERMISSION_DENIED',
+      );
+
       const admin = await createAdmin({
         marketIds: [primaryMarketId],
         permissionCodes: [],
@@ -423,6 +454,130 @@ describe.skipIf(!databaseUrl)('Admin Member HTTP integration', () => {
         .get(`/api/v1/admin/members/${member.publicMemberId}/notes`)
         .set(authorized(readOnlyAdmin.token))
         .expect(403);
+    });
+  });
+
+  describe('search, filters, pagination, and sorting', () => {
+    it('searches independently by publicMemberId, email, phone, and referralCode', async () => {
+      const member = await createMember(primaryMarketId);
+      const admin = await createAdmin({
+        marketIds: [primaryMarketId],
+        permissionCodes: ['member.read'],
+      });
+
+      for (const query of [
+        member.publicMemberId,
+        member.email,
+        member.rawPhone,
+        member.referralCode,
+      ]) {
+        const response = await supertest(server)
+          .get(`/api/v1/admin/members?query=${encodeURIComponent(query)}`)
+          .set(authorized(admin.token))
+          .expect(200);
+        expect(
+          (response.body as MemberListBody).members.map(
+            (item) => item.publicMemberId,
+          ),
+        ).toContain(member.publicMemberId);
+      }
+    });
+
+    it('filters by status, accountCountry, currentMarket, kycLevel, kycStatus, and date range', async () => {
+      const member = await createMember(primaryMarketId);
+      await createApprovedKyc(member.memberId, primaryMarketId);
+      const createdAt = new Date('2026-06-15T12:00:00.000Z');
+      await Promise.all([
+        database.db
+          .update(accounts)
+          .set({ accountCountry: 'SG' })
+          .where(eq(accounts.id, member.accountId)),
+        database.db
+          .update(members)
+          .set({ status: 'SUSPENDED', createdAt })
+          .where(eq(members.id, member.memberId)),
+      ]);
+      const admin = await createAdmin({
+        marketIds: [primaryMarketId],
+        permissionCodes: ['member.read'],
+      });
+      const params = new URLSearchParams({
+        query: member.email,
+        status: 'SUSPENDED',
+        accountCountry: 'sg',
+        currentMarket: primaryMarketId,
+        kycLevel: 'LEVEL_2',
+        kycStatus: 'APPROVED',
+        createdAfter: '2026-06-01T00:00:00.000Z',
+        createdBefore: '2026-06-30T23:59:59.999Z',
+      });
+      const response = await supertest(server)
+        .get(`/api/v1/admin/members?${params.toString()}`)
+        .set(authorized(admin.token))
+        .expect(200);
+      expect((response.body as MemberListBody).members).toHaveLength(1);
+      expect((response.body as MemberListBody).members[0]).toMatchObject({
+        publicMemberId: member.publicMemberId,
+        currentMarketId: primaryMarketId,
+        status: 'SUSPENDED',
+        kycLevel: 'LEVEL_2',
+        accountCountry: 'SG',
+      });
+    });
+
+    it('paginates, sorts deterministically, and rejects pageSize above 100', async () => {
+      const fixtureToken = randomUUID().replaceAll('-', '').slice(0, 6);
+      const referralPrefix = randomUUID()
+        .replaceAll('-', '')
+        .slice(0, 5)
+        .toUpperCase();
+      const fixtures = await Promise.all([
+        createMember(primaryMarketId),
+        createMember(primaryMarketId),
+        createMember(primaryMarketId),
+      ]);
+      for (const [index, member] of fixtures.entries()) {
+        await database.db
+          .update(members)
+          .set({
+            publicMemberId: `mem_${fixtureToken}_${String.fromCharCode(97 + index)}`,
+            referralCode: `${referralPrefix}${String.fromCharCode(65 + index)}1X`,
+          })
+          .where(eq(members.id, member.memberId));
+      }
+      const admin = await createAdmin({
+        marketIds: [primaryMarketId],
+        permissionCodes: ['member.read'],
+      });
+      const first = await supertest(server)
+        .get(
+          `/api/v1/admin/members?query=${referralPrefix}&sort=publicMemberId:asc&page=1&pageSize=2`,
+        )
+        .set(authorized(admin.token))
+        .expect(200);
+      const firstBody = first.body as MemberListBody;
+      expect(firstBody).toMatchObject({ total: 3, page: 1, pageSize: 2 });
+      expect(firstBody.members.map((item) => item.publicMemberId)).toEqual([
+        `mem_${fixtureToken}_a`,
+        `mem_${fixtureToken}_b`,
+      ]);
+
+      const second = await supertest(server)
+        .get(
+          `/api/v1/admin/members?query=${referralPrefix}&sort=publicMemberId:asc&page=2&pageSize=2`,
+        )
+        .set(authorized(admin.token))
+        .expect(200);
+      expect(
+        (second.body as MemberListBody).members.map(
+          (item) => item.publicMemberId,
+        ),
+      ).toEqual([`mem_${fixtureToken}_c`]);
+
+      await supertest(server)
+        .get('/api/v1/admin/members?pageSize=101')
+        .set(authorized(admin.token))
+        .expect(400);
     });
   });
 
@@ -526,6 +681,65 @@ describe.skipIf(!databaseUrl)('Admin Member HTTP integration', () => {
         ),
       );
     expect(active).toHaveLength(0);
+
+    const recovery = await action(
+      admin.token,
+      member.publicMemberId,
+      'reactivate',
+      { reason: 'Attempted recovery', idempotencyKey: randomUUID() },
+    ).expect(409);
+    expect((recovery.body as ErrorBody).error.code).toBe(
+      'ADMIN_MEMBER_INVALID_STATUS',
+    );
+  });
+
+  it('serializes concurrent Suspend and Close requests and preserves CLOSED as terminal', async () => {
+    const member = await createMember(primaryMarketId);
+    const admin = await createAdmin({
+      marketIds: [primaryMarketId],
+      permissionCodes: ['member.read', 'member.status.manage'],
+    });
+    const [suspend, close] = await Promise.all([
+      action(admin.token, member.publicMemberId, 'suspend', {
+        reason: 'Concurrent risk hold',
+        idempotencyKey: randomUUID(),
+      }),
+      action(admin.token, member.publicMemberId, 'close', {
+        reason: 'Concurrent governed closure',
+        confirmationText: 'CONFIRM',
+        idempotencyKey: randomUUID(),
+      }),
+    ]);
+    expect([200, 409]).toContain(suspend.status);
+    expect(close.status).toBe(200);
+
+    const detail = await supertest(server)
+      .get(`/api/v1/admin/members/${member.publicMemberId}`)
+      .set(authorized(admin.token))
+      .expect(200);
+    expect((detail.body as MemberBody).status).toBe('CLOSED');
+  });
+
+  it('rejects the same action idempotency key with a different payload', async () => {
+    const member = await createMember(primaryMarketId);
+    const admin = await createAdmin({
+      marketIds: [primaryMarketId],
+      permissionCodes: ['member.status.manage'],
+    });
+    const idempotencyKey = randomUUID();
+    await action(admin.token, member.publicMemberId, 'suspend', {
+      reason: 'First payload',
+      idempotencyKey,
+    }).expect(200);
+    const conflict = await action(
+      admin.token,
+      member.publicMemberId,
+      'suspend',
+      { reason: 'Different payload', idempotencyKey },
+    ).expect(409);
+    expect((conflict.body as ErrorBody).error.code).toBe(
+      'ADMIN_MEMBER_IDEMPOTENCY_CONFLICT',
+    );
   });
 
   it('revokes sessions without changing member status', async () => {
@@ -661,5 +875,10 @@ describe.skipIf(!databaseUrl)('Admin Member HTTP integration', () => {
       `****${kyc.identificationNumber.slice(-4)}`,
     );
     expect(JSON.stringify(body)).not.toContain(kyc.identificationNumber);
+    const serialized = JSON.stringify(body);
+    expect(serialized).not.toContain('Sensitive address');
+    expect(serialized).not.toContain('1990-01-02');
+    expect(serialized).not.toContain(password);
+    expect(serialized).not.toMatch(/password|credential|wallet|documentKey/i);
   });
 });

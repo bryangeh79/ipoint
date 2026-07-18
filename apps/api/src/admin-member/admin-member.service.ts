@@ -92,10 +92,15 @@ export class AdminMemberService {
       eq(markets.status, 'ACTIVE'),
     ];
     if (filters.status) conditions.push(eq(members.status, filters.status));
+    if (filters.accountCountry)
+      conditions.push(eq(accounts.accountCountry, filters.accountCountry));
     if (filters.kycLevel)
       conditions.push(eq(members.kycLevel, filters.kycLevel));
-    if (filters.marketId)
-      conditions.push(eq(memberMarketPreferences.marketId, filters.marketId));
+    if (filters.kycStatus)
+      conditions.push(eq(memberKycCases.status, filters.kycStatus));
+    const currentMarket = filters.currentMarket ?? filters.marketId;
+    if (currentMarket)
+      conditions.push(eq(memberMarketPreferences.marketId, currentMarket));
     if (filters.createdAfter)
       conditions.push(gte(members.createdAt, filters.createdAfter));
     if (filters.createdBefore)
@@ -106,6 +111,8 @@ export class AdminMemberService {
         or(
           ilike(members.publicMemberId, search),
           ilike(accounts.email, search),
+          ilike(memberProfiles.phoneNormalized, search),
+          ilike(members.referralCode, search),
         )!,
       );
     }
@@ -127,6 +134,7 @@ export class AdminMemberService {
         .from(members)
         .innerJoin(accounts, eq(accounts.id, members.accountId))
         .leftJoin(memberProfiles, eq(memberProfiles.memberId, members.id))
+        .leftJoin(memberKycCases, eq(memberKycCases.memberId, members.id))
         .innerJoin(
           memberMarketPreferences,
           eq(memberMarketPreferences.memberId, members.id),
@@ -144,6 +152,8 @@ export class AdminMemberService {
         .select({ value: count() })
         .from(members)
         .innerJoin(accounts, eq(accounts.id, members.accountId))
+        .leftJoin(memberProfiles, eq(memberProfiles.memberId, members.id))
+        .leftJoin(memberKycCases, eq(memberKycCases.memberId, members.id))
         .innerJoin(
           memberMarketPreferences,
           eq(memberMarketPreferences.memberId, members.id),
@@ -622,13 +632,12 @@ export class AdminMemberService {
       createdAt: row.member.createdAt.toISOString(),
       closedAt: row.member.closedAt?.toISOString() ?? null,
       profile: {
-        fullName: row.profile?.fullName ?? null,
+        fullName: this.maskName(row.profile?.fullName ?? null),
         phone: this.maskPhone(row.profile?.phone ?? null),
         phoneVerificationStatus:
           row.profile?.phoneVerificationStatus ?? 'NOT_PROVIDED',
-        birthDate: row.profile?.birthDate ?? null,
-        address:
-          (row.profile?.address as Record<string, unknown> | null) ?? null,
+        birthDate: null,
+        address: null,
         locale: row.profile?.locale ?? null,
         language: row.profile?.language ?? null,
       },
@@ -638,7 +647,7 @@ export class AdminMemberService {
             marketId: kyc.marketId,
             status: kyc.status,
             levelRequested: kyc.levelRequested,
-            legalFullName: kyc.legalFullName,
+            legalFullName: this.maskName(kyc.legalFullName),
             identificationType: kyc.identificationType,
             identificationNumber: this.maskIdentification(
               kyc.identificationNumber,
@@ -764,6 +773,17 @@ export class AdminMemberService {
   private maskPhone(value: string | null): string | null {
     if (!value) return null;
     return `${'*'.repeat(Math.max(0, value.length - 4))}${value.slice(-4)}`;
+  }
+
+  private maskName(value: string | null): string | null {
+    if (!value) return null;
+    return value
+      .split(/\s+/)
+      .map(
+        (part) =>
+          `${part.slice(0, 1)}${'*'.repeat(Math.max(1, part.length - 1))}`,
+      )
+      .join(' ');
   }
 
   private maskIdentification(value: string | null): string | null {

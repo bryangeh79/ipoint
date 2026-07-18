@@ -27,6 +27,7 @@
     "db:seed": "pnpm --filter @ipoint/database db:seed",
     "db:checksum": "pnpm --filter @ipoint/database db:checksum",
     "db:drift": "pnpm --filter @ipoint/database db:drift",
+    "openapi:validate": "pnpm --filter @ipoint/api openapi:validate",
     "ci:verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm test:database && pnpm test:api && pnpm test:e2e",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
