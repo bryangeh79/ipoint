@@ -399,3 +399,21 @@
 | **Approver** | ChatGPT Command Center |
 | **Basis** | P2-S5 COMMAND CENTER FINAL DECISION - APPROVED (2026-07-18) |
 | **Status** | **APPROVED** |
+
+
+## D-022: P2-S6 final acceptance and P2-S7 authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-022 |
+| **Date** | 2026-07-18 |
+| **Source** | ChatGPT Command Center - P2-S6 COMMAND CENTER FINAL DECISION - APPROVED |
+| **Old Rule** | P2-S6 CHANGES_REQUIRED; P2-S7 NOT_AUTHORIZED |
+| **New Decision** | P2-S6 APPROVED at SHA 071b65a6aaf4cafbf117594816b1ae7b8afd4676. Member KYC Level 2 complete. Migration 0011 complete. Member and Admin KYC APIs complete. KYC state machine complete. Atomic approval transaction with Case+Member level update. Idempotency, concurrency, RBAC, MarketAccess, self-review isolation complete. Sensitive ID number masking complete. KYC History, AuditLog, EntityTimeline complete. Retention uses market-configurable policy reference. O-03 remains LEGAL_DECISION_REQUIRED. 402 tests passed, 0 failed, 0 skipped. lint, typecheck, build, OpenAPI, checksum, migration, seed twice, drift all passed. Branches synchronized. P2-S7 (Member Merchant Discovery) AUTHORIZED. P2-S8 through P2-S9 remain NOT_AUTHORIZED. Main PR/Main Merge remain NOT_AUTHORIZED. |
+| **Reason** | P2-S6 full verification completed. All 402 tests passed with real PostgreSQL. |
+| **Affected Files** | docs/06-phase-reports/p2-s6/P2-S6_DELIVERY_REPORT.md, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | P2-S6, P2-S7 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P2-S6 COMMAND CENTER FINAL DECISION - APPROVED (2026-07-18) |
+| **Status** | **APPROVED** |
