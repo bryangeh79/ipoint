@@ -13,6 +13,7 @@ export const foundationPermissions = [
   ['rbac.view', 'View roles, permissions, and access assignments'],
   ['rbac.manage', 'Manage roles, permissions, and access assignments'],
   ['audit.view', 'View audit logs and entity timelines'],
+  ['member.manage', 'View and manage members in authorized markets'],
   ['merchant.view', 'View merchants in authorized markets'],
   ['merchant.approve', 'Review merchant applications and KYC'],
   ['merchant.kyc.view', 'View merchant KYC submissions'],
@@ -31,6 +32,7 @@ export const foundationPermissions = [
   ['merchant.mcp.adjust.approve', 'Approve manual MCP adjustments'],
   ['merchant.mcp.adjust.execute', 'Execute approved MCP adjustments'],
   ['merchant.mcp.reverse', 'Create governed MCP reversal entries'],
+  ['member.manage', 'Manage members in authorized markets'],
 ] as const;
 
 export const standardServiceFeeProfiles = [
