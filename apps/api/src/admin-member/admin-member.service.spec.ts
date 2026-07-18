@@ -189,6 +189,45 @@ describe('AdminMemberService', () => {
     expect(result.marketPreferences[0]?.marketCode).toBe('MY');
   });
 
+  it('lists member notes newest-first with pagination metadata', async () => {
+    const noteId = randomUUID();
+    const { service } = createService([
+      [{ memberId, accountId, marketId }],
+      [{ id: adminUserId }],
+      [
+        {
+          id: noteId,
+          memberId,
+          adminUserId,
+          marketId,
+          content: 'Latest note',
+          isInternal: true,
+          createdAt: now,
+        },
+      ],
+      [{ value: 2 }],
+    ]);
+    const result = await service.getMemberNotes(actor, publicMemberId, {
+      page: 2,
+      pageSize: 1,
+    });
+    expect(result).toEqual({
+      notes: [
+        {
+          id: noteId,
+          adminUserId,
+          marketId,
+          content: 'Latest note',
+          isInternal: true,
+          createdAt: now.toISOString(),
+        },
+      ],
+      total: 2,
+      page: 2,
+      pageSize: 1,
+    });
+  });
+
   it('suspends an ACTIVE member, revokes sessions, and appends history/audit', async () => {
     const { service, db, database } = createService(
       actionSelects('ACTIVE', 'SUSPENDED'),

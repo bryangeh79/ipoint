@@ -25,6 +25,7 @@ import {
   addAdminNoteSchema,
   closeMemberSchema,
   memberListQuerySchema,
+  notesListQuerySchema,
   reactivateMemberSchema,
   requireReverificationSchema,
   revokeSessionsSchema,
@@ -32,6 +33,7 @@ import {
   type AddAdminNoteDto,
   type CloseMemberDto,
   type MemberListQueryDto,
+  type NotesListQueryDto,
   type ReactivateMemberDto,
   type RequireReverificationDto,
   type RevokeSessionsDto,
@@ -47,13 +49,13 @@ import {
 @ApiBearerAuth()
 @Controller('admin/members')
 @UseGuards(AuthGuard, RbacGuard)
-@RequirePermission('member.manage')
 export class AdminMemberController {
   constructor(
     @Inject(AdminMemberService) private readonly members: AdminMemberService,
   ) {}
 
   @Get()
+  @RequirePermission('member.read')
   list(
     @CurrentActor() actor: RequestActor | undefined,
     @Query(new ZodValidationPipe(memberListQuerySchema))
@@ -67,6 +69,7 @@ export class AdminMemberController {
   }
 
   @Get(':publicMemberId')
+  @RequirePermission('member.read')
   detail(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('publicMemberId') publicMemberId: string,
@@ -79,6 +82,7 @@ export class AdminMemberController {
   }
 
   @Post(':publicMemberId/suspend')
+  @RequirePermission('member.status.manage')
   @HttpCode(200)
   suspend(
     @CurrentActor() actor: RequestActor | undefined,
@@ -93,6 +97,7 @@ export class AdminMemberController {
   }
 
   @Post(':publicMemberId/reactivate')
+  @RequirePermission('member.status.manage')
   @HttpCode(200)
   reactivate(
     @CurrentActor() actor: RequestActor | undefined,
@@ -108,6 +113,7 @@ export class AdminMemberController {
   }
 
   @Post(':publicMemberId/close')
+  @RequirePermission('member.status.manage')
   @HttpCode(200)
   close(
     @CurrentActor() actor: RequestActor | undefined,
@@ -122,6 +128,7 @@ export class AdminMemberController {
   }
 
   @Post(':publicMemberId/revoke-sessions')
+  @RequirePermission('member.session.revoke')
   @HttpCode(200)
   revokeSessions(
     @CurrentActor() actor: RequestActor | undefined,
@@ -136,6 +143,7 @@ export class AdminMemberController {
   }
 
   @Post(':publicMemberId/require-reverification')
+  @RequirePermission('member.reverification.require')
   @HttpCode(200)
   requireReverification(
     @CurrentActor() actor: RequestActor | undefined,
@@ -155,6 +163,7 @@ export class AdminMemberController {
   }
 
   @Post(':publicMemberId/notes')
+  @RequirePermission('member.note.create')
   @HttpCode(200)
   addNote(
     @CurrentActor() actor: RequestActor | undefined,
@@ -165,6 +174,21 @@ export class AdminMemberController {
   ) {
     return this.handle(() =>
       this.members.addAdminNote(this.actor(actor, request, ip), id, input),
+    );
+  }
+
+  @Get(':publicMemberId/notes')
+  @RequirePermission('member.note.read')
+  getNotes(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('publicMemberId') id: string,
+    @Query(new ZodValidationPipe(notesListQuerySchema))
+    query: NotesListQueryDto,
+    @Ip() ip: string,
+    @Req() request: Request,
+  ) {
+    return this.handle(() =>
+      this.members.getMemberNotes(this.actor(actor, request, ip), id, query),
     );
   }
 

@@ -35,6 +35,7 @@ import type {
   AddAdminNoteDto,
   CloseMemberDto,
   MemberListQueryDto,
+  NotesListQueryDto,
   ReactivateMemberDto,
   RequireReverificationDto,
   RevokeSessionsDto,
@@ -56,6 +57,7 @@ import type {
   AdminMemberActor,
   AdminMemberDetailResponse,
   AdminMemberListResponse,
+  AdminMemberNotesListResponse,
   AdminMemberStatus,
 } from './admin-member.types.js';
 
@@ -176,6 +178,46 @@ export class AdminMemberService {
       member.marketId,
     );
     return this.memberDetail(this.database.db, publicMemberId);
+  }
+
+  async getMemberNotes(
+    adminActor: AdminMemberActor,
+    publicMemberId: string,
+    query: NotesListQueryDto,
+  ): Promise<AdminMemberNotesListResponse> {
+    const member = await this.findMember(this.database.db, publicMemberId);
+    await this.assertMarketAccess(
+      this.database.db,
+      adminActor.adminUserId,
+      member.marketId,
+    );
+    const offset = (query.page - 1) * query.pageSize;
+    const [notes, totals] = await Promise.all([
+      this.database.db
+        .select()
+        .from(adminMemberNotes)
+        .where(eq(adminMemberNotes.memberId, member.memberId))
+        .orderBy(desc(adminMemberNotes.createdAt), desc(adminMemberNotes.id))
+        .limit(query.pageSize)
+        .offset(offset),
+      this.database.db
+        .select({ value: count() })
+        .from(adminMemberNotes)
+        .where(eq(adminMemberNotes.memberId, member.memberId)),
+    ]);
+    return {
+      notes: notes.map((note) => ({
+        id: note.id,
+        adminUserId: note.adminUserId,
+        marketId: note.marketId,
+        content: note.content,
+        isInternal: note.isInternal,
+        createdAt: note.createdAt.toISOString(),
+      })),
+      total: Number(totals[0]?.value ?? 0),
+      page: query.page,
+      pageSize: query.pageSize,
+    };
   }
 
   suspendMember(
@@ -356,7 +398,7 @@ export class AdminMemberService {
   private async changeStatus(
     actor: AdminMemberActor,
     publicMemberId: string,
-    input: SuspendMemberDto  ,
+    input: SuspendMemberDto,
     fromStatus: AdminMemberStatus,
     toStatus: AdminMemberStatus,
   ): Promise<AdminMemberDetailResponse> {
@@ -388,7 +430,7 @@ export class AdminMemberService {
     tx: DbTransaction,
     actor: AdminMemberActor,
     locked: LockedMember,
-    input: SuspendMemberDto   | CloseMemberDto,
+    input: SuspendMemberDto | CloseMemberDto,
     toStatus: AdminMemberStatus,
     revokeSessions: boolean,
   ): Promise<AdminMemberDetailResponse> {

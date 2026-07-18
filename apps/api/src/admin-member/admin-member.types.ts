@@ -102,3 +102,19 @@ export interface AdminMemberDetailResponse extends AdminMemberListItem {
     occurredAt: string;
   }>;
 }
+
+export interface AdminMemberNote {
+  id: string;
+  adminUserId: string;
+  marketId: string;
+  content: string;
+  isInternal: boolean;
+  createdAt: string;
+}
+
+export interface AdminMemberNotesListResponse {
+  notes: AdminMemberNote[];
+  total: number;
+  page: number;
+  pageSize: number;
+}

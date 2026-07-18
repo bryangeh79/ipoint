@@ -46,6 +46,13 @@ export const memberListQuerySchema = z
     },
   );
 
+export const notesListQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .strict();
+
 export const suspendMemberSchema = z
   .object({ reason, idempotencyKey })
   .strict();
@@ -68,6 +75,7 @@ export const addAdminNoteSchema = z
   .strict();
 
 export type MemberListQueryDto = z.infer<typeof memberListQuerySchema>;
+export type NotesListQueryDto = z.infer<typeof notesListQuerySchema>;
 export type SuspendMemberDto = z.infer<typeof suspendMemberSchema>;
 export type ReactivateMemberDto = z.infer<typeof reactivateMemberSchema>;
 export type CloseMemberDto = z.infer<typeof closeMemberSchema>;

@@ -51,14 +51,16 @@ function makeService(discoveryRows: Record<string, unknown>[] = [row()]) {
   const query = vi.fn(
     (
       text: string,
+      params?: unknown[],
     ): Promise<{ rows: Record<string, unknown>[] }> => {
+      void params;
       if (text.includes('from markets')) {
         return Promise.resolve({
           rows: [{ status: 'ACTIVE', timezone: 'Asia/Kuala_Lumpur' }],
         });
       }
       if (text.includes('from merchant_categories')) {
-        return {
+        return Promise.resolve({
           rows: [
             {
               id: randomUUID(),
@@ -67,9 +69,9 @@ function makeService(discoveryRows: Record<string, unknown>[] = [row()]) {
               sortOrder: 1,
             },
           ],
-        };
+        });
       }
-      return { rows: discoveryRows };
+      return Promise.resolve({ rows: discoveryRows });
     },
   );
   const database = { pool: { query } } as unknown as DatabaseService;
