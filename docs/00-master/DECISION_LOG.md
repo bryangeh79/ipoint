@@ -435,3 +435,21 @@
 | **Approver** | ChatGPT Command Center |
 | **Basis** | P2-S7 COMMAND CENTER FINAL DECISION - APPROVED (2026-07-18) |
 | **Status** | **APPROVED** |
+
+
+## D-024: P2-S8 final acceptance
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-024 |
+| **Date** | 2026-07-18 |
+| **Source** | ChatGPT Command Center - P2-S8 COMMAND CENTER FINAL DECISION - APPROVED |
+| **Old Rule** | P2-S8 CHANGES_REQUIRED; P2-S9 NOT_AUTHORIZED |
+| **New Decision** | P2-S8 APPROVED at SHA cb902fc96a6f8ddc5be469c38e3caa64d0eb87cb. Admin Member Management complete. Migration 0013 complete. 9 Admin Member API endpoints complete. RBAC permissions (member.read, member.status.manage, member.session.revoke, member.reverification.require, member.note.read, member.note.create) complete. MarketAccess isolation complete. Idempotency and concurrency protection complete. Sensitive data masking complete. Status History, AuditLog, EntityTimeline complete. 459 tests passed, 0 failed, 0 skipped. OpenAPI 100 paths, 0 missing. checksum, migration, seed twice, drift all passed. Branches synchronized. P2-S9 remains NOT_AUTHORIZED awaiting Command Center scope definition. Main PR/Main Merge remain NOT_AUTHORIZED. |
+| **Reason** | P2-S8 full verification completed. SHA evidence corrected. All 459 tests passed with real PostgreSQL. |
+| **Affected Files** | docs/06-phase-reports/p2-s8/P2-S8_DELIVERY_REPORT.md, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | P2-S8 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P2-S8 COMMAND CENTER FINAL DECISION - APPROVED (2026-07-18) |
+| **Status** | **APPROVED** |
