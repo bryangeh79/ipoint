@@ -1,7 +1,14 @@
 import { createHash, randomUUID } from 'node:crypto';
+import {
+  auditLogs,
+  entityTimelines,
+  memberKycCases,
+  memberKycHistory,
+  members,
+} from '@ipoint/database';
 import { describe, expect, it, vi } from 'vitest';
 import type { DatabaseService } from '../database/database.service.js';
-import type { AuditService } from '../platform-access/audit.service.js';
+import { AuditService } from '../platform-access/audit.service.js';
 import { approveSchema } from './admin-kyc.dto.js';
 import { AdminKycService } from './admin-kyc.service.js';
 
@@ -130,16 +137,14 @@ function createService(options: FakeOptions = {}) {
       },
     ),
   };
-  const audit = {
-    appendWithinTransaction: vi.fn().mockResolvedValue(undefined),
-  };
+  const audit = new AuditService(database as unknown as DatabaseService);
+  const auditAppend = vi.spyOn(audit, 'appendWithinTransaction');
   return {
-    service: new AdminKycService(
-      database as unknown as DatabaseService,
-      audit as unknown as AuditService,
-    ),
+    service: new AdminKycService(database as unknown as DatabaseService, audit),
+    db,
     database,
     audit,
+    auditAppend,
     get rolledBack() {
       return rolledBack;
     },
@@ -247,6 +252,15 @@ describe('AdminKycService', () => {
     expect(result.member.email).toBe('a***@example.com');
   });
 
+  it('denies case detail when the admin has no access to the case market', async () => {
+    const { service } = createService({
+      selects: [[{ marketId }], []],
+    });
+    await expect(service.getCase(actor, caseId)).rejects.toMatchObject({
+      code: 'ADMIN_KYC_MARKET_ACCESS_DENIED',
+    });
+  });
+
   it('starts review from SUBMITTED', async () => {
     const { service } = actionService('SUBMITTED', 'UNDER_REVIEW');
     await expect(
@@ -269,13 +283,16 @@ describe('AdminKycService', () => {
   });
 
   it('approves the case and returns the updated member LEVEL_2', async () => {
-    const { service } = actionService('UNDER_REVIEW', 'APPROVED');
+    const { service, database, db } = actionService('UNDER_REVIEW', 'APPROVED');
     await expect(
       service.approve(actor, caseId, input, 'approve-1'),
     ).resolves.toMatchObject({
       status: 'APPROVED',
       member: { kycLevel: 'LEVEL_2' },
     });
+    expect(database.runTransaction).toHaveBeenCalledTimes(1);
+    expect(db.update).toHaveBeenCalledWith(memberKycCases);
+    expect(db.update).toHaveBeenCalledWith(members);
   });
 
   it('rolls back approval when the member KYC level update fails', async () => {
@@ -286,7 +303,7 @@ describe('AdminKycService', () => {
       fake.service.approve(actor, caseId, input, 'approve-fail'),
     ).rejects.toThrow('Member KYC level update returned no row.');
     expect(fake.rolledBack).toBe(true);
-    expect(fake.audit.appendWithinTransaction).not.toHaveBeenCalled();
+    expect(fake.auditAppend).not.toHaveBeenCalled();
   });
 
   it('rejects a case from UNDER_REVIEW', async () => {
@@ -304,16 +321,38 @@ describe('AdminKycService', () => {
   });
 
   it('allows only the first result of concurrent approve/reject decisions', async () => {
-    const first = actionService('UNDER_REVIEW', 'APPROVED');
-    const second = actionService('APPROVED', 'REJECTED');
+    const locked = {
+      kycCase: kycCase('UNDER_REVIEW'),
+      memberAccountId,
+      memberId,
+    };
+    const concurrent = createService({
+      selects: [
+        [locked],
+        [locked],
+        [{ accountId: adminAccountId }],
+        [{ accountId: adminAccountId }],
+        [],
+        [],
+        [detailRow('APPROVED', 'LEVEL_2')],
+        [],
+        [historyRow('APPROVED')],
+      ],
+      insertReturning: [[{ id: randomUUID() }], [{ id: randomUUID() }]],
+      updateReturning: [[{ id: caseId }], [], [{ id: memberId }]],
+    });
     const results = await Promise.allSettled([
-      first.service.approve(actor, caseId, input, 'concurrent-approve'),
-      second.service.reject(actor, caseId, input, 'concurrent-reject'),
+      concurrent.service.approve(actor, caseId, input, 'concurrent-approve'),
+      concurrent.service.reject(actor, caseId, input, 'concurrent-reject'),
     ]);
     expect(results.map((result) => result.status)).toEqual([
       'fulfilled',
       'rejected',
     ]);
+    expect(results[1]).toMatchObject({
+      status: 'rejected',
+      reason: { code: 'ADMIN_KYC_INVALID_TRANSITION' },
+    });
   });
 
   it('prevents an admin from reviewing their own member case', async () => {
@@ -326,12 +365,99 @@ describe('AdminKycService', () => {
   });
 
   it('returns the cached response for the same idempotency key', async () => {
-    const { service } = actionService('UNDER_REVIEW', 'APPROVED', {
-      cached: true,
-    });
+    const { service, db, auditAppend } = actionService(
+      'UNDER_REVIEW',
+      'APPROVED',
+      {
+        cached: true,
+      },
+    );
     await expect(
       service.approve(actor, caseId, input, 'cached-approve'),
     ).resolves.toMatchObject({ id: caseId, status: 'APPROVED' });
+    expect(db.insert).not.toHaveBeenCalled();
+    expect(db.update).not.toHaveBeenCalled();
+    expect(auditAppend).not.toHaveBeenCalled();
+  });
+
+  it('rejects an idempotency key reused with a different payload as a conflict', async () => {
+    const { service } = createService({
+      selects: [
+        [
+          {
+            kycCase: kycCase('UNDER_REVIEW'),
+            memberAccountId,
+            memberId,
+          },
+        ],
+        [{ accountId: adminAccountId }],
+        [
+          {
+            requestHash: 'f'.repeat(64),
+            response: { id: caseId, status: 'APPROVED' },
+            statusCode: 200,
+          },
+        ],
+      ],
+    });
+    await expect(
+      service.approve(actor, caseId, input, 'reused-key'),
+    ).rejects.toMatchObject({ code: 'ADMIN_KYC_IDEMPOTENCY_CONFLICT' });
+  });
+
+  it('writes KYC history, audit log, and timeline for every transition', async () => {
+    const transitions = [
+      {
+        from: 'SUBMITTED',
+        to: 'UNDER_REVIEW',
+        action: 'member.kyc.start-review',
+        invoke: (service: AdminKycService) =>
+          service.startReview(actor, caseId, input, randomUUID()),
+      },
+      {
+        from: 'UNDER_REVIEW',
+        to: 'MORE_INFO_REQUIRED',
+        action: 'member.kyc.request-more-info',
+        invoke: (service: AdminKycService) =>
+          service.requestMoreInfo(actor, caseId, input, randomUUID()),
+      },
+      {
+        from: 'UNDER_REVIEW',
+        to: 'APPROVED',
+        action: 'member.kyc.approve',
+        invoke: (service: AdminKycService) =>
+          service.approve(actor, caseId, input, randomUUID()),
+      },
+      {
+        from: 'UNDER_REVIEW',
+        to: 'REJECTED',
+        action: 'member.kyc.reject',
+        invoke: (service: AdminKycService) =>
+          service.reject(actor, caseId, input, randomUUID()),
+      },
+      {
+        from: 'APPROVED',
+        to: 'REVERIFICATION_REQUIRED',
+        action: 'member.kyc.require-reverification',
+        invoke: (service: AdminKycService) =>
+          service.requireReverification(actor, caseId, input, randomUUID()),
+      },
+    ];
+
+    for (const transition of transitions) {
+      const { service, db, auditAppend } = actionService(
+        transition.from,
+        transition.to,
+      );
+      await transition.invoke(service);
+      expect(db.insert).toHaveBeenCalledWith(memberKycHistory);
+      expect(db.insert).toHaveBeenCalledWith(auditLogs);
+      expect(db.insert).toHaveBeenCalledWith(entityTimelines);
+      expect(auditAppend).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ action: transition.action }),
+      );
+    }
   });
 
   it('requires a non-empty review reason', () => {

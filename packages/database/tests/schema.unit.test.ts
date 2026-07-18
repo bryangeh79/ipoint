@@ -347,11 +347,31 @@ describe('database foundation schema', () => {
     expect(memberKycHardeningMigration).toContain(
       'ADD COLUMN identification_number text',
     );
-    expect(memberKycHardeningMigration).toContain(
+    for (const constraint of [
+      'member_kyc_cases_nationality_check',
+      'member_kyc_cases_account_country_snapshot_check',
+      'member_kyc_cases_residential_address_check',
       'member_kyc_cases_level_2_submission_fields_check',
+      'member_kyc_idempotency_scope_key_unique',
+      'member_kyc_idempotency_request_hash_check',
+      'member_kyc_idempotency_result_check',
+    ]) {
+      expect(memberKycHardeningMigration).toContain(constraint);
+    }
+    expect(memberKycHardeningMigration).toContain(
+      'CREATE INDEX member_kyc_cases_submission_market_idx',
     );
     expect(memberKycHardeningMigration).toContain(
       'CREATE TABLE member_kyc_idempotency_keys',
+    );
+    expect(memberKycHardeningMigration).toContain(
+      'CONSTRAINT member_kyc_idempotency_scope_key_unique UNIQUE (scope, key)',
+    );
+    expect(memberKycHardeningMigration).toContain(
+      '(response IS NULL AND status_code IS NULL)',
+    );
+    expect(memberKycHardeningMigration).toContain(
+      '(response IS NOT NULL AND status_code BETWEEN 100 AND 599)',
     );
   });
 });

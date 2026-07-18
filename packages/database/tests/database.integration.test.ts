@@ -47,6 +47,9 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
     await expect(verifyMigrationChecksums()).resolves.toHaveProperty(
       '0000_database_foundation.sql',
     );
+    await expect(verifyMigrationChecksums()).resolves.toHaveProperty(
+      '0011_member_kyc_level_2_hardening.sql',
+    );
     await expect(assertNoSchemaDrift(connection.pool)).resolves.toBeUndefined();
     await expect(migrate(connection.pool)).resolves.toBeUndefined();
     const applied = await connection.pool.query<{ filename: string }>(
@@ -66,6 +69,47 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0010_member_profile_phone_and_default_market_hardening.sql',
       '0011_member_kyc_level_2_hardening.sql',
     ]);
+  });
+
+  it('applies the 0011 KYC constraints, index, and idempotency table', async () => {
+    const constraints = await connection.pool.query<{ conname: string }>(
+      `SELECT conname FROM pg_constraint
+       WHERE conname = ANY($1::text[])
+       ORDER BY conname`,
+      [
+        [
+          'member_kyc_cases_nationality_check',
+          'member_kyc_cases_account_country_snapshot_check',
+          'member_kyc_cases_residential_address_check',
+          'member_kyc_cases_level_2_submission_fields_check',
+          'member_kyc_idempotency_scope_key_unique',
+          'member_kyc_idempotency_request_hash_check',
+          'member_kyc_idempotency_result_check',
+        ],
+      ],
+    );
+    expect(constraints.rows.map((row) => row.conname)).toEqual([
+      'member_kyc_cases_account_country_snapshot_check',
+      'member_kyc_cases_level_2_submission_fields_check',
+      'member_kyc_cases_nationality_check',
+      'member_kyc_cases_residential_address_check',
+      'member_kyc_idempotency_request_hash_check',
+      'member_kyc_idempotency_result_check',
+      'member_kyc_idempotency_scope_key_unique',
+    ]);
+    const objects = await connection.pool.query<{
+      idempotency_table: string;
+      submission_market_index: string;
+    }>(
+      `SELECT
+         to_regclass('member_kyc_idempotency_keys')::text AS idempotency_table,
+         to_regclass('member_kyc_cases_submission_market_idx')::text
+           AS submission_market_index`,
+    );
+    expect(objects.rows[0]).toEqual({
+      idempotency_table: 'member_kyc_idempotency_keys',
+      submission_market_index: 'member_kyc_cases_submission_market_idx',
+    });
   });
 
   it('applies Phase 1 migrations cleanly when upgrading an isolated database from 0001', async () => {
@@ -487,6 +531,22 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
     await expect(
       connection.pool.query(
         `UPDATE member_kyc_cases
+         SET account_country_snapshot = 'my'
+         WHERE member_id = $1`,
+        [fixture.memberId],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
+    await expect(
+      connection.pool.query(
+        `UPDATE member_kyc_cases
+         SET residential_address = '[]'::jsonb
+         WHERE member_id = $1`,
+        [fixture.memberId],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
+    await expect(
+      connection.pool.query(
+        `UPDATE member_kyc_cases
          SET status = 'SUBMITTED',
              legal_full_name = 'Kyc Test Member',
              identification_type = 'NATIONAL_ID',
@@ -525,6 +585,21 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
         [idempotencyScope, idempotencyKey, requestHash],
       ),
     ).rejects.toMatchObject({ code: '23505' });
+    await expect(
+      connection.pool.query(
+        `INSERT INTO member_kyc_idempotency_keys (scope, key, request_hash)
+         VALUES ($1, $2, 'too-short')`,
+        [`${idempotencyScope}:short-hash`, randomUUID()],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
+    await expect(
+      connection.pool.query(
+        `INSERT INTO member_kyc_idempotency_keys
+          (scope, key, request_hash, response, status_code)
+         VALUES ($1, $2, $3, '{}'::jsonb, 99)`,
+        [`${idempotencyScope}:invalid-status`, randomUUID(), requestHash],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
     await expect(
       connection.pool.query(
         `INSERT INTO member_account_country_change_requests

@@ -136,6 +136,9 @@ export class KycController {
           throw new NotFoundException(body);
         case 'KYC_FILE_TOO_LARGE':
           throw new PayloadTooLargeException(body);
+        case 'MEMBER_SUSPENDED':
+        case 'MEMBER_CLOSED':
+          throw new HttpException(body, HttpStatus.FORBIDDEN);
         case 'KYC_INVALID_STATE':
         case 'KYC_DOCUMENT_LIMIT_EXCEEDED':
         case 'KYC_DUPLICATE_DOCUMENT':

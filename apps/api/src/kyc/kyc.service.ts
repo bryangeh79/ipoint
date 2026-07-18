@@ -27,6 +27,7 @@ import {
   kycIdentificationNumberInvalidError,
   kycInvalidFileTypeError,
   kycInvalidStateError,
+  kycMemberInactiveError,
   kycMissingRequiredFieldsError,
   kycNotFoundError,
 } from './kyc.errors.js';
@@ -51,14 +52,24 @@ export class KycService {
     @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {}
 
-  async resolveMemberId(accountId: string): Promise<string> {
+  async resolveMemberId(
+    accountId: string,
+    requireActive = false,
+  ): Promise<string> {
     const rows = await this.database.db
-      .select({ id: members.id })
+      .select({ id: members.id, status: members.status })
       .from(members)
       .where(eq(members.accountId, accountId))
       .limit(1);
-    if (!rows[0]) throw kycNotFoundError();
-    return rows[0].id;
+    const member = rows[0];
+    if (!member) throw kycNotFoundError();
+    if (
+      requireActive &&
+      (member.status === 'SUSPENDED' || member.status === 'CLOSED')
+    ) {
+      throw kycMemberInactiveError(member.status);
+    }
+    return member.id;
   }
 
   async getStatus(accountId: string): Promise<MemberKycResponse> {
@@ -77,7 +88,7 @@ export class KycService {
     accountId: string,
     input: CreateKycDraftDto,
   ): Promise<MemberKycResponse> {
-    const memberId = await this.resolveMemberId(accountId);
+    const memberId = await this.resolveMemberId(accountId, true);
     const operation = async (tx: DbTransaction): Promise<MemberKycResponse> => {
       const existingRows = await tx
         .select()
@@ -129,7 +140,7 @@ export class KycService {
     accountId: string,
     input: UpdateKycDraftDto,
   ): Promise<MemberKycResponse> {
-    const memberId = await this.resolveMemberId(accountId);
+    const memberId = await this.resolveMemberId(accountId, true);
     return this.database.runTransaction(async (tx) => {
       const current = await this.getCaseForUpdate(tx, memberId);
       if (current.status !== 'DRAFT') {
@@ -162,7 +173,7 @@ export class KycService {
     accountId: string,
     input: SubmitKycDto,
   ): Promise<MemberKycResponse> {
-    const memberId = await this.resolveMemberId(accountId);
+    const memberId = await this.resolveMemberId(accountId, true);
     return this.idempotent(
       `member-kyc:submit:${memberId}`,
       input.idempotencyKey,
@@ -176,7 +187,7 @@ export class KycService {
     accountId: string,
     input: CreateDocumentDto,
   ): Promise<MemberKycResponse> {
-    const memberId = await this.resolveMemberId(accountId);
+    const memberId = await this.resolveMemberId(accountId, true);
     if (!MEMBER_KYC_ALLOWED_MIME_TYPES.includes(input.mimeType as never)) {
       throw kycInvalidFileTypeError();
     }
@@ -240,7 +251,7 @@ export class KycService {
     accountId: string,
     input: ResubmitKycDto,
   ): Promise<MemberKycResponse> {
-    const memberId = await this.resolveMemberId(accountId);
+    const memberId = await this.resolveMemberId(accountId, true);
     return this.idempotent(
       `member-kyc:resubmit:${memberId}`,
       input.idempotencyKey,

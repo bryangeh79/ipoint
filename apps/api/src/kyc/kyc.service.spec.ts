@@ -141,6 +141,28 @@ describe('KycService', () => {
     });
   });
 
+  it.each(['SUSPENDED', 'CLOSED'] as const)(
+    'prevents a %s member from creating or modifying KYC',
+    async (status) => {
+      const create = createService({
+        selects: [[{ id: memberId, status }]],
+      });
+      await expect(
+        create.service.createDraft(accountId, {}),
+      ).rejects.toMatchObject({ code: `MEMBER_${status}` });
+      expect(create.db.insert).not.toHaveBeenCalled();
+      expect(create.db.update).not.toHaveBeenCalled();
+
+      const modify = createService({
+        selects: [[{ id: memberId, status }]],
+      });
+      await expect(
+        modify.service.updateDraft(accountId, { legalFullName: 'Blocked' }),
+      ).rejects.toMatchObject({ code: `MEMBER_${status}` });
+      expect(modify.db.update).not.toHaveBeenCalled();
+    },
+  );
+
   it('updates DRAFT fields and masks the identification number', async () => {
     const updated = { ...kycCase(), identificationNumber: 'NEW987654321' };
     const { service } = createService({
@@ -324,9 +346,9 @@ describe('KycService', () => {
     ).resolves.toMatchObject({ status: 'SUBMITTED' });
   });
 
-  it('rejects resubmission from a non-resubmittable state', async () => {
+  it('rejects resubmission from REJECTED', async () => {
     const { service } = createService({
-      selects: [[{ id: memberId }], [], [kycCase('APPROVED')]],
+      selects: [[{ id: memberId }], [], [kycCase('REJECTED')]],
       returning: [[{ id: randomUUID() }]],
     });
     await expect(

@@ -4,6 +4,16 @@ export function kycNotFoundError(): KycError {
   return new KycError('KYC_NOT_FOUND', 'KYC case not found.');
 }
 
+export function kycMemberInactiveError(
+  status: 'SUSPENDED' | 'CLOSED',
+): KycError {
+  return new KycError(
+    status === 'SUSPENDED' ? 'MEMBER_SUSPENDED' : 'MEMBER_CLOSED',
+    `Members with ${status} status cannot modify KYC.`,
+    { memberStatus: status },
+  );
+}
+
 export function kycInvalidStateError(
   currentStatus?: string,
   expectedStatus?: string,
