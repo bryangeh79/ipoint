@@ -341,6 +341,15 @@ export const expectedSchema = {
     'reason',
     'occurred_at',
   ],
+  admin_member_notes: [
+    'id',
+    'member_id',
+    'admin_user_id',
+    'market_id',
+    'content',
+    'is_internal',
+    'created_at',
+  ],
   member_kyc_history: [
     'id',
     'member_kyc_case_id',

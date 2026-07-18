@@ -1074,6 +1074,39 @@ export const memberStatusHistory = pgTable(
   ],
 );
 
+export const adminMemberNotes = pgTable(
+  'admin_member_notes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    adminUserId: uuid('admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    content: text('content').notNull(),
+    isInternal: boolean('is_internal').notNull(),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      'admin_member_notes_content_not_empty_check',
+      sql`char_length(btrim(${table.content})) > 0`,
+    ),
+    check(
+      'admin_member_notes_content_max_length_check',
+      sql`char_length(${table.content}) <= 5000`,
+    ),
+    index('admin_member_notes_member_created_at_idx').on(
+      table.memberId,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const memberKycHistory = pgTable(
   'member_kyc_history',
   {

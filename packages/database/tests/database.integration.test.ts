@@ -53,6 +53,9 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
     await expect(verifyMigrationChecksums()).resolves.toHaveProperty(
       '0012_merchant_discovery_indexes.sql',
     );
+    await expect(verifyMigrationChecksums()).resolves.toHaveProperty(
+      '0013_admin_member_notes.sql',
+    );
     await expect(assertNoSchemaDrift(connection.pool)).resolves.toBeUndefined();
     await expect(migrate(connection.pool)).resolves.toBeUndefined();
     const applied = await connection.pool.query<{ filename: string }>(
@@ -72,6 +75,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0010_member_profile_phone_and_default_market_hardening.sql',
       '0011_member_kyc_level_2_hardening.sql',
       '0012_merchant_discovery_indexes.sql',
+      '0013_admin_member_notes.sql',
     ]);
   });
 
@@ -815,6 +819,40 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
         connection.pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]),
       ).rejects.toMatchObject({ code: '55000' });
     }
+  });
+
+  it('keeps admin member notes valid, scoped, and append-only', async () => {
+    const fixture = await createMemberFixture();
+    const note = await connection.pool.query<{ id: string }>(
+      `INSERT INTO admin_member_notes
+        (member_id, admin_user_id, market_id, content, is_internal)
+       VALUES ($1, $2, $3, 'Internal review note', true)
+       RETURNING id`,
+      [fixture.memberId, fixture.adminId, fixture.marketId],
+    );
+
+    for (const content of ['', '   ', 'x'.repeat(5001)]) {
+      await expect(
+        connection.pool.query(
+          `INSERT INTO admin_member_notes
+            (member_id, admin_user_id, market_id, content, is_internal)
+           VALUES ($1, $2, $3, $4, true)`,
+          [fixture.memberId, fixture.adminId, fixture.marketId, content],
+        ),
+      ).rejects.toMatchObject({ code: '23514' });
+    }
+
+    await expect(
+      connection.pool.query(
+        `UPDATE admin_member_notes SET content = 'mutated' WHERE id = $1`,
+        [note.rows[0]!.id],
+      ),
+    ).rejects.toMatchObject({ code: '55000' });
+    await expect(
+      connection.pool.query('DELETE FROM admin_member_notes WHERE id = $1', [
+        note.rows[0]!.id,
+      ]),
+    ).rejects.toMatchObject({ code: '55000' });
   });
 
   it('posts MCP ledger entries atomically with scoped idempotency and no negative balance', async () => {

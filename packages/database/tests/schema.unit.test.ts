@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import {
+  adminMemberNotes,
   memberKycCases,
   memberKycCaseStatus,
   memberKycIdentificationType,
@@ -47,6 +48,7 @@ describe('database foundation schema', () => {
         'member_kyc_documents',
         'member_account_country_change_requests',
         'member_status_history',
+        'admin_member_notes',
         'member_kyc_history',
       ]),
     );
@@ -362,6 +364,29 @@ describe('database foundation schema', () => {
     );
   });
 
+  it('defines append-only admin member notes with bounded non-empty content', () => {
+    expect(expectedSchema.admin_member_notes).toEqual([
+      'id',
+      'member_id',
+      'admin_user_id',
+      'market_id',
+      'content',
+      'is_internal',
+      'created_at',
+    ]);
+
+    const config = getTableConfig(adminMemberNotes);
+    expect(config.checks.map((constraint) => constraint.name)).toEqual(
+      expect.arrayContaining([
+        'admin_member_notes_content_not_empty_check',
+        'admin_member_notes_content_max_length_check',
+      ]),
+    );
+    expect(
+      config.indexes.map((indexDefinition) => indexDefinition.config.name),
+    ).toContain('admin_member_notes_member_created_at_idx');
+  });
+
   it('keeps migrations explicit SQL and in the checksum set', async () => {
     const checksums = await calculateMigrationChecksums();
     expect(Object.keys(checksums)).toEqual([
@@ -378,6 +403,7 @@ describe('database foundation schema', () => {
       '0010_member_profile_phone_and_default_market_hardening.sql',
       '0011_member_kyc_level_2_hardening.sql',
       '0012_merchant_discovery_indexes.sql',
+      '0013_admin_member_notes.sql',
     ]);
     const migration = await readFile(
       `${migrationsDirectory}/0000_database_foundation.sql`,
@@ -483,6 +509,26 @@ describe('database foundation schema', () => {
     );
     expect(merchantDiscoveryMigration).not.toMatch(
       /ALTER TABLE service_fee_profiles|ALTER TABLE service_fee_versions/iu,
+    );
+
+    const adminMemberNotesMigration = await readFile(
+      `${migrationsDirectory}/0013_admin_member_notes.sql`,
+      'utf8',
+    );
+    expect(adminMemberNotesMigration).toContain(
+      'CREATE TABLE admin_member_notes',
+    );
+    expect(adminMemberNotesMigration).toContain(
+      'CONSTRAINT admin_member_notes_content_not_empty_check',
+    );
+    expect(adminMemberNotesMigration).toContain(
+      'CONSTRAINT admin_member_notes_content_max_length_check',
+    );
+    expect(adminMemberNotesMigration).toContain(
+      'CREATE INDEX admin_member_notes_member_created_at_idx',
+    );
+    expect(adminMemberNotesMigration).toContain(
+      'CREATE TRIGGER admin_member_notes_append_only',
     );
   });
 });
