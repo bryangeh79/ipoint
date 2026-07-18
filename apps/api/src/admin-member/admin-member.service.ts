@@ -356,7 +356,7 @@ export class AdminMemberService {
   private async changeStatus(
     actor: AdminMemberActor,
     publicMemberId: string,
-    input: SuspendMemberDto | ReactivateMemberDto,
+    input: SuspendMemberDto  ,
     fromStatus: AdminMemberStatus,
     toStatus: AdminMemberStatus,
   ): Promise<AdminMemberDetailResponse> {
@@ -388,7 +388,7 @@ export class AdminMemberService {
     tx: DbTransaction,
     actor: AdminMemberActor,
     locked: LockedMember,
-    input: SuspendMemberDto | ReactivateMemberDto | CloseMemberDto,
+    input: SuspendMemberDto   | CloseMemberDto,
     toStatus: AdminMemberStatus,
     revokeSessions: boolean,
   ): Promise<AdminMemberDetailResponse> {
