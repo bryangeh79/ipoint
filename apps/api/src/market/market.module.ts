@@ -8,5 +8,6 @@ import { MarketService } from './market.service.js';
   imports: [DatabaseModule, AuthModule],
   controllers: [MarketController],
   providers: [MarketService],
+  exports: [MarketService],
 })
 export class MarketModule {}
