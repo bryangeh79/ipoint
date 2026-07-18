@@ -417,3 +417,21 @@
 | **Approver** | ChatGPT Command Center |
 | **Basis** | P2-S6 COMMAND CENTER FINAL DECISION - APPROVED (2026-07-18) |
 | **Status** | **APPROVED** |
+
+
+## D-023: P2-S7 final acceptance and P2-S8 authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-023 |
+| **Date** | 2026-07-18 |
+| **Source** | ChatGPT Command Center - P2-S7 COMMAND CENTER FINAL DECISION - APPROVED |
+| **Old Rule** | P2-S7 CHANGES_REQUIRED; P2-S8 NOT_AUTHORIZED |
+| **New Decision** | P2-S7 APPROVED at SHA 89ccd6d499414c536e249616a11f5ee77c5e92b1. Member Merchant Discovery complete. Migration 0012 complete. 431 tests passed, 0 failed, 0 skipped. All verification commands exit 0. Branches synchronized. P2-S8 (Admin Member Management) AUTHORIZED. P2-S9 remains NOT_AUTHORIZED. Main PR/Main Merge remain NOT_AUTHORIZED. |
+| **Reason** | P2-S7 full verification completed with real PostgreSQL: 431 tests passed, 0 skipped. |
+| **Affected Files** | docs/06-phase-reports/p2-s7/P2-S7_DELIVERY_REPORT.md, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | P2-S7, P2-S8 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P2-S7 COMMAND CENTER FINAL DECISION - APPROVED (2026-07-18) |
+| **Status** | **APPROVED** |
