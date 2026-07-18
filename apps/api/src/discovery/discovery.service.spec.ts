@@ -4,7 +4,8 @@ import type { DatabaseService } from '../database/database.service.js';
 import type { MarketService } from '../market/market.service.js';
 import type { MerchantListQuery } from './discovery.dto.js';
 import { DiscoveryService } from './discovery.service.js';
-import { MerchantDiscoveryError, OpenNowStatus } from './discovery.types.js';
+import type { MerchantDiscoveryError } from './discovery.types.js';
+import { OpenNowStatus } from './discovery.types.js';
 
 const accountId = randomUUID();
 const marketId = randomUUID();
@@ -48,9 +49,8 @@ function row(overrides: Record<string, unknown> = {}): Record<string, unknown> {
 
 function makeService(discoveryRows: Record<string, unknown>[] = [row()]) {
   const query = vi.fn(
-    async (
+    (
       text: string,
-      _values?: unknown[],
     ): Promise<{ rows: Record<string, unknown>[] }> => {
       if (text.includes('from markets')) {
         return {
