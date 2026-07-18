@@ -10,6 +10,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  point,
   primaryKey,
   text,
   timestamp,
@@ -1146,6 +1147,11 @@ export const merchantBranches = pgTable(
     status: merchantOperationalStatus('status')
       .notNull()
       .default('PENDING_APPLICATION'),
+    isPubliclyVisible: boolean('is_publicly_visible').notNull().default(false),
+    isOnline: boolean('is_online').notNull().default(false),
+    isOffline: boolean('is_offline').notNull().default(false),
+    coordinates: point('coordinates', { mode: 'xy' }),
+    displayOrder: integer('display_order').notNull().default(0),
     version: integer('version').notNull().default(1),
     createdAt: utcTimestamp('created_at').notNull().defaultNow(),
     updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
@@ -1154,6 +1160,34 @@ export const merchantBranches = pgTable(
     unique('merchant_branches_merchant_id_unique').on(table.merchantId),
     index('merchant_branches_group_idx').on(table.merchantGroupId),
     index('merchant_branches_merchant_id_idx').on(table.merchantId),
+    index('merchant_branches_discovery_idx')
+      .on(
+        table.marketId,
+        table.isPubliclyVisible,
+        table.displayOrder,
+        table.name,
+        table.id,
+      )
+      .where(sql`${table.status} = 'ACTIVE'`),
+    index('merchant_branches_coordinates_gist_idx')
+      .using('gist', table.coordinates.asc().op('point_ops'))
+      .where(
+        sql`${table.status} = 'ACTIVE' and ${table.isPubliclyVisible} = true and ${table.coordinates} is not null`,
+      ),
+    index('merchant_branches_name_search_idx')
+      .using('gin', table.name.asc().op('gin_trgm_ops'))
+      .where(
+        sql`${table.status} = 'ACTIVE' and ${table.isPubliclyVisible} = true`,
+      ),
+    unique('merchant_branches_id_market_unique').on(table.id, table.marketId),
+    check(
+      'merchant_branches_coordinates_check',
+      sql`${table.coordinates} is null or (${table.coordinates}[0] between -180 and 180 and ${table.coordinates}[1] between -90 and 90)`,
+    ),
+    check(
+      'merchant_branches_display_order_check',
+      sql`${table.displayOrder} >= 0`,
+    ),
     check('merchant_branches_version_check', sql`${table.version} > 0`),
   ],
 );
@@ -1179,6 +1213,73 @@ export const merchantProfiles = pgTable(
   },
   (table) => [
     unique('merchant_profiles_branch_unique').on(table.merchantBranchId),
+    index('merchant_profiles_about_search_idx')
+      .using('gin', table.aboutUs.asc().op('gin_trgm_ops'))
+      .where(sql`${table.aboutUs} is not null`),
+  ],
+);
+
+export const merchantCategories = pgTable(
+  'merchant_categories',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    code: text('code').notNull(),
+    name: text('name').notNull(),
+    sortOrder: integer('sort_order').notNull().default(0),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('merchant_categories_market_code_unique').on(
+      table.marketId,
+      table.code,
+    ),
+    unique('merchant_categories_id_market_unique').on(table.id, table.marketId),
+    index('merchant_categories_market_active_idx').on(
+      table.marketId,
+      table.isActive,
+      table.sortOrder,
+      table.name,
+    ),
+    check('merchant_categories_code_check', sql`btrim(${table.code}) <> ''`),
+    check('merchant_categories_name_check', sql`btrim(${table.name}) <> ''`),
+    check('merchant_categories_sort_order_check', sql`${table.sortOrder} >= 0`),
+  ],
+);
+
+export const merchantBranchCategories = pgTable(
+  'merchant_branch_categories',
+  {
+    merchantBranchId: uuid('merchant_branch_id').notNull(),
+    categoryId: uuid('category_id').notNull(),
+    marketId: uuid('market_id').notNull(),
+    isPrimary: boolean('is_primary').notNull().default(false),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.merchantBranchId, table.categoryId] }),
+    foreignKey({
+      columns: [table.merchantBranchId, table.marketId],
+      foreignColumns: [merchantBranches.id, merchantBranches.marketId],
+      name: 'merchant_branch_categories_branch_market_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.categoryId, table.marketId],
+      foreignColumns: [merchantCategories.id, merchantCategories.marketId],
+      name: 'merchant_branch_categories_category_market_fk',
+    }).onDelete('restrict'),
+    index('merchant_branch_categories_category_idx').on(
+      table.marketId,
+      table.categoryId,
+      table.merchantBranchId,
+    ),
+    uniqueIndex('merchant_branch_categories_primary_unique')
+      .on(table.merchantBranchId)
+      .where(sql`${table.isPrimary} = true`),
   ],
 );
 
@@ -1852,6 +1953,8 @@ export const schema = {
   merchantAccountAccess,
   merchantBranches,
   merchantProfiles,
+  merchantCategories,
+  merchantBranchCategories,
   merchantProfileGalleryEntries,
   merchantApplications,
   merchantApplicationSubmissions,

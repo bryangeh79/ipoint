@@ -7,6 +7,11 @@ import {
   memberKycIdentificationType,
   memberKycIdempotencyKeys,
   memberProfiles,
+  merchantBranchCategories,
+  merchantBranches,
+  merchantCategories,
+  merchantPackageAssignments,
+  merchantProfiles,
 } from '../schema/index.js';
 import { expectedSchema } from '../src/expected-schema.js';
 import { calculateMigrationChecksums } from '../src/migration-checksums.js';
@@ -54,6 +59,8 @@ describe('database foundation schema', () => {
         'merchant_account_access',
         'merchant_branches',
         'merchant_profiles',
+        'merchant_categories',
+        'merchant_branch_categories',
         'merchant_api_idempotency_keys',
         'merchant_profile_gallery_entries',
         'merchant_applications',
@@ -78,6 +85,89 @@ describe('database foundation schema', () => {
         'mcp_adjustment_decisions',
       ]),
     );
+  });
+
+  it('defines the merchant discovery query contract without exposing legacy branches', () => {
+    expect(expectedSchema.merchant_branches).toEqual(
+      expect.arrayContaining([
+        'market_id',
+        'status',
+        'is_publicly_visible',
+        'is_online',
+        'is_offline',
+        'coordinates',
+        'display_order',
+      ]),
+    );
+
+    const config = getTableConfig(merchantBranches);
+    const columns = Object.fromEntries(
+      config.columns.map((column) => [column.name, column]),
+    );
+    expect(columns['is_publicly_visible']?.notNull).toBe(true);
+    expect(columns['is_publicly_visible']?.default).toBe(false);
+    expect(columns['coordinates']?.notNull).toBe(false);
+    expect(columns['coordinates']?.columnType).toBe('PgPointObject');
+    expect(columns['display_order']?.default).toBe(0);
+    expect(config.indexes.map((index) => index.config.name)).toEqual(
+      expect.arrayContaining([
+        'merchant_branches_discovery_idx',
+        'merchant_branches_coordinates_gist_idx',
+        'merchant_branches_name_search_idx',
+      ]),
+    );
+    expect(config.checks.map((constraint) => constraint.name)).toEqual(
+      expect.arrayContaining([
+        'merchant_branches_coordinates_check',
+        'merchant_branches_display_order_check',
+      ]),
+    );
+  });
+
+  it('defines market-scoped merchant categories and discovery support indexes', () => {
+    expect(expectedSchema.merchant_categories).toEqual([
+      'id',
+      'market_id',
+      'code',
+      'name',
+      'sort_order',
+      'is_active',
+      'created_at',
+      'updated_at',
+    ]);
+    expect(expectedSchema.merchant_branch_categories).toEqual([
+      'merchant_branch_id',
+      'category_id',
+      'market_id',
+      'is_primary',
+      'created_at',
+    ]);
+
+    expect(
+      getTableConfig(merchantCategories).indexes.map(
+        (index) => index.config.name,
+      ),
+    ).toContain('merchant_categories_market_active_idx');
+    expect(
+      getTableConfig(merchantBranchCategories).indexes.map(
+        (index) => index.config.name,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'merchant_branch_categories_category_idx',
+        'merchant_branch_categories_primary_unique',
+      ]),
+    );
+    expect(
+      getTableConfig(merchantProfiles).indexes.map(
+        (index) => index.config.name,
+      ),
+    ).toContain('merchant_profiles_about_search_idx');
+    expect(
+      getTableConfig(merchantPackageAssignments).indexes.map(
+        (index) => index.config.name,
+      ),
+    ).toContain('merchant_package_assignments_branch_status_idx');
   });
 
   it('keeps Phase 1 evidence and ledger tables mutation-free', () => {
@@ -287,6 +377,7 @@ describe('database foundation schema', () => {
       '0009_add_sessions_family_id_index.sql',
       '0010_member_profile_phone_and_default_market_hardening.sql',
       '0011_member_kyc_level_2_hardening.sql',
+      '0012_merchant_discovery_indexes.sql',
     ]);
     const migration = await readFile(
       `${migrationsDirectory}/0000_database_foundation.sql`,
@@ -372,6 +463,26 @@ describe('database foundation schema', () => {
     );
     expect(memberKycHardeningMigration).toContain(
       '(response IS NOT NULL AND status_code BETWEEN 100 AND 599)',
+    );
+
+    const merchantDiscoveryMigration = await readFile(
+      `${migrationsDirectory}/0012_merchant_discovery_indexes.sql`,
+      'utf8',
+    );
+    expect(merchantDiscoveryMigration).toContain(
+      'ADD COLUMN is_publicly_visible boolean NOT NULL DEFAULT false',
+    );
+    expect(merchantDiscoveryMigration).toContain(
+      'CREATE INDEX merchant_branches_coordinates_gist_idx',
+    );
+    expect(merchantDiscoveryMigration).toContain(
+      'CREATE TABLE merchant_categories',
+    );
+    expect(merchantDiscoveryMigration).toContain(
+      'CREATE TABLE merchant_branch_categories',
+    );
+    expect(merchantDiscoveryMigration).not.toMatch(
+      /ALTER TABLE service_fee_profiles|ALTER TABLE service_fee_versions/iu,
     );
   });
 });

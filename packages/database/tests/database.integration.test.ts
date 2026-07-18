@@ -50,6 +50,9 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
     await expect(verifyMigrationChecksums()).resolves.toHaveProperty(
       '0011_member_kyc_level_2_hardening.sql',
     );
+    await expect(verifyMigrationChecksums()).resolves.toHaveProperty(
+      '0012_merchant_discovery_indexes.sql',
+    );
     await expect(assertNoSchemaDrift(connection.pool)).resolves.toBeUndefined();
     await expect(migrate(connection.pool)).resolves.toBeUndefined();
     const applied = await connection.pool.query<{ filename: string }>(
@@ -68,7 +71,144 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0009_add_sessions_family_id_index.sql',
       '0010_member_profile_phone_and_default_market_hardening.sql',
       '0011_member_kyc_level_2_hardening.sql',
+      '0012_merchant_discovery_indexes.sql',
     ]);
+  });
+
+  it('applies merchant discovery columns, category tables, and query indexes', async () => {
+    const columns = await connection.pool.query<{
+      column_name: string;
+      is_nullable: string;
+      column_default: string | null;
+      data_type: string;
+    }>(
+      `SELECT column_name, is_nullable, column_default, data_type
+       FROM information_schema.columns
+       WHERE table_name = 'merchant_branches'
+         AND column_name = ANY($1::text[])
+       ORDER BY column_name`,
+      [
+        [
+          'coordinates',
+          'display_order',
+          'is_offline',
+          'is_online',
+          'is_publicly_visible',
+        ],
+      ],
+    );
+    expect(columns.rows.map((row) => row.column_name)).toEqual([
+      'coordinates',
+      'display_order',
+      'is_offline',
+      'is_online',
+      'is_publicly_visible',
+    ]);
+    expect(
+      columns.rows.find((row) => row.column_name === 'coordinates'),
+    ).toMatchObject({ data_type: 'point', is_nullable: 'YES' });
+    expect(
+      columns.rows.find((row) => row.column_name === 'is_publicly_visible'),
+    ).toMatchObject({ column_default: 'false', is_nullable: 'NO' });
+
+    const objects = await connection.pool.query<{
+      category_table: string;
+      mapping_table: string;
+      discovery_index: string;
+      coordinates_index: string;
+      branch_search_index: string;
+      profile_search_index: string;
+    }>(
+      `SELECT
+         to_regclass('merchant_categories')::text AS category_table,
+         to_regclass('merchant_branch_categories')::text AS mapping_table,
+         to_regclass('merchant_branches_discovery_idx')::text AS discovery_index,
+         to_regclass('merchant_branches_coordinates_gist_idx')::text AS coordinates_index,
+         to_regclass('merchant_branches_name_search_idx')::text AS branch_search_index,
+         to_regclass('merchant_profiles_about_search_idx')::text AS profile_search_index`,
+    );
+    expect(objects.rows[0]).toEqual({
+      category_table: 'merchant_categories',
+      mapping_table: 'merchant_branch_categories',
+      discovery_index: 'merchant_branches_discovery_idx',
+      coordinates_index: 'merchant_branches_coordinates_gist_idx',
+      branch_search_index: 'merchant_branches_name_search_idx',
+      profile_search_index: 'merchant_profiles_about_search_idx',
+    });
+
+    const fixture = await createMerchantFixture();
+    const legacyDefaults = await connection.pool.query<{
+      is_publicly_visible: boolean;
+      is_online: boolean;
+      is_offline: boolean;
+      coordinates: string | null;
+      display_order: number;
+    }>(
+      `SELECT is_publicly_visible, is_online, is_offline,
+              coordinates::text, display_order
+       FROM merchant_branches
+       WHERE id = $1`,
+      [fixture.branchId],
+    );
+    expect(legacyDefaults.rows[0]).toEqual({
+      is_publicly_visible: false,
+      is_online: false,
+      is_offline: false,
+      coordinates: null,
+      display_order: 0,
+    });
+
+    await expect(
+      connection.pool.query(
+        `UPDATE merchant_branches
+         SET status = 'ACTIVE', is_publicly_visible = true,
+             is_offline = true, coordinates = point(101.6869, 3.1390)
+         WHERE id = $1`,
+        [fixture.branchId],
+      ),
+    ).resolves.toBeDefined();
+    await expect(
+      connection.pool.query(
+        `UPDATE merchant_branches SET coordinates = point(181, 0)
+         WHERE id = $1`,
+        [fixture.branchId],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
+
+    const category = await connection.pool.query<{ id: string }>(
+      `INSERT INTO merchant_categories (market_id, code, name)
+       VALUES ($1, 'DINING', 'Dining') RETURNING id`,
+      [fixture.marketId],
+    );
+    await expect(
+      connection.pool.query(
+        `INSERT INTO merchant_branch_categories
+           (merchant_branch_id, category_id, market_id, is_primary)
+         VALUES ($1, $2, $3, true)`,
+        [fixture.branchId, category.rows[0]?.id, fixture.marketId],
+      ),
+    ).resolves.toBeDefined();
+
+    const otherMarket = await connection.pool.query<{ id: string }>(
+      `INSERT INTO markets
+         (code, name, status, currency_code, timezone, default_locale)
+       VALUES ($1, 'Other Market', 'ACTIVE', 'MYR',
+               'Asia/Kuala_Lumpur', 'en-MY') RETURNING id`,
+      [randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()],
+    );
+    const otherCategory = await connection.pool.query<{ id: string }>(
+      `INSERT INTO merchant_categories (market_id, code, name)
+       VALUES ($1, 'DINING', 'Dining') RETURNING id`,
+      [otherMarket.rows[0]?.id],
+    );
+    await expect(
+      connection.pool.query(
+        `INSERT INTO merchant_branch_categories
+           (merchant_branch_id, category_id, market_id)
+         VALUES ($1, $2, $3)`,
+        [fixture.branchId, otherCategory.rows[0]?.id, otherMarket.rows[0]?.id],
+      ),
+    ).rejects.toMatchObject({ code: '23503' });
   });
 
   it('applies the 0011 KYC constraints, index, and idempotency table', async () => {
