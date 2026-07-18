@@ -49,9 +49,7 @@ function row(overrides: Record<string, unknown> = {}): Record<string, unknown> {
 
 function makeService(discoveryRows: Record<string, unknown>[] = [row()]) {
   const query = vi.fn(
-    (
-      text: string,
-    ): Promise<{ rows: Record<string, unknown>[] }> => {
+    (text: string): Promise<{ rows: Record<string, unknown>[] }> => {
       if (text.includes('from markets')) {
         return {
           rows: [{ status: 'ACTIVE', timezone: 'Asia/Kuala_Lumpur' }],
