@@ -14,9 +14,9 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Work** | **NONE — AWAITING COMMAND CENTER P2-S9 DEFINITION** | P2-S8 completed under D-024 |
+| **Current Authorized Work** | **NONE — AWAITING COMMAND CENTER P2-S9 DEFINITION** | P2-S3 retrospective closure approved under D-025; P2-S1 through P2-S8 all COMPLETE / APPROVED |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
-| **Phase 2** | **AUTHORIZED** | P2-S1 approved under D-016; P2-S2 COMPLETE / APPROVED under D-017; P2-S3 CHANGES_REQUIRED; later sub-phases remain NOT_AUTHORIZED |
+| **Phase 2** | **IN PROGRESS — P2-S9 PENDING DEFINITION** | P2-S1 through P2-S8 COMPLETE / APPROVED; P2-S3 retrospective closure approved under D-025; P2-S9 NOT_AUTHORIZED |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
 | **Phase 1 Batch B** | **APPROVED** | P1-S5 through P1-S7 COMPLETE under D-012 |
 | **Phase 1 Final Batch** | **APPROVED** | P1-S8 and P1-S9 COMPLETE under D-013 |
@@ -67,7 +67,7 @@
 | **Phase 0** | General ledger technical skeleton, DB foundation, Auth framework, RBAC, Market module, Audit infrastructure, Design System tokens | **APPROVED** | Final acceptance approved under D-009 |
 | **Phase 0 closure** | Final integration, audit, acceptance, and governance closure | **CLOSED** | Closed under D-009; Phase 1 requires new authorization |
 | **Phase 1** | Merchant Onboarding + MCP Ledger | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21` under D-013. Pull Request to main AUTHORIZED. Phase branch: phase/1-merchant-onboarding-mcp |
-| **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) | **AUTHORIZED** | P2-S1-S8 complete; P2-S9 NOT_AUTHORIZED awaiting Command Center definition |
+| **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) | **IN PROGRESS — P2-S9 PENDING DEFINITION** | P2-S1-S8 COMPLETE; P2-S9 NOT_AUTHORIZED awaiting Command Center definition |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **NOT_AUTHORIZED** | Note: renamed from original Roadmap sequence per C-01 |
 | **Phase 4** | Transaction Engine | **NOT_AUTHORIZED** | Draft, receipt, QR scan, atomic confirmation, MCP debit |
 | **Phase 5** | Agent & Commission Engine | **NOT_AUTHORIZED** | Referral, activation, 3 commission types. Five-level team rewards DEFERRED |
@@ -101,8 +101,8 @@
 |---|---|---|---|
 | **P2-S1** | Architecture and contract freeze | **COMPLETE / APPROVED** | Approved at `8cdc0b2938ee7ceedb89c13716c6dae07d029c2f` under D-016 |
 | **P2-S2** | Member Schema and Forward Migrations | **COMPLETE / APPROVED** | Approved under D-017 |
-| **P2-S3** | Registration, OTP and Authentication | **CHANGES_REQUIRED** | Completion repair only |
-| **P2-S4** | Member Identity, Referral and QR Foundation | **NOT_AUTHORIZED** | Await future authorization |
+| **P2-S3** | Registration, OTP and Authentication | **COMPLETE / APPROVED** | Approved at `919e71a97eff7a18e5e2e7d2c23cb18636b1b870` under D-025 |
+| **P2-S4** | Member Identity, Referral and QR Foundation | **COMPLETE / APPROVED** | Approved under D-019 (previously COMPLETE; confirmed under D-025) |
 | **P2-S5** | Member Profile and Multi-Market Preferences | **COMPLETE / APPROVED** | Approved at `c089e7365ba7cccaa1a24612ee60cba79469910c` under D-021 |
 | **P2-S6** | Member KYC Level 2 | **COMPLETE / APPROVED** | Approved at `071b65a6aaf4cafbf117594816b1ae7b8afd4676` under D-022 |
 | **P2-S7** | Merchant Discovery by Current Market | **COMPLETE / APPROVED** | Approved at `89ccd6d499414c536e249616a11f5ee77c5e92b1` under D-023 |
@@ -114,6 +114,8 @@
 - None — awaiting Command Center P2-S9 scope definition
 - Run all API and database integration tests for completed phases
 - Maintain the lock on P2-S9 until separate authorization arrives
+- P2-S3 retrospective closure approved under D-025
+- All Phase 2 sub-phases P2-S1 through P2-S8 now COMPLETE / APPROVED
 
 ## Current prohibited actions
 
@@ -132,4 +134,4 @@
 
 ---
 
-*Last updated: 2026-07-18 | Updated by: OpenClaw | Based on decisions D-001 through D-024 and the ChatGPT Command Center Phase 2 authorization*
+*Last updated: 2026-07-19 | Updated by: OpenClaw | Based on decisions D-001 through D-025 and the ChatGPT Command Center Phase 2 authorization*

@@ -318,6 +318,52 @@
 
 *— End of current entries. New decisions must be appended below —*
 
+## D-025: P2-S3 retrospective closure final acceptance
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-025 |
+| **Date** | 2026-07-19 |
+| **Source** | ChatGPT Command Center — P2-S3 retrospective closure final decision |
+| **Old Rule** | P2-S3 = CHANGES_REQUIRED — FINAL EVIDENCE CORRECTION |
+| **New Decision** | P2-S3 = COMPLETE / APPROVED at SHA `919e71a97eff7a18e5e2e7d2c23cb18636b1b870`. Original 11 CHANGES_REQUIRED items (G-01 through G-11) all RESOLVED. |
+| **Reason** | All gaps traced to fixing commits with full 40-char SHAs. Fix attribution verified per commit. test:api: 403 passed / 0 failed / 0 skipped. test:database: 39 passed / 0 failed / 0 skipped. OpenAPI: 100 paths / 23 auth / 0 errors. Final SHA lowest verification passed. Repository hygiene clean. Task and Phase branches identical. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, docs/06-phase-reports/p2-s3/P2-S3_RETROSPECTIVE_CLOSURE_REPORT.md |
+| **Affected Phases** | P2-S3 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P2-S3 retrospective closure final acceptance (2026-07-19) |
+| **Status** | **APPROVED** |
+
+### Primary fixing commits
+
+| Gap ID | Fixing Commit Full SHA |
+|---|---|
+| G-01 | `91cc0f074d974d2483b099e0001764f36fbaf9bc` |
+| G-02 | `91cc0f074d974d2483b099e0001764f36fbaf9bc` |
+| G-03 | `91cc0f074d974d2483b099e0001764f36fbaf9bc` |
+| G-04 | `91cc0f074d974d2483b099e0001764f36fbaf9bc` |
+| G-05 | `91cc0f074d974d2483b099e0001764f36fbaf9bc`, `2c61bb0eabddb01e7ca25a03223a636b805fe7e2` |
+| G-06 | `91cc0f074d974d2483b099e0001764f36fbaf9bc` |
+| G-07 | `b6bf7bd5b59d1aaad7441ad9b7bfd6655434853f`, `213a17b7e93ac31e218c8aca83bd9df2e8f87ec3`, `c3a05901d8a013f494cbc7cf6631031d6ed0dadc` |
+| G-08 | `b6bf7bd5b59d1aaad7441ad9b7bfd6655434853f`, `213a17b7e93ac31e218c8aca83bd9df2e8f87ec3`, `91cc0f074d974d2483b099e0001764f36fbaf9bc` |
+| G-09 | `213a17b7e93ac31e218c8aca83bd9df2e8f87ec3` |
+| G-10 | `91cc0f074d974d2483b099e0001764f36fbaf9bc` (partial), `2c61bb0eabddb01e7ca25a03223a636b805fe7e2` (completed) |
+| G-11 | `9b51514e868536ea10f1fd98da5685d5287f3133` |
+
+### Verification evidence
+
+- **Acceptance SHA:** `919e71a97eff7a18e5e2e7d2c23cb18636b1b870`
+- **Closure Report:** `docs/06-phase-reports/p2-s3/P2-S3_RETROSPECTIVE_CLOSURE_REPORT.md`
+- **test:api:** 403 passed / 0 failed / 0 skipped
+- **test:database:** 39 passed / 0 failed / 0 skipped
+- **OpenAPI:** 100 paths / 23 auth / 0 errors
+- **Repository hygiene:** clean
+- **Task/Phase SHA:** identical
+- **P2-S9:** NOT_AUTHORIZED
+- **Phase 2:** NOT CLOSED — IN PROGRESS
+- **Main PR / Main Merge:** NOT_AUTHORIZED
+
 ## D-018: P2-S3 test recovery - Drizzle Proxy refactor to stable test boundary
 
 | Field | Value |
