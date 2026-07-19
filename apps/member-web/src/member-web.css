@@ -1,0 +1,440 @@
+/* ================================================================
+   member-web — App-specific styles
+   Uses only @ipoint/design-tokens CSS custom properties.
+   ================================================================ */
+
+/* Public layout (login, register, etc.) */
+.ip-member-public-layout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: var(--ip-space-3);
+  background: var(--ip-color-canvas);
+}
+
+.ip-member-public-layout__container {
+  width: 100%;
+  max-width: 440px;
+  display: grid;
+  gap: var(--ip-space-4);
+}
+
+.ip-member-public-layout__brand {
+  text-align: center;
+}
+
+.ip-member-public-layout__card {
+  padding: var(--ip-space-4);
+  border: 1px solid var(--ip-color-border);
+  border-radius: var(--ip-radius-md);
+  background: var(--ip-color-surface);
+  box-shadow: var(--ip-shadow-card);
+}
+
+/* Wallet "Coming Soon" state */
+.ip-member-coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ip-space-6) var(--ip-space-3);
+  text-align: center;
+  color: var(--ip-color-text-muted);
+}
+
+/* Offline notification bar */
+.ip-member-offline-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--ip-z-toast);
+  padding: var(--ip-space-1) var(--ip-space-2);
+  background: var(--ip-color-error);
+  color: var(--ip-color-white);
+  text-align: center;
+  font-size: var(--ip-font-size-body-sm);
+  font-weight: 600;
+}
+
+/* OTP input group — digit input boxes */
+.ip-otp-input-group {
+  display: flex;
+  gap: var(--ip-space-2);
+  justify-content: center;
+}
+
+.ip-otp-input-group .ip-input {
+  width: 48px;
+  height: 56px;
+  text-align: center;
+  font-size: var(--ip-font-size-heading-md);
+  font-weight: 700;
+  padding: 0;
+}
+
+/* Utility spacing classes */
+.ip-mt-1 {
+  margin-top: var(--ip-space-1);
+}
+.ip-mt-2 {
+  margin-top: var(--ip-space-2);
+}
+.ip-mt-3 {
+  margin-top: var(--ip-space-3);
+}
+.ip-mt-4 {
+  margin-top: var(--ip-space-4);
+}
+.ip-mb-1 {
+  margin-bottom: var(--ip-space-1);
+}
+.ip-mb-2 {
+  margin-bottom: var(--ip-space-2);
+}
+.ip-mb-3 {
+  margin-bottom: var(--ip-space-3);
+}
+.ip-mb-4 {
+  margin-bottom: var(--ip-space-4);
+}
+
+/* Text utilities */
+.ip-text-center {
+  text-align: center;
+}
+.ip-text-sm {
+  font-size: var(--ip-font-size-body-sm);
+}
+.ip-text-muted {
+  color: var(--ip-color-text-muted);
+}
+
+/* ---- Profile Page ---- */
+.ip-profile-skeleton {
+  display: grid;
+  gap: var(--ip-space-3);
+  padding: var(--ip-space-2) 0;
+}
+
+.ip-profile-header {
+  display: flex;
+  align-items: center;
+  gap: var(--ip-space-3);
+  margin-bottom: var(--ip-space-4);
+}
+
+.ip-profile-avatar {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--ip-radius-round);
+  background: var(--ip-color-primary-soft);
+  color: var(--ip-color-primary-active);
+}
+
+.ip-profile-name {
+  margin: 0;
+  font-size: var(--ip-font-size-h3);
+  line-height: var(--ip-line-heading);
+}
+
+.ip-profile-fields {
+  display: grid;
+  gap: var(--ip-space-2);
+}
+
+.ip-profile-field {
+  display: flex;
+  align-items: center;
+  gap: var(--ip-space-2);
+  padding: var(--ip-space-1-5) 0;
+  border-bottom: 1px solid var(--ip-color-border);
+}
+
+.ip-profile-field:last-child {
+  border-bottom: 0;
+}
+
+.ip-profile-field__icon {
+  width: 32px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ip-color-text-muted);
+}
+
+.ip-profile-field__content {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ip-profile-field__label {
+  font-size: var(--ip-font-size-caption);
+  color: var(--ip-color-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ip-profile-field__value {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+/* ---- Profile Edit ---- */
+.ip-input-with-icon {
+  display: flex;
+  align-items: center;
+  gap: var(--ip-space-1-5);
+  color: var(--ip-color-text-muted);
+}
+
+.ip-input-with-icon .ip-input {
+  flex: 1;
+}
+
+.ip-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ip-space-2);
+  margin-top: var(--ip-space-4);
+}
+
+/* ---- Section Title ---- */
+.ip-section-title {
+  margin: 0 0 var(--ip-space-2);
+  font-size: var(--ip-font-size-h3);
+  line-height: var(--ip-line-heading);
+}
+
+/* ---- Market Switch Page ---- */
+.ip-market-info {
+  display: grid;
+  gap: var(--ip-space-2);
+}
+
+.ip-market-info__item {
+  display: flex;
+  align-items: center;
+  gap: var(--ip-space-1-5);
+  color: var(--ip-color-text);
+  font-size: var(--ip-font-size-body-sm);
+}
+
+.ip-market-current {
+  display: flex;
+  align-items: center;
+  gap: var(--ip-space-2);
+}
+
+.ip-market-current > div {
+  display: grid;
+  gap: var(--ip-space-0-5);
+  flex: 1;
+}
+
+.ip-market-flag {
+  width: 40px;
+  height: 28px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--ip-radius-sm);
+  background: var(--ip-color-primary-soft);
+  color: var(--ip-color-primary-active);
+  font-size: var(--ip-font-size-caption);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.ip-market-flag--current {
+  background: var(--ip-color-success-soft);
+  color: var(--ip-color-success);
+}
+
+.ip-market-list {
+  display: grid;
+  gap: var(--ip-space-2);
+}
+
+.ip-market-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ip-space-2);
+  padding: var(--ip-space-2);
+  border: 1px solid var(--ip-color-border);
+  border-radius: var(--ip-radius-sm);
+  background: var(--ip-color-surface);
+}
+
+.ip-market-card--disabled {
+  opacity: 0.6;
+}
+
+.ip-market-card__info {
+  display: flex;
+  align-items: center;
+  gap: var(--ip-space-2);
+}
+
+.ip-market-card__info div {
+  display: grid;
+  gap: 2px;
+}
+
+.ip-market-card__info .ip-text-muted {
+  font-size: var(--ip-font-size-caption);
+}
+
+.ip-market-card__action {
+  flex-shrink: 0;
+}
+
+/* ---- Country Change Page ---- */
+.ip-country-current {
+  display: flex;
+  align-items: center;
+  gap: var(--ip-space-2);
+}
+
+.ip-country-current div {
+  display: grid;
+  gap: var(--ip-space-0-5);
+}
+
+.ip-country-current__label {
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-body-sm);
+  font-weight: 600;
+}
+
+.ip-country-status {
+  display: grid;
+  place-items: center;
+  gap: var(--ip-space-2);
+  padding: var(--ip-space-3) 0;
+  text-align: center;
+}
+
+.ip-country-status h3 {
+  margin: 0;
+}
+
+.ip-country-status p {
+  margin: 0;
+  color: var(--ip-color-text-muted);
+}
+
+.ip-country-status .ip-badge {
+  font-size: var(--ip-font-size-body-sm);
+}
+
+/* ---- Home Page ---- */
+.ip-home-skeleton {
+  display: grid;
+  gap: var(--ip-space-3);
+}
+
+.ip-home-market {
+  display: grid;
+  gap: var(--ip-space-1-5);
+}
+
+.ip-home-market__item {
+  display: flex;
+  align-items: center;
+  gap: var(--ip-space-1-5);
+  font-size: var(--ip-font-size-body-sm);
+  color: var(--ip-color-text-muted);
+}
+
+.ip-home-market__item .ip-button--ghost {
+  margin-left: auto;
+}
+
+.ip-quick-card {
+  display: flex;
+  align-items: center;
+  gap: var(--ip-space-2);
+  cursor: pointer;
+  transition:
+    transform var(--ip-motion-normal) var(--ip-ease-entrance),
+    border-color var(--ip-motion-fast);
+  margin-bottom: var(--ip-space-2);
+}
+
+.ip-quick-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--ip-color-primary);
+}
+
+.ip-quick-card:focus-visible {
+  outline: 2px solid var(--ip-color-primary);
+  outline-offset: 2px;
+}
+
+.ip-quick-card__icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--ip-radius-sm);
+  background: var(--ip-color-primary-soft);
+  color: var(--ip-color-primary-active);
+}
+
+.ip-quick-card__content {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ip-quick-card__content .ip-text-sm {
+  color: var(--ip-color-text-muted);
+}
+
+.ip-quick-card__action {
+  flex-shrink: 0;
+  color: var(--ip-color-text-muted);
+}
+
+/* ---- Settings Page ---- */
+.ip-settings-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ip-space-1-5);
+  color: var(--ip-color-text);
+}
+
+.ip-settings-row > span {
+  flex: 1;
+}
+
+/* ---- Text Utilities (additional) ---- */
+.ip-text-sm {
+  font-size: var(--ip-font-size-body-sm);
+}
+
+.ip-text-muted {
+  color: var(--ip-color-text-muted);
+}
+
+/* Responsive: tighter public layout on small screens */
+@media (max-width: 479px) {
+  .ip-member-public-layout__card {
+    padding: var(--ip-space-3);
+  }
+
+  .ip-otp-input-group .ip-input {
+    width: 42px;
+    height: 48px;
+    font-size: var(--ip-font-size-heading-sm);
+  }
+}

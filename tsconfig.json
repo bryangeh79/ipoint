@@ -5,5 +5,10 @@
     "moduleResolution": "Bundler",
     "types": ["node"]
   },
-  "include": ["playwright.config.ts", "vitest.config.ts", "tests/**/*.ts"]
+  "include": [
+    "playwright.config.ts",
+    "vitest.config.ts",
+    "tests/**/*.ts",
+    "apps/member-web/vitest.config.ts"
+  ]
 }

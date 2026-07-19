@@ -1,22 +1,32 @@
 import '@ipoint/design-tokens/base.css';
+import '@ipoint/ui';
+import './i18n/index.ts';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ProductShell } from '@ipoint/ui';
+import { App } from './app/App.tsx';
 
-const navigation = [
-  { id: 'overview', label: 'Home', href: '#' },
-  { id: 'merchants', label: 'Merchants', href: '#' },
-  { id: 'wallet', label: 'Wallet', href: '#' },
-  { id: 'team', label: 'Team', href: '#' },
-  { id: 'profile', label: 'Profile', href: '#' },
-] as const;
+// Validate required environment variables at dev/build time
+function validateEnv(): void {
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    const apiBaseUrl =
+      (import.meta.env.VITE_API_BASE_URL as string) ??
+      'http://localhost:3000/api/v1';
+    if (
+      typeof apiBaseUrl !== 'string' ||
+      apiBaseUrl === '' ||
+      apiBaseUrl === 'http://localhost:3000/api/v1'
+    ) {
+      console.info(
+        `[member-web] VITE_API_BASE_URL not set, using default: ${apiBaseUrl}`,
+      );
+    }
+  }
+}
+
+validateEnv();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ProductShell
-      appName="Member workspace"
-      audience="Member"
-      navigation={navigation}
-    />
+    <App />
   </StrictMode>,
 );
