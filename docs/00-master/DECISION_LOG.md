@@ -499,3 +499,53 @@
 | **Approver** | ChatGPT Command Center |
 | **Basis** | P2-S8 COMMAND CENTER FINAL DECISION - APPROVED (2026-07-18) |
 | **Status** | **APPROVED** |
+
+---
+
+## D-026: P2-S9 Member UI integration and Phase 2 final acceptance authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-026 |
+| **Date** | 2026-07-19 |
+| **Source** | ChatGPT Command Center — P2-S9 authorization |
+| **Old Rule** | P2-S9 NOT_AUTHORIZED; P2-S3 through P2-S8 COMPLETE / APPROVED |
+| **New Decision** | P2-S9 formally AUTHORIZED. Scope: Member UI Integration, End-to-End Validation and Phase 2 Final Acceptance. P2-S3 through P2-S8 all COMPLETE / APPROVED. |
+| **Reason** | All Phase 2 backend sub-phases complete and approved. P2-S9 is the final sub-phase integrating Member UI, E2E validation, and Phase 2 closure. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, apps/member-web/*, docs/06-phase-reports/p2-s9/* |
+| **Affected Phases** | P2-S9, Phase 2 |
+| **Migration** | NONE (governance only; minimal forward migrations only if backend defects found) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P2-S9 Member UI integration and Phase 2 final acceptance authorization (2026-07-19) |
+| **Status** | **APPROVED** |
+
+### Scope summary
+
+- Member Web/PWA UI integration for all P2-S1 through P2-S8 backend capabilities
+- Auth flow: Registration, OTP, Login, Refresh, Logout, Password Reset
+- Member Profile, Current Market switching, Account Country Change
+- KYC Level 2 submission and document upload
+- Personal QR with secure token
+- Merchant Discovery (List, Detail, Nearby, Categories, Search)
+- Account Status UX (ACTIVE, SUSPENDED, CLOSED)
+- PWA, Responsive (Mobile/Tablet/Desktop), Accessibility (WCAG 2.1 AA)
+- 20 E2E scenarios on real PostgreSQL
+- Full Phase 2 regression + Delivery Report
+
+### Sub-stage split (suggested)
+
+| Sub-stage | Scope |
+|---|---|
+| P2-S9A | Governance, UI Audit, Integration Plan, Frontend Foundation |
+| P2-S9B | Registration, OTP, Login, Password Reset, Protected Routing |
+| P2-S9C | Profile, Current Market, Account Country Change |
+| P2-S9D | KYC Level 2, Reverification, Document Upload |
+| P2-S9E | My QR, Merchant List, Detail, Nearby, Categories |
+| P2-S9F | Responsive, PWA, Accessibility, Security Hardening |
+| P2-S9G | E2E, Full Regression, Phase 2 Final Delivery Report |
+
+### Governance base
+
+- **Governance base SHA:** `f596aac0b20b713766f41320c25b88aaa64f6ef9`
+- **Phase 3:** NOT_AUTHORIZED
+- **Main PR / Main Merge:** NOT_AUTHORIZED

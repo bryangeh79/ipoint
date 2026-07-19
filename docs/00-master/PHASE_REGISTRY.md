@@ -14,9 +14,9 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Work** | **NONE — AWAITING COMMAND CENTER P2-S9 DEFINITION** | P2-S3 retrospective closure approved under D-025; P2-S1 through P2-S8 all COMPLETE / APPROVED |
+| **Current Authorized Work** | **P2-S9 MEMBER UI INTEGRATION, E2E AND FINAL ACCEPTANCE** | P2-S9 authorized under D-026 |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
-| **Phase 2** | **IN PROGRESS — P2-S9 PENDING DEFINITION** | P2-S1 through P2-S8 COMPLETE / APPROVED; P2-S3 retrospective closure approved under D-025; P2-S9 NOT_AUTHORIZED |
+| **Phase 2** | **IN PROGRESS — P2-S9 ACTIVE** | P2-S1 through P2-S8 COMPLETE / APPROVED; P2-S9 authorized under D-026 |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
 | **Phase 1 Batch B** | **APPROVED** | P1-S5 through P1-S7 COMPLETE under D-012 |
 | **Phase 1 Final Batch** | **APPROVED** | P1-S8 and P1-S9 COMPLETE under D-013 |
@@ -107,19 +107,26 @@
 | **P2-S6** | Member KYC Level 2 | **COMPLETE / APPROVED** | Approved at `071b65a6aaf4cafbf117594816b1ae7b8afd4676` under D-022 |
 | **P2-S7** | Merchant Discovery by Current Market | **COMPLETE / APPROVED** | Approved at `89ccd6d499414c536e249616a11f5ee77c5e92b1` under D-023 |
 | **P2-S8** | Admin Member Management and Audit | **COMPLETE / APPROVED** | Approved at `cb902fc96a6f8ddc5be469c38e3caa64d0eb87cb` under D-024 |
-| **P2-S9** | Live UI Integration, E2E and Final Acceptance | **NOT_AUTHORIZED** | Awaiting Command Center P2-S9 scope definition |
+| **P2-S9** | Member UI Integration, E2E and Phase 2 Final Acceptance | **AUTHORIZED — MEMBER UI INTEGRATION, E2E AND PHASE 2 FINAL ACCEPTANCE** | Authorized under D-026 at governance base `f596aac0b20b713766f41320c25b88aaa64f6ef9` |
 
 ## Current allowed actions
 
-- None — awaiting Command Center P2-S9 scope definition
-- Run all API and database integration tests for completed phases
-- Maintain the lock on P2-S9 until separate authorization arrives
-- P2-S3 retrospective closure approved under D-025
-- All Phase 2 sub-phases P2-S1 through P2-S8 now COMPLETE / APPROVED
+- **P2-S9 implementation**: Member UI Integration, E2E, Phase 2 Final Acceptance
+- Run all API, database, frontend and E2E tests for completed phases
+- Complete UI audit and integration plan (P2-S9A)
+- Create frontend routes, components, screens per Design System
+- Integrate auth flow (registration, login, OTP, password reset, logout)
+- Integrate Profile, Current Market, Account Country Change
+- Integrate KYC Level 2 with document upload
+- Integrate Personal QR UI
+- Integrate Merchant Discovery (list, detail, nearby, categories, search)
+- Add responsive, PWA, accessibility hardening
+- Add component, form, auth state, and E2E tests
+- Full Phase 2 regression before delivery
 
 ## Current prohibited actions
 
-- Start or implement P2-S9 or any not-authorized phase
+- Start Phase 3 or any not-authorized phase beyond P2-S9
 - Push directly to `main`
 - Merge `main` or create a main PR for this documentation-only phase
 - Bypass required governance sync or branch protection
