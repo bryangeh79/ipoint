@@ -74,6 +74,22 @@ export class ApiError extends Error {
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
+/** Backward-compatible request options used by admin-web and merchant-web. */
+export interface ApiRequestOptions extends Omit<RequestInit, 'body'> {
+  /** HTTP method (defaults to GET) */
+  method?: string;
+  /** Request body */
+  body?: unknown;
+  /** Market ID header */
+  marketId?: string;
+  /** Idempotency key for safe retries */
+  idempotencyKey?: string;
+  /** Skip auth header */
+  anonymous?: boolean;
+  /** Whether to retry after refresh (default true) */
+  retryAfterRefresh?: boolean;
+}
+
 export interface RequestOptions {
   /** AbortSignal for cancellation / timeout */
   signal?: AbortSignal;
@@ -238,12 +254,48 @@ export class ApiClient {
   /** Callback invoked when the session is cleared (e.g. refresh failure). */
   public onSessionExpired: (() => void) | null = null;
 
-  constructor(private readonly baseUrl: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    /** @deprecated Optional storage key — only kept for backward compatibility */
+    _storageKey?: string,
+  ) {}
 
   /* ---- token management ---- */
 
   get isAuthenticated(): boolean {
     return this._accessToken !== null;
+  }
+
+  /** Backward-compatible tokens accessor for admin-web and merchant-web. */
+  get tokens(): AuthTokens | undefined {
+    if (!this._accessToken) return undefined;
+    return {
+      accessToken: this._accessToken,
+      refreshToken: this._refreshToken ?? undefined,
+      accessExpiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      refreshExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+  }
+
+  /** Backward-compatible public request method used by admin-web and merchant-web. */
+  async request<T>(
+    path: string,
+    options: ApiRequestOptions = {},
+  ): Promise<T> {
+    const method = (options.method ?? 'GET').toUpperCase() as HttpMethod;
+    const response = await this.executeRequest<T>(
+      method,
+      path,
+      options.body,
+      {
+        headers: options.headers as Record<string, string>,
+        marketId: options.marketId,
+        idempotencyKey: options.idempotencyKey,
+        skipAuth: options.anonymous,
+      },
+      new AbortController().signal,
+    );
+    return response.data;
   }
 
   setTokens(tokens: AuthTokens): void {
@@ -284,7 +336,7 @@ export class ApiClient {
     path: string,
     options?: RequestOptions,
   ): Promise<ApiResponse<T>> {
-    return this.request<T>('GET', path, undefined, options);
+    return this._request<T>('GET', path, undefined, options);
   }
 
   async post<T>(
@@ -292,7 +344,7 @@ export class ApiClient {
     body?: unknown,
     options?: RequestOptions,
   ): Promise<ApiResponse<T>> {
-    return this.request<T>('POST', path, body, options);
+    return this._request<T>('POST', path, body, options);
   }
 
   async upload<T>(
@@ -300,7 +352,7 @@ export class ApiClient {
     formData: FormData,
     options?: RequestOptions,
   ): Promise<ApiResponse<T>> {
-    return this.request<T>('POST', path, formData, {
+    return this._request<T>('POST', path, formData, {
       ...options,
       headers: { ...options?.headers },
     });
@@ -311,7 +363,7 @@ export class ApiClient {
     body?: unknown,
     options?: RequestOptions,
   ): Promise<ApiResponse<T>> {
-    return this.request<T>('PUT', path, body, options);
+    return this._request<T>('PUT', path, body, options);
   }
 
   async patch<T>(
@@ -319,20 +371,20 @@ export class ApiClient {
     body?: unknown,
     options?: RequestOptions,
   ): Promise<ApiResponse<T>> {
-    return this.request<T>('PATCH', path, body, options);
+    return this._request<T>('PATCH', path, body, options);
   }
 
   async delete<T>(
     path: string,
     options?: RequestOptions,
   ): Promise<ApiResponse<T>> {
-    return this.request<T>('DELETE', path, undefined, options);
+    return this._request<T>('DELETE', path, undefined, options);
   }
 
   /* ---- login (convenience) ---- */
 
   async login(email: string, password: string): Promise<AuthTokens> {
-    const response = await this.request<AuthTokens>(
+    const response = await this._request<AuthTokens>(
       'POST',
       '/auth/login',
       { email, password },
@@ -345,7 +397,7 @@ export class ApiClient {
 
   /* ---- core request method ---- */
 
-  private async request<T>(
+  private async _request<T>(
     method: HttpMethod,
     path: string,
     body?: unknown,
