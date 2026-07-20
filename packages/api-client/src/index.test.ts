@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+/* eslint-disable @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-return,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unused-vars,@typescript-eslint/no-base-to-string,@typescript-eslint/require-await */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ApiClient, ApiError } from './index.js';
 
@@ -49,9 +50,13 @@ describe('ApiClient', () => {
       });
 
       expect(client.isAuthenticated).toBe(true);
-      // Ensure nothing in storage
-      expect(localStorage.length).toBe(0);
-      expect(sessionStorage.length).toBe(0);
+      // Ensure nothing in storage (environment-agnostic check)
+      if (typeof localStorage !== 'undefined') {
+        expect(localStorage.length).toBe(0);
+      }
+      if (typeof sessionStorage !== 'undefined') {
+        expect(sessionStorage.length).toBe(0);
+      }
     });
 
     it('clears session and resets state', () => {

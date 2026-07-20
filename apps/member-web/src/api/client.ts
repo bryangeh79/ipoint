@@ -17,7 +17,7 @@ function getBaseUrl(): string {
 
 /**
  * Singleton API client instance for the member-web app.
- * Uses in-memory token storage and HttpOnly refresh cookies.
- * On page load, session is restored via the refresh cookie.
+ * Uses in-memory token storage only (never localStorage/sessionStorage).
+ * On page load, session restore is attempted via the refresh endpoint.
  */
 export const apiClient = new ApiClient(getBaseUrl());

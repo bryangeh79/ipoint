@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ApiClient } from '@ipoint/api-client';
-import type { AuthContextValue, User } from './AuthContext.ts';
+import type { AuthContextValue, User } from './AuthContext';
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -31,7 +31,7 @@ export function AuthProvider({
   const navigate = useNavigate();
   const restoreAttemptedRef = useRef(false);
 
-  // Attempt to restore session from HttpOnly refresh cookie on page load
+  // Attempt to restore session by calling the refresh endpoint on page load
   useEffect(() => {
     if (!autoRestore || restoreAttemptedRef.current) return;
     restoreAttemptedRef.current = true;
@@ -114,7 +114,7 @@ export function AuthProvider({
     void navigate('/login');
   }, [apiClient, navigate]);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
     try {
       const restored = await apiClient.attemptSessionRestore();
       if (restored) {

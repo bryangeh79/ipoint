@@ -2,15 +2,20 @@
  * @ipoint/api-client — In-memory token API client with single-flight refresh.
  *
  * Design decisions:
- * - Access tokens are held in-memory ONLY (never localStorage/sessionStorage).
+ * - All tokens are held in-memory ONLY (never localStorage/sessionStorage).
  * - On page load / app init, call `attemptSessionRestore()` which issues a
- *   refresh request under the assumption the backend set an HttpOnly cookie
- *   during the initial login. If no cookie exists the server returns 401 and
- *   the user is unauthenticated.
+ *   refresh request using the stored refresh token. If no refresh token is
+ *   available (e.g. page reload), the server returns 401 and the user is
+ *   unauthenticated.
  * - 401 interceptor triggers a single-flight token refresh, retrying the
  *   original request exactly once after a successful refresh.
  * - Refresh failures clear the in-memory session and must redirect to login.
  * - No infinite retry loops – exactly one retry per 401.
+ *
+ * Auth contract (backend):
+ * - POST /auth/login -> body: { accessToken, refreshToken, accessExpiresAt, refreshExpiresAt }
+ * - POST /auth/refresh -> expects body: { refresh_token: string }
+ * - POST /auth/logout -> requires Bearer Authorization header, returns 204
  */
 
 /* ------------------------------------------------------------------ */
@@ -19,7 +24,9 @@
 
 export interface AuthTokens {
   accessToken: string;
+  refreshToken?: string;
   accessExpiresAt: string;
+  refreshExpiresAt?: string;
 }
 
 export interface ApiErrorBody {
@@ -143,7 +150,7 @@ function mergeSignals(...signals: (AbortSignal | undefined)[]): {
     return { signal: new AbortController().signal, clear: () => {} };
   }
   if (filtered.length === 1) {
-    return { signal: filtered[0], clear: () => {} };
+    return { signal: filtered[0] as AbortSignal, clear: () => {} };
   }
   const controller = new AbortController();
   const onAbort = () => controller.abort();
@@ -222,6 +229,9 @@ export class ApiClient {
   /** In-memory token storage – NEVER persisted to storage. */
   private _accessToken: string | null = null;
 
+  /** In-memory refresh token – NEVER persisted to storage. */
+  private _refreshToken: string | null = null;
+
   /** Single-flight refresh lock. */
   private refreshPromise: Promise<boolean> | null = null;
 
@@ -238,10 +248,12 @@ export class ApiClient {
 
   setTokens(tokens: AuthTokens): void {
     this._accessToken = tokens.accessToken;
+    this._refreshToken = tokens.refreshToken ?? null;
   }
 
   clearSession(): void {
     this._accessToken = null;
+    this._refreshToken = null;
     this.refreshPromise = null;
     dispatchSessionEvent('session-cleared');
     this.onSessionExpired?.();
@@ -249,7 +261,9 @@ export class ApiClient {
 
   /**
    * Attempt to restore a session on app load by calling the refresh endpoint.
-   * This relies on the backend having set an HttpOnly refresh cookie at login.
+   * The refresh token is sent in the request body. On page load there is no
+   * in-memory refresh token, so the server returns 401 and the session is
+   * cleared (user must log in again).
    * Returns `true` if the session was restored.
    */
   async attemptSessionRestore(): Promise<boolean> {
@@ -515,17 +529,22 @@ export class ApiClient {
   }
 
   /**
-   * Call the refresh endpoint. With `credentials: 'include'` the HttpOnly
-   * refresh cookie is sent automatically.
+   * Call the refresh endpoint. Sends the refresh token in the request body
+   * as required by the actual backend contract.
    */
   private async refreshRequest(): Promise<AuthTokens> {
     const response = await fetch(`${this.baseUrl}/auth/refresh`, {
       method: 'POST',
-      headers: { accept: 'application/json' },
-      credentials: 'include',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify({ refresh_token: this._refreshToken }),
     });
 
     if (!response.ok) {
+      // Refresh failure means session is gone
+      this.clearSession();
       throw await toApiError(response);
     }
 
