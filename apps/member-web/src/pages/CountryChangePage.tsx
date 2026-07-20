@@ -12,9 +12,9 @@ import {
   Badge,
 } from '@ipoint/ui';
 import { MapPin, Clock, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
-import { apiClient } from '../api/client.ts';
-import { useAbortController } from '../hooks/useAbortController.ts';
-import { isMinLength } from '../utils/validation.ts';
+import { apiClient } from '../api/client';
+import { useAbortController } from '../hooks/useAbortController';
+import { isMinLength } from '../utils/validation';
 
 interface CountryChangeStatus {
   status: 'none' | 'pending' | 'approved' | 'rejected';
@@ -89,10 +89,10 @@ export function CountryChangePage() {
           .catch(() => ({ data: { data: { status: 'none' as const } } })),
       ]);
 
-      const profileData =
-        profileRes.data?.data ?? (profileRes.data as ProfileInfo);
-      const statusData =
-        statusRes.data?.data ?? (statusRes.data as CountryChangeStatus);
+      const profileData = ((profileRes.data as Record<string, unknown>)?.data ??
+        profileRes.data) as ProfileInfo;
+      const statusData = ((statusRes.data as Record<string, unknown>)?.data ??
+        statusRes.data) as CountryChangeStatus;
 
       setCurrentCountry(profileData.countryCode ?? null);
       setChangeStatus(statusData);
@@ -100,7 +100,7 @@ export function CountryChangePage() {
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       setFetchState('error');
-      setFetchError(err instanceof Error ? err.message : t('common.error'));
+      setFetchError(t('common.error'));
     }
   }, [abortController, t]);
 
@@ -143,16 +143,15 @@ export function CountryChangePage() {
             reason: reason.trim(),
           },
         );
-        const newStatus = res.data?.data ?? (res.data as CountryChangeStatus);
+        const newStatus = ((res.data as Record<string, unknown>)?.data ??
+          res.data) as CountryChangeStatus;
         setChangeStatus(newStatus);
         setSubmitState('success');
         submittedRef.current = false;
-      } catch (err: unknown) {
+      } catch {
         submittedRef.current = false;
         setSubmitState('error');
-        setSubmitError(
-          err instanceof Error ? err.message : t('country.submitFailed'),
-        );
+        setSubmitError(t('country.submitFailed'));
       }
     },
     [targetCountry, reason, validate, submitState, t],

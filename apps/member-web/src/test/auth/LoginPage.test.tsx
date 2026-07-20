@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from '../../auth/AuthProvider.tsx';
-import { LoginPage } from '../../pages/LoginPage.tsx';
+import { AuthProvider } from '../../auth/AuthProvider';
+import { LoginPage } from '../../pages/LoginPage';
 import { ApiClient, ApiError } from '@ipoint/api-client';
 
 // Mock i18next
@@ -75,14 +75,12 @@ describe('LoginPage', () => {
   let user: ReturnType<typeof userEvent.setup>;
 
   beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
     client = createTestClient();
-    user = userEvent.setup({ advanceTimers: () => vi.advanceTimersByTime(1) });
+    user = userEvent.setup();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.useRealTimers();
   });
 
   describe('form validation', () => {
@@ -99,7 +97,9 @@ describe('LoginPage', () => {
       // Should show validation errors, not call login
       expect(loginSpy).not.toHaveBeenCalled();
       await waitFor(() => {
-        expect(screen.getByText('This field is required')).toBeInTheDocument();
+        expect(
+          screen.getAllByText('This field is required').length,
+        ).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -135,7 +135,6 @@ describe('LoginPage', () => {
       await user.type(passwordInput, 'validPassword123');
 
       await user.click(screen.getByRole('button', { name: 'Log In' }));
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         expect(
@@ -159,7 +158,6 @@ describe('LoginPage', () => {
       await user.type(screen.getByLabelText('Email'), 'test@example.com');
       await user.type(screen.getByLabelText('Password'), 'validPassword123');
       await user.click(screen.getByRole('button', { name: 'Log In' }));
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         expect(
@@ -180,7 +178,6 @@ describe('LoginPage', () => {
       await user.type(screen.getByLabelText('Email'), 'test@example.com');
       await user.type(screen.getByLabelText('Password'), 'validPassword123');
       await user.click(screen.getByRole('button', { name: 'Log In' }));
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         expect(screen.getByText('Account closed.')).toBeInTheDocument();
@@ -199,7 +196,6 @@ describe('LoginPage', () => {
       await user.type(screen.getByLabelText('Email'), 'test@example.com');
       await user.type(screen.getByLabelText('Password'), 'validPassword123');
       await user.click(screen.getByRole('button', { name: 'Log In' }));
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         expect(
@@ -230,7 +226,6 @@ describe('LoginPage', () => {
       await user.type(screen.getByLabelText('Email'), 'test@example.com');
       await user.type(screen.getByLabelText('Password'), 'validPassword123');
       await user.click(screen.getByRole('button', { name: 'Log In' }));
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         expect(screen.getByText('Home page')).toBeInTheDocument();

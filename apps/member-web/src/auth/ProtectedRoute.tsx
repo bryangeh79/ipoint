@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from './useAuth.ts';
+import { useAuth } from './useAuth';
 import { Spinner } from '@ipoint/ui';
-import { validateReturnUrl } from '../utils/url.ts';
+import { validateReturnUrl } from '../utils/url';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;

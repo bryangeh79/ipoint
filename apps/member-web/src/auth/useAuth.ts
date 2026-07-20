@@ -1,6 +1,6 @@
 import { useContext } from 'react';
-import { AuthContext } from './AuthProvider.tsx';
-import type { AuthContextValue } from './AuthContext.ts';
+import { AuthContext } from './AuthProvider';
+import type { AuthContextValue } from './AuthContext';
 
 /**
  * Hook to access auth state and actions.

@@ -7,14 +7,14 @@ import {
   Mail,
   Phone,
   Calendar,
-  VenusMars,
+  UserRound,
   ShieldCheck,
   MapPin,
   Globe,
   Pencil,
 } from 'lucide-react';
-import { apiClient } from '../api/client.ts';
-import { useAbortController } from '../hooks/useAbortController.ts';
+import { apiClient } from '../api/client';
+import { useAbortController } from '../hooks/useAbortController';
 
 interface ProfileData {
   id: string;
@@ -117,7 +117,7 @@ export function ProfilePage() {
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       setFetchState('error');
-      setFetchError(err instanceof Error ? err.message : t('common.error'));
+      setFetchError(t('common.error'));
     }
   }, [abortController, t]);
 
@@ -219,7 +219,7 @@ export function ProfilePage() {
             value={profile.birthDate}
           />
           <ProfileField
-            icon={<VenusMars size={18} />}
+            icon={<UserRound size={18} />}
             label={t('profile.gender')}
             value={formatGender(profile.gender)}
           />

@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from '../auth/AuthProvider.tsx';
-import { apiClient } from '../api/client.ts';
-import { routes } from './routes.tsx';
+import { AuthProvider } from '../auth/AuthProvider';
+import { apiClient } from '../api/client';
+import { routes } from './routes';
 
 export function App() {
   return (

@@ -9,10 +9,10 @@ import {
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Input, FormField, Alert, Spinner } from '@ipoint/ui';
-import { apiClient } from '../api/client.ts';
+import { apiClient } from '../api/client';
 import { ApiError, createIdempotencyKey } from '@ipoint/api-client';
-import { isMinLength } from '../utils/validation.ts';
-import { PublicLayout } from '../layouts/PublicLayout.tsx';
+import { isMinLength } from '../utils/validation';
+import { PublicLayout } from '../layouts/PublicLayout';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -197,9 +197,12 @@ export function ResetPasswordPage() {
             return;
           }
 
+          const errMsg = Array.isArray(error.body.message)
+            ? (error.body.message[0] ?? t('auth.somethingWentWrong'))
+            : (error.body.message ?? t('auth.somethingWentWrong'));
           setState((prev) => ({
             ...prev,
-            globalError: error.body.message ?? t('auth.somethingWentWrong'),
+            globalError: errMsg,
             errorTitle: code ?? t('common.error'),
           }));
           return;
@@ -280,10 +283,13 @@ export function ResetPasswordPage() {
       } catch (error: unknown) {
         if (error instanceof ApiError) {
           if (error.status === 400) {
+            const msg = Array.isArray(error.body.message)
+              ? (error.body.message[0] ?? t('auth.somethingWentWrong'))
+              : (error.body.message ?? t('auth.somethingWentWrong'));
             setState((prev) => ({
               ...prev,
               step: 'password',
-              globalError: error.body.message ?? t('auth.somethingWentWrong'),
+              globalError: msg,
               errorTitle: error.body.code ?? t('common.error'),
             }));
             return;
@@ -297,10 +303,13 @@ export function ResetPasswordPage() {
             }));
             return;
           }
+          const msg = Array.isArray(error.body.message)
+            ? (error.body.message[0] ?? t('auth.somethingWentWrong'))
+            : (error.body.message ?? t('auth.somethingWentWrong'));
           setState((prev) => ({
             ...prev,
             step: 'password',
-            globalError: error.body.message ?? t('auth.somethingWentWrong'),
+            globalError: msg,
             errorTitle: error.body.code ?? t('common.error'),
           }));
           return;

@@ -2,8 +2,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from '../../auth/AuthProvider.tsx';
-import { ProtectedRoute } from '../../auth/ProtectedRoute.tsx';
+import { AuthProvider } from '../../auth/AuthProvider';
+import { ProtectedRoute } from '../../auth/ProtectedRoute';
 import { ApiClient } from '@ipoint/api-client';
 
 function createTestClient() {
@@ -14,13 +14,11 @@ describe('ProtectedRoute', () => {
   let client: ApiClient;
 
   beforeEach(() => {
-    vi.useFakeTimers();
     client = createTestClient();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.useRealTimers();
   });
 
   it('shows loading spinner when auth is loading', () => {
@@ -79,10 +77,10 @@ describe('ProtectedRoute', () => {
       </MemoryRouter>,
     );
 
-    // Run pending timers
-    await vi.runAllTimersAsync();
-
-    expect(screen.getByText('Login page')).toBeInTheDocument();
+    // Wait for the auth state to settle - autoRestore=false means isLoading=false immediately
+    await vi.waitFor(() => {
+      expect(screen.getByText('Login page')).toBeInTheDocument();
+    });
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
   });
 
@@ -133,10 +131,10 @@ describe('ProtectedRoute', () => {
       </MemoryRouter>,
     );
 
-    await vi.runAllTimersAsync();
-
-    // Authenticated user should be redirected to home
-    expect(screen.getByText('Home page')).toBeInTheDocument();
+    // Wait for auth to resolve (refresh + profile fetch with mock responses)
+    await vi.waitFor(() => {
+      expect(screen.getByText('Home page')).toBeInTheDocument();
+    });
     expect(screen.queryByText('Login page')).not.toBeInTheDocument();
   });
 
@@ -169,10 +167,8 @@ describe('ProtectedRoute', () => {
       </MemoryRouter>,
     );
 
-    await vi.runAllTimersAsync();
-
-    expect(screen.getByText('Login page with redirect')).toBeInTheDocument();
-    // The URL should have returnUrl parameter
-    // MemoryRouter preserves the redirect path
+    await vi.waitFor(() => {
+      expect(screen.getByText('Login page with redirect')).toBeInTheDocument();
+    });
   });
 });

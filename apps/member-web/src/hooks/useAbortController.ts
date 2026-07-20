@@ -14,10 +14,12 @@ export function useAbortController(): AbortController {
   useEffect(() => {
     const controller = controllerRef.current;
     return () => {
-      controller.abort();
+      controller?.abort();
       controllerRef.current = null;
     };
   }, []);
 
-  return controllerRef.current;
+  // controllerRef.current is guaranteed non-null at this point
+  // because the if-block above initializes it on first call
+  return controllerRef.current!;
 }

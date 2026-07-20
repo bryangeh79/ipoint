@@ -12,9 +12,9 @@ import {
   Skeleton,
 } from '@ipoint/ui';
 import { Lock, ArrowLeft } from 'lucide-react';
-import { apiClient } from '../api/client.ts';
-import { useAbortController } from '../hooks/useAbortController.ts';
-import { isNonEmpty, isPhoneNumber } from '../utils/validation.ts';
+import { apiClient } from '../api/client';
+import { useAbortController } from '../hooks/useAbortController';
+import { isNonEmpty, isPhoneNumber } from '../utils/validation';
 
 interface ProfileData {
   id: string;
@@ -77,7 +77,7 @@ export function ProfileEditPage() {
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       setFetchState('error');
-      setFetchError(err instanceof Error ? err.message : t('common.error'));
+      setFetchError(t('common.error'));
     }
   }, [abortController, t]);
 
@@ -169,7 +169,12 @@ export function ProfileEditPage() {
           if (apiErr.body?.errors) {
             setServerErrors(apiErr.body.errors as FieldErrors);
           }
-          setSubmitError((apiErr.body?.message as string) ?? err.message);
+          const errBodyMsg = (apiErr.body as { message?: string | string[] })
+            ?.message;
+          const errMsg = Array.isArray(errBodyMsg)
+            ? (errBodyMsg[0] ?? err.message)
+            : (errBodyMsg ?? err.message);
+          setSubmitError(errMsg);
         } else {
           setSubmitError(t('common.error'));
         }

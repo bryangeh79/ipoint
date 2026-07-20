@@ -2,10 +2,10 @@ import { useCallback, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Input, FormField, Alert } from '@ipoint/ui';
-import { apiClient } from '../api/client.ts';
+import { apiClient } from '../api/client';
 import { ApiError } from '@ipoint/api-client';
-import { isValidEmail } from '../utils/validation.ts';
-import { PublicLayout } from '../layouts/PublicLayout.tsx';
+import { isValidEmail } from '../utils/validation';
+import { PublicLayout } from '../layouts/PublicLayout';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -66,7 +66,10 @@ export function ForgotPasswordPage() {
 
         if (error instanceof ApiError) {
           if (error.status === 429) {
-            setGlobalError(error.body.message ?? t('auth.somethingWentWrong'));
+            const msg = Array.isArray(error.body.message)
+              ? (error.body.message[0] ?? t('auth.somethingWentWrong'))
+              : (error.body.message ?? t('auth.somethingWentWrong'));
+            setGlobalError(msg);
             return;
           }
           if (error.status === 0) {

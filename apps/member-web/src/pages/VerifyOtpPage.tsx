@@ -9,9 +9,9 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Input, Alert, FormField, Spinner } from '@ipoint/ui';
-import { apiClient } from '../api/client.ts';
+import { apiClient } from '../api/client';
 import { ApiError, createIdempotencyKey } from '@ipoint/api-client';
-import { PublicLayout } from '../layouts/PublicLayout.tsx';
+import { PublicLayout } from '../layouts/PublicLayout';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -201,13 +201,16 @@ export function VerifyOtpPage() {
 
           if (code === 'AUTH_OTP_INVALID') {
             // Try to extract attempts remaining from message
-            const match = error.message.match(/(\d+)\s+attempt/i);
-            const attempts = match ? parseInt(match[1], 10) : null;
+            const errMsg = Array.isArray(error.body.message)
+              ? (error.body.message[0] ?? '')
+              : (error.body.message ?? '');
+            const match = errMsg.match(/(\d+)\s+attempt/i);
+            const attempts = match ? parseInt(match[1] ?? '', 10) : null;
 
             setOtpState((prev) => ({
               ...prev,
               error: t('auth.otpInvalid', { attempts: attempts ?? '?' }),
-              errorTitle: error.body.code,
+              errorTitle: error.body.code ?? null,
               attemptsRemaining: attempts,
               verified: false,
             }));
@@ -221,7 +224,7 @@ export function VerifyOtpPage() {
             setOtpState((prev) => ({
               ...prev,
               error: t('auth.otpExpired'),
-              errorTitle: error.body.code,
+              errorTitle: error.body.code ?? null,
             }));
             return;
           }
@@ -230,7 +233,7 @@ export function VerifyOtpPage() {
             setOtpState((prev) => ({
               ...prev,
               error: t('auth.otpExhausted'),
-              errorTitle: error.body.code,
+              errorTitle: error.body.code ?? null,
             }));
             return;
           }
@@ -245,9 +248,12 @@ export function VerifyOtpPage() {
           }
 
           // Generic error
+          const genMsg = Array.isArray(error.body.message)
+            ? (error.body.message[0] ?? t('auth.somethingWentWrong'))
+            : (error.body.message ?? t('auth.somethingWentWrong'));
           setOtpState((prev) => ({
             ...prev,
-            error: error.body.message ?? t('auth.somethingWentWrong'),
+            error: genMsg,
             errorTitle: error.body.code ?? t('common.error'),
           }));
           return;
@@ -362,7 +368,8 @@ export function VerifyOtpPage() {
         if (error.status === 429) {
           // Cooldown still active — could extract retry-after
           const retryAfter =
-            error.body.retryAfterSeconds ?? RESEND_COOLDOWN_SECONDS;
+            (error.body as { retryAfterSeconds?: number }).retryAfterSeconds ??
+            RESEND_COOLDOWN_SECONDS;
           setOtpState((prev) => ({
             ...prev,
             resendCooldown: retryAfter,
@@ -371,9 +378,12 @@ export function VerifyOtpPage() {
           return;
         }
 
+        const rescueMsg = Array.isArray(error.body.message)
+          ? (error.body.message[0] ?? t('auth.somethingWentWrong'))
+          : (error.body.message ?? t('auth.somethingWentWrong'));
         setOtpState((prev) => ({
           ...prev,
-          error: error.body.message ?? t('auth.somethingWentWrong'),
+          error: rescueMsg,
           errorTitle: error.body.code ?? t('common.error'),
         }));
         return;

@@ -1,9 +1,9 @@
 import '@ipoint/design-tokens/base.css';
 import '@ipoint/ui';
-import './i18n/index.ts';
+import './i18n/index';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './app/App.tsx';
+import { App } from './app/App';
 
 // Validate required environment variables at dev/build time
 function validateEnv(): void {

@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import {
   render,
   type RenderOptions,
@@ -5,8 +6,8 @@ import {
 } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { type ReactElement, type ReactNode } from 'react';
-import { AuthProvider } from '../auth/AuthProvider.tsx';
-import { apiClient } from '../api/client.ts';
+import { AuthProvider } from '../auth/AuthProvider';
+import { apiClient } from '../api/client';
 
 interface RenderWithProvidersOptions extends Omit<RenderOptions, 'wrapper'> {
   /** Initial route for MemoryRouter */

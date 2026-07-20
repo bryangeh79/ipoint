@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PageHeader, Card, Badge, Skeleton, Alert, Button } from '@ipoint/ui';
 import { Globe, MapPin, CheckCircle } from 'lucide-react';
-import { apiClient } from '../api/client.ts';
-import { useAbortController } from '../hooks/useAbortController.ts';
+import { apiClient } from '../api/client';
+import { useAbortController } from '../hooks/useAbortController';
 
 interface Market {
   id: string;
@@ -50,18 +50,16 @@ export function MarketSwitchPage() {
         }),
       ]);
 
-      const marketsData =
-        marketsRes.data?.data ?? (marketsRes.data as Market[]);
-      const profileData =
-        profileRes.data?.data ?? (profileRes.data as ProfileInfo);
+      const marketsData = ((marketsRes.data as Record<string, unknown>)?.data ??
+        marketsRes.data) as Market[];
+      const profileData = ((profileRes.data as Record<string, unknown>)?.data ??
+        profileRes.data) as ProfileInfo;
 
       setProfile(profileData);
       setCurrentMarketCode(profileData.marketCode ?? null);
 
       // Mark current market
-      const updatedMarkets = (
-        Array.isArray(marketsData) ? marketsData : []
-      ).map((m: Market) => ({
+      const updatedMarkets = marketsData.map((m: Market) => ({
         ...m,
         isCurrent: m.code === profileData.marketCode,
       }));
@@ -70,7 +68,7 @@ export function MarketSwitchPage() {
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       setFetchState('error');
-      setFetchError(err instanceof Error ? err.message : t('common.error'));
+      setFetchError(t('common.error'));
     }
   }, [abortController, t]);
 
@@ -94,11 +92,9 @@ export function MarketSwitchPage() {
 
         // Reset success state after a delay
         setTimeout(() => setSwitchState('idle'), 3000);
-      } catch (err: unknown) {
+      } catch {
         setSwitchState('error');
-        setSwitchError(
-          err instanceof Error ? err.message : t('market.switchFailed'),
-        );
+        setSwitchError(t('market.switchFailed'));
       }
     },
     [switchState, t],

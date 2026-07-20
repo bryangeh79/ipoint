@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PageHeader, Card, Switch, Button, Skeleton, Alert } from '@ipoint/ui';
 import { Globe, MapPin, LogOut, Info, ChevronRight } from 'lucide-react';
-import { useAuth } from '../auth/useAuth.ts';
-import { apiClient } from '../api/client.ts';
-import { useAbortController } from '../hooks/useAbortController.ts';
+import { useAuth } from '../auth/useAuth';
+import { apiClient } from '../api/client';
+import { useAbortController } from '../hooks/useAbortController';
 
 interface ProfileInfo {
   countryCode?: string;

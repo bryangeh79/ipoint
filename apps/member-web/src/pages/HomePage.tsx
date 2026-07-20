@@ -19,8 +19,8 @@ import {
   MapPin,
   ChevronRight,
 } from 'lucide-react';
-import { apiClient } from '../api/client.ts';
-import { useAbortController } from '../hooks/useAbortController.ts';
+import { apiClient } from '../api/client';
+import { useAbortController } from '../hooks/useAbortController';
 
 interface ProfileData {
   id: string;
@@ -100,7 +100,7 @@ export function HomePage() {
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       setFetchState('error');
-      setFetchError(err instanceof Error ? err.message : t('common.error'));
+      setFetchError(t('common.error'));
     }
   }, [abortController, t]);
 

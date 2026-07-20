@@ -1,24 +1,24 @@
 import { type RouteObject } from 'react-router-dom';
-import { ProtectedRoute } from '../auth/ProtectedRoute.tsx';
-import { MemberLayout } from '../layouts/MemberLayout.tsx';
-import { LoginPage } from '../pages/LoginPage.tsx';
-import { RegisterPage } from '../pages/RegisterPage.tsx';
-import { VerifyOtpPage } from '../pages/VerifyOtpPage.tsx';
-import { ForgotPasswordPage } from '../pages/ForgotPasswordPage.tsx';
-import { ResetPasswordPage } from '../pages/ResetPasswordPage.tsx';
-import { HomePage } from '../pages/HomePage.tsx';
-import { ProfilePage } from '../pages/ProfilePage.tsx';
-import { ProfileEditPage } from '../pages/ProfileEditPage.tsx';
-import { MarketSwitchPage } from '../pages/MarketSwitchPage.tsx';
-import { CountryChangePage } from '../pages/CountryChangePage.tsx';
-import { KycPage } from '../pages/KycPage.tsx';
-import { KycDocumentsPage } from '../pages/KycDocumentsPage.tsx';
-import { QrPage } from '../pages/QrPage.tsx';
-import { MerchantListPage } from '../pages/MerchantListPage.tsx';
-import { MerchantDetailPage } from '../pages/MerchantDetailPage.tsx';
-import { NearbyPage } from '../pages/NearbyPage.tsx';
-import { SettingsPage } from '../pages/SettingsPage.tsx';
-import { NotFoundPage } from '../pages/NotFoundPage.tsx';
+import { ProtectedRoute } from '../auth/ProtectedRoute';
+import { MemberLayout } from '../layouts/MemberLayout';
+import { LoginPage } from '../pages/LoginPage';
+import { RegisterPage } from '../pages/RegisterPage';
+import { VerifyOtpPage } from '../pages/VerifyOtpPage';
+import { ForgotPasswordPage } from '../pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '../pages/ResetPasswordPage';
+import { HomePage } from '../pages/HomePage';
+import { ProfilePage } from '../pages/ProfilePage';
+import { ProfileEditPage } from '../pages/ProfileEditPage';
+import { MarketSwitchPage } from '../pages/MarketSwitchPage';
+import { CountryChangePage } from '../pages/CountryChangePage';
+import { KycPage } from '../pages/KycPage';
+import { KycDocumentsPage } from '../pages/KycDocumentsPage';
+import { QrPage } from '../pages/QrPage';
+import { MerchantListPage } from '../pages/MerchantListPage';
+import { MerchantDetailPage } from '../pages/MerchantDetailPage';
+import { NearbyPage } from '../pages/NearbyPage';
+import { SettingsPage } from '../pages/SettingsPage';
+import { NotFoundPage } from '../pages/NotFoundPage';
 
 /**
  * Application route definitions.

@@ -9,7 +9,7 @@ import {
   Drawer,
 } from '@ipoint/ui';
 import { House, Store, Wallet, User, LogOut } from 'lucide-react';
-import { useAuth } from '../auth/useAuth.ts';
+import { useAuth } from '../auth/useAuth';
 
 interface MemberLayoutProps {
   children: ReactNode;
@@ -59,7 +59,7 @@ export function MemberLayout({ children }: MemberLayoutProps) {
         // Phase 3 not authorized — show "Coming Soon" placeholder
         return;
       }
-      if (item.href && item.href !== '#') {
+      if (item.href) {
         void navigate(item.href);
         setDrawerOpen(false);
       }

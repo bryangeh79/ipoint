@@ -2,10 +2,10 @@ import { useCallback, useState, useRef, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Input, Select, Checkbox, FormField, Alert } from '@ipoint/ui';
-import { apiClient } from '../api/client.ts';
+import { apiClient } from '../api/client';
 import { ApiError, createIdempotencyKey } from '@ipoint/api-client';
-import { isValidEmail, isMinLength } from '../utils/validation.ts';
-import { PublicLayout } from '../layouts/PublicLayout.tsx';
+import { isValidEmail, isMinLength } from '../utils/validation';
+import { PublicLayout } from '../layouts/PublicLayout';
 
 /* ------------------------------------------------------------------ */
 /*  Field error types                                                  */
@@ -79,9 +79,19 @@ export function RegisterPage() {
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
   const referralCodeRef = useRef<HTMLInputElement>(null);
   const countryRef = useRef<HTMLSelectElement>(null);
-  const termsRef = useRef<HTMLInputElement>(null);
-  const disclaimerRef = useRef<HTMLInputElement>(null);
-  const privacyRef = useRef<HTMLInputElement>(null);
+  const termsRef = useRef<HTMLDivElement>(null);
+  const disclaimerRef = useRef<HTMLDivElement>(null);
+  const privacyRef = useRef<HTMLDivElement>(null);
+
+  function isCheckboxChecked(
+    ref: React.RefObject<HTMLDivElement | null>,
+  ): boolean {
+    if (!ref.current) return false;
+    const input = ref.current.querySelector<HTMLInputElement>(
+      'input[type="checkbox"]',
+    );
+    return input?.checked ?? false;
+  }
 
   const validate = useCallback((): FieldErrors | null => {
     const errors: FieldErrors = {};
@@ -90,9 +100,9 @@ export function RegisterPage() {
     const confirmPassword = confirmPasswordRef.current?.value ?? '';
     const referralCode = referralCodeRef.current?.value?.trim() ?? '';
     const accountCountry = countryRef.current?.value ?? '';
-    const terms = termsRef.current?.checked ?? false;
-    const disclaimer = disclaimerRef.current?.checked ?? false;
-    const privacy = privacyRef.current?.checked ?? false;
+    const terms = isCheckboxChecked(termsRef);
+    const disclaimer = isCheckboxChecked(disclaimerRef);
+    const privacy = isCheckboxChecked(privacyRef);
 
     // Email
     if (!email) {
@@ -230,10 +240,13 @@ export function RegisterPage() {
             }
 
             // Generic bad request
+            const genericMsg = Array.isArray(body.message)
+              ? (body.message[0] ?? t('auth.somethingWentWrong'))
+              : (body.message ?? t('auth.somethingWentWrong'));
             setState({
               kind: 'error',
               fieldErrors: {},
-              globalError: body.message ?? t('auth.somethingWentWrong'),
+              globalError: genericMsg,
               errorTitle: error.body.code ?? t('common.error'),
             });
             return;
@@ -250,10 +263,13 @@ export function RegisterPage() {
           }
 
           // Other errors
+          const otherMsg = Array.isArray(error.body.message)
+            ? (error.body.message[0] ?? t('auth.somethingWentWrong'))
+            : (error.body.message ?? t('auth.somethingWentWrong'));
           setState({
             kind: 'error',
             fieldErrors: {},
-            globalError: error.body.message ?? t('auth.somethingWentWrong'),
+            globalError: otherMsg,
             errorTitle: error.body.code ?? t('common.error'),
           });
           return;
@@ -418,14 +434,15 @@ export function RegisterPage() {
           htmlFor="register-terms"
           error={state.fieldErrors.terms}
         >
-          <Checkbox
-            ref={termsRef}
-            id="register-terms"
-            label={t('auth.termsLabel')}
-            error={!!state.fieldErrors.terms}
-            disabled={isSubmitting}
-            required
-          />
+          <div ref={termsRef}>
+            <Checkbox
+              id="register-terms"
+              label={t('auth.termsLabel')}
+              error={!!state.fieldErrors.terms}
+              disabled={isSubmitting}
+              required
+            />
+          </div>
         </FormField>
 
         <FormField
@@ -433,14 +450,15 @@ export function RegisterPage() {
           htmlFor="register-disclaimer"
           error={state.fieldErrors.disclaimer}
         >
-          <Checkbox
-            ref={disclaimerRef}
-            id="register-disclaimer"
-            label={t('auth.disclaimerLabel')}
-            error={!!state.fieldErrors.disclaimer}
-            disabled={isSubmitting}
-            required
-          />
+          <div ref={disclaimerRef}>
+            <Checkbox
+              id="register-disclaimer"
+              label={t('auth.disclaimerLabel')}
+              error={!!state.fieldErrors.disclaimer}
+              disabled={isSubmitting}
+              required
+            />
+          </div>
         </FormField>
 
         <FormField
@@ -448,14 +466,15 @@ export function RegisterPage() {
           htmlFor="register-privacy"
           error={state.fieldErrors.privacy}
         >
-          <Checkbox
-            ref={privacyRef}
-            id="register-privacy"
-            label={t('auth.privacyLabel')}
-            error={!!state.fieldErrors.privacy}
-            disabled={isSubmitting}
-            required
-          />
+          <div ref={privacyRef}>
+            <Checkbox
+              id="register-privacy"
+              label={t('auth.privacyLabel')}
+              error={!!state.fieldErrors.privacy}
+              disabled={isSubmitting}
+              required
+            />
+          </div>
         </FormField>
 
         {/* Submit */}

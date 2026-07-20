@@ -3,6 +3,8 @@ import { initReactI18next } from 'react-i18next';
 import enTranslations from './locales/en/translation.json';
 import zhTranslations from './locales/zh/translation.json';
 
+const SUPPORTED_LOCALES = ['en', 'zh'] as const;
+
 type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 function detectLocale(): SupportedLocale {

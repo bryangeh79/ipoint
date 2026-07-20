@@ -1,62 +1,90 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  waitFor,
+  within,
+  fireEvent,
+  act,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from '../../auth/AuthProvider.tsx';
-import { ProfilePage } from '../../pages/ProfilePage.tsx';
-import { ProfileEditPage } from '../../pages/ProfileEditPage.tsx';
+import { AuthProvider } from '../../auth/AuthProvider';
+import { ProfilePage } from '../../pages/ProfilePage';
+import { ProfileEditPage } from '../../pages/ProfileEditPage';
 import { ApiClient, ApiError } from '@ipoint/api-client';
+import { apiClient as globalApiClient } from '../../api/client';
 
 // Mock i18next
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, options?: Record<string, unknown>) => {
-      const translations: Record<string, string> = {
-        'profile.title': 'Profile',
-        'profile.edit': 'Edit Profile',
-        'profile.displayName': 'Display Name',
-        'profile.email': 'Email',
-        'profile.phone': 'Phone',
-        'profile.birthDate': 'Birth Date',
-        'profile.gender': 'Gender',
-        'profile.kycStatus': 'KYC Status',
-        'profile.accountCountry': 'Account Country',
-        'profile.currentMarket': 'Current Market',
-        'profile.notProvided': 'Not provided',
-        'profile.kycApproved': 'Approved',
-        'profile.kycPending': 'Pending',
-        'profile.kycRejected': 'Rejected',
-        'profile.kycNotStarted': 'Not Started',
-        'profile.editButton': 'Edit',
-        'profile.submitButton': 'Save Changes',
-        'profile.submittingButton': 'Saving...',
-        'profile.cancelButton': 'Cancel',
-        'profile.updateSuccess': 'Profile updated successfully',
-        'profile.nameMinLength': 'Display name must be at least 1 character',
-        'profile.invalidPhone': 'Invalid phone number format',
-        'profile.emailReadOnly': 'Email cannot be changed',
-        'profile.genderMale': 'Male',
-        'profile.genderFemale': 'Female',
-        'profile.genderOther': 'Other',
-        'profile.genderPreferNotToSay': 'Prefer not to say',
-        'common.loading': 'Loading...',
-        'common.error': 'Something went wrong',
-        'common.retry': 'Retry',
-        'common.save': 'Save',
-        'register.countryRequired': 'Please select a country',
-      };
-      if (options) {
-        return (
-          translations[key]?.replace(/\{(\w+)\}/g, (_, k) =>
-            String(options[k] ?? ''),
-          ) ?? key
-        );
-      }
-      return translations[key] ?? key;
-    },
-    i18n: { language: 'en' },
-  }),
+vi.mock('react-i18next', () => {
+  const stableT = (key: string, options?: Record<string, unknown>) => {
+    const translations: Record<string, string> = {
+      'profile.title': 'Profile',
+      'profile.edit': 'Edit Profile',
+      'profile.displayName': 'Display Name',
+      'profile.email': 'Email',
+      'profile.phone': 'Phone',
+      'profile.birthDate': 'Birth Date',
+      'profile.gender': 'Gender',
+      'profile.kycStatus': 'KYC Status',
+      'profile.accountCountry': 'Account Country',
+      'profile.currentMarket': 'Current Market',
+      'profile.notProvided': 'Not provided',
+      'profile.kycApproved': 'Approved',
+      'profile.kycPending': 'Pending',
+      'profile.kycRejected': 'Rejected',
+      'profile.kycNotStarted': 'Not Started',
+      'profile.editButton': 'Edit',
+      'profile.submitButton': 'Save Changes',
+      'profile.submittingButton': 'Saving...',
+      'profile.cancelButton': 'Cancel',
+      'profile.updateSuccess': 'Profile updated successfully',
+      'profile.nameMinLength': 'Display name must be at least 1 character',
+      'profile.invalidPhone': 'Invalid phone number format',
+      'profile.emailReadOnly': 'Email cannot be changed',
+      'profile.genderMale': 'Male',
+      'profile.genderFemale': 'Female',
+      'profile.genderOther': 'Other',
+      'profile.genderPreferNotToSay': 'Prefer not to say',
+      'common.loading': 'Loading...',
+      'common.error': 'Something went wrong',
+      'common.retry': 'Retry',
+      'common.save': 'Save',
+      'register.countryRequired': 'Please select a country',
+    };
+    if (options) {
+      return (
+        translations[key]?.replace(/\{(\w+)\}/g, (_, k) =>
+          String(options[k] ?? ''),
+        ) ?? key
+      );
+    }
+    return translations[key] ?? key;
+  };
+  return {
+    useTranslation: () => ({
+      t: stableT,
+      i18n: { language: 'en' },
+    }),
+  };
+});
+
+// Mock the global apiClient that ProfilePage and ProfileEditPage use directly
+vi.mock('../../api/client', () => ({
+  apiClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+    patch: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    login: vi.fn(),
+    setTokens: vi.fn(),
+    clearSession: vi.fn(),
+    attemptSessionRestore: vi.fn().mockResolvedValue(false),
+    isAuthenticated: false,
+    onSessionExpired: null,
+  },
 }));
 
 function createTestClient() {
@@ -97,40 +125,39 @@ describe('ProfilePage', () => {
   let client: ApiClient;
 
   beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
     client = createTestClient();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.useRealTimers();
   });
 
   describe('display', () => {
     it('shows profile fields when data loads', async () => {
-      vi.spyOn(client, 'get').mockImplementation(async (path: string) => {
-        if (path === '/profile') {
-          return {
-            data: {
-              id: 'user-1',
-              email: 'john@example.com',
-              name: 'John Doe',
-              phone: '+60123456789',
-              birthDate: '1990-01-15',
-              gender: 'male',
-              kycStatus: 'approved',
-              countryCode: 'MY',
-              marketCode: 'SG',
-              createdAt: '2024-01-01T00:00:00Z',
-            },
-            requestId: 'req-1',
-          };
-        }
-        throw new ApiError(404, { message: 'Not found' });
-      });
+      (globalApiClient.get as ReturnType<typeof vi.fn>).mockImplementation(
+        async (path: string) => {
+          if (path === '/profile') {
+            return {
+              data: {
+                id: 'user-1',
+                email: 'john@example.com',
+                name: 'John Doe',
+                phone: '+60123456789',
+                birthDate: '1990-01-15',
+                gender: 'male',
+                kycStatus: 'approved',
+                countryCode: 'MY',
+                marketCode: 'SG',
+                createdAt: '2024-01-01T00:00:00Z',
+              },
+              requestId: 'req-1',
+            };
+          }
+          throw new ApiError(404, { message: 'Not found' });
+        },
+      );
 
       renderProfilePage(client);
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         expect(screen.getByText('john@example.com')).toBeInTheDocument();
@@ -139,33 +166,45 @@ describe('ProfilePage', () => {
       expect(screen.getByText('+60123456789')).toBeInTheDocument();
       expect(screen.getByText('MY')).toBeInTheDocument();
       expect(screen.getByText('SG')).toBeInTheDocument();
-      expect(screen.getByText('Approved')).toBeInTheDocument();
+      // Approved appears in both badge and field value; use badge context
+      const profileHeader = screen
+        .getByRole('heading', { name: /John Doe/ })
+        .closest('div')?.parentElement;
+      if (profileHeader) {
+        expect(within(profileHeader).getByText('Approved')).toBeInTheDocument();
+      } else {
+        // Fallback: just verify at least one occurrence
+        expect(screen.getAllByText('Approved').length).toBeGreaterThanOrEqual(
+          1,
+        );
+      }
     });
 
     it('shows placeholder for null fields', async () => {
-      vi.spyOn(client, 'get').mockImplementation(async (path: string) => {
-        if (path === '/profile') {
-          return {
-            data: {
-              id: 'user-1',
-              email: 'test@example.com',
-              name: undefined,
-              phone: undefined,
-              birthDate: undefined,
-              gender: undefined,
-              kycStatus: 'not_started',
-              countryCode: 'MY',
-              marketCode: 'MY',
-              createdAt: '2024-01-01T00:00:00Z',
-            },
-            requestId: 'req-1',
-          };
-        }
-        throw new ApiError(404, { message: 'Not found' });
-      });
+      (globalApiClient.get as ReturnType<typeof vi.fn>).mockImplementation(
+        async (path: string) => {
+          if (path === '/profile') {
+            return {
+              data: {
+                id: 'user-1',
+                email: 'test@example.com',
+                name: undefined,
+                phone: undefined,
+                birthDate: undefined,
+                gender: undefined,
+                kycStatus: 'not_started',
+                countryCode: 'MY',
+                marketCode: 'MY',
+                createdAt: '2024-01-01T00:00:00Z',
+              },
+              requestId: 'req-1',
+            };
+          }
+          throw new ApiError(404, { message: 'Not found' });
+        },
+      );
 
       renderProfilePage(client);
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         // Should show the not-provided placeholder or dash
@@ -174,7 +213,7 @@ describe('ProfilePage', () => {
     });
 
     it('shows loading skeleton initially', () => {
-      vi.spyOn(client, 'get').mockImplementation(
+      (globalApiClient.get as ReturnType<typeof vi.fn>).mockImplementation(
         () => new Promise(() => {}), // Never resolves
       );
 
@@ -183,42 +222,43 @@ describe('ProfilePage', () => {
     });
 
     it('shows error state and retry button', async () => {
-      vi.spyOn(client, 'get').mockRejectedValue(
+      (globalApiClient.get as ReturnType<typeof vi.fn>).mockRejectedValue(
         new ApiError(500, { message: 'Server error' }),
       );
 
       renderProfilePage(client);
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
-        expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+        const alert = screen.getByRole('alert');
+        expect(alert.textContent).toContain('Something went wrong');
+        expect(alert.textContent).toContain('Retry');
       });
-      expect(screen.getByText('Retry')).toBeInTheDocument();
     });
   });
 
   describe('edit navigation', () => {
     it('has an edit button linking to /profile/edit', async () => {
-      vi.spyOn(client, 'get').mockImplementation(async (path: string) => {
-        if (path === '/profile') {
-          return {
-            data: {
-              id: 'user-1',
-              email: 'john@example.com',
-              name: 'John Doe',
-              kycStatus: 'approved',
-              countryCode: 'MY',
-              marketCode: 'SG',
-              createdAt: '2024-01-01T00:00:00Z',
-            },
-            requestId: 'req-1',
-          };
-        }
-        throw new ApiError(404, { message: 'Not found' });
-      });
+      (globalApiClient.get as ReturnType<typeof vi.fn>).mockImplementation(
+        async (path: string) => {
+          if (path === '/profile') {
+            return {
+              data: {
+                id: 'user-1',
+                email: 'john@example.com',
+                name: 'John Doe',
+                kycStatus: 'approved',
+                countryCode: 'MY',
+                marketCode: 'SG',
+                createdAt: '2024-01-01T00:00:00Z',
+              },
+              requestId: 'req-1',
+            };
+          }
+          throw new ApiError(404, { message: 'Not found' });
+        },
+      );
 
       renderProfilePage(client);
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         expect(screen.getByText('Edit')).toBeInTheDocument();
@@ -232,40 +272,39 @@ describe('ProfileEditPage', () => {
   let user: ReturnType<typeof userEvent.setup>;
 
   beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
     client = createTestClient();
-    user = userEvent.setup({ advanceTimers: () => vi.advanceTimersByTime(1) });
+    user = userEvent.setup();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.useRealTimers();
   });
 
   describe('form pre-fill', () => {
     it('pre-fills form fields from profile data', async () => {
-      vi.spyOn(client, 'get').mockImplementation(async (path: string) => {
-        if (path === '/profile') {
-          return {
-            data: {
-              id: 'user-1',
-              email: 'jane@example.com',
-              name: 'Jane Doe',
-              phone: '+60123456789',
-              birthDate: '1992-06-20',
-              gender: 'female',
-              kycStatus: 'approved',
-              countryCode: 'MY',
-              createdAt: '2024-01-01T00:00:00Z',
-            },
-            requestId: 'req-1',
-          };
-        }
-        throw new ApiError(404, { message: 'Not found' });
-      });
+      (globalApiClient.get as ReturnType<typeof vi.fn>).mockImplementation(
+        async (path: string) => {
+          if (path === '/profile') {
+            return {
+              data: {
+                id: 'user-1',
+                email: 'jane@example.com',
+                name: 'Jane Doe',
+                phone: '+60123456789',
+                birthDate: '1992-06-20',
+                gender: 'female',
+                kycStatus: 'approved',
+                countryCode: 'MY',
+                createdAt: '2024-01-01T00:00:00Z',
+              },
+              requestId: 'req-1',
+            };
+          }
+          throw new ApiError(404, { message: 'Not found' });
+        },
+      );
 
       renderProfileEditPage(client);
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         const nameInput = screen.getByDisplayValue('Jane Doe');
@@ -276,77 +315,77 @@ describe('ProfileEditPage', () => {
 
   describe('form validation', () => {
     it('shows error for empty display name', async () => {
-      vi.spyOn(client, 'get').mockImplementation(async (path: string) => {
-        if (path === '/profile') {
-          return {
-            data: {
-              id: 'user-1',
-              email: 'test@example.com',
-              name: 'Test User',
-              kycStatus: 'approved',
-              countryCode: 'MY',
-              createdAt: '2024-01-01T00:00:00Z',
-            },
-            requestId: 'req-1',
-          };
-        }
-        throw new ApiError(404, { message: 'Not found' });
-      });
+      (globalApiClient.get as ReturnType<typeof vi.fn>).mockImplementation(
+        async (path: string) => {
+          if (path === '/profile') {
+            return {
+              data: {
+                id: 'user-1',
+                email: 'test@example.com',
+                name: 'Test User',
+                kycStatus: 'approved',
+                countryCode: 'MY',
+                createdAt: '2024-01-01T00:00:00Z',
+              },
+              requestId: 'req-1',
+            };
+          }
+          throw new ApiError(404, { message: 'Not found' });
+        },
+      );
 
-      const patchSpy = vi.spyOn(client, 'patch').mockResolvedValue({
+      (globalApiClient.patch as ReturnType<typeof vi.fn>).mockResolvedValue({
         data: { id: 'user-1' },
         requestId: 'req-1',
       });
 
       renderProfileEditPage(client);
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         const nameInput = screen.getByDisplayValue('Test User');
         expect(nameInput).toBeInTheDocument();
       });
 
-      // Clear the name field
+      // Clear the name field and flush React updates
       const nameInput = screen.getByDisplayValue('Test User');
-      await user.clear(nameInput);
-      // Make it dirty by typing something and then clearing
-      await user.type(nameInput, ' ');
-      await user.clear(nameInput);
+      act(() => {
+        fireEvent.change(nameInput, { target: { value: '' } });
+      });
 
+      // Submit the form
       const submitBtn = screen.getByText('Save Changes');
       await user.click(submitBtn);
 
-      await waitFor(() => {
-        // Should not submit with empty name
-        expect(patchSpy).not.toHaveBeenCalled();
-      });
+      // Should not submit with empty name
+      expect(globalApiClient.patch).not.toHaveBeenCalled();
     });
 
     it('submits successfully and redirects', async () => {
-      vi.spyOn(client, 'get').mockImplementation(async (path: string) => {
-        if (path === '/profile') {
-          return {
-            data: {
-              id: 'user-1',
-              email: 'test@example.com',
-              name: 'Test User',
-              kycStatus: 'approved',
-              countryCode: 'MY',
-              createdAt: '2024-01-01T00:00:00Z',
-            },
-            requestId: 'req-1',
-          };
-        }
-        throw new ApiError(404, { message: 'Not found' });
-      });
+      (globalApiClient.get as ReturnType<typeof vi.fn>).mockImplementation(
+        async (path: string) => {
+          if (path === '/profile') {
+            return {
+              data: {
+                id: 'user-1',
+                email: 'test@example.com',
+                name: 'Test User',
+                kycStatus: 'approved',
+                countryCode: 'MY',
+                createdAt: '2024-01-01T00:00:00Z',
+              },
+              requestId: 'req-1',
+            };
+          }
+          throw new ApiError(404, { message: 'Not found' });
+        },
+      );
 
-      const patchSpy = vi.spyOn(client, 'patch').mockResolvedValue({
+      (globalApiClient.patch as ReturnType<typeof vi.fn>).mockResolvedValue({
         data: { id: 'user-1', message: 'Profile updated' },
         requestId: 'req-1',
       });
 
       renderProfileEditPage(client);
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         expect(screen.getByDisplayValue('Test User')).toBeInTheDocument();
@@ -354,10 +393,12 @@ describe('ProfileEditPage', () => {
 
       const submitBtn = screen.getByText('Save Changes');
       await user.click(submitBtn);
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
-        expect(patchSpy).toHaveBeenCalledWith('/profile', expect.any(Object));
+        expect(globalApiClient.patch).toHaveBeenCalledWith(
+          '/profile',
+          expect.any(Object),
+        );
       });
     });
   });

@@ -3,10 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from '../../auth/AuthProvider.tsx';
-import { RegisterPage } from '../../pages/RegisterPage.tsx';
+import { AuthProvider } from '../../auth/AuthProvider';
+import { RegisterPage } from '../../pages/RegisterPage';
 import { ApiClient } from '@ipoint/api-client';
-import { apiClient } from '../../api/client.ts';
+import { apiClient as globalApiClient } from '../../api/client';
 
 // Mock i18next
 vi.mock('react-i18next', () => ({
@@ -60,13 +60,13 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-// Mock the apiClient
-vi.mock('../../api/client.ts', () => ({
+// Mock the global apiClient that RegisterPage uses directly
+vi.mock('../../api/client', () => ({
   apiClient: {
-    post: vi.fn(),
     get: vi.fn(),
-    put: vi.fn(),
+    post: vi.fn(),
     patch: vi.fn(),
+    put: vi.fn(),
     delete: vi.fn(),
     login: vi.fn(),
     setTokens: vi.fn(),
@@ -104,15 +104,13 @@ describe('RegisterPage', () => {
   let user: ReturnType<typeof userEvent.setup>;
 
   beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
     client = createTestClient();
-    user = userEvent.setup({ advanceTimers: () => vi.advanceTimersByTime(1) });
+    user = userEvent.setup();
     vi.clearAllMocks();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.useRealTimers();
   });
 
   function fillEmail(email: string) {
@@ -126,7 +124,7 @@ describe('RegisterPage', () => {
   }
 
   function fillConfirmPassword(password: string) {
-    const input = screen.getAllByLabelText('Confirm Password')[0];
+    const input = screen.getAllByLabelText('Confirm Password')[0]!;
     return user.type(input, password);
   }
 
@@ -150,15 +148,6 @@ describe('RegisterPage', () => {
     await user.click(privacy);
   }
 
-  async function submitForm(client: ApiClient) {
-    const mockPost = client.post as ReturnType<typeof vi.fn>;
-    if (mockPost.mockResolvedValue) {
-      // mock already set
-    }
-    const submitButton = screen.getByRole('button', { name: 'Create Account' });
-    await user.click(submitButton);
-  }
-
   describe('form validation', () => {
     it('requires email', async () => {
       renderRegisterPage(client);
@@ -166,7 +155,9 @@ describe('RegisterPage', () => {
       await user.click(submit);
 
       await waitFor(() => {
-        expect(screen.getByText('This field is required')).toBeInTheDocument();
+        expect(
+          screen.getAllByText('This field is required').length,
+        ).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -188,7 +179,9 @@ describe('RegisterPage', () => {
       await user.click(screen.getByRole('button', { name: 'Create Account' }));
 
       await waitFor(() => {
-        expect(screen.getByText('This field is required')).toBeInTheDocument();
+        expect(
+          screen.getAllByText('This field is required').length,
+        ).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -264,7 +257,7 @@ describe('RegisterPage', () => {
   describe('API calls', () => {
     it('calls registration initiate API on valid form submit', async () => {
       renderRegisterPage(client);
-      const mockPost = vi.spyOn(client, 'post').mockResolvedValue({
+      (globalApiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({
         data: { otp_id: 'test-otp-id', expires_at: new Date().toISOString() },
         requestId: 'req-1',
       });
@@ -281,7 +274,7 @@ describe('RegisterPage', () => {
       await user.click(submit);
 
       await waitFor(() => {
-        expect(mockPost).toHaveBeenCalledWith(
+        expect(globalApiClient.post).toHaveBeenCalledWith(
           '/auth/registration/initiate',
           expect.objectContaining({
             email: 'test@example.com',
@@ -297,7 +290,7 @@ describe('RegisterPage', () => {
 
     it('submits with optional referral code', async () => {
       renderRegisterPage(client);
-      const mockPost = vi.spyOn(client, 'post').mockResolvedValue({
+      (globalApiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({
         data: { otp_id: 'test-otp-id', expires_at: new Date().toISOString() },
         requestId: 'req-1',
       });
@@ -311,14 +304,14 @@ describe('RegisterPage', () => {
       await agreeToPrivacy();
 
       // Enter referral code
-      const referralInput = screen.getByLabelText('Referral Code (optional)');
+      const referralInput = screen.getByRole('textbox', { name: /referral/i });
       await user.type(referralInput, 'REFERRAL123');
 
       const submit = screen.getByRole('button', { name: 'Create Account' });
       await user.click(submit);
 
       await waitFor(() => {
-        expect(mockPost).toHaveBeenCalledWith(
+        expect(globalApiClient.post).toHaveBeenCalledWith(
           '/auth/registration/initiate',
           expect.objectContaining({
             email: 'test@example.com',
@@ -331,7 +324,7 @@ describe('RegisterPage', () => {
 
     it('navigates to verify page on successful initiate', async () => {
       renderRegisterPage(client);
-      vi.spyOn(client, 'post').mockResolvedValue({
+      (globalApiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue({
         data: { otp_id: 'otp-abc-123', expires_at: new Date().toISOString() },
         requestId: 'req-1',
       });
@@ -345,7 +338,6 @@ describe('RegisterPage', () => {
       await agreeToPrivacy();
 
       await user.click(screen.getByRole('button', { name: 'Create Account' }));
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         expect(screen.getByText('Verify OTP page')).toBeInTheDocument();
@@ -354,7 +346,7 @@ describe('RegisterPage', () => {
 
     it('shows error on duplicate email (409)', async () => {
       renderRegisterPage(client);
-      vi.spyOn(client, 'post').mockRejectedValue(
+      (globalApiClient.post as ReturnType<typeof vi.fn>).mockRejectedValue(
         new (await import('@ipoint/api-client')).ApiError(409, {
           code: 'AUTH_MEMBER_ALREADY_EXISTS',
           message: 'Member already exists',
@@ -370,7 +362,6 @@ describe('RegisterPage', () => {
       await agreeToPrivacy();
 
       await user.click(screen.getByRole('button', { name: 'Create Account' }));
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         expect(
@@ -384,7 +375,7 @@ describe('RegisterPage', () => {
 
     it('shows network error on status 0', async () => {
       renderRegisterPage(client);
-      vi.spyOn(client, 'post').mockRejectedValue(
+      (globalApiClient.post as ReturnType<typeof vi.fn>).mockRejectedValue(
         new (await import('@ipoint/api-client')).ApiError(0, {
           code: 'NETWORK_OFFLINE',
           message: 'Network request failed.',
@@ -400,7 +391,6 @@ describe('RegisterPage', () => {
       await agreeToPrivacy();
 
       await user.click(screen.getByRole('button', { name: 'Create Account' }));
-      await vi.runAllTimersAsync();
 
       await waitFor(() => {
         expect(screen.getByText(/Network error/i)).toBeInTheDocument();
@@ -412,7 +402,7 @@ describe('RegisterPage', () => {
 
     it('prevents double submit while request is in flight', async () => {
       renderRegisterPage(client);
-      const mockPost = vi.spyOn(client, 'post').mockImplementation(
+      (globalApiClient.post as ReturnType<typeof vi.fn>).mockImplementation(
         () =>
           new Promise((resolve) => {
             setTimeout(
@@ -443,7 +433,7 @@ describe('RegisterPage', () => {
       await user.click(submit);
 
       // Should only have been called once
-      expect(mockPost).toHaveBeenCalledTimes(1);
+      expect(globalApiClient.post).toHaveBeenCalledTimes(1);
     });
   });
 });

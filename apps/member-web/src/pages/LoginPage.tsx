@@ -3,10 +3,10 @@ import { useNavigate, useSearchParams, Navigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Input, FormField, Alert } from '@ipoint/ui';
 import { ApiError } from '@ipoint/api-client';
-import { isValidEmail } from '../utils/validation.ts';
-import { validateReturnUrl } from '../utils/url.ts';
-import { useAuth } from '../auth/useAuth.ts';
-import { PublicLayout } from '../layouts/PublicLayout.tsx';
+import { isValidEmail } from '../utils/validation';
+import { validateReturnUrl } from '../utils/url';
+import { useAuth } from '../auth/useAuth';
+import { PublicLayout } from '../layouts/PublicLayout';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -102,7 +102,9 @@ export function LoginPage() {
       } catch (error: unknown) {
         if (error instanceof ApiError) {
           const code = error.body.code;
-          const message = error.body.message;
+          const message = Array.isArray(error.body.message)
+            ? (error.body.message[0] ?? null)
+            : error.body.message;
 
           // Don't reveal which field is wrong — unified error
           if (code === 'AUTH_INVALID_CREDENTIALS') {

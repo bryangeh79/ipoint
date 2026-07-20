@@ -2,8 +2,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { AuthProvider } from '../../auth/AuthProvider.tsx';
-import { useAuth } from '../../auth/useAuth.ts';
+import { AuthProvider } from '../../auth/AuthProvider';
+import { useAuth } from '../../auth/useAuth';
 import { ApiClient } from '@ipoint/api-client';
 
 // Create a test client that doesn't actually make network requests
@@ -38,19 +38,18 @@ describe('AuthProvider', () => {
   let client: ApiClient;
 
   beforeEach(() => {
-    vi.useFakeTimers();
-    client = createTestClient();
+    // Prevent live fetch calls by default
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ message: 'Unauthorized' }), {
         status: 401,
         headers: { 'content-type': 'application/json' },
       }),
     );
+    client = createTestClient();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.useRealTimers();
   });
 
   it('starts in loading state when autoRestore is true', () => {
@@ -65,20 +64,6 @@ describe('AuthProvider', () => {
   });
 
   it('attempts session restore on mount with autoRestore', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          accessToken: 'fresh-token',
-          accessExpiresAt: new Date(Date.now() + 3600000).toISOString(),
-        }),
-        {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        },
-      ),
-    );
-
-    // Second call (members/me) — we need the mock to return different things
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     fetchSpy
       .mockResolvedValueOnce(
@@ -103,7 +88,6 @@ describe('AuthProvider', () => {
       );
 
     renderWithAuth(client, true);
-    await vi.runAllTimersAsync();
 
     await waitFor(() => {
       expect(screen.getByTestId('loading').textContent).toBe('false');
