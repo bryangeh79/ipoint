@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../../auth/AuthProvider';
 import { ProtectedRoute } from '../../auth/ProtectedRoute';
@@ -15,9 +15,12 @@ describe('ProtectedRoute', () => {
 
   beforeEach(() => {
     client = createTestClient();
+    // Prevent session-cleared events from leaking React state updates
+    vi.spyOn(window, 'dispatchEvent').mockReturnValue(true);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await act(async () => {});
     vi.restoreAllMocks();
   });
 
@@ -136,6 +139,9 @@ describe('ProtectedRoute', () => {
       expect(screen.getByText('Home page')).toBeInTheDocument();
     });
     expect(screen.queryByText('Login page')).not.toBeInTheDocument();
+
+    // Flush remaining state updates from AuthProvider session restore
+    await act(async () => {});
   });
 
   it('includes returnUrl when redirecting to login', async () => {

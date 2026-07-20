@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../../auth/AuthProvider';
 import { useAuth } from '../../auth/useAuth';
@@ -46,15 +46,19 @@ describe('AuthProvider', () => {
       }),
     );
     client = createTestClient();
+    vi.spyOn(window, 'dispatchEvent').mockReturnValue(true);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await act(async () => {});
     vi.restoreAllMocks();
   });
 
-  it('starts in loading state when autoRestore is true', () => {
+  it('starts in loading state when autoRestore is true', async () => {
     renderWithAuth(client, true);
     expect(screen.getByTestId('loading').textContent).toBe('true');
+    // Flush pending session restore effect
+    await act(async () => {});
   });
 
   it('is not loading when autoRestore is false', () => {
