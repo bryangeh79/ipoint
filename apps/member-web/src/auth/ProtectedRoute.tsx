@@ -1,4 +1,5 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './useAuth';
 import { Spinner } from '@ipoint/ui';
 import { validateReturnUrl } from '../utils/url';
@@ -21,6 +22,26 @@ export function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Guest-only pages — redirect to home via effect to avoid concurrent render
+  useEffect(() => {
+    if (!isLoading && requireGuest && isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isLoading, requireGuest, isAuthenticated, navigate]);
+
+  // Protected pages — redirect to login via effect
+  useEffect(() => {
+    if (!isLoading && !requireGuest && !isAuthenticated) {
+      const rawReturnUrl = location.pathname + location.search;
+      const validatedReturnUrl = validateReturnUrl(rawReturnUrl);
+      const redirectTo = validatedReturnUrl
+        ? `/login?returnUrl=${encodeURIComponent(validatedReturnUrl)}`
+        : '/login';
+      navigate(redirectTo, { replace: true });
+    }
+  }, [isLoading, requireGuest, isAuthenticated, location, navigate]);
 
   if (isLoading) {
     return (
@@ -37,19 +58,12 @@ export function ProtectedRoute({
     );
   }
 
-  // Guest-only pages (login, register) — redirect to home if already logged in
-  if (requireGuest && isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
-  // Protected pages — redirect to login if not authenticated
-  if (!requireGuest && !isAuthenticated) {
-    const rawReturnUrl = location.pathname + location.search;
-    const validatedReturnUrl = validateReturnUrl(rawReturnUrl);
-    const redirectTo = validatedReturnUrl
-      ? `/login?returnUrl=${encodeURIComponent(validatedReturnUrl)}`
-      : '/login';
-    return <Navigate to={redirectTo} replace />;
+  // While redirecting (via effect), render nothing to avoid content flash
+  if (
+    (requireGuest && isAuthenticated) ||
+    (!requireGuest && !isAuthenticated)
+  ) {
+    return null;
   }
 
   return <>{children}</>;

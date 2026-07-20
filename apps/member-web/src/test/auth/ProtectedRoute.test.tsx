@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { waitFor } from '@testing-library/react';
 import { AuthProvider } from '../../auth/AuthProvider';
 import { ProtectedRoute } from '../../auth/ProtectedRoute';
 import { ApiClient } from '@ipoint/api-client';
@@ -135,13 +136,10 @@ describe('ProtectedRoute', () => {
     );
 
     // Wait for auth to resolve (refresh + profile fetch with mock responses)
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(screen.getByText('Home page')).toBeInTheDocument();
     });
     expect(screen.queryByText('Login page')).not.toBeInTheDocument();
-
-    // Flush remaining state updates from AuthProvider session restore
-    await act(async () => {});
   });
 
   it('includes returnUrl when redirecting to login', async () => {

@@ -258,7 +258,9 @@ export class ApiClient {
     private readonly baseUrl: string,
     /** @deprecated Optional storage key — only kept for backward compatibility */
     _storageKey?: string,
-  ) {}
+  ) {
+    void _storageKey;
+  }
 
   /* ---- token management ---- */
 
@@ -273,15 +275,14 @@ export class ApiClient {
       accessToken: this._accessToken,
       refreshToken: this._refreshToken ?? undefined,
       accessExpiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-      refreshExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      refreshExpiresAt: new Date(
+        Date.now() + 7 * 24 * 60 * 60 * 1000,
+      ).toISOString(),
     };
   }
 
   /** Backward-compatible public request method used by admin-web and merchant-web. */
-  async request<T>(
-    path: string,
-    options: ApiRequestOptions = {},
-  ): Promise<T> {
+  async request<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
     const method = (options.method ?? 'GET').toUpperCase() as HttpMethod;
     const response = await this.executeRequest<T>(
       method,
