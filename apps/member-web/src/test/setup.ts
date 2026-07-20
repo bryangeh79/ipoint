@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, waitFor } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
+  // Wait for React 19 dev mode to settle pending effects from unmount
+  try {
+    await waitFor(() => {}, { timeout: 100, interval: 10 });
+  } catch {
+    // waitFor timeout is expected if no pending state updates
+  }
 });
 
 // Mock matchMedia for responsive tests

@@ -42,3 +42,6 @@ scripts/p1-s4-task.md
 
 # Session memory files
 memory/
+
+# npm global install directory (local tooling)
+.npm-global/

@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import {
+  act,
   render,
   type RenderOptions,
   type RenderResult,
@@ -38,6 +39,14 @@ export function renderWithProviders(
   }
 
   return render(ui, { wrapper: Wrapper, ...renderOptions });
+}
+
+/**
+ * Flush all pending React state updates.
+ * Call after test assertions to prevent act warnings from async effects.
+ */
+export async function flushReactUpdates(): Promise<void> {
+  await act(async () => {});
 }
 
 /**

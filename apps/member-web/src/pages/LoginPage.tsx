@@ -1,5 +1,11 @@
-import { useCallback, useRef, useState, type FormEvent } from 'react';
-import { useNavigate, useSearchParams, Navigate, Link } from 'react-router-dom';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Input, FormField, Alert } from '@ipoint/ui';
 import { ApiError } from '@ipoint/api-client';
@@ -41,10 +47,12 @@ export function LoginPage() {
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    return <Navigate to={returnUrl ?? '/'} replace />;
-  }
+  // Redirect if already authenticated (useEffect to avoid concurrent render hooks mismatch)
+  useEffect(() => {
+    if (isAuthenticated) {
+      void navigate(returnUrl ?? '/', { replace: true });
+    }
+  }, [isAuthenticated, navigate, returnUrl]);
 
   const validate = useCallback((): {
     email?: string;
