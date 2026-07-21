@@ -95,3 +95,65 @@ export interface PaginatedResponse<T> {
   pageSize: number;
   totalPages: number;
 }
+
+export interface MerchantCategorySummary {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface PublicMerchantPackage {
+  code: string;
+  name: string;
+  description?: string;
+  rate: string;
+  isDefault: boolean;
+}
+
+export type OpenNowStatus = 'OPEN' | 'CLOSED' | 'UNKNOWN';
+
+export interface MerchantListItem {
+  merchantId: string;
+  displayName: string;
+  branchName: string;
+  category: MerchantCategorySummary | null;
+  isOnline: boolean;
+  isOffline: boolean;
+  distance?: number;
+  openNow?: OpenNowStatus;
+  packages: PublicMerchantPackage[];
+}
+
+export interface MerchantDetailResponse extends MerchantListItem {
+  categories: MerchantCategorySummary[];
+  logoUrl: string | null;
+  bannerUrl: string | null;
+  aboutUs: string | null;
+  address: unknown;
+  businessHours: unknown;
+  phone: string | null;
+  email: string | null;
+  whatsapp: string | null;
+  website: string | null;
+  socialLinks: unknown;
+  gallery: Array<{ url: string; position: number }>;
+  coordinates: { latitude: number; longitude: number } | null;
+}
+
+export interface CategoryResponse {
+  id: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+}
+
+export interface MemberQrInfo {
+  memberId: string;
+  displayName: string | null;
+}
+
+export type GeolocationPermission =
+  | 'granted'
+  | 'denied'
+  | 'prompt'
+  | 'unavailable';
