@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../../auth/AuthProvider';
@@ -390,7 +390,9 @@ describe('KycForm — interaction', () => {
     await waitFor(() => {
       expect(screen.getByDisplayValue('John Doe')).toBeInTheDocument();
     });
-    screen.getByText('Save').click();
+    await act(async () => {
+      screen.getByText('Save').click();
+    });
     await waitFor(
       () => {
         expect(screen.getByText('Information saved')).toBeInTheDocument();

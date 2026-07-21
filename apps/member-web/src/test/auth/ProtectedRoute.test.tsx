@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { waitFor } from '@testing-library/react';
 import { AuthProvider } from '../../auth/AuthProvider';
 import { ProtectedRoute } from '../../auth/ProtectedRoute';
 import { ApiClient } from '@ipoint/api-client';
@@ -26,11 +25,12 @@ describe('ProtectedRoute', () => {
   });
 
   it('shows loading spinner when auth is loading', () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ message: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'content-type': 'application/json' },
-      }),
+    // Never-resolving fetch prevents autoRestore from finishing.
+    // This keeps isLoading=true so the spinner remains visible,
+    // and prevents MemoryRouter navigation that would trigger
+    // "not wrapped in act(...)" warnings from AuthProvider's useEffect.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => new Promise<Response>(() => {}),
     );
 
     render(
@@ -81,8 +81,8 @@ describe('ProtectedRoute', () => {
       </MemoryRouter>,
     );
 
-    // Wait for the auth state to settle - autoRestore=false means isLoading=false immediately
-    await vi.waitFor(() => {
+    // Wait for the auth state to settle using React-aware waitFor
+    await waitFor(() => {
       expect(screen.getByText('Login page')).toBeInTheDocument();
     });
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
@@ -117,23 +117,25 @@ describe('ProtectedRoute', () => {
         ),
       );
 
-    render(
-      <MemoryRouter initialEntries={['/login']}>
-        <AuthProvider apiClient={client} autoRestore>
-          <Routes>
-            <Route
-              path="/login"
-              element={
-                <ProtectedRoute requireGuest>
-                  <div>Login page</div>
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/" element={<div>Home page</div>} />
-          </Routes>
-        </AuthProvider>
-      </MemoryRouter>,
-    );
+    await act(async () => {
+      render(
+        <MemoryRouter initialEntries={['/login']}>
+          <AuthProvider apiClient={client} autoRestore>
+            <Routes>
+              <Route
+                path="/login"
+                element={
+                  <ProtectedRoute requireGuest>
+                    <div>Login page</div>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/" element={<div>Home page</div>} />
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>,
+      );
+    });
 
     // Wait for auth to resolve (refresh + profile fetch with mock responses)
     await waitFor(() => {
@@ -171,7 +173,7 @@ describe('ProtectedRoute', () => {
       </MemoryRouter>,
     );
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(screen.getByText('Login page with redirect')).toBeInTheDocument();
     });
   });

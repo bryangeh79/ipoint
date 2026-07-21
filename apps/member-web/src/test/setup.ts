@@ -1,16 +1,31 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { cleanup, waitFor } from '@testing-library/react';
+import { cleanup } from '@testing-library/react';
+import { act } from 'react';
 import { afterEach, vi } from 'vitest';
 
 afterEach(async () => {
-  cleanup();
-  // Wait for React 19 dev mode to settle pending effects from unmount
-  try {
-    await waitFor(() => {}, { timeout: 100, interval: 10 });
-  } catch {
-    // waitFor timeout is expected if no pending state updates
-  }
+  // Wrap cleanup in act to flush pending React 19 dev-mode effects,
+  // preventing "not wrapped in act(...)" warnings on stderr.
+  //
+  // First: flush all pending effects by wrapping cleanup in act.
+  await act(async () => {
+    cleanup();
+  });
+  // Second: drain any remaining scheduled microtasks (resolved promises,
+  // effect cleanup functions, AbortController callbacks, router nav).
+  await act(async () => {
+    // Empty act flushes remaining React work without touching the DOM.
+  });
+  // Third: one more microtask drain for any effects scheduled by the
+  // previous act's cleanup callbacks.
+  await act(async () => {
+    // eslint-disable-next-line no-empty
+  });
+  // Fourth: drain effects that may fire during the third act.
+  await act(async () => {
+    // eslint-disable-next-line no-empty
+  });
 });
 
 // Mock matchMedia for responsive tests
