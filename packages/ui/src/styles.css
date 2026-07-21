@@ -843,3 +843,117 @@
     justify-content: center;
   }
 }
+/* ===== P2-S9F: Responsive + Accessibility + Security Hardening ===== */
+
+/* Skip-to-content link (WCAG 2.1.1) */
+.ip-skip-link:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.ip-skip-link:focus {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10000;
+  padding: 0.5rem 1rem;
+  background: #20b366;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0 0 8px 0;
+}
+
+/* Visible focus ring (WCAG 2.4.7) */
+:focus-visible {
+  outline: 2px solid #20b366;
+  outline-offset: 2px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Touch targets >= 44px */
+.ip-button,
+.ip-icon-button,
+.ip-navigation a,
+.ip-bottom-navigation a,
+button,
+[role='button'],
+a:not(.ip-skip-link) {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 480px) {
+  .ip-page-container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  .ip-page-header h1 {
+    font-size: 1.25rem;
+  }
+  .ip-card {
+    padding: 0.75rem;
+  }
+  .ip-form-field input,
+  .ip-form-field select,
+  .ip-form-field textarea {
+    font-size: 16px;
+  }
+  .ip-bottom-navigation {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+@media (min-width: 768px) {
+  .ip-page-container {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .ip-card {
+    padding: 1.5rem;
+  }
+}
+@media (min-width: 1280px) {
+  .ip-page-container {
+    max-width: 1200px;
+  }
+}
+@supports (padding-top: env(safe-area-inset-top)) {
+  .ip-top-bar {
+    padding-top: env(safe-area-inset-top);
+  }
+  .ip-bottom-navigation {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+@media (max-height: 480px) and (orientation: landscape) {
+  .ip-page-header {
+    margin-bottom: 0.75rem;
+  }
+  .ip-page-header h1 {
+    font-size: 1.1rem;
+  }
+  .ip-card {
+    padding: 0.5rem;
+  }
+}
+body {
+  overflow-x: hidden;
+}
+@media (max-width: 480px) {
+  .ip-dialog {
+    width: calc(100% - 1rem);
+    max-height: 90vh;
+    margin: 0.5rem;
+    border-radius: 12px;
+  }
+}
