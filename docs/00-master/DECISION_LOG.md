@@ -318,6 +318,7 @@
 
 *— End of current entries. New decisions must be appended below —*
 
+
 ## D-025: P2-S3 retrospective closure final acceptance
 
 | Field | Value |
@@ -549,4 +550,23 @@
 - **Governance base SHA:** `f596aac0b20b713766f41320c25b88aaa64f6ef9`
 - **Phase 3:** NOT_AUTHORIZED
 - **Main PR / Main Merge:** NOT_AUTHORIZED
+
+---
+
+## D-027: Phase 2 Member Core and Multi-Market final acceptance
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-027 |
+| **Date** | 2026-07-21 |
+| **Source** | ChatGPT Command Center — Checkpoint 3 final acceptance |
+| **Old Rule** | Phase 2 IN PROGRESS; P2-S9 IN PROGRESS |
+| **New Decision** | Phase 2 Member Core & Multi-Market formally accepted. P2-S9 COMPLETE. Phase 2 COMPLETE. |
+| **Reason** | All P2-S9 sub-phases (A-F) approved. Checkpoint 3 phase sync verified. 271 tests passing. All pipelines exit 0. Security/PWA/Accessibility audits complete. |
+| **Affected Files** | docs/00-master/PHASE_REGISTRY.md, docs/00-master/DECISION_LOG.md |
+| **Affected Phases** | P2-S9, Phase 2 |
+| **Migration** | NONE |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | Checkpoint 3 final acceptance (2026-07-21) |
+| **Status** | **APPROVED** |
 

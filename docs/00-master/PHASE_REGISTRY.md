@@ -14,9 +14,9 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Work** | **P2-S9 MEMBER UI INTEGRATION, E2E AND FINAL ACCEPTANCE** | P2-S9 authorized under D-026 |
+| **Current Authorized Work** | **NONE — Phase 2 COMPLETE** | Phase 2 final acceptance under D-027. No Phase authorized beyond Phase 2. |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
-| **Phase 2** | **IN PROGRESS — P2-S9 ACTIVE — HOST PIPELINE BLOCKED** | P2-S1 through P2-S8 COMPLETE / APPROVED; P2-S9 authorized under D-026; LOCAL FIXES COMPLETE, HOST VERIFICATION PENDING under D-027 |
+| **Phase 2** | **COMPLETE** | Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027. P2-S1 through P2-S9 all COMPLETE / APPROVED. Phase 3 NOT_AUTHORIZED. |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
 | **Phase 1 Batch B** | **APPROVED** | P1-S5 through P1-S7 COMPLETE under D-012 |
 | **Phase 1 Final Batch** | **APPROVED** | P1-S8 and P1-S9 COMPLETE under D-013 |
@@ -67,7 +67,7 @@
 | **Phase 0** | General ledger technical skeleton, DB foundation, Auth framework, RBAC, Market module, Audit infrastructure, Design System tokens | **APPROVED** | Final acceptance approved under D-009 |
 | **Phase 0 closure** | Final integration, audit, acceptance, and governance closure | **CLOSED** | Closed under D-009; Phase 1 requires new authorization |
 | **Phase 1** | Merchant Onboarding + MCP Ledger | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21` under D-013. Pull Request to main AUTHORIZED. Phase branch: phase/1-merchant-onboarding-mcp |
-| **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) | **IN PROGRESS — P2-S9 PENDING DEFINITION** | P2-S1-S8 COMPLETE; P2-S9 NOT_AUTHORIZED awaiting Command Center definition |
+| **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) | **COMPLETE** | P2-S1 through P2-S9 all COMPLETE / APPROVED. Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027 |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **NOT_AUTHORIZED** | Note: renamed from original Roadmap sequence per C-01 |
 | **Phase 4** | Transaction Engine | **NOT_AUTHORIZED** | Draft, receipt, QR scan, atomic confirmation, MCP debit |
 | **Phase 5** | Agent & Commission Engine | **NOT_AUTHORIZED** | Referral, activation, 3 commission types. Five-level team rewards DEFERRED |
@@ -107,20 +107,17 @@
 | **P2-S6** | Member KYC Level 2 | **COMPLETE / APPROVED** | Approved at `071b65a6aaf4cafbf117594816b1ae7b8afd4676` under D-022 |
 | **P2-S7** | Merchant Discovery by Current Market | **COMPLETE / APPROVED** | Approved at `89ccd6d499414c536e249616a11f5ee77c5e92b1` under D-023 |
 | **P2-S8** | Admin Member Management and Audit | **COMPLETE / APPROVED** | Approved at `cb902fc96a6f8ddc5be469c38e3caa64d0eb87cb` under D-024 |
-| **P2-S9** | Member UI Integration, E2E and Phase 2 Final Acceptance | **IN PROGRESS — LOCAL FIXES COMPLETE, HOST VERIFICATION PENDING** | Auth contract + 57 type errors fixed locally; blocked by HOST_EXECUTION_PERMISSION_UNAVAILABLE under D-027 |
+| **P2-S9** | Member UI Integration, E2E and Phase 2 Final Acceptance | **COMPLETE** | Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027. All sub-stages (S9A-S9G) complete. E2E validation, production build audit, security audit, PWA audit, accessibility audit all pass. |
 
 ## Current allowed actions
 
-- **P2-S9 Host verification**: Run full pnpm pipeline on host when HOST_EXECUTION_PERMISSION is available
-- Run API, database tests for completed Phase 2 sub-phases
-- Fix any pre-existing type errors found during host verification (scope: P2-S9A/B/C only)
-- Apply verified fix commits to task branch
-- Submit Corrected Checkpoint 2 evidence
+- Record Phase 2 final acceptance (D-027 — APPROVED)
+- Begin Phase 3 planning when authorized
+- Continue governance file maintenance
 
 ## Current prohibited actions
 
-- Start P2-S9D (KYC), P2-S9E (QR/Merchant Discovery), P2-S9F, P2-S9G
-- Start Phase 3 or any not-authorized phase beyond P2-S9
+- Start Phase 3 without authorization
 - Push directly to `main`
 - Merge `main` or create a main PR
 - Bypass required governance sync or branch protection
@@ -140,4 +137,4 @@
 
 ---
 
-*Last updated: 2026-07-20 | Updated by: OpenClaw | Based on decisions D-001 through D-027*
+*Last updated: 2026-07-21 | Updated by: OpenClaw | Based on decisions D-001 through D-027*
