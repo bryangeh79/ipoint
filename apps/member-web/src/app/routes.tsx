@@ -12,6 +12,7 @@ import { ProfileEditPage } from '../pages/ProfileEditPage';
 import { MarketSwitchPage } from '../pages/MarketSwitchPage';
 import { CountryChangePage } from '../pages/CountryChangePage';
 import { KycPage } from '../pages/KycPage';
+import { KycFormPage } from '../pages/KycFormPage';
 import { KycDocumentsPage } from '../pages/KycDocumentsPage';
 import { QrPage } from '../pages/QrPage';
 import { MerchantListPage } from '../pages/MerchantListPage';
@@ -129,6 +130,16 @@ export const routes: RouteObject[] = [
       <ProtectedRoute>
         <MemberLayout>
           <KycPage />
+        </MemberLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/kyc/form',
+    element: (
+      <ProtectedRoute>
+        <MemberLayout>
+          <KycFormPage />
         </MemberLayout>
       </ProtectedRoute>
     ),

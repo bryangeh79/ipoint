@@ -45,6 +45,3 @@ if (typeof crypto.randomUUID === 'undefined') {
       }),
   });
 }
-
-// Suppress console errors in test output for expected error cases
-vi.spyOn(console, 'error').mockImplementation(() => {});
