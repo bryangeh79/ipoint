@@ -59,6 +59,7 @@ function createService(
     service: new TransactionRewardLinkageService(dbService, auditService),
     db: dbService,
     audit: auditService,
+    tx: mock.tx,
   };
 }
 
@@ -82,14 +83,19 @@ function makeTransactionInput(
 describe('TransactionRewardLinkageService', () => {
   describe('createRewardEntitlement', () => {
     it('creates a reward entitlement from a transaction input', async () => {
-      const { service, db } = createService();
-      const tx = createMockTx();
+      const { service, db, tx } = createService();
 
-      // Mock: no existing source
-      vi.mocked(tx.select).mockReturnThis();
-      vi.mocked(tx.from).mockReturnThis();
-      vi.mocked(tx.where).mockReturnThis();
-      vi.mocked(tx.limit).mockResolvedValue([]);
+      // Idempotency: no existing source
+      // Rule version: use second limit call
+      const mockRule = {
+        id: 'rule-1',
+        rewardRate: '5.0000000000',
+        capType: 'NONE',
+        capValue: '0',
+        minimumReward: '0',
+      };
+      vi.mocked(tx.limit).mockResolvedValueOnce([]);
+      vi.mocked(tx.limit).mockResolvedValueOnce([mockRule]);
 
       // Mock: merchant package lookup returns a service-fee package
       const mockPackage = {
@@ -106,29 +112,9 @@ describe('TransactionRewardLinkageService', () => {
           },
         ],
       };
-      vi.mocked(tx.execute).mockResolvedValue(mockPackage);
-
-      // Mock: reward rule version lookup
-      const mockRule = {
-        id: 'rule-1',
-        rewardRate: '5.0000000000',
-        capType: 'NONE',
-        capValue: '0',
-        minimumReward: '0',
-      };
-      // First call to execute (merchant package), second call uses select chain
-      vi.mocked(tx.select).mockReturnThis();
-      vi.mocked(tx.from).mockReturnThis();
-      vi.mocked(tx.where).mockReturnThis();
-      // Override where to chain orderBy
-      const whereChain = {
-        orderBy: vi.fn().mockResolvedValue([mockRule]),
-      };
-      vi.mocked(tx.where).mockReturnValue(whereChain as never);
+      vi.mocked(tx.execute).mockResolvedValueOnce(mockPackage);
 
       // Mock: insert returning IDs
-      vi.mocked(tx.insert).mockReturnThis();
-      vi.mocked(tx.values).mockReturnThis();
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'plan-1' }]);
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'source-1' }]);
 
@@ -157,13 +143,9 @@ describe('TransactionRewardLinkageService', () => {
     });
 
     it('returns existing entitlement on duplicate transaction ID (idempotent)', async () => {
-      const { service, db } = createService();
-      const tx = createMockTx();
+      const { service, db, tx } = createService();
 
       // Mock: existing source found
-      vi.mocked(tx.select).mockReturnThis();
-      vi.mocked(tx.from).mockReturnThis();
-      vi.mocked(tx.where).mockReturnThis();
       vi.mocked(tx.limit).mockResolvedValueOnce([
         {
           id: 'existing-source',
@@ -198,25 +180,16 @@ describe('TransactionRewardLinkageService', () => {
     });
 
     it('handles missing merchant package (no active assignment)', async () => {
-      const { service, db } = createService();
-      const tx = createMockTx();
+      const { service, db, tx } = createService();
 
-      vi.mocked(tx.select).mockReturnThis();
-      vi.mocked(tx.from).mockReturnThis();
-      vi.mocked(tx.where).mockReturnThis();
-      vi.mocked(tx.limit).mockResolvedValue([]);
+      // No existing source
+      vi.mocked(tx.limit).mockResolvedValueOnce([]);
 
       // No merchant package found
       vi.mocked(tx.execute).mockResolvedValue({ rows: [] });
 
-      // No rule version found either
-      const whereChain = {
-        orderBy: vi.fn().mockResolvedValue([]),
-      };
-      vi.mocked(tx.where).mockReturnValue(whereChain as never);
+      // No rule version found either (limit returns [] by default)
 
-      vi.mocked(tx.insert).mockReturnThis();
-      vi.mocked(tx.values).mockReturnThis();
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'plan-2' }]);
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'source-2' }]);
 
@@ -233,17 +206,22 @@ describe('TransactionRewardLinkageService', () => {
     });
 
     it('preserves historical merchant package snapshot after package change', async () => {
-      const { service, db } = createService();
-      const tx = createMockTx();
+      const { service, db, tx } = createService();
 
       // First call: existing source NOT found
-      vi.mocked(tx.select).mockReturnThis();
-      vi.mocked(tx.from).mockReturnThis();
-      vi.mocked(tx.where).mockReturnThis();
-      vi.mocked(tx.limit).mockResolvedValue([]);
+      // Third call: rule version lookup
+      const mockRule = {
+        id: 'rule-1',
+        rewardRate: '5.0000000000',
+        capType: 'NONE',
+        capValue: '0',
+        minimumReward: '0',
+      };
+      vi.mocked(tx.limit).mockResolvedValueOnce([]);
+      vi.mocked(tx.limit).mockResolvedValueOnce([mockRule]);
 
       // Merchant package at transaction time (rate 2.5%)
-      vi.mocked(tx.execute).mockResolvedValue({
+      vi.mocked(tx.execute).mockResolvedValueOnce({
         rows: [
           {
             assignment_id: 'assign-old',
@@ -258,28 +236,16 @@ describe('TransactionRewardLinkageService', () => {
         ],
       });
 
-      // Rule version
-      const whereChain = {
-        orderBy: vi.fn().mockResolvedValue([
-          {
-            id: 'rule-1',
-            rewardRate: '5.0000000000',
-            capType: 'NONE',
-            capValue: '0',
-            minimumReward: '0',
-          },
-        ]),
-      };
-      vi.mocked(tx.where).mockReturnValue(whereChain as never);
-
-      vi.mocked(tx.insert).mockReturnThis();
-      vi.mocked(tx.values).mockReturnThis();
-      // plan + source + wallet sequence query + wallet insert
+      // plan + source returning
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'plan-hist' }]);
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'source-hist' }]);
+
+      // Wallet sequence query
       vi.mocked(tx.execute).mockResolvedValueOnce({
         rows: [{ max_seq: null }],
       });
+
+      // Wallet onConflictDoUpdate + returning
       vi.mocked(tx.onConflictDoUpdate).mockReturnThis();
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'wallet-hist' }]);
 
@@ -294,18 +260,9 @@ describe('TransactionRewardLinkageService', () => {
     });
 
     it('uses the reward rule version effective at transaction time', async () => {
-      const { service } = createService();
-      const tx = createMockTx();
+      const { service, db, tx } = createService();
 
-      vi.mocked(tx.select).mockReturnThis();
-      vi.mocked(tx.from).mockReturnThis();
-      vi.mocked(tx.where).mockReturnThis();
-      vi.mocked(tx.limit).mockResolvedValue([]);
-
-      // No merchant package
-      vi.mocked(tx.execute).mockResolvedValue({ rows: [] });
-
-      // Old rule version (should be used because it was effective at transaction time)
+      // No existing source
       const oldRule = {
         id: 'rule-old-v1',
         rewardRate: '3.0000000000',
@@ -313,16 +270,17 @@ describe('TransactionRewardLinkageService', () => {
         capValue: '0',
         minimumReward: '0',
       };
-      const whereChain = {
-        orderBy: vi.fn().mockResolvedValue([oldRule]),
-      };
-      vi.mocked(tx.where).mockReturnValue(whereChain as never);
+      vi.mocked(tx.limit).mockResolvedValueOnce([]);
+      vi.mocked(tx.limit).mockResolvedValueOnce([oldRule]);
+
+      // No merchant package
+      vi.mocked(tx.execute).mockResolvedValueOnce({ rows: [] });
 
       // Mock inserts
-      vi.mocked(tx.insert).mockReturnThis();
-      vi.mocked(tx.values).mockReturnThis();
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'plan-v1' }]);
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'source-v1' }]);
+
+      // Wallet
       vi.mocked(tx.execute).mockResolvedValueOnce({
         rows: [{ max_seq: null }],
       });
@@ -338,16 +296,21 @@ describe('TransactionRewardLinkageService', () => {
     });
 
     it('handles cross-market: Malaysia member spending in Vietnam', async () => {
-      const { service } = createService();
-      const tx = createMockTx();
+      const { service, db, tx } = createService();
 
-      vi.mocked(tx.select).mockReturnThis();
-      vi.mocked(tx.from).mockReturnThis();
-      vi.mocked(tx.where).mockReturnThis();
-      vi.mocked(tx.limit).mockResolvedValue([]);
+      // No existing source
+      const vnRule = {
+        id: 'rule-vn',
+        rewardRate: '2.5000000000',
+        capType: 'NONE',
+        capValue: '0',
+        minimumReward: '0',
+      };
+      vi.mocked(tx.limit).mockResolvedValueOnce([]);
+      vi.mocked(tx.limit).mockResolvedValueOnce([vnRule]);
 
       // Merchant package in Vietnam market
-      vi.mocked(tx.execute).mockResolvedValue({
+      const mockPackage = {
         rows: [
           {
             assignment_id: 'assign-vn',
@@ -360,25 +323,14 @@ describe('TransactionRewardLinkageService', () => {
             special_rate: null,
           },
         ],
-      });
-
-      // Vietnam market rule version
-      const vnRule = {
-        id: 'rule-vn',
-        rewardRate: '2.5000000000',
-        capType: 'NONE',
-        capValue: '0',
-        minimumReward: '0',
       };
-      const whereChain = {
-        orderBy: vi.fn().mockResolvedValue([vnRule]),
-      };
-      vi.mocked(tx.where).mockReturnValue(whereChain as never);
+      vi.mocked(tx.execute).mockResolvedValueOnce(mockPackage);
 
-      vi.mocked(tx.insert).mockReturnThis();
-      vi.mocked(tx.values).mockReturnThis();
+      // plan + source returning
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'plan-cross' }]);
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'source-cross' }]);
+
+      // Wallet sequence
       vi.mocked(tx.execute).mockResolvedValueOnce({
         rows: [{ max_seq: null }],
       });
@@ -461,13 +413,9 @@ describe('TransactionRewardLinkageService', () => {
 
   describe('reverseRewardEntitlement', () => {
     it('reverses reward when source transaction is reversed', async () => {
-      const { service, db } = createService();
-      const tx = createMockTx();
+      const { service, db, tx } = createService();
 
-      vi.mocked(tx.select).mockReturnThis();
-      vi.mocked(tx.from).mockReturnThis();
-      vi.mocked(tx.where).mockReturnThis();
-      vi.mocked(tx.limit).mockResolvedValue([
+      vi.mocked(tx.limit).mockResolvedValueOnce([
         {
           id: 'source-rev',
           memberId: 'member-1',
@@ -488,13 +436,7 @@ describe('TransactionRewardLinkageService', () => {
     });
 
     it('throws when reversing a transaction without a reward source', async () => {
-      const { service, db } = createService();
-      const tx = createMockTx();
-
-      vi.mocked(tx.select).mockReturnThis();
-      vi.mocked(tx.from).mockReturnThis();
-      vi.mocked(tx.where).mockReturnThis();
-      vi.mocked(tx.limit).mockResolvedValue([]);
+      const { service, db, tx } = createService();
 
       await expect(
         service.reverseRewardEntitlement('nonexistent'),
