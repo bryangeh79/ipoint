@@ -95,6 +95,10 @@ export class WalletService {
       })
       .returning();
 
+    if (!inserted[0]) {
+      throw walletNotFoundError();
+    }
+
     return this.toWalletResponse(inserted[0]);
   }
 
@@ -210,6 +214,11 @@ export class WalletService {
             marketId: params.marketId,
           })
           .returning();
+
+        if (!inserted[0]) {
+          throw walletNotFoundError();
+        }
+
         wallet = inserted[0];
       } else {
         wallet = wallets[0];
@@ -318,6 +327,10 @@ export class WalletService {
           marketTimezone: params.marketTimezone ?? null,
         })
         .returning();
+
+      if (!entries[0]) {
+        throw walletEntryNotFoundError();
+      }
 
       return this.toEntryResponse(entries[0]);
     });

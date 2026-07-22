@@ -77,6 +77,10 @@ export class RewardService {
       })
       .returning();
 
+    if (!version) {
+      throw rewardRuleVersionNotFoundError();
+    }
+
     return this.mapRuleVersion(version);
   }
 
@@ -204,6 +208,10 @@ export class RewardService {
         })
         .returning();
 
+      if (!plan) {
+        throw rewardPlanNotFoundError();
+      }
+
       await tx
         .update(rewardSources)
         .set({ consumed: true })
@@ -298,6 +306,10 @@ export class RewardService {
         .where(eq(rewardPlans.id, id))
         .returning();
 
+      if (!updated) {
+        throw rewardPlanNotFoundError();
+      }
+
       return this.mapPlan(updated);
     });
   }
@@ -345,6 +357,10 @@ export class RewardService {
         consumed: false,
       })
       .returning();
+
+    if (!row) {
+      throw rewardSourceNotFoundError();
+    }
 
     return this.mapSource(row);
   }

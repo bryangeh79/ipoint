@@ -162,6 +162,10 @@ export class AdminRewardService {
       })
       .returning();
 
+    if (!version) {
+      throw new Error('Failed to create reward rule version');
+    }
+
     // Audit trail
     await this.audit.recordPrivilegedAction({
       actor: { type: 'ADMIN_USER', id: adminActor.adminUserId },
@@ -343,7 +347,10 @@ export class AdminRewardService {
         .limit(1);
 
       if (existingEntry[0]) {
-        return this.mapAdjustmentResponse(existingEntry[0]);
+        return {
+          ...this.mapAdjustmentResponse(existingEntry[0]),
+          adjustmentState: 'EXECUTED',
+        };
       }
 
       // Get next sequence number
@@ -413,6 +420,10 @@ export class AdminRewardService {
         })
         .returning();
 
+      if (!entry) {
+        throw new Error('Failed to create wallet ledger entry');
+      }
+
       // Audit trail
       await this.audit.appendWithinTransaction(tx, {
         actor: { type: 'ADMIN_USER', id: adminActor.adminUserId },
@@ -474,6 +485,10 @@ export class AdminRewardService {
               marketTimezone: null,
             })
             .returning();
+
+          if (!compEntry) {
+            throw new Error('Failed to create compensating wallet ledger entry');
+          }
 
           // Audit trail for compensating entry
           await this.audit.appendWithinTransaction(tx, {
