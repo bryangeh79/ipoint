@@ -14,7 +14,7 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Work** | **NONE — Phase 2 COMPLETE** | Phase 2 final acceptance under D-027. No Phase authorized beyond Phase 2. |
+| **Current Authorized Work** | **P3-S1 — Architecture, Contract Audit and Engineering Freeze** | Phase 3 P3-S1 authorized under D-028. P3-S2+ NOT_AUTHORIZED. |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
 | **Phase 2** | **COMPLETE** | Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027. P2-S1 through P2-S9 all COMPLETE / APPROVED. Phase 3 NOT_AUTHORIZED. |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
@@ -68,7 +68,7 @@
 | **Phase 0 closure** | Final integration, audit, acceptance, and governance closure | **CLOSED** | Closed under D-009; Phase 1 requires new authorization |
 | **Phase 1** | Merchant Onboarding + MCP Ledger | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21` under D-013. Pull Request to main AUTHORIZED. Phase branch: phase/1-merchant-onboarding-mcp |
 | **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) | **COMPLETE** | P2-S1 through P2-S9 all COMPLETE / APPROVED. Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027 |
-| **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **NOT_AUTHORIZED** | Note: renamed from original Roadmap sequence per C-01 |
+| **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **AUTHORIZED — P3-S1 ACTIVE** | Authorized under D-028. P3-S1 only. P3-S2+ NOT_AUTHORIZED. |
 | **Phase 4** | Transaction Engine | **NOT_AUTHORIZED** | Draft, receipt, QR scan, atomic confirmation, MCP debit |
 | **Phase 5** | Agent & Commission Engine | **NOT_AUTHORIZED** | Referral, activation, 3 commission types. Five-level team rewards DEFERRED |
 | **Phase 6** | Redemption Center | **NOT_AUTHORIZED** | Market catalog, rate, order, iPoint debit, refund |
@@ -109,15 +109,25 @@
 | **P2-S8** | Admin Member Management and Audit | **COMPLETE / APPROVED** | Approved at `cb902fc96a6f8ddc5be469c38e3caa64d0eb87cb` under D-024 |
 | **P2-S9** | Member UI Integration, E2E and Phase 2 Final Acceptance | **COMPLETE** | Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027. All sub-stages (S9A-S9G) complete. E2E validation, production build audit, security audit, PWA audit, accessibility audit all pass. |
 
+## Phase 3 sub-phase status
+
+| Sub-phase | Scope | Status | Next gate |
+|---|---|---|---|
+| **P3-S1** | Architecture, Contract Audit and Engineering Freeze | **ACTIVE — AUTHORIZED** | D-028 authorized. P3-S2+ NOT_AUTHORIZED. |
+
 ## Current allowed actions
 
 - Record Phase 2 final acceptance (D-027 — APPROVED)
-- Begin Phase 3 planning when authorized
+- Record Phase 3 authorization (D-028 — APPROVED)
+- Execute P3-S1: Architecture, Contract Audit and Engineering Freeze
 - Continue governance file maintenance
 
 ## Current prohibited actions
 
 - Start Phase 3 without authorization
+- Execute P3-S2 or later P3 sub-phases
+- Deploy production schema or run production migrations during P3-S1
+- Modify Phase 2 LOCKED business rules or production code
 - Push directly to `main`
 - Merge `main` or create a main PR
 - Bypass required governance sync or branch protection
@@ -137,4 +147,4 @@
 
 ---
 
-*Last updated: 2026-07-21 | Updated by: OpenClaw | Based on decisions D-001 through D-027*
+*Last updated: 2026-07-22 | Updated by: OpenClaw | Based on decisions D-001 through D-028*

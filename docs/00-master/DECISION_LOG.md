@@ -570,3 +570,29 @@
 | **Basis** | Checkpoint 3 final acceptance (2026-07-21) |
 | **Status** | **APPROVED** |
 
+---
+
+## D-028: Phase 3 — Multi-Market Wallet & Reward Ledger Foundation authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-028 |
+| **Date** | 2026-07-22 |
+| **Source** | ChatGPT Command Center — Phase 3 Formal Authorization |
+| **Old Rule** | Phase 3 NOT_AUTHORIZED; Phase 2 COMPLETE/FROZEN |
+| **New Decision** | Phase 3 — Multi-Market Wallet & Reward Ledger Foundation authorized. P3-S1 only authorized. P3-S2+ NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. Production schema and migration NOT_AUTHORIZED during P3-S1. |
+| **Reason** | Phase 2 Member Core & Multi-Market complete. Phase 3 covers Wallet Ledger, Reward Plan, Rule Version, Settlement, Idempotency and Security contracts. P3-S1 is contract/architecture only. |
+| **Approved Business Contracts** | 1. Phase 3 centers on Wallet + Reward Ledger. 2. Full Transaction Engine remains Phase 4. 3. Phase 3 establishes only a minimal Reward Source Contract. 4. Settlement follows consumption-market local time at 00:00. 5. Each daily accrual uses the Reward Rule Version effective at accrual time. 6. Merchant package and service-fee history is preserved through transaction-time snapshots. 7. Admin adjustment UI and Maker/Checker workflow remain deferred; Phase 3 establishes only underlying ledger capabilities. |
+| **Base SHA** | 49735cd4552b9312425324c76c7c7f41032a8357 |
+| **Phase Branch** | phase/3-multi-market-wallet-reward-ledger |
+| **First Task Branch** | task/p3-s1-wallet-reward-contract-freeze |
+| **P3-S2+** | NOT_AUTHORIZED |
+| **Main PR/Main Merge** | NOT_AUTHORIZED |
+| **Production Schema/Migration** | NOT_AUTHORIZED during P3-S1 |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 3, P3-S1 |
+| **Migration** | NONE (design-only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | Phase 3 / P3-S1 Formal Authorization (2026-07-22) |
+| **Status** | **APPROVED** |
+
