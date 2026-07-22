@@ -72,20 +72,19 @@ export class JobSchedulerService
     await this.stopScheduler();
   }
 
-  // ─── pg-boss Style Queue Setup ─────────────────────────────────────
+  // ─── Queue Schema Setup ─────────────────────────────────────
 
   /**
-   * Ensure the pg-boss schema exists. In a full pg-boss setup this
-   * would be `await boss.start()`. Here we ensure our job queue schema
-   * table exists for tracking scheduled jobs.
+   * Ensure the job queue schema exists. Creates the schema and
+   * job_queue table for tracking scheduled jobs.
    */
   async ensureQueueSchema(): Promise<void> {
     await this.database.db.execute(sql`
-      CREATE SCHEMA IF NOT EXISTS pg_boss;
+      CREATE SCHEMA IF NOT EXISTS ipoint_jobs;
     `);
 
     await this.database.db.execute(sql`
-      CREATE TABLE IF NOT EXISTS pg_boss.job_queue (
+      CREATE TABLE IF NOT EXISTS ipoint_jobs.job_queue (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         name text NOT NULL,
         data jsonb NOT NULL DEFAULT '{}',
@@ -102,7 +101,7 @@ export class JobSchedulerService
 
     await this.database.db.execute(sql`
       CREATE INDEX IF NOT EXISTS idx_job_queue_state_name
-        ON pg_boss.job_queue (state, name);
+        ON ipoint_jobs.job_queue (state, name);
     `);
   }
 
@@ -139,7 +138,7 @@ export class JobSchedulerService
   }
 
   /**
-   * Enqueue a single job into the pg-boss queue.
+   * Enqueue a single job into the job queue.
    */
   async enqueueJob(params: {
     name: string;
@@ -147,10 +146,10 @@ export class JobSchedulerService
   }): Promise<void> {
     // Use same-day deduplication in the queue to avoid duplicate enqueues
     await this.database.db.execute(sql`
-      INSERT INTO pg_boss.job_queue (name, data, state)
+      INSERT INTO ipoint_jobs.job_queue (name, data, state)
       VALUES (
         ${params.name},
-        ${sql.json(params.data)},
+        ${JSON.stringify(params.data)}::jsonb,
         'created'
       )
       ON CONFLICT DO NOTHING
@@ -204,7 +203,7 @@ export class JobSchedulerService
 
   /**
    * Start the recurring scheduler.
-   * Polls the pg-boss queue for pending jobs and processes them.
+   * Polls the job queue for pending jobs and processes them.
    */
   async startScheduler(): Promise<void> {
     await this.ensureQueueSchema();
@@ -246,10 +245,10 @@ export class JobSchedulerService
       name: string;
       data: Record<string, unknown>;
     }>(sql`
-      UPDATE pg_boss.job_queue
+      UPDATE ipoint_jobs.job_queue
       SET state = 'active', started_at = now()
       WHERE id IN (
-        SELECT id FROM pg_boss.job_queue
+        SELECT id FROM ipoint_jobs.job_queue
         WHERE state = 'created'
         ORDER BY created_at ASC
         LIMIT ${this.workerCount}
@@ -314,7 +313,7 @@ export class JobSchedulerService
 
       // Mark job as completed
       await this.database.db.execute(sql`
-        UPDATE pg_boss.job_queue
+        UPDATE ipoint_jobs.job_queue
         SET state = 'completed', completed_at = now()
         WHERE id = ${jobId}
       `);
@@ -333,7 +332,7 @@ export class JobSchedulerService
    */
   async failJob(jobId: string, errorMessage: string): Promise<void> {
     await this.database.db.execute(sql`
-      UPDATE pg_boss.job_queue
+      UPDATE ipoint_jobs.job_queue
       SET
         state = 'failed',
         completed_at = now(),
