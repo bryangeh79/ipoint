@@ -204,6 +204,7 @@ describe('RewardService', () => {
     it('creates a rule version without optional fields', async () => {
       const { service, insertReturningMock } = createService({});
       const ruleRow = ruleVersionRow({
+        name: 'Default Rate',
         description: null,
         effectiveTo: null,
         capType: 'NONE',
@@ -1009,7 +1010,7 @@ describe('RewardService', () => {
 
       const expected = new Decimal('0.00000000005')
         .mul(new Decimal('1'))
-        .toDecimalPlaces(10, 3)
+        .toDecimalPlaces(10, Decimal.ROUND_HALF_UP)
         .toFixed(10);
 
       const result = await service.createPlanFromSource(source.id as string);
