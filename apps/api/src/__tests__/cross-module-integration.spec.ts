@@ -132,7 +132,7 @@ describe('Wallet + Reward Integration', () => {
         entrySubtype: 'DAILY_ACCRUAL',
         rewardPlanId: planId,
         idempotencyKey: makeAccrualKey(planId, date),
-        createdAt: new Date(`2026-08-${date.slice(-2)}T00:00:00.000Z`),
+        createdAt: `2026-08-${date.slice(-2)}T00:00:00.000Z`,
       });
     }
 
@@ -525,7 +525,7 @@ describe('Daily Job + Wallet Integration', () => {
       entrySubtype: 'DAILY_ACCRUAL',
       rewardPlanId: planId,
       idempotencyKey: ik,
-      createdAt: new Date(`2026-08-15T00:00:00.000Z`),
+      createdAt: `2026-08-15T00:00:00.000Z`,
     });
 
     // Then: wallet balance updated
@@ -574,21 +574,23 @@ describe('Daily Job + Wallet Integration', () => {
 
     // Process accrual for both members
     for (let i = 0; i < wallets.length; i++) {
+      const wallet = wallets[i]!;
+      const planId = planIds[i]!;
       const accrualAmount = toDecimal('10.0000000000');
-      const ik = makeAccrualKey(planIds[i], localBusinessDate);
-      const balanceBefore = wallets[i].balance;
-      wallets[i].balance = addDecimal(balanceBefore, accrualAmount);
-      wallets[i].entries.push({
+      const ik = makeAccrualKey(planId, localBusinessDate);
+      const balanceBefore = wallet.balance;
+      wallet.balance = addDecimal(balanceBefore, accrualAmount);
+      wallet.entries.push({
         entryId: randomUUID(),
-        accountId: wallets[i].walletId,
+        accountId: wallet.walletId,
         amount: accrualAmount,
         balanceBefore,
-        balanceAfter: wallets[i].balance,
+        balanceAfter: wallet.balance,
         entryType: 'REWARD_ACCRUAL',
         entrySubtype: 'DAILY_ACCRUAL',
-        rewardPlanId: planIds[i],
+        rewardPlanId: planId,
         idempotencyKey: ik,
-        createdAt: new Date(`2026-08-15T00:00:00.000Z`),
+        createdAt: `2026-08-15T00:00:00.000Z`,
       });
     }
 
@@ -655,9 +657,9 @@ describe('Daily Job + Reward Integration', () => {
     expect(new Set(iks).size).toBe(3);
 
     // Each accrual correctly adds 5.00
-    expect(accruals[0].newEarned).toBe('15.0000000000');
-    expect(accruals[1].newEarned).toBe('30.0000000000');
-    expect(accruals[2].newEarned).toBe('10.5000000000');
+    expect(accruals[0]!.newEarned).toBe('15.0000000000');
+    expect(accruals[1]!.newEarned).toBe('30.0000000000');
+    expect(accruals[2]!.newEarned).toBe('10.5000000000');
   });
 
   it('skips plans that are not in eligible status (SCHEDULED, SUSPENDED, REVERSED, COMPLETED)', async () => {
@@ -825,7 +827,7 @@ describe('Daily Job + Idempotency', () => {
         entrySubtype: 'DAILY_ACCRUAL',
         rewardPlanId: planId,
         idempotencyKey: ik,
-        createdAt: new Date(`2026-08-${date.slice(-2)}T00:00:00.000Z`),
+        createdAt: `2026-08-${date.slice(-2)}T00:00:00.000Z`,
       });
     }
 

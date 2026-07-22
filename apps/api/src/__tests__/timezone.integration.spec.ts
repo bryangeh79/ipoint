@@ -431,7 +431,7 @@ describe('Multi-Market Accrual Date Alignment', () => {
     // Each market gets a different accrual key
     const keys = localDates.map(
       (date, i) =>
-        `${markets[i].name}:${makeAccrualKey(planId, date).slice(0, 20)}`,
+        `${markets[i]!.name}:${makeAccrualKey(planId, date).slice(0, 20)}`,
     );
     expect(keys).toHaveLength(5);
   });

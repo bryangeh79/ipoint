@@ -113,7 +113,7 @@ export class TransactionRewardLinkageService {
         .limit(1);
 
       if (existing.length > 0) {
-        const source = existing[0];
+        const source = existing[0]!;
         // Also fetch the associated plan
         const planRows = await tx
           .select({ id: rewardPlans.id })
@@ -160,7 +160,7 @@ export class TransactionRewardLinkageService {
       if (packageSnapshot) {
         // If it's a service-fee version, get the rate directly
         // If it's a special percentage, get that rate
-        serviceFeeRate = packageSnapshot.rate;
+        serviceFeeRate = packageSnapshot.rate ?? null;
       }
 
       // ── 3. Resolve effective reward rule version ─────────────────
@@ -353,7 +353,7 @@ export class TransactionRewardLinkageService {
         });
       }
 
-      const source = sourceRows[0];
+      const source = sourceRows[0]!;
 
       // Update reward source
       await tx
@@ -584,14 +584,16 @@ export class TransactionRewardLinkageService {
     const idempotencyKey = `reward:tx:${transactionId}`;
 
     // Get the current sequence number
-    const seqRows = await tx.execute<{ max_seq: string | null }>(sql`
-      SELECT MAX(entry_sequence)::text AS max_seq
-      FROM member_wallet_entries
-      WHERE wallet_account_id = ${walletId}
-    `);
-    const nextSeq = seqRows.rows[0]?.max_seq
-      ? (BigInt(seqRows.rows[0].max_seq) + 1n).toString()
-      : '1';
+    const nextSeq: bigint = await (async () => {
+      const rows = await tx.execute<{ max_seq: string | null }>(sql`
+        SELECT MAX(entry_sequence)::text AS max_seq
+        FROM member_wallet_entries
+        WHERE wallet_account_id = ${walletId}
+      `);
+      return rows.rows[0]?.max_seq
+        ? BigInt(rows.rows[0].max_seq) + 1n
+        : 1n;
+    })();
 
     await tx
       .insert(memberWalletEntries)

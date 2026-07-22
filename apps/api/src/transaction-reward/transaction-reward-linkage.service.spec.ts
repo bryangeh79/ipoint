@@ -16,33 +16,7 @@ function createMockDbWithTx(transactionFn: (tx: unknown) => Promise<unknown>) {
     transaction: vi
       .fn()
       .mockImplementation((cb: (tx: unknown) => Promise<unknown>) => cb(tx)),
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          limit: vi.fn().mockResolvedValue([]),
-          orderBy: vi.fn().mockResolvedValue([]),
-        }),
-        limit: vi.fn().mockResolvedValue([]),
-      }),
-    }),
-    insert: () => ({
-      values: () => ({
-        returning: vi.fn().mockResolvedValue([{ id: 'mock-id' }]),
-        onConflictDoUpdate: () => ({
-          set: vi.fn().mockResolvedValue([{ id: 'mock-wallet-id' }]),
-        }),
-        onConflictDoNothing: vi.fn().mockResolvedValue([]),
-      }),
-    }),
-    update: () => ({
-      set: () => ({
-        where: () => ({
-          returning: vi.fn().mockResolvedValue([{ id: 'updated-id' }]),
-        }),
-      }),
-    }),
-    execute: vi.fn().mockResolvedValue({ rows: [] }),
-    // The mock tx is the same object, so methods work both on db and tx
+    // The mock tx is spread so that methods work both on db and tx
     ...tx,
   };
   return { db: mockDb, pool: { end: vi.fn() }, tx };
@@ -455,9 +429,9 @@ describe('TransactionRewardLinkageService', () => {
 
       // Mock the select chain
       db.db.select = vi.fn().mockReturnThis();
-      (db.db as Record<string, unknown>).from = vi.fn().mockReturnThis();
-      (db.db as Record<string, unknown>).where = vi.fn().mockReturnThis();
-      (db.db as Record<string, unknown>).limit = vi
+      (db.db as unknown as Record<string, unknown>).from = vi.fn().mockReturnThis();
+      (db.db as unknown as Record<string, unknown>).where = vi.fn().mockReturnThis();
+      (db.db as unknown as Record<string, unknown>).limit = vi
         .fn()
         .mockResolvedValue([mockSource]);
 
@@ -475,9 +449,9 @@ describe('TransactionRewardLinkageService', () => {
       const { service, db } = createService();
 
       db.db.select = vi.fn().mockReturnThis();
-      (db.db as Record<string, unknown>).from = vi.fn().mockReturnThis();
-      (db.db as Record<string, unknown>).where = vi.fn().mockReturnThis();
-      (db.db as Record<string, unknown>).limit = vi.fn().mockResolvedValue([]);
+      (db.db as unknown as Record<string, unknown>).from = vi.fn().mockReturnThis();
+      (db.db as unknown as Record<string, unknown>).where = vi.fn().mockReturnThis();
+      (db.db as unknown as Record<string, unknown>).limit = vi.fn().mockResolvedValue([]);
 
       await expect(
         service.getSourceByTransaction('nonexistent-id'),
