@@ -16,6 +16,7 @@ import {
   JOB_TYPE_DAILY_REWARD_ACCRUAL,
   type DailyAccrualResult,
   type DailyJobRunResponse,
+  type DailyJobStatus,
   type EligibleRewardPlan,
   type ProcessDailyAccrualsParams,
   type RewardDailyAccrualResponse,
@@ -109,17 +110,18 @@ export class JobService {
       errorDetail?: string | null;
     },
   ): Promise<DailyJobRunResponse> {
-    // Filter out undefined values to avoid type mismatch with drizzle .set()
-    const filteredUpdates = Object.fromEntries(
-      Object.entries(updates).filter(
-        ([, v]) => v !== undefined,
-      ),
-    ) as Record<string, unknown>;
-    filteredUpdates.updatedAt = new Date();
+    // Build typed updates object - drizzle .set() requires a partial insert type
+    const setData: Partial<typeof dailyJobRuns.$inferInsert> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        (setData as Record<string, unknown>)[key] = value;
+      }
+    }
+    setData.updatedAt = new Date();
 
     const [run] = await this.database.db
       .update(dailyJobRuns)
-      .set(filteredUpdates)
+      .set(setData)
       .where(eq(dailyJobRuns.id, runId))
       .returning();
 
@@ -165,7 +167,7 @@ export class JobService {
   }> {
     const conditions = and(
       params.marketId ? eq(dailyJobRuns.marketId, params.marketId) : undefined,
-      params.status ? eq(dailyJobRuns.status, params.status as any) : undefined,
+      params.status ? eq(dailyJobRuns.status, params.status as DailyJobStatus) : undefined,
     );
 
     const totalResult = await this.database.db
@@ -406,7 +408,7 @@ export class JobService {
           inArray(rewardDailyAccruals.rewardPlanId, planIds),
           eq(
             rewardDailyAccruals.marketLocalDate,
-            params.localBusinessDate as any,
+            params.localBusinessDate,
           ),
         ),
       );
@@ -479,16 +481,17 @@ export class JobService {
           eq(rewardDailyAccruals.rewardPlanId, plan.id),
           eq(
             rewardDailyAccruals.marketLocalDate,
-            params.localBusinessDate as any,
+            params.localBusinessDate,
           ),
           eq(rewardDailyAccruals.ledgerEntryType, 'PENDING'),
         ),
       )
       .limit(1);
 
-    if (existingAccrual[0]) {
+    const existingRow = existingAccrual[0];
+    if (existingRow) {
       // Already processed — idempotent
-      return { accrual: this.mapAccrual(existingAccrual[0]) };
+      return { accrual: this.mapAccrual(existingRow) };
     }
 
     const executedAtUtc = new Date();
@@ -500,7 +503,7 @@ export class JobService {
         marketId: plan.marketId,
         rewardRuleVersionId: plan.ruleVersionId,
         marketTimezone: marketTimezone,
-        marketLocalDate: params.localBusinessDate as any,
+        marketLocalDate: params.localBusinessDate,
         executedAtUtc,
         amount: appliedAmount,
         ledgerEntryType: 'PENDING' as const,
@@ -531,7 +534,8 @@ export class JobService {
       .limit(1);
 
     let wallet: typeof memberWalletAccounts.$inferSelect;
-    if (!wallets[0]) {
+    const firstWallet = wallets[0];
+    if (!firstWallet) {
       const inserted = await tx
         .insert(memberWalletAccounts)
         .values({
@@ -539,9 +543,13 @@ export class JobService {
           marketId: plan.marketId,
         })
         .returning();
-      wallet = inserted[0];
+      const insertedWallet = inserted[0];
+      if (!insertedWallet) {
+        throw new Error('Failed to create wallet account');
+      }
+      wallet = insertedWallet;
     } else {
-      wallet = wallets[0];
+      wallet = firstWallet;
     }
 
     // Compute new balances
@@ -747,7 +755,8 @@ export class JobService {
         .where(eq(markets.id, jobRun.marketId))
         .limit(1);
 
-      if (!market[0]) {
+      const marketRow = market[0];
+      if (!marketRow) {
         throw new Error(`Market ${jobRun.marketId} not found`);
       }
 
@@ -755,7 +764,7 @@ export class JobService {
       const result = await this.processDailyAccruals({
         marketId: jobRun.marketId,
         localBusinessDate: jobRun.localBusinessDate,
-        marketTimezone: market[0].timezone,
+        marketTimezone: marketRow.timezone,
       });
 
       return {

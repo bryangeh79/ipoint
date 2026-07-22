@@ -34,7 +34,7 @@ export class WalletService {
       pendingBalance: row.pendingBalance,
       availableBalance: row.availableBalance,
       reversedBalance: row.reversedBalance,
-      version: row.version as number,
+      version: row.version,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
@@ -83,8 +83,9 @@ export class WalletService {
       )
       .limit(1);
 
-    if (existing[0]) {
-      return this.toWalletResponse(existing[0]);
+    const foundWallet = existing[0];
+    if (foundWallet) {
+      return this.toWalletResponse(foundWallet);
     }
 
     const inserted = await this.database.db
@@ -95,11 +96,12 @@ export class WalletService {
       })
       .returning();
 
-    if (!inserted[0]) {
+    const createdWallet = inserted[0];
+    if (!createdWallet) {
       throw walletNotFoundError();
     }
 
-    return this.toWalletResponse(inserted[0]);
+    return this.toWalletResponse(createdWallet);
   }
 
   /**
@@ -120,8 +122,9 @@ export class WalletService {
       )
       .limit(1);
 
-    if (!rows[0]) throw walletNotFoundError();
-    return this.toWalletResponse(rows[0]);
+    const walletRow = rows[0];
+    if (!walletRow) throw walletNotFoundError();
+    return this.toWalletResponse(walletRow);
   }
 
   /**
@@ -156,12 +159,13 @@ export class WalletService {
       .where(eq(memberWalletAccounts.id, walletId))
       .limit(1);
 
-    if (!rows[0]) throw walletNotFoundError();
+    const balanceRow = rows[0];
+    if (!balanceRow) throw walletNotFoundError();
 
     return {
-      pending: rows[0].pendingBalance,
-      available: rows[0].availableBalance,
-      reversed: rows[0].reversedBalance,
+      pending: balanceRow.pendingBalance,
+      available: balanceRow.availableBalance,
+      reversed: balanceRow.reversedBalance,
     };
   }
 
@@ -187,8 +191,9 @@ export class WalletService {
         .where(eq(memberWalletEntries.idempotencyKey, params.idempotencyKey))
         .limit(1);
 
-      if (existingEntry[0]) {
-        return this.toEntryResponse(existingEntry[0]);
+      const duplicateEntry = existingEntry[0];
+      if (duplicateEntry) {
+        return this.toEntryResponse(duplicateEntry);
       }
 
       // Get or create the wallet account with row-level lock
@@ -392,10 +397,11 @@ export class WalletService {
       )
       .limit(1);
 
-    if (!rows[0]) {
+    const entryRow = rows[0];
+    if (!entryRow) {
       throw walletEntryNotFoundError();
     }
 
-    return this.toEntryResponse(rows[0]);
+    return this.toEntryResponse(entryRow);
   }
 }
