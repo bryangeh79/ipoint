@@ -109,8 +109,12 @@ describe('Wallet + Reward Integration', () => {
     const dailyAmount = toDecimal('10.5000000000');
     let runningEarned = plan.totalEarned;
     const accrualDates = [
-      '2026-08-01', '2026-08-02', '2026-08-03',
-      '2026-08-04', '2026-08-05', '2026-08-06',
+      '2026-08-01',
+      '2026-08-02',
+      '2026-08-03',
+      '2026-08-04',
+      '2026-08-05',
+      '2026-08-06',
       '2026-08-07',
     ];
 
@@ -470,9 +474,7 @@ describe('Wallet + Admin Integration', () => {
     });
 
     // Second call with same IK — should not create a new entry
-    const ikAlreadyUsed = fixture.entries.some(
-      (e) => e.idempotencyKey === ik,
-    );
+    const ikAlreadyUsed = fixture.entries.some((e) => e.idempotencyKey === ik);
     expect(ikAlreadyUsed).toBe(true);
 
     // Verify only one entry with this key exists
@@ -750,9 +752,7 @@ describe('Daily Job + Idempotency', () => {
 
     // Second run (same day) — should NOT create new entry
     // Idempotency key check: if key exists, skip
-    const existingEntry = fixture.entries.find(
-      (e) => e.idempotencyKey === ik,
-    );
+    const existingEntry = fixture.entries.find((e) => e.idempotencyKey === ik);
     expect(existingEntry).toBeDefined();
 
     // No new entry should be added

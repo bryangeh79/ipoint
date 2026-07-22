@@ -37,7 +37,10 @@ export const createLedgerEntrySchema = z
     entryType: walletEntryTypeSchema,
     amount: z
       .string()
-      .regex(/^\d+(\.\d{1,10})?$/, 'Must be a positive numeric string with up to 10 decimal places.'),
+      .regex(
+        /^\d+(\.\d{1,10})?$/,
+        'Must be a positive numeric string with up to 10 decimal places.',
+      ),
     idempotencyKey: z.string().min(1).max(255),
     referenceType: z.string().min(1).max(100).optional(),
     referenceId: z.string().min(1).max(255).optional(),

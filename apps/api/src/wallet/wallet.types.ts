@@ -55,7 +55,12 @@ export interface WalletBalanceResponse {
 export interface CreateLedgerEntryParams {
   memberId: string;
   marketId: string;
-  entryType: 'PENDING' | 'AVAILABLE' | 'REVERSED' | 'COMPENSATION' | 'ADJUSTMENT';
+  entryType:
+    | 'PENDING'
+    | 'AVAILABLE'
+    | 'REVERSED'
+    | 'COMPENSATION'
+    | 'ADJUSTMENT';
   amount: string;
   idempotencyKey: string;
   referenceType?: string;

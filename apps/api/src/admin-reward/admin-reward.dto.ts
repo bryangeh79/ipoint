@@ -14,7 +14,9 @@ export const createRuleVersionSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
     description: z.string().trim().max(2000).optional(),
-    effectiveFrom: z.string().datetime({ message: 'Must be a UTC ISO datetime' }),
+    effectiveFrom: z
+      .string()
+      .datetime({ message: 'Must be a UTC ISO datetime' }),
     effectiveTo: z
       .string()
       .datetime({ message: 'Must be a UTC ISO datetime' })
@@ -29,11 +31,16 @@ export const createRuleVersionSchema = z
   .refine(
     (data) => {
       if (data.capType === 'NONE' && data.capValue !== '0') return false;
-      if (data.capType !== 'NONE' && (data.capValue === '0' || Number(data.capValue) <= 0)) return false;
+      if (
+        data.capType !== 'NONE' &&
+        (data.capValue === '0' || Number(data.capValue) <= 0)
+      )
+        return false;
       return true;
     },
     {
-      message: 'capValue must be 0 when capType is NONE, and > 0 when capType is FLAT or RATIO',
+      message:
+        'capValue must be 0 when capType is NONE, and > 0 when capType is FLAT or RATIO',
       path: ['capValue'],
     },
   )
@@ -76,7 +83,10 @@ export const walletAdjustmentSchema = z
   .object({
     amount: z
       .string()
-      .regex(/^\d+(\.\d{1,10})?$/u, 'Must be a positive numeric string with up to 10 decimal places.'),
+      .regex(
+        /^\d+(\.\d{1,10})?$/u,
+        'Must be a positive numeric string with up to 10 decimal places.',
+      ),
     reason: z.string().trim().min(1).max(1000),
     source: z.string().trim().min(1).max(200),
     idempotencyKey: z.string().trim().min(1).max(200),

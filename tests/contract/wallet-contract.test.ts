@@ -50,25 +50,90 @@ describe('Wallet API Endpoint Contract', () => {
    * Documented endpoints from PHASE_3_API_CONTRACT_DRAFT.md
    */
   const expectedWalletEndpoints = [
-    { method: 'GET', path: '/api/v1/wallets', auth: 'member', description: 'List member wallets' },
-    { method: 'GET', path: '/api/v1/wallets/:id', auth: 'member+admin', description: 'Get wallet detail' },
-    { method: 'GET', path: '/api/v1/wallets/:id/entries', auth: 'member', description: 'List ledger entries' },
-    { method: 'POST', path: '/api/v1/admin/wallets/:id/reversal', auth: 'admin', description: 'Create compensating entry' },
-    { method: 'GET', path: '/api/v1/admin/wallets', auth: 'admin', description: 'List all wallets (admin)' },
-    { method: 'GET', path: '/api/v1/admin/wallets/:id', auth: 'admin', description: 'Get wallet detail (admin)' },
+    {
+      method: 'GET',
+      path: '/api/v1/wallets',
+      auth: 'member',
+      description: 'List member wallets',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/wallets/:id',
+      auth: 'member+admin',
+      description: 'Get wallet detail',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/wallets/:id/entries',
+      auth: 'member',
+      description: 'List ledger entries',
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/admin/wallets/:id/reversal',
+      auth: 'admin',
+      description: 'Create compensating entry',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/admin/wallets',
+      auth: 'admin',
+      description: 'List all wallets (admin)',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/admin/wallets/:id',
+      auth: 'admin',
+      description: 'Get wallet detail (admin)',
+    },
   ] as const;
 
   const expectedRewardEndpoints = [
-    { method: 'GET', path: '/api/v1/admin/reward-plans', auth: 'admin', description: 'List reward plans' },
-    { method: 'GET', path: '/api/v1/admin/reward-plans/:id', auth: 'admin', description: 'Get reward plan detail' },
-    { method: 'POST', path: '/api/v1/admin/reward-plans/:id/suspend', auth: 'admin', description: 'Suspend reward plan' },
-    { method: 'POST', path: '/api/v1/admin/reward-plans/:id/resume', auth: 'admin', description: 'Resume reward plan' },
-    { method: 'GET', path: '/api/v1/reward-plans', auth: 'member', description: 'Member reward plans' },
+    {
+      method: 'GET',
+      path: '/api/v1/admin/reward-plans',
+      auth: 'admin',
+      description: 'List reward plans',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/admin/reward-plans/:id',
+      auth: 'admin',
+      description: 'Get reward plan detail',
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/admin/reward-plans/:id/suspend',
+      auth: 'admin',
+      description: 'Suspend reward plan',
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/admin/reward-plans/:id/resume',
+      auth: 'admin',
+      description: 'Resume reward plan',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/reward-plans',
+      auth: 'member',
+      description: 'Member reward plans',
+    },
   ] as const;
 
   const expectedRuleEndpoints = [
-    { method: 'POST', path: '/api/v1/admin/reward-rule-versions', auth: 'admin', description: 'Create rule version' },
-    { method: 'GET', path: '/api/v1/admin/reward-rule-versions', auth: 'admin', description: 'List rule versions' },
+    {
+      method: 'POST',
+      path: '/api/v1/admin/reward-rule-versions',
+      auth: 'admin',
+      description: 'Create rule version',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/admin/reward-rule-versions',
+      auth: 'admin',
+      description: 'List rule versions',
+    },
   ] as const;
 
   it('should define all documented wallet endpoints', () => {
@@ -116,7 +181,9 @@ describe('Wallet API Endpoint Contract', () => {
     ];
     for (const endpoint of allEndpoints) {
       expect(endpoint.auth).toBeDefined();
-      expect(['member', 'admin', 'member+admin'].includes(endpoint.auth)).toBe(true);
+      expect(['member', 'admin', 'member+admin'].includes(endpoint.auth)).toBe(
+        true,
+      );
     }
   });
 
@@ -170,7 +237,12 @@ describe('Reward Plan State Machine Contract', () => {
 
   it('should mark REVERSED and COMPLETED as terminal states', () => {
     const terminalStates: string[] = [];
-    for (const status of ['SCHEDULED', 'ACTIVE', 'CAPPED', 'SUSPENDED'] as const) {
+    for (const status of [
+      'SCHEDULED',
+      'ACTIVE',
+      'CAPPED',
+      'SUSPENDED',
+    ] as const) {
       const plan = createRewardPlanFixture({ status });
       if (plan.status === 'REVERSED' || plan.status === 'COMPLETED') {
         terminalStates.push(plan.status);
@@ -216,18 +288,66 @@ describe('Wallet Error Code Coverage', () => {
    * Error codes from PHASE_3_ERROR_REGISTRY.md
    */
   const walletErrorCodes: WalletErrorCode[] = [
-    { code: 'WALLET_NOT_FOUND', httpStatus: 404, description: 'Wallet account not found' },
-    { code: 'WALLET_ACCESS_DENIED', httpStatus: 403, description: 'Access to wallet denied' },
-    { code: 'WALLET_MARKET_ACCESS_DENIED', httpStatus: 403, description: 'Cross-market access denied' },
-    { code: 'WALLET_ALREADY_EXISTS', httpStatus: 409, description: 'Duplicate wallet creation' },
-    { code: 'WALLET_INVALID_STATUS', httpStatus: 400, description: 'Invalid wallet status for operation' },
-    { code: 'WALLET_INVALID_AMOUNT', httpStatus: 400, description: 'Entry amount must be non-zero' },
-    { code: 'WALLET_INSUFFICIENT_BALANCE', httpStatus: 400, description: 'Insufficient balance' },
-    { code: 'WALLET_DUPLICATE_ENTRY', httpStatus: 409, description: 'Idempotency key reused' },
-    { code: 'WALLET_ENTRY_NOT_FOUND', httpStatus: 404, description: 'Wallet entry not found' },
-    { code: 'WALLET_REVERSAL_INVALID', httpStatus: 400, description: 'Entry cannot be reversed' },
-    { code: 'WALLET_REVERSAL_ALREADY_EXISTS', httpStatus: 409, description: 'Duplicate reversal' },
-    { code: 'WALLET_IDEMPOTENCY_CONFLICT', httpStatus: 409, description: 'Idempotency payload mismatch' },
+    {
+      code: 'WALLET_NOT_FOUND',
+      httpStatus: 404,
+      description: 'Wallet account not found',
+    },
+    {
+      code: 'WALLET_ACCESS_DENIED',
+      httpStatus: 403,
+      description: 'Access to wallet denied',
+    },
+    {
+      code: 'WALLET_MARKET_ACCESS_DENIED',
+      httpStatus: 403,
+      description: 'Cross-market access denied',
+    },
+    {
+      code: 'WALLET_ALREADY_EXISTS',
+      httpStatus: 409,
+      description: 'Duplicate wallet creation',
+    },
+    {
+      code: 'WALLET_INVALID_STATUS',
+      httpStatus: 400,
+      description: 'Invalid wallet status for operation',
+    },
+    {
+      code: 'WALLET_INVALID_AMOUNT',
+      httpStatus: 400,
+      description: 'Entry amount must be non-zero',
+    },
+    {
+      code: 'WALLET_INSUFFICIENT_BALANCE',
+      httpStatus: 400,
+      description: 'Insufficient balance',
+    },
+    {
+      code: 'WALLET_DUPLICATE_ENTRY',
+      httpStatus: 409,
+      description: 'Idempotency key reused',
+    },
+    {
+      code: 'WALLET_ENTRY_NOT_FOUND',
+      httpStatus: 404,
+      description: 'Wallet entry not found',
+    },
+    {
+      code: 'WALLET_REVERSAL_INVALID',
+      httpStatus: 400,
+      description: 'Entry cannot be reversed',
+    },
+    {
+      code: 'WALLET_REVERSAL_ALREADY_EXISTS',
+      httpStatus: 409,
+      description: 'Duplicate reversal',
+    },
+    {
+      code: 'WALLET_IDEMPOTENCY_CONFLICT',
+      httpStatus: 409,
+      description: 'Idempotency payload mismatch',
+    },
   ];
 
   it('should have documented error codes for all wallet operations', () => {
@@ -252,7 +372,9 @@ describe('Wallet Error Code Coverage', () => {
     );
     expect(notFoundCodes.length).toBe(2);
     expect(notFoundCodes.map((c) => c.code)).toContain('WALLET_NOT_FOUND');
-    expect(notFoundCodes.map((c) => c.code)).toContain('WALLET_ENTRY_NOT_FOUND');
+    expect(notFoundCodes.map((c) => c.code)).toContain(
+      'WALLET_ENTRY_NOT_FOUND',
+    );
   });
 
   it('should map 403 errors to access-denied operations', () => {
@@ -272,7 +394,9 @@ describe('Wallet Error Code Coverage', () => {
     );
     expect(conflictCodes.length).toBeGreaterThanOrEqual(3);
     expect(conflictCodes.map((c) => c.code)).toContain('WALLET_ALREADY_EXISTS');
-    expect(conflictCodes.map((c) => c.code)).toContain('WALLET_DUPLICATE_ENTRY');
+    expect(conflictCodes.map((c) => c.code)).toContain(
+      'WALLET_DUPLICATE_ENTRY',
+    );
   });
 
   it('every GET endpoint should be able to return 404 and 403', () => {
@@ -298,15 +422,51 @@ describe('Wallet Error Code Coverage', () => {
 
     const rewardErrorCodes: RewardErrorCode[] = [
       { code: 'REWARD_PLAN_NOT_FOUND', httpStatus: 404, prefix: 'REWARD_PLAN' },
-      { code: 'REWARD_PLAN_INVALID_STATE', httpStatus: 400, prefix: 'REWARD_PLAN' },
-      { code: 'REWARD_PLAN_ALREADY_EXISTS', httpStatus: 409, prefix: 'REWARD_PLAN' },
-      { code: 'REWARD_RULE_VERSION_NOT_FOUND', httpStatus: 404, prefix: 'REWARD_RULE' },
-      { code: 'REWARD_RULE_VERSION_CONFLICT', httpStatus: 409, prefix: 'REWARD_RULE' },
-      { code: 'REWARD_SOURCE_NOT_FOUND', httpStatus: 404, prefix: 'REWARD_SOURCE' },
-      { code: 'REWARD_SOURCE_ALREADY_CONSUMED', httpStatus: 409, prefix: 'REWARD_SOURCE' },
-      { code: 'SETTLEMENT_MARKET_LOCKED', httpStatus: 423, prefix: 'SETTLEMENT' },
-      { code: 'SETTLEMENT_IDEMPOTENCY_CONFLICT', httpStatus: 409, prefix: 'SETTLEMENT' },
-      { code: 'SETTLEMENT_NO_EFFECTIVE_RULE', httpStatus: 400, prefix: 'SETTLEMENT' },
+      {
+        code: 'REWARD_PLAN_INVALID_STATE',
+        httpStatus: 400,
+        prefix: 'REWARD_PLAN',
+      },
+      {
+        code: 'REWARD_PLAN_ALREADY_EXISTS',
+        httpStatus: 409,
+        prefix: 'REWARD_PLAN',
+      },
+      {
+        code: 'REWARD_RULE_VERSION_NOT_FOUND',
+        httpStatus: 404,
+        prefix: 'REWARD_RULE',
+      },
+      {
+        code: 'REWARD_RULE_VERSION_CONFLICT',
+        httpStatus: 409,
+        prefix: 'REWARD_RULE',
+      },
+      {
+        code: 'REWARD_SOURCE_NOT_FOUND',
+        httpStatus: 404,
+        prefix: 'REWARD_SOURCE',
+      },
+      {
+        code: 'REWARD_SOURCE_ALREADY_CONSUMED',
+        httpStatus: 409,
+        prefix: 'REWARD_SOURCE',
+      },
+      {
+        code: 'SETTLEMENT_MARKET_LOCKED',
+        httpStatus: 423,
+        prefix: 'SETTLEMENT',
+      },
+      {
+        code: 'SETTLEMENT_IDEMPOTENCY_CONFLICT',
+        httpStatus: 409,
+        prefix: 'SETTLEMENT',
+      },
+      {
+        code: 'SETTLEMENT_NO_EFFECTIVE_RULE',
+        httpStatus: 400,
+        prefix: 'SETTLEMENT',
+      },
     ];
 
     it('should have documented error codes for reward domains', () => {
@@ -501,8 +661,18 @@ describe('Idempotency Key Contract', () => {
     const memberId = randomUUID();
     const marketId = randomUUID();
 
-    const key1 = makeRewardPlanKey('PURCHASE_TRANSACTION', sourceId1, memberId, marketId);
-    const key2 = makeRewardPlanKey('PURCHASE_TRANSACTION', sourceId2, memberId, marketId);
+    const key1 = makeRewardPlanKey(
+      'PURCHASE_TRANSACTION',
+      sourceId1,
+      memberId,
+      marketId,
+    );
+    const key2 = makeRewardPlanKey(
+      'PURCHASE_TRANSACTION',
+      sourceId2,
+      memberId,
+      marketId,
+    );
     expect(key1).not.toBe(key2);
   });
 

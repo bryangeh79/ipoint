@@ -40,10 +40,7 @@ export function rewardRuleNoEffectiveVersionError(
 }
 
 export function rewardSourceNotFoundError(): RewardError {
-  return new RewardError(
-    'REWARD_SOURCE_NOT_FOUND',
-    'Reward source not found.',
-  );
+  return new RewardError('REWARD_SOURCE_NOT_FOUND', 'Reward source not found.');
 }
 
 export function rewardSourceDuplicateError(): RewardError {

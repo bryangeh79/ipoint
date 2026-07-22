@@ -49,8 +49,8 @@ function utcToLocalDate(utcIso: string, timezone: string): string {
 // ===========================================================================
 
 describe('UTC+8 vs UTC-5: Same UTC moment, different local business dates', () => {
-  const utcPlus8 = 'Asia/Singapore';      // UTC+8 (no DST)
-  const utcMinus5 = 'America/New_York';    // UTC-5 (EST, with DST)
+  const utcPlus8 = 'Asia/Singapore'; // UTC+8 (no DST)
+  const utcMinus5 = 'America/New_York'; // UTC-5 (EST, with DST)
 
   it('UTC time just after midnight in Asia is still previous day in NY', () => {
     // 2026-01-02T00:30:00Z (30 min after UTC midnight)
@@ -214,7 +214,11 @@ describe('DST Boundary Tests', () => {
     const dstTimezone = 'America/New_York';
 
     // March 7 (Sat) → March 9 (Mon), 2026 — spring forward weekend
-    const dates = generateConsecutiveLocalDates('2026-03-07T00:00:00.000Z', 3, dstTimezone);
+    const dates = generateConsecutiveLocalDates(
+      '2026-03-07T00:00:00.000Z',
+      3,
+      dstTimezone,
+    );
     expect(dates).toHaveLength(3);
     expect(dates[0]).toBe('2026-03-07');
     expect(dates[1]).toBe('2026-03-08'); // Spring forward happens
@@ -411,7 +415,9 @@ describe('Multi-Market Accrual Date Alignment', () => {
       { name: 'UK', timezone: 'Europe/London' },
     ];
 
-    const localDates = markets.map((m) => utcToLocalDate(utcJobTime, m.timezone));
+    const localDates = markets.map((m) =>
+      utcToLocalDate(utcJobTime, m.timezone),
+    );
 
     // Asian markets: July 16 (next day, since UTC 20:00 is already tomorrow in Asia)
     // US: July 15 (still same day, since UTC 20:00 = 4 PM EDT)
@@ -455,11 +461,17 @@ describe('Multi-Market Accrual Date Alignment', () => {
     expect(dstMarket.timezone).toBe('America/New_York');
 
     // During standard time (winter)
-    const winterDate = utcToLocalDate('2026-01-15T12:00:00.000Z', dstMarket.timezone);
+    const winterDate = utcToLocalDate(
+      '2026-01-15T12:00:00.000Z',
+      dstMarket.timezone,
+    );
     expect(winterDate).toBe('2026-01-15');
 
     // During daylight saving time (summer)
-    const summerDate = utcToLocalDate('2026-07-15T12:00:00.000Z', dstMarket.timezone);
+    const summerDate = utcToLocalDate(
+      '2026-07-15T12:00:00.000Z',
+      dstMarket.timezone,
+    );
     expect(summerDate).toBe('2026-07-15');
   });
 });

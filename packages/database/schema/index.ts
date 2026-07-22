@@ -1979,7 +1979,6 @@ export const mcpAdjustmentDecisions = pgTable(
   ],
 );
 
-
 export const memberWalletAccounts = pgTable(
   'member_wallet_accounts',
   {
@@ -2117,10 +2116,7 @@ export const rewardRuleVersions = pgTable(
       table.marketId,
       table.effectiveFrom,
     ),
-    check(
-      'reward_rule_versions_rate_check',
-      sql`${table.rewardRate} >= 0`,
-    ),
+    check('reward_rule_versions_rate_check', sql`${table.rewardRate} >= 0`),
     check(
       'reward_rule_versions_cap_value_check',
       sql`(${table.capType} = 'NONE' and ${table.capValue} = 0) or (${table.capType} != 'NONE' and ${table.capValue} > 0)`,
@@ -2180,10 +2176,7 @@ export const rewardPlans = pgTable(
       table.status,
     ),
     index('reward_plans_status_idx').on(table.status),
-    check(
-      'reward_plans_total_earned_check',
-      sql`${table.totalEarned} >= 0`,
-    ),
+    check('reward_plans_total_earned_check', sql`${table.totalEarned} >= 0`),
   ],
 );
 
@@ -2217,7 +2210,10 @@ export const rewardSources = pgTable(
     createdAt: utcTimestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
-    unique('reward_sources_type_id_unique').on(table.sourceType, table.sourceId),
+    unique('reward_sources_type_id_unique').on(
+      table.sourceType,
+      table.sourceId,
+    ),
     unique('reward_sources_source_unique').on(
       table.sourceType,
       table.sourceId,
@@ -2258,10 +2254,22 @@ export const dailyJobRuns = pgTable(
       table.localBusinessDate,
     ),
     index('daily_job_runs_status_idx').on(table.status),
-    index('daily_job_runs_market_date_idx').on(table.marketId, table.localBusinessDate),
-    check('daily_job_runs_job_type_check', sql`char_length(${table.jobType}) > 0`),
-    check('daily_job_runs_total_entitlements_check', sql`${table.totalEntitlements} >= 0`),
-    check('daily_job_runs_processed_count_check', sql`${table.processedCount} >= 0`),
+    index('daily_job_runs_market_date_idx').on(
+      table.marketId,
+      table.localBusinessDate,
+    ),
+    check(
+      'daily_job_runs_job_type_check',
+      sql`char_length(${table.jobType}) > 0`,
+    ),
+    check(
+      'daily_job_runs_total_entitlements_check',
+      sql`${table.totalEntitlements} >= 0`,
+    ),
+    check(
+      'daily_job_runs_processed_count_check',
+      sql`${table.processedCount} >= 0`,
+    ),
     check('daily_job_runs_failed_count_check', sql`${table.failedCount} >= 0`),
   ],
 );
@@ -2298,11 +2306,22 @@ export const rewardDailyAccruals = pgTable(
       table.marketLocalDate,
       table.ledgerEntryType,
     ),
-    unique('reward_daily_accruals_idempotency_key_unique').on(table.idempotencyKey),
-    index('reward_daily_accruals_member_market_idx').on(table.memberId, table.marketId),
-    index('reward_daily_accruals_plan_date_idx').on(table.rewardPlanId, table.marketLocalDate),
+    unique('reward_daily_accruals_idempotency_key_unique').on(
+      table.idempotencyKey,
+    ),
+    index('reward_daily_accruals_member_market_idx').on(
+      table.memberId,
+      table.marketId,
+    ),
+    index('reward_daily_accruals_plan_date_idx').on(
+      table.rewardPlanId,
+      table.marketLocalDate,
+    ),
     check('reward_daily_accruals_amount_check', sql`${table.amount} > 0`),
-    check('reward_daily_accruals_idempotency_check', sql`char_length(${table.idempotencyKey}) > 0`),
+    check(
+      'reward_daily_accruals_idempotency_check',
+      sql`char_length(${table.idempotencyKey}) > 0`,
+    ),
   ],
 );
 

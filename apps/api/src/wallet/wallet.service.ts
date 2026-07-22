@@ -1,8 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import {
-  memberWalletAccounts,
-  memberWalletEntries,
-} from '@ipoint/database';
+import { memberWalletAccounts, memberWalletEntries } from '@ipoint/database';
 import { and, eq, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service.js';
 import { ConfigService } from '../config/config.service.js';
@@ -26,7 +23,9 @@ export class WalletService {
     @Inject(ConfigService) private readonly config: ConfigService,
   ) {}
 
-  private toWalletResponse(row: typeof memberWalletAccounts.$inferSelect): WalletAccountResponse {
+  private toWalletResponse(
+    row: typeof memberWalletAccounts.$inferSelect,
+  ): WalletAccountResponse {
     return {
       id: row.id,
       memberId: row.memberId,
@@ -137,9 +136,7 @@ export class WalletService {
    * Get the computed balance for a wallet from the sum of all entries.
    * Returns the balance as stored on the wallet account.
    */
-  async getBalance(
-    walletId: string,
-  ): Promise<{
+  async getBalance(walletId: string): Promise<{
     pending: string;
     available: string;
     reversed: string;

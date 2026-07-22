@@ -116,8 +116,7 @@ export class WalletController {
   @Get(':id/entries')
   @ApiOperation({
     summary: 'Get wallet ledger entries',
-    description:
-      'Returns paginated ledger history for the specified wallet.',
+    description: 'Returns paginated ledger history for the specified wallet.',
   })
   @ApiQuery({
     name: 'limit',

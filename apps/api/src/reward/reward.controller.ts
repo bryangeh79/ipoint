@@ -38,9 +38,7 @@ import { RewardService } from './reward.service.js';
 @ApiTags('Rewards')
 @Controller({ path: 'rewards', version: '1' })
 export class RewardController {
-  constructor(
-    @Inject(RewardService) private readonly reward: RewardService,
-  ) {}
+  constructor(@Inject(RewardService) private readonly reward: RewardService) {}
 
   // ─── Member endpoints ─────────────────────────────────────────────
 
@@ -96,14 +94,18 @@ export class RewardController {
   @ApiOperation({ summary: 'Create a new reward rule version (admin)' })
   @ApiResponse({ status: 201, description: 'Rule version created.' })
   async createRule(
-    @Body(new ZodValidationPipe(createRuleVersionSchema)) input: CreateRuleVersionDto,
+    @Body(new ZodValidationPipe(createRuleVersionSchema))
+    input: CreateRuleVersionDto,
   ) {
     return this.handle(() => this.reward.createRuleVersion(input));
   }
 
   // ─── Error Handling ────────────────────────────────────────────────
 
-  private extractMemberActor(actor: RequestActor): { accountId: string; memberId: string } {
+  private extractMemberActor(actor: RequestActor): {
+    accountId: string;
+    memberId: string;
+  } {
     if (actor.type !== 'ACCOUNT') {
       throw new BadRequestException({
         code: 'REWARD_NOT_ALLOWED',

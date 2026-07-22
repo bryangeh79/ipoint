@@ -141,8 +141,14 @@ function createService(options: {
 
   const db = {
     select: () => queryBuilder,
-    insert: vi.fn().mockReturnValue({ values: vi.fn().mockReturnValue({ returning: insertReturningMock }) }),
-    update: vi.fn().mockReturnValue({ set: vi.fn().mockReturnValue({ where: vi.fn().mockReturnValue({ returning: updateReturningMock }) }) }),
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({ returning: insertReturningMock }),
+    }),
+    update: vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({ returning: updateReturningMock }),
+      }),
+    }),
     transaction: vi.fn(),
   };
 
@@ -253,9 +259,7 @@ describe('RewardService', () => {
       const { service, returnMock } = createService({});
       returnMock.mockResolvedValue([]);
 
-      await expect(
-        service.getRuleVersion(randomUUID()),
-      ).rejects.toMatchObject({
+      await expect(service.getRuleVersion(randomUUID())).rejects.toMatchObject({
         code: 'REWARD_RULE_VERSION_NOT_FOUND',
       });
     });
@@ -286,7 +290,10 @@ describe('RewardService', () => {
       returnMock.mockResolvedValue([]);
 
       await expect(
-        service.findEffectiveRuleVersion(marketId, new Date('2025-01-01T00:00:00.000Z')),
+        service.findEffectiveRuleVersion(
+          marketId,
+          new Date('2025-01-01T00:00:00.000Z'),
+        ),
       ).rejects.toMatchObject({
         code: 'REWARD_RULE_NO_EFFECTIVE_VERSION',
       });
@@ -312,8 +319,14 @@ describe('RewardService', () => {
         merchantId: source.merchantId as string,
         transactionAmount: source.transactionAmount as string,
         currency: source.currency as string,
-        merchantPackageSnapshot: source.merchantPackageSnapshot as Record<string, unknown>,
-        serviceFeeSnapshot: source.serviceFeeSnapshot as Record<string, unknown>,
+        merchantPackageSnapshot: source.merchantPackageSnapshot as Record<
+          string,
+          unknown
+        >,
+        serviceFeeSnapshot: source.serviceFeeSnapshot as Record<
+          string,
+          unknown
+        >,
       });
 
       expect(result.sourceType).toBe('PURCHASE_TRANSACTION');
@@ -355,9 +368,7 @@ describe('RewardService', () => {
         plans: [plan],
       });
 
-      returnMock
-        .mockResolvedValueOnce([source])
-        .mockResolvedValueOnce([]); // no existing plan
+      returnMock.mockResolvedValueOnce([source]).mockResolvedValueOnce([]); // no existing plan
 
       transactionMock.mockImplementation(async (cb: Function) => {
         const tx = {
@@ -515,7 +526,12 @@ describe('RewardService', () => {
   describe('transitionPlanStatus', () => {
     it('transitions SCHEDULED to ACTIVE', async () => {
       const plan = planRow();
-      const updatedPlan = { ...plan, status: 'ACTIVE', activatedAt: new Date(), updatedAt: new Date() };
+      const updatedPlan = {
+        ...plan,
+        status: 'ACTIVE',
+        activatedAt: new Date(),
+        updatedAt: new Date(),
+      };
       const { service, transactionMock } = createService({ plans: [plan] });
 
       transactionMock.mockImplementation(async (cb: Function) => {
@@ -628,9 +644,7 @@ describe('RewardService', () => {
         plans: [plan],
       });
 
-      returnMock
-        .mockResolvedValueOnce([source])
-        .mockResolvedValueOnce([]);
+      returnMock.mockResolvedValueOnce([source]).mockResolvedValueOnce([]);
 
       transactionMock.mockImplementation(async (cb: Function) => {
         const tx = {
@@ -675,17 +689,25 @@ describe('RewardService', () => {
         id: randomUUID(),
       });
 
-      const planA = planRow({ marketId: marketAId, sourceId: sourceA.sourceId });
-      const planB = planRow({ marketId: marketBId, sourceId: sourceB.sourceId });
+      const planA = planRow({
+        marketId: marketAId,
+        sourceId: sourceA.sourceId,
+      });
+      const planB = planRow({
+        marketId: marketBId,
+        sourceId: sourceB.sourceId,
+      });
 
-      const { service: serviceA, returnMock: returnMockA, transactionMock: txMockA } = createService({
+      const {
+        service: serviceA,
+        returnMock: returnMockA,
+        transactionMock: txMockA,
+      } = createService({
         sources: [sourceA],
         plans: [planA],
       });
 
-      returnMockA
-        .mockResolvedValueOnce([sourceA])
-        .mockResolvedValueOnce([]);
+      returnMockA.mockResolvedValueOnce([sourceA]).mockResolvedValueOnce([]);
 
       txMockA.mockImplementation(async (cb: Function) => {
         const tx = {
@@ -741,9 +763,7 @@ describe('RewardService', () => {
         sources: [source],
       });
 
-      returnMock
-        .mockResolvedValueOnce([source])
-        .mockResolvedValueOnce([]);
+      returnMock.mockResolvedValueOnce([source]).mockResolvedValueOnce([]);
 
       transactionMock.mockImplementation(async (cb: Function) => {
         let capFromTx: string | null = null;
@@ -763,14 +783,15 @@ describe('RewardService', () => {
           }),
           insert: () => ({
             values: (vals: Record<string, unknown>) => ({
-              returning: () => Promise.resolve([
-                planRow({
-                  sourceId: source.sourceId,
-                  ruleVersionId: rule.id,
-                  capAmount: rule.capType === 'FLAT' ? rule.capValue : null,
-                  ...vals,
-                }),
-              ]),
+              returning: () =>
+                Promise.resolve([
+                  planRow({
+                    sourceId: source.sourceId,
+                    ruleVersionId: rule.id,
+                    capAmount: rule.capType === 'FLAT' ? rule.capValue : null,
+                    ...vals,
+                  }),
+                ]),
             }),
           }),
           update: () => ({
@@ -797,9 +818,7 @@ describe('RewardService', () => {
         plans: [plan],
       });
 
-      returnMock
-        .mockResolvedValueOnce([source])
-        .mockResolvedValueOnce([]);
+      returnMock.mockResolvedValueOnce([source]).mockResolvedValueOnce([]);
 
       transactionMock.mockImplementation(async (cb: Function) => {
         const tx = {

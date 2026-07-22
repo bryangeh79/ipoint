@@ -120,7 +120,10 @@ export class RewardService {
       .select()
       .from(rewardRuleVersions)
       .where(
-        and(eq(rewardRuleVersions.id, id), isNull(rewardRuleVersions.archivedAt)),
+        and(
+          eq(rewardRuleVersions.id, id),
+          isNull(rewardRuleVersions.archivedAt),
+        ),
       )
       .limit(1);
 
@@ -188,10 +191,9 @@ export class RewardService {
           merchantId: source.merchantId,
           status: 'SCHEDULED',
           totalEarned: '0',
-          capAmount:
-            source.rewardRuleVersionId
-              ? null
-              : await this.resolveCapAmount(tx, source),
+          capAmount: source.rewardRuleVersionId
+            ? null
+            : await this.resolveCapAmount(tx, source),
           snapshot: {
             merchantPackageSnapshot: source.merchantPackageSnapshot,
             serviceFeeSnapshot: source.serviceFeeSnapshot,
@@ -218,9 +220,7 @@ export class RewardService {
     const conditions = and(
       eq(rewardPlans.memberId, memberId),
       query.status ? eq(rewardPlans.status, query.status) : undefined,
-      query.marketId
-        ? eq(rewardPlans.marketId, query.marketId)
-        : undefined,
+      query.marketId ? eq(rewardPlans.marketId, query.marketId) : undefined,
     );
 
     const totalResult = await this.database.db
@@ -396,9 +396,7 @@ export class RewardService {
     };
   }
 
-  private mapPlan(
-    row: typeof rewardPlans.$inferSelect,
-  ): RewardPlanResponse {
+  private mapPlan(row: typeof rewardPlans.$inferSelect): RewardPlanResponse {
     return {
       id: row.id,
       sourceType: row.sourceType,
@@ -431,10 +429,14 @@ export class RewardService {
       merchantId: row.merchantId,
       transactionAmount: row.transactionAmount,
       currency: row.currency,
-      merchantPackageSnapshot:
-        row.merchantPackageSnapshot as Record<string, unknown> | null,
-      serviceFeeSnapshot:
-        row.serviceFeeSnapshot as Record<string, unknown> | null,
+      merchantPackageSnapshot: row.merchantPackageSnapshot as Record<
+        string,
+        unknown
+      > | null,
+      serviceFeeSnapshot: row.serviceFeeSnapshot as Record<
+        string,
+        unknown
+      > | null,
       rewardRuleVersionId: row.rewardRuleVersionId,
       consumed: row.consumed,
       createdAt: row.createdAt.toISOString(),

@@ -23,7 +23,9 @@ export const createRuleVersionSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
     description: z.string().trim().max(2000).optional(),
-    effectiveFrom: z.string().datetime({ message: 'Must be a UTC ISO datetime' }),
+    effectiveFrom: z
+      .string()
+      .datetime({ message: 'Must be a UTC ISO datetime' }),
     effectiveTo: z
       .string()
       .datetime({ message: 'Must be a UTC ISO datetime' })
@@ -41,7 +43,10 @@ export const createRuleVersionSchema = z
       if (data.capType === 'NONE' && data.capValue !== '0') {
         return false;
       }
-      if (data.capType !== 'NONE' && (data.capValue === '0' || Number(data.capValue) <= 0)) {
+      if (
+        data.capType !== 'NONE' &&
+        (data.capValue === '0' || Number(data.capValue) <= 0)
+      ) {
         return false;
       }
       return true;

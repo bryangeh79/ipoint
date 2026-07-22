@@ -125,7 +125,9 @@ export type RewardPlanStatus =
 
 ```typescript
 /** Branded type for reward rule version IDs */
-export type RewardRuleVersionId = string & { readonly __brand: 'RewardRuleVersionId' };
+export type RewardRuleVersionId = string & {
+  readonly __brand: 'RewardRuleVersionId';
+};
 ```
 
 **Owner:** Agent 2
@@ -175,8 +177,8 @@ export interface RewardPlanSourceKey {
 ```typescript
 /** Balance snapshot around a ledger entry */
 export interface LedgerEntrySnapshot {
-  readonly balanceBefore: string;  // decimal as string
-  readonly balanceAfter: string;   // decimal as string
+  readonly balanceBefore: string; // decimal as string
+  readonly balanceAfter: string; // decimal as string
 }
 ```
 
@@ -189,15 +191,15 @@ export interface LedgerEntrySnapshot {
 /** Parameters for creating a wallet ledger entry */
 export interface CreateLedgerEntryParams {
   readonly accountId: string;
-  readonly amount: string;           // decimal as string, positive = CREDIT, negative = DEBIT
+  readonly amount: string; // decimal as string, positive = CREDIT, negative = DEBIT
   readonly entryType: EntryType;
   readonly entrySubtype: EntrySubtype;
   readonly rewardPlanId?: string;
   readonly idempotencyKey: string;
   readonly correlationId: string;
   readonly reason?: string;
-  readonly actorId?: string;         // admin user for admin actions
-  readonly reversalOf?: string;       // original entry ID
+  readonly actorId?: string; // admin user for admin actions
+  readonly reversalOf?: string; // original entry ID
 }
 ```
 
@@ -214,9 +216,9 @@ export interface CreateLedgerEntryParams {
 /** A date in a specific market's local timezone */
 export interface MarketLocalDate {
   readonly marketId: string;
-  readonly marketTimezone: string;   // IANA timezone string
-  readonly localDate: string;         // YYYY-MM-DD in market timezone
-  readonly executedAtUtc: string;     // ISO 8601 timestamp
+  readonly marketTimezone: string; // IANA timezone string
+  readonly localDate: string; // YYYY-MM-DD in market timezone
+  readonly executedAtUtc: string; // ISO 8601 timestamp
 }
 ```
 
@@ -276,9 +278,9 @@ export const IDEMPOTENCY_KEY_PREFIXES = {
 ```typescript
 /** Result of an idempotent operation */
 export interface IdempotencyResult<T> {
-  readonly created: boolean;     // true = first execution, false = duplicate
-  readonly existingId: string;   // ID of the existing resource on duplicate
-  readonly data: T;              // The resource (new or existing)
+  readonly created: boolean; // true = first execution, false = duplicate
+  readonly existingId: string; // ID of the existing resource on duplicate
+  readonly data: T; // The resource (new or existing)
 }
 ```
 
@@ -317,7 +319,7 @@ export interface AuditEventParams {
   readonly eventType: AuditEventType;
   readonly actorId: string;
   readonly actorType: 'ACCOUNT' | 'ADMIN_USER' | 'SYSTEM';
-  readonly resourceType: string;        // e.g., 'wallet_account', 'reward_plan'
+  readonly resourceType: string; // e.g., 'wallet_account', 'reward_plan'
   readonly resourceId: string;
   readonly details?: Record<string, unknown>;
   readonly correlationId: string;
@@ -358,28 +360,28 @@ export type RequestId = string;
 
 ## 10. Type Ownership Matrix (Summary)
 
-| Type | Owner | Defined In | Consumed By |
-|---|---|---|---|
-| `WalletId` | Agent 1 | `packages/types` | 1, 4, 5 |
-| `WalletEntryId` | Agent 1 | `packages/types` | 1, 4, 5 |
-| `WalletStatus` | Agent 1 | `packages/types` | 1, 5 |
-| `EntryType` | Agent 1 | `packages/types` | 1, 4 |
-| `EntrySubtype` | Agent 1 | `packages/types` | 1, 4 |
-| `RewardPlanId` | Agent 2 | `packages/types` | 2, 4, 5 |
-| `RewardPlanStatus` | Agent 2 | `packages/types` | 2, 4 |
-| `RewardRuleVersionId` | Agent 2 | `packages/types` | 2, 4 |
-| `RewardSourceId` | Agent 3 | `packages/types` | 3, 2 |
-| `RuleRateType` | Agent 2 | `packages/types` | 2, 4 |
-| `RewardPlanSourceKey` | Agent 2 | `packages/types` | 2, 3 |
-| `LedgerEntrySnapshot` | Agent 1 | `packages/types` | 1, 4 |
-| `CreateLedgerEntryParams` | Agent 1 | `packages/types` | 1, 4 |
-| `MarketLocalDate` | Agent 4 | `packages/types` | 4, 2 |
-| `IanaTimezone` | Agent 4 | `packages/types` | 4, 2 |
-| `IdempotencyKey` | Agent 0 | `packages/types` | All |
-| `IdempotencyResult<T>` | Agent 0 | `packages/types` | All |
-| `AuditEventType` | Agent 5 | `packages/types` | 5, 1, 2, 4 |
-| `AuditEventParams` | Agent 5 | `packages/types` | 5, 1, 2, 4 |
-| `CorrelationId` | Agent 0 | `packages/types` | All |
+| Type                      | Owner   | Defined In       | Consumed By |
+| ------------------------- | ------- | ---------------- | ----------- |
+| `WalletId`                | Agent 1 | `packages/types` | 1, 4, 5     |
+| `WalletEntryId`           | Agent 1 | `packages/types` | 1, 4, 5     |
+| `WalletStatus`            | Agent 1 | `packages/types` | 1, 5        |
+| `EntryType`               | Agent 1 | `packages/types` | 1, 4        |
+| `EntrySubtype`            | Agent 1 | `packages/types` | 1, 4        |
+| `RewardPlanId`            | Agent 2 | `packages/types` | 2, 4, 5     |
+| `RewardPlanStatus`        | Agent 2 | `packages/types` | 2, 4        |
+| `RewardRuleVersionId`     | Agent 2 | `packages/types` | 2, 4        |
+| `RewardSourceId`          | Agent 3 | `packages/types` | 3, 2        |
+| `RuleRateType`            | Agent 2 | `packages/types` | 2, 4        |
+| `RewardPlanSourceKey`     | Agent 2 | `packages/types` | 2, 3        |
+| `LedgerEntrySnapshot`     | Agent 1 | `packages/types` | 1, 4        |
+| `CreateLedgerEntryParams` | Agent 1 | `packages/types` | 1, 4        |
+| `MarketLocalDate`         | Agent 4 | `packages/types` | 4, 2        |
+| `IanaTimezone`            | Agent 4 | `packages/types` | 4, 2        |
+| `IdempotencyKey`          | Agent 0 | `packages/types` | All         |
+| `IdempotencyResult<T>`    | Agent 0 | `packages/types` | All         |
+| `AuditEventType`          | Agent 5 | `packages/types` | 5, 1, 2, 4  |
+| `AuditEventParams`        | Agent 5 | `packages/types` | 5, 1, 2, 4  |
+| `CorrelationId`           | Agent 0 | `packages/types` | All         |
 
 ---
 
@@ -397,9 +399,9 @@ Agent 0 (this agent) proposes adding all shared types to `packages/types/src/ind
 
 ## 12. Unresolved Type Decisions
 
-| Decision | Status | Notes |
-|---|---|---|
-| Should branded types use `__brand` or `__type` pattern? | DECISION_REQUIRED | Codebase uses `__brand` in some places; standardize |
-| Should `CreateLedgerEntryParams` use `string` for amounts or a `Decimal` wrapper? | DECISION_REQUIRED | String is recommended; depends on Decimal strategy |
-| Should `MarketLocalDate.localDate` be `string` (YYYY-MM-DD) or `Date`? | DECISION_REQUIRED | String avoids timezone ambiguity |
-| Should `AuditEventType` be a union string or an enum? | DECISION_REQUIRED | Union type is more flexible for extensibility |
+| Decision                                                                          | Status            | Notes                                               |
+| --------------------------------------------------------------------------------- | ----------------- | --------------------------------------------------- |
+| Should branded types use `__brand` or `__type` pattern?                           | DECISION_REQUIRED | Codebase uses `__brand` in some places; standardize |
+| Should `CreateLedgerEntryParams` use `string` for amounts or a `Decimal` wrapper? | DECISION_REQUIRED | String is recommended; depends on Decimal strategy  |
+| Should `MarketLocalDate.localDate` be `string` (YYYY-MM-DD) or `Date`?            | DECISION_REQUIRED | String avoids timezone ambiguity                    |
+| Should `AuditEventType` be a union string or an enum?                             | DECISION_REQUIRED | Union type is more flexible for extensibility       |

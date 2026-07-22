@@ -15,9 +15,7 @@ function createMockDbWithTx(transactionFn: (tx: unknown) => Promise<unknown>) {
   const mockDb = {
     transaction: vi
       .fn()
-      .mockImplementation(
-        (cb: (tx: unknown) => Promise<unknown>) => cb(tx),
-      ),
+      .mockImplementation((cb: (tx: unknown) => Promise<unknown>) => cb(tx)),
     select: () => ({
       from: () => ({
         where: () => ({
@@ -162,9 +160,7 @@ describe('TransactionRewardLinkageService', () => {
 
       // Wallet entry: onConflictDoUpdate returns id
       vi.mocked(tx.onConflictDoUpdate).mockReturnThis();
-      vi.mocked(tx.returning).mockResolvedValueOnce([
-        { id: 'wallet-1' },
-      ]);
+      vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'wallet-1' }]);
 
       // Sequence query
       vi.mocked(tx.execute).mockResolvedValueOnce({
@@ -214,9 +210,7 @@ describe('TransactionRewardLinkageService', () => {
       ]);
 
       // Second select for plan lookup
-      vi.mocked(tx.limit).mockResolvedValueOnce([
-        { id: 'existing-plan' },
-      ]);
+      vi.mocked(tx.limit).mockResolvedValueOnce([{ id: 'existing-plan' }]);
 
       const input = makeTransactionInput();
       const result = await service.createRewardEntitlement(input);
@@ -292,11 +286,15 @@ describe('TransactionRewardLinkageService', () => {
 
       // Rule version
       const whereChain = {
-        orderBy: vi
-          .fn()
-          .mockResolvedValue([
-            { id: 'rule-1', rewardRate: '5.0000000000', capType: 'NONE', capValue: '0', minimumReward: '0' },
-          ]),
+        orderBy: vi.fn().mockResolvedValue([
+          {
+            id: 'rule-1',
+            rewardRate: '5.0000000000',
+            capType: 'NONE',
+            capValue: '0',
+            minimumReward: '0',
+          },
+        ]),
       };
       vi.mocked(tx.where).mockReturnValue(whereChain as never);
 
@@ -309,9 +307,7 @@ describe('TransactionRewardLinkageService', () => {
         rows: [{ max_seq: null }],
       });
       vi.mocked(tx.onConflictDoUpdate).mockReturnThis();
-      vi.mocked(tx.returning).mockResolvedValueOnce([
-        { id: 'wallet-hist' },
-      ]);
+      vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'wallet-hist' }]);
 
       // Simulate: merchant changes package after transaction
       // (should NOT affect the snapshot already created)
@@ -353,7 +349,9 @@ describe('TransactionRewardLinkageService', () => {
       vi.mocked(tx.values).mockReturnThis();
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'plan-v1' }]);
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'source-v1' }]);
-      vi.mocked(tx.execute).mockResolvedValueOnce({ rows: [{ max_seq: null }] });
+      vi.mocked(tx.execute).mockResolvedValueOnce({
+        rows: [{ max_seq: null }],
+      });
       vi.mocked(tx.onConflictDoUpdate).mockReturnThis();
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'wallet-v1' }]);
 
@@ -407,7 +405,9 @@ describe('TransactionRewardLinkageService', () => {
       vi.mocked(tx.values).mockReturnThis();
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'plan-cross' }]);
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'source-cross' }]);
-      vi.mocked(tx.execute).mockResolvedValueOnce({ rows: [{ max_seq: null }] });
+      vi.mocked(tx.execute).mockResolvedValueOnce({
+        rows: [{ max_seq: null }],
+      });
       vi.mocked(tx.onConflictDoUpdate).mockReturnThis();
       vi.mocked(tx.returning).mockResolvedValueOnce([{ id: 'wallet-cross' }]);
 
@@ -477,9 +477,7 @@ describe('TransactionRewardLinkageService', () => {
       db.db.select = vi.fn().mockReturnThis();
       (db.db as Record<string, unknown>).from = vi.fn().mockReturnThis();
       (db.db as Record<string, unknown>).where = vi.fn().mockReturnThis();
-      (db.db as Record<string, unknown>).limit = vi
-        .fn()
-        .mockResolvedValue([]);
+      (db.db as Record<string, unknown>).limit = vi.fn().mockResolvedValue([]);
 
       await expect(
         service.getSourceByTransaction('nonexistent-id'),

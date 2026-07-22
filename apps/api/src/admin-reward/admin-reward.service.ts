@@ -103,7 +103,10 @@ export class AdminRewardService {
         effectiveFrom: rewardRuleVersions.effectiveFrom,
         effectiveTo: rewardRuleVersions.effectiveTo,
         marketId: rewardRuleVersions.marketId,
-        isArchived: sql`CASE WHEN ${rewardRuleVersions.archivedAt} IS NULL THEN false ELSE true END`.mapWith(Number),
+        isArchived:
+          sql`CASE WHEN ${rewardRuleVersions.archivedAt} IS NULL THEN false ELSE true END`.mapWith(
+            Number,
+          ),
         createdAt: rewardRuleVersions.createdAt,
       })
       .from(rewardRuleVersions)
@@ -138,7 +141,9 @@ export class AdminRewardService {
     input: CreateRuleVersionDto,
   ): Promise<AdminRewardRuleVersionListItem> {
     const effectiveFrom = new Date(input.effectiveFrom);
-    const effectiveTo = input.effectiveTo ? new Date(input.effectiveTo) : undefined;
+    const effectiveTo = input.effectiveTo
+      ? new Date(input.effectiveTo)
+      : undefined;
 
     const [version] = await this.database.db
       .insert(rewardRuleVersions)
@@ -309,7 +314,8 @@ export class AdminRewardService {
     walletId: string,
     input: WalletAdjustmentDto,
   ): Promise<AdminWalletAdjustmentResponse> {
-    if (Number(input.amount) <= 0) throw adminRewardAdjustmentInvalidAmountError();
+    if (Number(input.amount) <= 0)
+      throw adminRewardAdjustmentInvalidAmountError();
 
     return this.database.runTransaction(async (tx) => {
       // Lock the wallet account
@@ -323,7 +329,11 @@ export class AdminRewardService {
       if (!wallet) throw adminRewardWalletNotFoundError();
 
       // Assert market access
-      await this.assertMarketAccess(tx, adminActor.adminUserId, wallet.marketId);
+      await this.assertMarketAccess(
+        tx,
+        adminActor.adminUserId,
+        wallet.marketId,
+      );
 
       // Check idempotency
       const existingEntry = await tx
@@ -420,7 +430,8 @@ export class AdminRewardService {
 
       // Handle compensating entry if requested (reversal via compensation)
       if (input.compensatingEntry) {
-        const compensatingReason = input.compensatingReason ?? `Compensating entry for ${input.reason}`;
+        const compensatingReason =
+          input.compensatingReason ?? `Compensating entry for ${input.reason}`;
 
         // Compute balance before compensation (current available)
         const compBalanceBefore = updatedWallet.availableBalance;
@@ -498,7 +509,9 @@ export class AdminRewardService {
   private ruleVersionConditions(query: RuleListQueryDto) {
     return and(
       query.includeArchived ? undefined : isNull(rewardRuleVersions.archivedAt),
-      query.marketId ? eq(rewardRuleVersions.marketId, query.marketId) : undefined,
+      query.marketId
+        ? eq(rewardRuleVersions.marketId, query.marketId)
+        : undefined,
     );
   }
 
@@ -564,7 +577,9 @@ export class AdminRewardService {
     };
   }
 
-  private sanitizeForAudit(value: Record<string, unknown>): Record<string, unknown> {
+  private sanitizeForAudit(
+    value: Record<string, unknown>,
+  ): Record<string, unknown> {
     return Object.fromEntries(
       Object.entries(value).filter(([, v]) => v !== undefined && v !== null),
     );

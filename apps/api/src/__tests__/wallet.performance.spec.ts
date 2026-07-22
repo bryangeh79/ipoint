@@ -34,9 +34,9 @@ interface PerfResult {
 
 // Latency targets (milliseconds)
 const LATENCY_TARGETS = {
-  walletListP50: 50,   // 50th percentile under 50ms
-  walletListP95: 150,  // 95th percentile under 150ms
-  walletListP99: 300,  // 99th percentile under 300ms
+  walletListP50: 50, // 50th percentile under 50ms
+  walletListP95: 150, // 95th percentile under 150ms
+  walletListP99: 300, // 99th percentile under 300ms
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -165,10 +165,7 @@ async function queryAdminWallets(
   const latency = 10 + Math.random() * 40;
   await new Promise((resolve) => setTimeout(resolve, latency));
 
-  const wallets = generateMockWallets(
-    _marketId ? 50 : 200,
-    randomUUID(),
-  );
+  const wallets = generateMockWallets(_marketId ? 50 : 200, randomUUID());
   return { wallets, total: wallets.length };
 }
 
@@ -211,8 +208,12 @@ describe('Wallet API Performance Baseline', { timeout: 120000 }, () => {
     });
 
     const sorted = [...result.timingsMs].sort((a, b) => a - b);
-    expect(percentile(sorted, 50)).toBeLessThanOrEqual(LATENCY_TARGETS.walletListP50);
-    expect(percentile(sorted, 95)).toBeLessThanOrEqual(LATENCY_TARGETS.walletListP95);
+    expect(percentile(sorted, 50)).toBeLessThanOrEqual(
+      LATENCY_TARGETS.walletListP50,
+    );
+    expect(percentile(sorted, 95)).toBeLessThanOrEqual(
+      LATENCY_TARGETS.walletListP95,
+    );
     expect(result.errors).toBe(0);
   });
 
@@ -250,7 +251,9 @@ describe('Wallet API Performance Baseline', { timeout: 120000 }, () => {
     });
 
     const sorted = [...result.timingsMs].sort((a, b) => a - b);
-    expect(percentile(sorted, 50)).toBeLessThanOrEqual(LATENCY_TARGETS.walletListP50);
+    expect(percentile(sorted, 50)).toBeLessThanOrEqual(
+      LATENCY_TARGETS.walletListP50,
+    );
     expect(result.errors).toBe(0);
   });
 
@@ -288,8 +291,12 @@ describe('Wallet API Performance Baseline', { timeout: 120000 }, () => {
     });
 
     const sorted = [...result.timingsMs].sort((a, b) => a - b);
-    expect(percentile(sorted, 50)).toBeLessThanOrEqual(LATENCY_TARGETS.walletListP50);
-    expect(percentile(sorted, 95)).toBeLessThanOrEqual(LATENCY_TARGETS.walletListP95);
+    expect(percentile(sorted, 50)).toBeLessThanOrEqual(
+      LATENCY_TARGETS.walletListP50,
+    );
+    expect(percentile(sorted, 95)).toBeLessThanOrEqual(
+      LATENCY_TARGETS.walletListP95,
+    );
     expect(result.errors).toBe(0);
   });
 
@@ -321,7 +328,7 @@ describe('Wallet API Performance Baseline', { timeout: 120000 }, () => {
     }
 
     report('admin/wallets', result, {
-      p50: 80,   // Admin queries can be slower due to joins
+      p50: 80, // Admin queries can be slower due to joins
       p95: 200,
       p99: 400,
     });

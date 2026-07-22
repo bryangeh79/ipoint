@@ -433,9 +433,7 @@ describe('Ledger Invariant: No Entries with Negative Amount (raw)', () => {
     });
 
     // Detect the negative amount
-    const negativeEntry = wallet.entries.find(
-      (e) => !isPositive(e.amount),
-    );
+    const negativeEntry = wallet.entries.find((e) => !isPositive(e.amount));
     expect(negativeEntry).toBeDefined();
     expect(negativeEntry!.amount.startsWith('-')).toBe(true);
   });
@@ -513,9 +511,13 @@ describe('Ledger Invariant: No Entries with Negative Amount (raw)', () => {
         balanceBefore: balBefore,
         balanceAfter: balance,
         entryType,
-        entrySubtype: entryType === 'REWARD_ACCRUAL' ? 'DAILY_ACCRUAL' : 'MANUAL',
+        entrySubtype:
+          entryType === 'REWARD_ACCRUAL' ? 'DAILY_ACCRUAL' : 'MANUAL',
         rewardPlanId: entryType === 'REWARD_ACCRUAL' ? randomUUID() : null,
-        idempotencyKey: makeIdempotencyKey(entryType.toLowerCase(), wallet.walletId),
+        idempotencyKey: makeIdempotencyKey(
+          entryType.toLowerCase(),
+          wallet.walletId,
+        ),
         createdAt: new Date().toISOString(),
       });
     }
@@ -687,7 +689,8 @@ describe('Ledger Invariant: Reversal Entries Properly Linked', () => {
     // Attempt second reversal — should be prevented (already reversed)
     // The system checks if the original entry has already been reversed
     const hasExistingReversal = wallet.entries.some(
-      (e) => e.entryType === 'REVERSAL' && e.idempotencyKey === firstReversalKey,
+      (e) =>
+        e.entryType === 'REVERSAL' && e.idempotencyKey === firstReversalKey,
     );
     expect(hasExistingReversal).toBe(true);
 
@@ -812,9 +815,7 @@ describe('Ledger Invariant: Reversal Entries Properly Linked', () => {
     expect(wallet.balance).toBe('500.0000000000');
 
     // Reversals are ordered by createdAt (FIFO by convention)
-    const reversals = wallet.entries.filter(
-      (e) => e.entryType === 'REVERSAL',
-    );
+    const reversals = wallet.entries.filter((e) => e.entryType === 'REVERSAL');
     expect(reversals).toHaveLength(2);
 
     const invariant = verifyBalanceInvariant(wallet);
@@ -941,7 +942,10 @@ describe('Combined Ledger Invariants', () => {
       entryType: 'REVERSAL',
       entrySubtype: 'FULL_REVERSAL',
       rewardPlanId: null,
-      idempotencyKey: makeIdempotencyKey('reversal', wallet.entries[0]!.entryId),
+      idempotencyKey: makeIdempotencyKey(
+        'reversal',
+        wallet.entries[0]!.entryId,
+      ),
       createdAt: '2026-08-04T00:00:00.000Z',
     });
 

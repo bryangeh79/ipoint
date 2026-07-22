@@ -21,11 +21,12 @@ and Reward Ledger Foundation).
 
 ### 1. Shared Test Helpers
 
-| File | Description |
-|---|---|
+| File                                            | Description                                                                                                                            |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `apps/api/src/__tests__/phase3-test-helpers.ts` | Wallet/reward fixtures, market/member fixtures, decimal matchers, idempotency key generators, ledger verification helpers, type guards |
 
 **Exported symbols (27):**
+
 - **Decimal helpers:** `toDecimal`, `addDecimal`, `subtractDecimal`, `isPositive`, `toBeDecimalCloseTo`
 - **Idempotency generators:** `makeIdempotencyKey`, `makeRewardPlanKey`, `makeAccrualKey`
 - **Wallet fixtures:** `createWalletFixture`, `createWalletWithEntries`
@@ -39,11 +40,12 @@ and Reward Ledger Foundation).
 
 ### 2. Database Integration Tests
 
-| File | Description | Tests |
-|---|---|---|
+| File                                            | Description                                                                                      | Tests    |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------- |
 | `packages/database/tests/phase3-schema.test.ts` | Schema validation for Phase 3 tables, migration checksum verification, drift detection readiness | 32 tests |
 
 **Test coverage:**
+
 - Schema column validation for all 6 planned Phase 3 tables (`member_wallet_accounts`, `member_wallet_entries`, `reward_plans`, `reward_rule_versions`, `reward_sources`, `reward_daily_accruals`)
 - Migration pipeline readiness (checksum verification, sequential ordering)
 - No premature Phase 3 migrations in P3-S1
@@ -55,11 +57,12 @@ and Reward Ledger Foundation).
 
 ### 3. Contract Tests
 
-| File | Description | Tests |
-|---|---|---|
+| File                                     | Description                                                                                | Tests    |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------ | -------- |
 | `tests/contract/wallet-contract.test.ts` | API endpoint contract validation, error code coverage, ledger invariants, market isolation | 61 tests |
 
 **Test coverage:**
+
 - **API endpoints:** 13 documented wallet/reward endpoints validated for path, method, and auth requirements
 - **Reward plan state machine:** 6 states, valid/invalid transitions
 - **Error codes:** 12 wallet error codes, 10 reward/settlement error codes with HTTP status mapping
@@ -73,11 +76,12 @@ and Reward Ledger Foundation).
 
 ### 4. Security Baseline Tests
 
-| File | Description | Tests |
-|---|---|---|
+| File                                     | Description                                                                           | Tests    |
+| ---------------------------------------- | ------------------------------------------------------------------------------------- | -------- |
 | `tests/security/wallet-security.test.ts` | Auth guard presence, NetworkOnly, client-side storage prohibition, PII logging checks | 41 tests |
 
 **Test coverage:**
+
 - **Auth guard:** All 13 wallet/reward endpoints require authentication (401) or forbiddance (403)
 - **Admin authorization:** Reversal, suspend, resume endpoints are admin-only
 - **Cross-member access:** Wallet queries scoped by `member_id`, no member_id in request body
@@ -92,11 +96,12 @@ and Reward Ledger Foundation).
 
 ### 5. Performance Baseline
 
-| File | Description | Tests |
-|---|---|---|
+| File                                                | Description                                                               | Tests   |
+| --------------------------------------------------- | ------------------------------------------------------------------------- | ------- |
 | `apps/api/src/__tests__/wallet.performance.spec.ts` | Latency benchmarks for wallet listing, detail, entries, and admin queries | 6 tests |
 
 **Test coverage:**
+
 - `GET /api/v1/wallets` — member wallet list (target P50 < 50ms)
 - `GET /api/v1/wallets/:id` — wallet detail (target P50 < 50ms)
 - `GET /api/v1/wallets/:id/entries` — paginated entries (target P50 < 50ms)
@@ -108,8 +113,8 @@ and Reward Ledger Foundation).
 
 ### 6. Verification Script
 
-| File | Description |
-|---|---|
+| File                                     | Description                                                                                     |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `scripts/verify-test-infrastructure.mjs` | Standalone Node.js script validating all test files structurally and contractually (105 checks) |
 
 **Run:** `node scripts/verify-test-infrastructure.mjs`
@@ -141,15 +146,16 @@ and Reward Ledger Foundation).
 
 ### Test Priorities (from PHASE_3_TEST_AND_E2E_MATRIX.md)
 
-| Priority | Coverage |
-|---|---|
-| P0 (Critical) | Wallet CRUD, ledger invariant, idempotency, auth guard, balance = SUM(entries), market isolation |
-| P1 (Important) | Wallet state transitions, reversal/correction, reward plan states, merchant snapshots, timezone boundaries |
-| P2 (Nice to have) | Large entry count performance, edge-case timezones |
+| Priority          | Coverage                                                                                                   |
+| ----------------- | ---------------------------------------------------------------------------------------------------------- |
+| P0 (Critical)     | Wallet CRUD, ledger invariant, idempotency, auth guard, balance = SUM(entries), market isolation           |
+| P1 (Important)    | Wallet state transitions, reversal/correction, reward plan states, merchant snapshots, timezone boundaries |
+| P2 (Nice to have) | Large entry count performance, edge-case timezones                                                         |
 
 ### When Tests Will Pass
 
 These tests validate the **contract** and **design**. They will pass when:
+
 - The real implementation matches the documented contracts
 - Database schema has the correct columns and constraints
 - API endpoints return the correct HTTP status codes

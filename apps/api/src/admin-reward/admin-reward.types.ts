@@ -1,6 +1,12 @@
 export type AdminRewardRuleVersionStatus = 'ACTIVE' | 'ARCHIVED';
 
-export type AdminAdjustmentState = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'EXECUTED' | 'CANCELLED';
+export type AdminAdjustmentState =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'EXECUTED'
+  | 'CANCELLED';
 
 export type AdminRewardErrorCode =
   | 'ADMIN_REWARD_RULE_VERSION_NOT_FOUND'

@@ -61,6 +61,7 @@ Phase 3 adds the **iPoint Wallet & Reward Ledger** subsystem to the iPoint modul
 **Files:** `apps/api/src/wallet/`
 
 **Responsibility:**
+
 - Create wallet accounts per (member_id, market_id)
 - Maintain wallet lifecycle (ACTIVE, FROZEN, CLOSED)
 - Accept ledger entries with mandatory idempotency
@@ -69,6 +70,7 @@ Phase 3 adds the **iPoint Wallet & Reward Ledger** subsystem to the iPoint modul
 - Provide member-facing wallet views
 
 **Key Design Decisions:**
+
 - Lazy wallet creation: created on first qualifying event, not at registration
 - `numeric(38,10)` precision matching existing MCP ledger
 - String serialization for all monetary values in API responses
@@ -76,6 +78,7 @@ Phase 3 adds the **iPoint Wallet & Reward Ledger** subsystem to the iPoint modul
 - Reversals reference the original entry via `reversal_of` self-FK
 
 **Service Layer:**
+
 ```
 WalletService
 ├── createWallet(memberId, marketId) → WalletAccount
@@ -93,11 +96,13 @@ WalletService
 **Files:** `apps/api/src/reward-plan/`, `apps/api/src/reward-rule/`
 
 **Sub-module — Reward Source:**
+
 - Captures qualifying purchase transactions
 - Creates merchant + package snapshots at event time
 - UNIQUE constraint on (source_type, source_id, member_id, market_id)
 
 **Sub-module — Reward Plan:**
+
 - Created automatically from each reward source
 - Lifecycle: SCHEDULED → ACTIVE → [CAPPED | SUSPENDED | REVERSED | COMPLETED]
 - Tracks `total_earned` against configurable `cap_amount`
@@ -105,12 +110,14 @@ WalletService
 - Rule version assigned at first accrual event
 
 **Sub-module — Reward Rule Version:**
+
 - Versioned reward rates per market
 - Effective date range (effective_from, effective_until)
 - Historical preservation — existing ledger entries never recalculated
 - Rate types: PERCENTAGE, FIXED, TIERED
 
 **State Machine (Reward Plan):**
+
 ```
                   ┌──────────┐
                   │SCHEDULED │
@@ -138,6 +145,7 @@ WalletService
 **Files:** `apps/api/src/settlement/`
 
 **Responsibility:**
+
 - Query all ACTIVE reward plans
 - For each plan, determine if market-local date has advanced since last accrual
 - Calculate accrual amount: `purchase_amount × effective_rule_rate`
@@ -148,6 +156,7 @@ WalletService
 - Generate audit events
 
 **Worker Execution Model (CONFIGURABLE):**
+
 - Periodic polling engine (BullMQ / pg-boss / database polling)
 - Configurable polling interval (default every 5 minutes)
 - Per-market execution lock to prevent concurrent settlement
@@ -159,6 +168,7 @@ WalletService
 **Files:** `apps/api/src/admin-wallet/`, `apps/api/src/admin-reward/`, `apps/api/src/audit-wallet/`
 
 **Responsibility:**
+
 - Admin wallet views (market-scoped)
 - Admin reward plan lifecycle management (suspend, resume, reverse)
 - Admin rule version CRUD
@@ -299,13 +309,13 @@ Market JP (Asia/Tokyo, UTC+9)
 
 ### 4.3 Edge Cases
 
-| Case | Handling |
-|---|---|
-| Market timezone changes | New accruals use new timezone; existing accruals unchanged |
-| Worker starts before market midnight | Idempotency prevents duplicate; next poll detects date change |
-| Worker misses a day | Catch-up on next execution; UNIQUE prevents duplicate but allows gap |
-| Daylight saving "spring forward" | Market-local date advances by 1 day normally |
-| Daylight saving "fall back" | Same date occurs twice; UNIQUE (plan_id, date, type) prevents duplicate |
+| Case                                 | Handling                                                                |
+| ------------------------------------ | ----------------------------------------------------------------------- |
+| Market timezone changes              | New accruals use new timezone; existing accruals unchanged              |
+| Worker starts before market midnight | Idempotency prevents duplicate; next poll detects date change           |
+| Worker misses a day                  | Catch-up on next execution; UNIQUE prevents duplicate but allows gap    |
+| Daylight saving "spring forward"     | Market-local date advances by 1 day normally                            |
+| Daylight saving "fall back"          | Same date occurs twice; UNIQUE (plan_id, date, type) prevents duplicate |
 
 ---
 
@@ -313,13 +323,13 @@ Market JP (Asia/Tokyo, UTC+9)
 
 ### 5.1 Authentication & Authorization
 
-| Layer | Mechanism | Phase 3 Application |
-|---|---|---|
-| Transport | HTTPS | All wallet/reward APIs |
-| Authentication | JWT + Auth Guard | Member token for member endpoints |
-| Member authorization | Ownership guard | `wallet.member_id === token.member_id` |
-| Admin authorization | Market access scope | Admin must have explicit market_access |
-| Worker authorization | Internal service token | System-to-system authentication |
+| Layer                | Mechanism              | Phase 3 Application                    |
+| -------------------- | ---------------------- | -------------------------------------- |
+| Transport            | HTTPS                  | All wallet/reward APIs                 |
+| Authentication       | JWT + Auth Guard       | Member token for member endpoints      |
+| Member authorization | Ownership guard        | `wallet.member_id === token.member_id` |
+| Admin authorization  | Market access scope    | Admin must have explicit market_access |
+| Worker authorization | Internal service token | System-to-system authentication        |
 
 ### 5.2 Market Isolation
 
@@ -333,18 +343,18 @@ Request ──> Auth Guard ──> Ownership Check ──> Market Check
 
 ### 5.3 Audit Events
 
-| Event Type | Trigger | Actor |
-|---|---|---|
-| WALLET_CREATED | New wallet account | SYSTEM / WORKER |
-| WALLET_ENTRY_CREATED | Ledger entry posted | SYSTEM / WORKER |
-| WALLET_STATUS_CHANGED | Freeze/close wallet | ADMIN_USER |
-| REWARD_PLAN_CREATED | New plan from source | SYSTEM |
+| Event Type                 | Trigger                           | Actor               |
+| -------------------------- | --------------------------------- | ------------------- |
+| WALLET_CREATED             | New wallet account                | SYSTEM / WORKER     |
+| WALLET_ENTRY_CREATED       | Ledger entry posted               | SYSTEM / WORKER     |
+| WALLET_STATUS_CHANGED      | Freeze/close wallet               | ADMIN_USER          |
+| REWARD_PLAN_CREATED        | New plan from source              | SYSTEM              |
 | REWARD_PLAN_STATUS_CHANGED | Suspend/resume/reverse/completion | SYSTEM / ADMIN_USER |
-| REWARD_RULE_CREATED | New rule version | ADMIN_USER |
-| REWARD_RULE_UPDATED | Rule version edited | ADMIN_USER |
-| DAILY_ACCRUAL_POSTED | Settlement creates accrual | SYSTEM (WORKER) |
-| SETTLEMENT_COMPLETED | Market settlement cycle done | SYSTEM (WORKER) |
-| REVERSAL_POSTED | Compensating entry created | ADMIN_USER / SYSTEM |
+| REWARD_RULE_CREATED        | New rule version                  | ADMIN_USER          |
+| REWARD_RULE_UPDATED        | Rule version edited               | ADMIN_USER          |
+| DAILY_ACCRUAL_POSTED       | Settlement creates accrual        | SYSTEM (WORKER)     |
+| SETTLEMENT_COMPLETED       | Market settlement cycle done      | SYSTEM (WORKER)     |
+| REVERSAL_POSTED            | Compensating entry created        | ADMIN_USER / SYSTEM |
 
 ---
 
@@ -356,12 +366,12 @@ Request ──> Auth Guard ──> Ownership Check ──> Market Check
 <operation_prefix>:<unique_payload_hash>
 ```
 
-| Operation | Prefix | Key Composition |
-|---|---|---|
-| Wallet entry | `wallet_entry` | `wallet_entry:<UUID>` |
-| Daily accrual | `daily_accrual` | `daily_accrual:<plan_id>:<date>:<entry_type>` |
-| Reward plan creation | `reward_plan` | `reward_plan:<source_type>:<source_id>:<member_id>:<market_id>` |
-| Reversal | `reversal` | `reversal:<original_entry_id>` |
+| Operation            | Prefix          | Key Composition                                                 |
+| -------------------- | --------------- | --------------------------------------------------------------- |
+| Wallet entry         | `wallet_entry`  | `wallet_entry:<UUID>`                                           |
+| Daily accrual        | `daily_accrual` | `daily_accrual:<plan_id>:<date>:<entry_type>`                   |
+| Reward plan creation | `reward_plan`   | `reward_plan:<source_type>:<source_id>:<member_id>:<market_id>` |
+| Reversal             | `reversal`      | `reversal:<original_entry_id>`                                  |
 
 ### 6.2 Enforcement
 
@@ -373,15 +383,15 @@ Request ──> Auth Guard ──> Ownership Check ──> Market Check
 
 ## 7. Decimal & Currency Architecture
 
-| Field | Type | Precision |
-|---|---|---|
-| Wallet balance | `numeric(38,10)` | 38 total, 10 fractional |
-| Wallet entry amount | `numeric(38,10)` | 38 total, 10 fractional |
+| Field                    | Type             | Precision               |
+| ------------------------ | ---------------- | ----------------------- |
+| Wallet balance           | `numeric(38,10)` | 38 total, 10 fractional |
+| Wallet entry amount      | `numeric(38,10)` | 38 total, 10 fractional |
 | Reward plan total_earned | `numeric(38,10)` | 38 total, 10 fractional |
-| Reward plan cap_amount | `numeric(38,10)` | 38 total, 10 fractional |
-| Reward source amount | `numeric(38,10)` | 38 total, 10 fractional |
-| Daily accrual amount | `numeric(38,10)` | 38 total, 10 fractional |
-| Rule version rate | `numeric(12,8)` | 12 total, 8 fractional |
+| Reward plan cap_amount   | `numeric(38,10)` | 38 total, 10 fractional |
+| Reward source amount     | `numeric(38,10)` | 38 total, 10 fractional |
+| Daily accrual amount     | `numeric(38,10)` | 38 total, 10 fractional |
+| Rule version rate        | `numeric(12,8)`  | 12 total, 8 fractional  |
 
 **Rounding:** HALF_UP for all accrual operations
 **API serialization:** String for all monetary values
@@ -449,51 +459,51 @@ Error recovery:
 
 ### Member Endpoints
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/api/v1/wallets` | Member token | List own wallets |
-| GET | `/api/v1/wallets/:id` | Member token | Wallet detail + balance |
-| GET | `/api/v1/wallets/:id/entries` | Member token | Paginated ledger entries |
-| GET | `/api/v1/reward-plans` | Member token | List own reward plans |
-| GET | `/api/v1/reward-plans/:id` | Member token | Plan detail |
+| Method | Path                          | Auth         | Description              |
+| ------ | ----------------------------- | ------------ | ------------------------ |
+| GET    | `/api/v1/wallets`             | Member token | List own wallets         |
+| GET    | `/api/v1/wallets/:id`         | Member token | Wallet detail + balance  |
+| GET    | `/api/v1/wallets/:id/entries` | Member token | Paginated ledger entries |
+| GET    | `/api/v1/reward-plans`        | Member token | List own reward plans    |
+| GET    | `/api/v1/reward-plans/:id`    | Member token | Plan detail              |
 
 ### Admin Endpoints
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/api/v1/admin/wallets` | Admin + market scope | List all wallets |
-| GET | `/api/v1/admin/wallets/:id` | Admin + market scope | Wallet detail |
-| GET | `/api/v1/admin/wallets/:id/entries` | Admin + market scope | Paginated entries |
-| POST | `/api/v1/admin/wallets/:id/reversal` | Admin | Create compensating entry |
-| GET | `/api/v1/admin/reward-plans` | Admin + market scope | List reward plans |
-| GET | `/api/v1/admin/reward-plans/:id` | Admin + market scope | Plan detail |
-| POST | `/api/v1/admin/reward-plans/:id/suspend` | Admin | Suspend plan |
-| POST | `/api/v1/admin/reward-plans/:id/resume` | Admin | Resume plan |
-| POST | `/api/v1/admin/reward-plans/:id/reverse` | Admin | Reverse plan |
-| POST | `/api/v1/admin/reward-rule-versions` | Super Admin | Create rule version |
-| GET | `/api/v1/admin/reward-rule-versions` | Admin + market scope | List rules |
-| PATCH | `/api/v1/admin/reward-rule-versions/:id` | Super Admin | Update rule |
-| POST | `/api/v1/admin/settlement/trigger` | Admin | Manual market settlement |
-| GET | `/api/v1/admin/settlement/status` | Admin | Settlement status |
+| Method | Path                                     | Auth                 | Description               |
+| ------ | ---------------------------------------- | -------------------- | ------------------------- |
+| GET    | `/api/v1/admin/wallets`                  | Admin + market scope | List all wallets          |
+| GET    | `/api/v1/admin/wallets/:id`              | Admin + market scope | Wallet detail             |
+| GET    | `/api/v1/admin/wallets/:id/entries`      | Admin + market scope | Paginated entries         |
+| POST   | `/api/v1/admin/wallets/:id/reversal`     | Admin                | Create compensating entry |
+| GET    | `/api/v1/admin/reward-plans`             | Admin + market scope | List reward plans         |
+| GET    | `/api/v1/admin/reward-plans/:id`         | Admin + market scope | Plan detail               |
+| POST   | `/api/v1/admin/reward-plans/:id/suspend` | Admin                | Suspend plan              |
+| POST   | `/api/v1/admin/reward-plans/:id/resume`  | Admin                | Resume plan               |
+| POST   | `/api/v1/admin/reward-plans/:id/reverse` | Admin                | Reverse plan              |
+| POST   | `/api/v1/admin/reward-rule-versions`     | Super Admin          | Create rule version       |
+| GET    | `/api/v1/admin/reward-rule-versions`     | Admin + market scope | List rules                |
+| PATCH  | `/api/v1/admin/reward-rule-versions/:id` | Super Admin          | Update rule               |
+| POST   | `/api/v1/admin/settlement/trigger`       | Admin                | Manual market settlement  |
+| GET    | `/api/v1/admin/settlement/status`        | Admin                | Settlement status         |
 
 ### Internal Endpoints
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| POST | `/api/v1/internal/wallets/:id/entries` | Service token | Create ledger entry |
+| Method | Path                                   | Auth          | Description         |
+| ------ | -------------------------------------- | ------------- | ------------------- |
+| POST   | `/api/v1/internal/wallets/:id/entries` | Service token | Create ledger entry |
 
 ---
 
 ## 10. Related Documents
 
-| Document | Location |
-|---|---|
-| Phase 3 ERD | [`PHASE_3_ERD.md`](./PHASE_3_ERD.md) |
-| Wallet Ledger Contract | [`../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md`](../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md) |
-| Reward Plan Contract | [`../06-phase-reports/p3-s1/PHASE_3_REWARD_PLAN_CONTRACT.md`](../06-phase-reports/p3-s1/PHASE_3_REWARD_PLAN_CONTRACT.md) |
+| Document                   | Location                                                                                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 3 ERD                | [`PHASE_3_ERD.md`](./PHASE_3_ERD.md)                                                                                                     |
+| Wallet Ledger Contract     | [`../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md`](../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md)             |
+| Reward Plan Contract       | [`../06-phase-reports/p3-s1/PHASE_3_REWARD_PLAN_CONTRACT.md`](../06-phase-reports/p3-s1/PHASE_3_REWARD_PLAN_CONTRACT.md)                 |
 | Settlement & Timezone Spec | [`../06-phase-reports/p3-s1/PHASE_3_SETTLEMENT_AND_TIMEZONE_SPEC.md`](../06-phase-reports/p3-s1/PHASE_3_SETTLEMENT_AND_TIMEZONE_SPEC.md) |
-| Idempotency Spec | [`../06-phase-reports/p3-s1/PHASE_3_IDEMPOTENCY_SPEC.md`](../06-phase-reports/p3-s1/PHASE_3_IDEMPOTENCY_SPEC.md) |
-| Error Codes Reference | [`../04-engineering/PHASE_3_ERROR_CODES.md`](../04-engineering/PHASE_3_ERROR_CODES.md) |
-| Migration Runbook | [`../04-engineering/PHASE_3_MIGRATION_RUNBOOK.md`](../04-engineering/PHASE_3_MIGRATION_RUNBOOK.md) |
-| Daily Job Ops Guide | [`../04-engineering/PHASE_3_DAILY_JOB_OPS.md`](../04-engineering/PHASE_3_DAILY_JOB_OPS.md) |
-| Open Questions | [`../06-phase-reports/p3-s1/PHASE_3_OPEN_QUESTIONS.md`](../06-phase-reports/p3-s1/PHASE_3_OPEN_QUESTIONS.md) |
+| Idempotency Spec           | [`../06-phase-reports/p3-s1/PHASE_3_IDEMPOTENCY_SPEC.md`](../06-phase-reports/p3-s1/PHASE_3_IDEMPOTENCY_SPEC.md)                         |
+| Error Codes Reference      | [`../04-engineering/PHASE_3_ERROR_CODES.md`](../04-engineering/PHASE_3_ERROR_CODES.md)                                                   |
+| Migration Runbook          | [`../04-engineering/PHASE_3_MIGRATION_RUNBOOK.md`](../04-engineering/PHASE_3_MIGRATION_RUNBOOK.md)                                       |
+| Daily Job Ops Guide        | [`../04-engineering/PHASE_3_DAILY_JOB_OPS.md`](../04-engineering/PHASE_3_DAILY_JOB_OPS.md)                                               |
+| Open Questions             | [`../06-phase-reports/p3-s1/PHASE_3_OPEN_QUESTIONS.md`](../06-phase-reports/p3-s1/PHASE_3_OPEN_QUESTIONS.md)                             |

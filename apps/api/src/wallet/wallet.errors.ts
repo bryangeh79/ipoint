@@ -5,10 +5,7 @@ export function walletNotFoundError(): WalletError {
 }
 
 export function walletEntryNotFoundError(): WalletError {
-  return new WalletError(
-    'WALLET_ENTRY_NOT_FOUND',
-    'Wallet entry not found.',
-  );
+  return new WalletError('WALLET_ENTRY_NOT_FOUND', 'Wallet entry not found.');
 }
 
 export function walletAlreadyExistsError(): WalletError {
@@ -26,10 +23,7 @@ export function duplicateIdempotencyKeyError(): WalletError {
 }
 
 export function invalidEntryTypeError(): WalletError {
-  return new WalletError(
-    'INVALID_ENTRY_TYPE',
-    'Invalid wallet entry type.',
-  );
+  return new WalletError('INVALID_ENTRY_TYPE', 'Invalid wallet entry type.');
 }
 
 export function invalidAmountError(): WalletError {

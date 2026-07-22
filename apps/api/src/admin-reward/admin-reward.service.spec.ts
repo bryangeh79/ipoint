@@ -72,28 +72,26 @@ describe('AdminRewardService', () => {
   // ─── Rule CRUD ─────────────────────────────────────────────────────
 
   it('lists rule versions with pagination', async () => {
-    const { service } = createService(
+    const { service } = createService([
+      [{ total: 1 }],
       [
-        [{ total: 1 }],
-        [
-          {
-            id: randomUUID(),
-            name: 'Standard Rewards v1',
-            description: 'Default reward rule',
-            effectiveFrom: now,
-            effectiveTo: null,
-            rewardRate: '0.05',
-            capType: 'FLAT',
-            capValue: '100',
-            minimumReward: '0',
-            marketId,
-            createdBy: adminUserId,
-            archivedAt: null,
-            createdAt: now,
-          },
-        ],
+        {
+          id: randomUUID(),
+          name: 'Standard Rewards v1',
+          description: 'Default reward rule',
+          effectiveFrom: now,
+          effectiveTo: null,
+          rewardRate: '0.05',
+          capType: 'FLAT',
+          capValue: '100',
+          minimumReward: '0',
+          marketId,
+          createdBy: adminUserId,
+          archivedAt: null,
+          createdAt: now,
+        },
       ],
-    );
+    ]);
     const result = await service.listRuleVersions(actor, {
       page: 1,
       pageSize: 20,
@@ -108,21 +106,23 @@ describe('AdminRewardService', () => {
   it('gets rule version detail with version history', async () => {
     const ruleId = randomUUID();
     const { service } = createService([
-      [{
-        id: ruleId,
-        name: 'Standard Rewards v2',
-        description: 'Updated rule',
-        effectiveFrom: now,
-        effectiveTo: null,
-        rewardRate: '0.06',
-        capType: 'FLAT',
-        capValue: '150',
-        minimumReward: '0',
-        marketId,
-        createdBy: adminUserId,
-        archivedAt: null,
-        createdAt: now,
-      }],
+      [
+        {
+          id: ruleId,
+          name: 'Standard Rewards v2',
+          description: 'Updated rule',
+          effectiveFrom: now,
+          effectiveTo: null,
+          rewardRate: '0.06',
+          capType: 'FLAT',
+          capValue: '150',
+          minimumReward: '0',
+          marketId,
+          createdBy: adminUserId,
+          archivedAt: null,
+          createdAt: now,
+        },
+      ],
       [
         {
           id: ruleId,
@@ -153,23 +153,28 @@ describe('AdminRewardService', () => {
 
   it('creates a rule version with audit trail', async () => {
     const ruleId = randomUUID();
-    const { service, db, database } = createService([], [
-      [{
-        id: ruleId,
-        name: 'New Rule',
-        description: 'Test',
-        effectiveFrom: now,
-        effectiveTo: null,
-        rewardRate: '0.05',
-        capType: 'NONE',
-        capValue: '0',
-        minimumReward: '0',
-        marketId: null,
-        createdBy: adminUserId,
-        archivedAt: null,
-        createdAt: now,
-      }],
-    ]);
+    const { service, db, database } = createService(
+      [],
+      [
+        [
+          {
+            id: ruleId,
+            name: 'New Rule',
+            description: 'Test',
+            effectiveFrom: now,
+            effectiveTo: null,
+            rewardRate: '0.05',
+            capType: 'NONE',
+            capValue: '0',
+            minimumReward: '0',
+            marketId: null,
+            createdBy: adminUserId,
+            archivedAt: null,
+            createdAt: now,
+          },
+        ],
+      ],
+    );
     const result = await service.createRuleVersion(actor, {
       name: 'New Rule',
       description: 'Test',
@@ -188,11 +193,13 @@ describe('AdminRewardService', () => {
   it('returns version history for a rule', async () => {
     const ruleId = randomUUID();
     const { service } = createService([
-      [{
-        id: ruleId,
-        name: 'Rule A',
-        marketId,
-      }],
+      [
+        {
+          id: ruleId,
+          name: 'Rule A',
+          marketId,
+        },
+      ],
       [
         {
           id: ruleId,
@@ -224,40 +231,68 @@ describe('AdminRewardService', () => {
     const { service, db, database } = createService(
       [],
       [
-        [{ id: walletId, memberId, marketId, availableBalance: '100', version: 1 }],
+        [
+          {
+            id: walletId,
+            memberId,
+            marketId,
+            availableBalance: '100',
+            version: 1,
+          },
+        ],
         [{ maxSeq: 0 }],
-        [{ id: walletId, memberId, marketId, availableBalance: '150', version: 2 }],
-        [{
-          id: randomUUID(),
-          walletAccountId: walletId,
-          memberId,
-          marketId,
-          entrySequence: 1n,
-          entryType: 'ADJUSTMENT',
-          amount: '50',
-          balanceBefore: '100',
-          balanceAfter: '150',
-          idempotencyKey: 'adj-1',
-          referenceType: 'ADMIN_ADJUSTMENT',
-          referenceId: walletId,
-          description: 'Admin wallet adjustment: Test adjustment',
-          reason: 'Test adjustment',
-          actorId: adminUserId,
-          marketTimezone: null,
-          createdAt: now,
-        }],
+        [
+          {
+            id: walletId,
+            memberId,
+            marketId,
+            availableBalance: '150',
+            version: 2,
+          },
+        ],
+        [
+          {
+            id: randomUUID(),
+            walletAccountId: walletId,
+            memberId,
+            marketId,
+            entrySequence: 1n,
+            entryType: 'ADJUSTMENT',
+            amount: '50',
+            balanceBefore: '100',
+            balanceAfter: '150',
+            idempotencyKey: 'adj-1',
+            referenceType: 'ADMIN_ADJUSTMENT',
+            referenceId: walletId,
+            description: 'Admin wallet adjustment: Test adjustment',
+            reason: 'Test adjustment',
+            actorId: adminUserId,
+            marketTimezone: null,
+            createdAt: now,
+          },
+        ],
       ],
     );
     // Mock the existing entry check for idempotency
     db.select
       .mockReset()
-      .mockReturnValueOnce(query([{ id: walletId, memberId, marketId, availableBalance: '100', version: 1 }]))
-      .mockReturnValueOnce(query([]))  // no existing entry
+      .mockReturnValueOnce(
+        query([
+          {
+            id: walletId,
+            memberId,
+            marketId,
+            availableBalance: '100',
+            version: 1,
+          },
+        ]),
+      )
+      .mockReturnValueOnce(query([])) // no existing entry
       .mockReturnValueOnce(query([{ maxSeq: 0 }]))
-      .mockReturnValueOnce(query([]))  // market access check
-      .mockReturnValueOnce(query([]))  // idempotency
+      .mockReturnValueOnce(query([])) // market access check
+      .mockReturnValueOnce(query([])) // idempotency
       .mockReturnValueOnce(query([{ maxSeq: 0 }]))
-      .mockReturnValueOnce(query([]))  // market access
+      .mockReturnValueOnce(query([])) // market access
       .mockReturnValueOnce(query([])); // no existing entry
 
     const result = await service.requestWalletAdjustment(actor, walletId, {
@@ -291,23 +326,28 @@ describe('AdminRewardService', () => {
   it('produces audit trail entries for rule creation', async () => {
     const auditSpy = vi.spyOn(AuditService.prototype, 'recordPrivilegedAction');
     const ruleId = randomUUID();
-    const { service } = createService([], [
-      [{
-        id: ruleId,
-        name: 'Audit Test Rule',
-        description: null,
-        effectiveFrom: now,
-        effectiveTo: null,
-        rewardRate: '0.01',
-        capType: 'NONE',
-        capValue: '0',
-        minimumReward: '0',
-        marketId: null,
-        createdBy: adminUserId,
-        archivedAt: null,
-        createdAt: now,
-      }],
-    ]);
+    const { service } = createService(
+      [],
+      [
+        [
+          {
+            id: ruleId,
+            name: 'Audit Test Rule',
+            description: null,
+            effectiveFrom: now,
+            effectiveTo: null,
+            rewardRate: '0.01',
+            capType: 'NONE',
+            capValue: '0',
+            minimumReward: '0',
+            marketId: null,
+            createdBy: adminUserId,
+            archivedAt: null,
+            createdAt: now,
+          },
+        ],
+      ],
+    );
 
     await service.createRuleVersion(actor, {
       name: 'Audit Test Rule',
@@ -330,41 +370,81 @@ describe('AdminRewardService', () => {
   });
 
   it('produces audit trail entries for wallet adjustments', async () => {
-    const auditSpyTx = vi.spyOn(AuditService.prototype, 'appendWithinTransaction');
+    const auditSpyTx = vi.spyOn(
+      AuditService.prototype,
+      'appendWithinTransaction',
+    );
 
     const { service } = createService();
     const txDb = {
-      select: vi.fn()
-        .mockReturnValueOnce(query([{ id: walletId, memberId, marketId, availableBalance: '100', version: 1 }]))
-        .mockReturnValueOnce(query([]))  // market access check
+      select: vi
+        .fn()
+        .mockReturnValueOnce(
+          query([
+            {
+              id: walletId,
+              memberId,
+              marketId,
+              availableBalance: '100',
+              version: 1,
+            },
+          ]),
+        )
+        .mockReturnValueOnce(query([])) // market access check
         .mockReturnValueOnce(query([])), // no existing entry
-      insert: vi.fn()
-        .mockReturnValueOnce(mutation([[{
-          id: walletId, memberId, marketId, availableBalance: '150', version: 2,
-        }]]))
-        .mockReturnValueOnce(mutation([[{
-          id: randomUUID(),
-          walletAccountId: walletId,
-          memberId,
-          marketId,
-          entrySequence: 1n,
-          entryType: 'ADJUSTMENT',
-          amount: '50',
-          balanceBefore: '100',
-          balanceAfter: '150',
-          idempotencyKey: 'adj-audit',
-          referenceType: 'ADMIN_ADJUSTMENT',
-          referenceId: walletId,
-          description: 'Admin wallet adjustment: Audit test',
-          reason: 'Audit test',
-          actorId: adminUserId,
-          marketTimezone: null,
-          createdAt: now,
-        }]])),
-      update: vi.fn()
-        .mockReturnValueOnce(mutation([[{
-          id: walletId, memberId, marketId, availableBalance: '150', version: 2,
-        }]])),
+      insert: vi
+        .fn()
+        .mockReturnValueOnce(
+          mutation([
+            [
+              {
+                id: walletId,
+                memberId,
+                marketId,
+                availableBalance: '150',
+                version: 2,
+              },
+            ],
+          ]),
+        )
+        .mockReturnValueOnce(
+          mutation([
+            [
+              {
+                id: randomUUID(),
+                walletAccountId: walletId,
+                memberId,
+                marketId,
+                entrySequence: 1n,
+                entryType: 'ADJUSTMENT',
+                amount: '50',
+                balanceBefore: '100',
+                balanceAfter: '150',
+                idempotencyKey: 'adj-audit',
+                referenceType: 'ADMIN_ADJUSTMENT',
+                referenceId: walletId,
+                description: 'Admin wallet adjustment: Audit test',
+                reason: 'Audit test',
+                actorId: adminUserId,
+                marketTimezone: null,
+                createdAt: now,
+              },
+            ],
+          ]),
+        ),
+      update: vi.fn().mockReturnValueOnce(
+        mutation([
+          [
+            {
+              id: walletId,
+              memberId,
+              marketId,
+              availableBalance: '150',
+              version: 2,
+            },
+          ],
+        ]),
+      ),
     };
 
     const result = await service.requestWalletAdjustment(actor, walletId, {
@@ -416,44 +496,97 @@ describe('AdminRewardService', () => {
     };
 
     const txDb = {
-      select: vi.fn()
-        .mockReturnValueOnce(query([{ id: walletId, memberId, marketId, availableBalance: '500', version: 1 }]))
-        .mockReturnValueOnce(query([]))  // market access
+      select: vi
+        .fn()
+        .mockReturnValueOnce(
+          query([
+            {
+              id: walletId,
+              memberId,
+              marketId,
+              availableBalance: '500',
+              version: 1,
+            },
+          ]),
+        )
+        .mockReturnValueOnce(query([])) // market access
         .mockReturnValueOnce(query([])), // no existing entry
-      insert: vi.fn()
-        .mockReturnValueOnce(mutation([[{
-          id: walletId, memberId, marketId, availableBalance: '600', version: 2,
-        }]]))
-        .mockReturnValueOnce(mutation([[{
-          id: randomUUID(),
-          walletAccountId: walletId,
-          memberId,
-          marketId,
-          entrySequence: 1n,
-          entryType: 'ADJUSTMENT',
-          amount: '100',
-          balanceBefore: '500',
-          balanceAfter: '600',
-          idempotencyKey: 'adj-comp',
-          referenceType: 'ADMIN_ADJUSTMENT',
-          referenceId: walletId,
-          description: 'Admin wallet adjustment: Test compensating',
-          reason: 'Test compensating',
-          actorId: adminUserId,
-          marketTimezone: null,
-          createdAt: now,
-        }]])),
-      update: vi.fn()
-        .mockReturnValueOnce(mutation([[{
-          id: walletId, memberId, marketId, availableBalance: '600', version: 2,
-        }]]))
-        .mockReturnValueOnce(mutation([[{
-          id: walletId, memberId, marketId, availableBalance: '500', version: 3,
-        }]])),
+      insert: vi
+        .fn()
+        .mockReturnValueOnce(
+          mutation([
+            [
+              {
+                id: walletId,
+                memberId,
+                marketId,
+                availableBalance: '600',
+                version: 2,
+              },
+            ],
+          ]),
+        )
+        .mockReturnValueOnce(
+          mutation([
+            [
+              {
+                id: randomUUID(),
+                walletAccountId: walletId,
+                memberId,
+                marketId,
+                entrySequence: 1n,
+                entryType: 'ADJUSTMENT',
+                amount: '100',
+                balanceBefore: '500',
+                balanceAfter: '600',
+                idempotencyKey: 'adj-comp',
+                referenceType: 'ADMIN_ADJUSTMENT',
+                referenceId: walletId,
+                description: 'Admin wallet adjustment: Test compensating',
+                reason: 'Test compensating',
+                actorId: adminUserId,
+                marketTimezone: null,
+                createdAt: now,
+              },
+            ],
+          ]),
+        ),
+      update: vi
+        .fn()
+        .mockReturnValueOnce(
+          mutation([
+            [
+              {
+                id: walletId,
+                memberId,
+                marketId,
+                availableBalance: '600',
+                version: 2,
+              },
+            ],
+          ]),
+        )
+        .mockReturnValueOnce(
+          mutation([
+            [
+              {
+                id: walletId,
+                memberId,
+                marketId,
+                availableBalance: '500',
+                version: 3,
+              },
+            ],
+          ]),
+        ),
     };
 
     // Guard: compensating entry generates second ledger entry
-    const result = await service.requestWalletAdjustment(actor, walletId, input);
+    const result = await service.requestWalletAdjustment(
+      actor,
+      walletId,
+      input,
+    );
     expect(result.entryType).toBe('ADJUSTMENT');
     expect(result.amount).toBe('100');
 

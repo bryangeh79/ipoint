@@ -16,7 +16,12 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentActor } from '../auth/current-actor.decorator.js';
@@ -51,7 +56,8 @@ import type {
 @UseGuards(AuthGuard, RbacGuard)
 export class AdminRewardController {
   constructor(
-    @Inject(AdminRewardService) private readonly adminReward: AdminRewardService,
+    @Inject(AdminRewardService)
+    private readonly adminReward: AdminRewardService,
   ) {}
 
   // ─── Rule Version Endpoints ────────────────────────────────────────
@@ -67,14 +73,20 @@ export class AdminRewardController {
     @Req() request: Request,
   ): Promise<AdminRewardRuleVersionListResponse> {
     return this.handle(() =>
-      this.adminReward.listRuleVersions(this.adminActor(actor, request, ip), query),
+      this.adminReward.listRuleVersions(
+        this.adminActor(actor, request, ip),
+        query,
+      ),
     );
   }
 
   @Get('rules/:id')
   @RequirePermission('reward.rule.read')
   @ApiOperation({ summary: 'Get reward rule version detail' })
-  @ApiResponse({ status: 200, description: 'Rule version detail with version history.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Rule version detail with version history.',
+  })
   getRuleVersion(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -93,12 +105,16 @@ export class AdminRewardController {
   @ApiResponse({ status: 201, description: 'Rule version created.' })
   createRuleVersion(
     @CurrentActor() actor: RequestActor | undefined,
-    @Body(new ZodValidationPipe(createRuleVersionSchema)) input: CreateRuleVersionDto,
+    @Body(new ZodValidationPipe(createRuleVersionSchema))
+    input: CreateRuleVersionDto,
     @Ip() ip: string,
     @Req() request: Request,
-  ): Promise<AdminRewardRuleVersionListResponse[ 'items'][number]> {
+  ): Promise<AdminRewardRuleVersionListResponse['items'][number]> {
     return this.handle(() =>
-      this.adminReward.createRuleVersion(this.adminActor(actor, request, ip), input),
+      this.adminReward.createRuleVersion(
+        this.adminActor(actor, request, ip),
+        input,
+      ),
     );
   }
 
@@ -113,7 +129,10 @@ export class AdminRewardController {
     @Req() request: Request,
   ): Promise<AdminRewardVersionHistoryResponse> {
     return this.handle(() =>
-      this.adminReward.getRuleVersionHistory(this.adminActor(actor, request, ip), id),
+      this.adminReward.getRuleVersionHistory(
+        this.adminActor(actor, request, ip),
+        id,
+      ),
     );
   }
 
@@ -154,17 +173,27 @@ export class AdminRewardController {
   @Post('wallets/:id/adjustment')
   @RequirePermission('wallet.adjustment.create')
   @HttpCode(201)
-  @ApiOperation({ summary: 'Request a wallet balance adjustment via ledger entry' })
-  @ApiResponse({ status: 201, description: 'Adjustment created as ledger entry.' })
+  @ApiOperation({
+    summary: 'Request a wallet balance adjustment via ledger entry',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Adjustment created as ledger entry.',
+  })
   requestWalletAdjustment(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body(new ZodValidationPipe(walletAdjustmentSchema)) input: WalletAdjustmentDto,
+    @Body(new ZodValidationPipe(walletAdjustmentSchema))
+    input: WalletAdjustmentDto,
     @Ip() ip: string,
     @Req() request: Request,
   ): Promise<AdminWalletAdjustmentResponse> {
     return this.handle(() =>
-      this.adminReward.requestWalletAdjustment(this.adminActor(actor, request, ip), id, input),
+      this.adminReward.requestWalletAdjustment(
+        this.adminActor(actor, request, ip),
+        id,
+        input,
+      ),
     );
   }
 
@@ -181,7 +210,9 @@ export class AdminRewardController {
         message: 'An administrator session is required.',
       });
     }
-    const requestId = (request as unknown as Record<string, unknown>)['requestId'];
+    const requestId = (request as unknown as Record<string, unknown>)[
+      'requestId'
+    ];
     return {
       adminUserId: actor.adminUserId,
       ipAddress,

@@ -50,13 +50,13 @@ The Daily Reward Accrual Job is the core background process that executes busine
 
 ### 1.2 Module Structure
 
-| Module | Files | Responsibility |
-|---|---|---|
-| `DailyJobOrchestrator` | `daily-job/` | Manages job lifecycle, scheduling, lock acquisition |
-| `DailyRewardAccrualWorker` | `daily-job/` | Core accrual calculation and ledger posting |
-| `RewardService` | `reward/` | Plan queries, rule version resolution |
-| `WalletService` | `wallet/` | Ledger entry creation, balance management |
-| `TransactionRewardLinkageService` | `transaction-reward/` | Entitlement creation and reversal |
+| Module                            | Files                 | Responsibility                                      |
+| --------------------------------- | --------------------- | --------------------------------------------------- |
+| `DailyJobOrchestrator`            | `daily-job/`          | Manages job lifecycle, scheduling, lock acquisition |
+| `DailyRewardAccrualWorker`        | `daily-job/`          | Core accrual calculation and ledger posting         |
+| `RewardService`                   | `reward/`             | Plan queries, rule version resolution               |
+| `WalletService`                   | `wallet/`             | Ledger entry creation, balance management           |
+| `TransactionRewardLinkageService` | `transaction-reward/` | Entitlement creation and reversal                   |
 
 ### 1.3 Key Types (from `daily-job/job.types.ts`)
 
@@ -93,13 +93,13 @@ export const ADVISORY_LOCK_NAMESPACE = 42_000_001;
 
 As of Wave 2, **pg-boss is NOT installed**. The daily job uses **PostgreSQL advisory locks** and **database polling** as its execution mechanism:
 
-| Feature | Implementation |
-|---|---|
-| Job queue | Database polling (daily_job_runs table) |
-| Scheduling | ConfigService-based interval timer |
+| Feature             | Implementation                                  |
+| ------------------- | ----------------------------------------------- |
+| Job queue           | Database polling (daily_job_runs table)         |
+| Scheduling          | ConfigService-based interval timer              |
 | Concurrency control | PostgreSQL advisory lock (namespace 42_000_001) |
-| Retry | Exponential backoff via status transitions |
-| Monitoring | Daily job run table + structured logs |
+| Retry               | Exponential backoff via status transitions      |
+| Monitoring          | Daily job run table + structured logs           |
 
 ### 2.2 pg-boss Integration Path (Future)
 
@@ -170,11 +170,11 @@ export class DailyJobWorker implements OnModuleInit {
 
 The orchestrator runs on a configurable interval:
 
-| Environment | Default Interval | Configuration Key |
-|---|---|---|
-| Development | 60 seconds | `JOB_POLL_INTERVAL_MS` |
-| Staging | 30 seconds | `JOB_POLL_INTERVAL_MS` |
-| Production | 30 seconds | `JOB_POLL_INTERVAL_MS` |
+| Environment | Default Interval | Configuration Key      |
+| ----------- | ---------------- | ---------------------- |
+| Development | 60 seconds       | `JOB_POLL_INTERVAL_MS` |
+| Staging     | 30 seconds       | `JOB_POLL_INTERVAL_MS` |
+| Production  | 30 seconds       | `JOB_POLL_INTERVAL_MS` |
 
 ### 3.2 Job Cycle Flow
 
@@ -219,12 +219,12 @@ Recommendation: **Keep polling** with 30-second interval. This is simpler and ha
 
 Each market has an IANA timezone stored in `markets.timezone`:
 
-| Market | Code | Timezone |
-|---|---|---|
-| Malaysia | MY | `Asia/Kuala_Lumpur` |
-| Vietnam | VN | `Asia/Ho_Chi_Minh` |
-| Singapore | SG | `Asia/Singapore` |
-| Thailand | TH | `Asia/Bangkok` |
+| Market    | Code | Timezone            |
+| --------- | ---- | ------------------- |
+| Malaysia  | MY   | `Asia/Kuala_Lumpur` |
+| Vietnam   | VN   | `Asia/Ho_Chi_Minh`  |
+| Singapore | SG   | `Asia/Singapore`    |
+| Thailand  | TH   | `Asia/Bangkok`      |
 
 ### 4.2 Local Business Date Calculation
 
@@ -233,9 +233,7 @@ Each market has an IANA timezone stored in `markets.timezone`:
 import { DateTime } from 'luxon';
 
 export function getMarketLocalDate(marketTimezone: string): string {
-  return DateTime.now()
-    .setZone(marketTimezone)
-    .toISODate(); // e.g. "2026-07-22"
+  return DateTime.now().setZone(marketTimezone).toISODate(); // e.g. "2026-07-22"
 }
 
 // For job processing: determine what date is the "current business date"
@@ -250,12 +248,12 @@ export function getCurrentBusinessDate(marketTimezone: string): string {
 
 All markets in scope (MY, VN, SG, TH) **do NOT observe DST**. However, the implementation must handle DST for future market expansion:
 
-| Concern | Mitigation |
-|---|---|
-| Clock spring-forward (23h day) | Worker runs within 30s window; no accrual missed |
-| Clock fall-back (25h day) | Idempotency prevents duplicate (UNIQUE constraint) |
-| Midnight ambiguity | `toISODate()` on DateTime handles boundary correctly |
-| Timezone change mid-month | Market timezone update does not affect historical accruals |
+| Concern                        | Mitigation                                                 |
+| ------------------------------ | ---------------------------------------------------------- |
+| Clock spring-forward (23h day) | Worker runs within 30s window; no accrual missed           |
+| Clock fall-back (25h day)      | Idempotency prevents duplicate (UNIQUE constraint)         |
+| Midnight ambiguity             | `toISODate()` on DateTime handles boundary correctly       |
+| Timezone change mid-month      | Market timezone update does not affect historical accruals |
 
 ### 4.4 Key Principles
 
@@ -302,12 +300,12 @@ function hashMarketId(marketId: string): number {
 
 ### 5.2 Lock Parameters
 
-| Parameter | Value | Rationale |
-|---|---|---|
-| Namespace | `42_000_001` | Isolated from other system locks |
-| Lock Scope | Transaction-level | Auto-released on COMMIT/ROLLBACK |
-| Wait Policy | `try` (non-blocking) | Busy polling; never block other workers |
-| Fallback | Skip job if lock not acquired | Next poll will retry |
+| Parameter   | Value                         | Rationale                               |
+| ----------- | ----------------------------- | --------------------------------------- |
+| Namespace   | `42_000_001`                  | Isolated from other system locks        |
+| Lock Scope  | Transaction-level             | Auto-released on COMMIT/ROLLBACK        |
+| Wait Policy | `try` (non-blocking)          | Busy polling; never block other workers |
+| Fallback    | Skip job if lock not acquired | Next poll will retry                    |
 
 ### 5.3 Lock Flow
 
@@ -325,12 +323,12 @@ function hashMarketId(marketId: string): number {
 
 ### 5.4 Lock Release Guarantees
 
-| Scenario | Lock Release |
-|---|---|
-| Normal completion | COMMIT → auto-release |
-| Error during processing | ROLLBACK → auto-release |
-| Worker crash | PostgreSQL terminates connection → auto-release |
-| Timeout | Transaction-level lock — no TTL needed |
+| Scenario                | Lock Release                                    |
+| ----------------------- | ----------------------------------------------- |
+| Normal completion       | COMMIT → auto-release                           |
+| Error during processing | ROLLBACK → auto-release                         |
+| Worker crash            | PostgreSQL terminates connection → auto-release |
+| Timeout                 | Transaction-level lock — no TTL needed          |
 
 ---
 
@@ -346,24 +344,24 @@ PENDING ───► RUNNING ───► COMPLETED
 
 ### 6.2 Idempotent Recovery
 
-| Scenario | Recovery Mechanism |
-|---|---|
-| Worker crashes mid-processing | UNIQUE constraint prevents partial duplicates |
+| Scenario                                                    | Recovery Mechanism                                              |
+| ----------------------------------------------------------- | --------------------------------------------------------------- |
+| Worker crashes mid-processing                               | UNIQUE constraint prevents partial duplicates                   |
 | Worker crashes after wallet entry but before accrual record | UNIQUE idempotency_key on wallet entry ensures idempotent retry |
-| Worker crashes after accrual record insert | UNIQUE (plan_id, date, type) prevents duplicate |
-| Advisory lock contention | Next poll retries within 30 seconds |
-| Rule version missing | Plan is skipped; job completes with `failedCount > 0` |
-| Wallet creation fails | Transaction rollback; accrual not recorded |
+| Worker crashes after accrual record insert                  | UNIQUE (plan_id, date, type) prevents duplicate                 |
+| Advisory lock contention                                    | Next poll retries within 30 seconds                             |
+| Rule version missing                                        | Plan is skipped; job completes with `failedCount > 0`           |
+| Wallet creation fails                                       | Transaction rollback; accrual not recorded                      |
 
 ### 6.3 Error Handling Priorities
 
-| Priority | Error Type | Action |
-|---|---|---|
-| 1 | Advisory lock not acquired | Skip market, log warning, retry on next poll |
-| 2 | Rule version not found | Log error, increment failedCount, skip plan |
-| 3 | Wallet entry duplicate | Log info, skip (expected during recovery) |
-| 4 | Wallet balance mismatch | Log critical, fail the plan |
-| 5 | Database connection lost | Retry entire batch with backoff |
+| Priority | Error Type                 | Action                                       |
+| -------- | -------------------------- | -------------------------------------------- |
+| 1        | Advisory lock not acquired | Skip market, log warning, retry on next poll |
+| 2        | Rule version not found     | Log error, increment failedCount, skip plan  |
+| 3        | Wallet entry duplicate     | Log info, skip (expected during recovery)    |
+| 4        | Wallet balance mismatch    | Log critical, fail the plan                  |
+| 5        | Database connection lost   | Retry entire batch with backoff              |
 
 ### 6.4 Manual Intervention Procedures
 
@@ -375,7 +373,12 @@ PENDING ───► RUNNING ───► COMPLETED
 async function retryJob(jobRunId: string): Promise<void> {
   await db
     .update(dailyJobRuns)
-    .set({ status: 'PENDING', errorDetail: null, startedAt: null, completedAt: null })
+    .set({
+      status: 'PENDING',
+      errorDetail: null,
+      startedAt: null,
+      completedAt: null,
+    })
     .where(eq(dailyJobRuns.id, jobRunId));
 }
 ```
@@ -408,7 +411,11 @@ async function createCatchupJob(
       status: 'PENDING',
     })
     .onConflictDoNothing({
-      target: [dailyJobRuns.jobType, dailyJobRuns.marketId, dailyJobRuns.localBusinessDate],
+      target: [
+        dailyJobRuns.jobType,
+        dailyJobRuns.marketId,
+        dailyJobRuns.localBusinessDate,
+      ],
     });
 }
 ```
@@ -425,13 +432,13 @@ Attempt 5+: wait 120 seconds, mark FAILED
 
 ### 6.6 Alert Thresholds
 
-| Alert | Condition | Severity |
-|---|---|---|
-| Job CONTINUOUSLY FAILED for same job run | status = FAILED > 1 hour | 🔴 Critical |
-| Job PENDING for > 24h | No RUNNING or COMPLETED job for market today | 🟠 High |
-| Job FAILED count > 10 | processedCount > 0, failedCount > 10 | 🟠 High |
-| Advisory lock contention > 5/hour | Lock not acquired repeatedly | 🟡 Medium |
-| Wallet entry creation failure | WalletService.createEntry throws | 🔴 Critical |
+| Alert                                    | Condition                                    | Severity    |
+| ---------------------------------------- | -------------------------------------------- | ----------- |
+| Job CONTINUOUSLY FAILED for same job run | status = FAILED > 1 hour                     | 🔴 Critical |
+| Job PENDING for > 24h                    | No RUNNING or COMPLETED job for market today | 🟠 High     |
+| Job FAILED count > 10                    | processedCount > 0, failedCount > 10         | 🟠 High     |
+| Advisory lock contention > 5/hour        | Lock not acquired repeatedly                 | 🟡 Medium   |
+| Wallet entry creation failure            | WalletService.createEntry throws             | 🔴 Critical |
 
 ---
 
@@ -472,19 +479,19 @@ HAVING current_date - MAX(local_business_date) > 1;
 
 ### 7.2 Daily Job Run Schema
 
-| Column | Type | Description |
-|---|---|---|
-| `id` | uuid | PK |
-| `job_type` | text | `DAILY_REWARD_ACCRUAL` |
-| `market_id` | uuid | FK to markets |
-| `local_business_date` | date | Business date being processed |
-| `status` | daily_job_status | PENDING / RUNNING / COMPLETED / FAILED |
-| `started_at` | timestamptz | When processing began |
-| `completed_at` | timestamptz | When processing ended |
-| `total_entitlements` | integer | Count of eligible reward plans |
-| `processed_count` | integer | Successfully processed count |
-| `failed_count` | integer | Failed count |
-| `error_detail` | text | Error message (if FAILED) |
+| Column                | Type             | Description                            |
+| --------------------- | ---------------- | -------------------------------------- |
+| `id`                  | uuid             | PK                                     |
+| `job_type`            | text             | `DAILY_REWARD_ACCRUAL`                 |
+| `market_id`           | uuid             | FK to markets                          |
+| `local_business_date` | date             | Business date being processed          |
+| `status`              | daily_job_status | PENDING / RUNNING / COMPLETED / FAILED |
+| `started_at`          | timestamptz      | When processing began                  |
+| `completed_at`        | timestamptz      | When processing ended                  |
+| `total_entitlements`  | integer          | Count of eligible reward plans         |
+| `processed_count`     | integer          | Successfully processed count           |
+| `failed_count`        | integer          | Failed count                           |
+| `error_detail`        | text             | Error message (if FAILED)              |
 
 ### 7.3 Monitoring Queries
 
@@ -546,41 +553,41 @@ WHERE rp.status = 'ACTIVE'
 ```typescript
 // Standard log event format
 interface DailyJobLogEvent {
-  timestamp: string;        // ISO 8601 UTC
+  timestamp: string; // ISO 8601 UTC
   level: 'info' | 'warn' | 'error';
   jobType: string;
   marketId: string;
   marketCode: string;
   localBusinessDate: string;
-  event: string;            // see events table below
+  event: string; // see events table below
   durationMs?: number;
   count?: number;
   error?: string;
 }
 ```
 
-| Event | Level | Description |
-|---|---|---|
-| `daily_job_poll_start` | info | Orchestrator begins polling cycle |
-| `daily_job_processing` | info | Job run created, processing market |
-| `daily_job_lock_acquired` | info | Advisory lock obtained |
-| `daily_job_lock_contention` | warn | Advisory lock not available, skipping |
-| `daily_job_plan_processing` | debug | Processing individual reward plan |
-| `daily_job_accrual_created` | info | Accrual record inserted |
-| `daily_job_plan_capped` | info | Plan cap reached, transitioned to CAPPED |
-| `daily_job_completed` | info | Market job finished successfully |
-| `daily_job_completed_with_errors` | warn | Job completed but had failures |
-| `daily_job_failed` | error | Job failed completely |
-| `daily_job_error` | error | Non-recoverable error during processing |
+| Event                             | Level | Description                              |
+| --------------------------------- | ----- | ---------------------------------------- |
+| `daily_job_poll_start`            | info  | Orchestrator begins polling cycle        |
+| `daily_job_processing`            | info  | Job run created, processing market       |
+| `daily_job_lock_acquired`         | info  | Advisory lock obtained                   |
+| `daily_job_lock_contention`       | warn  | Advisory lock not available, skipping    |
+| `daily_job_plan_processing`       | debug | Processing individual reward plan        |
+| `daily_job_accrual_created`       | info  | Accrual record inserted                  |
+| `daily_job_plan_capped`           | info  | Plan cap reached, transitioned to CAPPED |
+| `daily_job_completed`             | info  | Market job finished successfully         |
+| `daily_job_completed_with_errors` | warn  | Job completed but had failures           |
+| `daily_job_failed`                | error | Job failed completely                    |
+| `daily_job_error`                 | error | Non-recoverable error during processing  |
 
 ### 7.6 Log Aggregation Recommendations
 
-| Tool | Purpose |
-|---|---|
+| Tool                    | Purpose                                          |
+| ----------------------- | ------------------------------------------------ |
 | Structured JSON logging | All job logs emitted as JSON for log aggregators |
-| ELK / Loki / CloudWatch | Ship logs for search and alerting |
-| Grafana dashboard | Job run counts, failure rate, latency per market |
-| PagerDuty / OpsGenie | Critical alerts for job failures |
+| ELK / Loki / CloudWatch | Ship logs for search and alerting                |
+| Grafana dashboard       | Job run counts, failure rate, latency per market |
+| PagerDuty / OpsGenie    | Critical alerts for job failures                 |
 
 ### 7.7 Health Check
 
@@ -607,36 +614,36 @@ interface HealthCheckResponse {
 
 ### 8.1 Environment Variables
 
-| Variable | Type | Default | Description |
-|---|---|---|---|
-| `JOB_ENABLED` | boolean | `true` | Master switch for daily job |
-| `JOB_POLL_INTERVAL_MS` | integer | `30000` (30s) | Poll interval between cycles |
-| `JOB_BATCH_SIZE` | integer | `100` | Max plans per batch |
-| `JOB_MAX_RETRIES` | integer | `5` | Max retry attempts per job |
-| `JOB_RETRY_BASE_DELAY_MS` | integer | `10000` (10s) | Base delay for exponential backoff |
-| `JOB_MARKET_LOCK_TIMEOUT_MS` | integer | `5000` (5s) | Advisory lock acquisition timeout |
+| Variable                     | Type    | Default       | Description                        |
+| ---------------------------- | ------- | ------------- | ---------------------------------- |
+| `JOB_ENABLED`                | boolean | `true`        | Master switch for daily job        |
+| `JOB_POLL_INTERVAL_MS`       | integer | `30000` (30s) | Poll interval between cycles       |
+| `JOB_BATCH_SIZE`             | integer | `100`         | Max plans per batch                |
+| `JOB_MAX_RETRIES`            | integer | `5`           | Max retry attempts per job         |
+| `JOB_RETRY_BASE_DELAY_MS`    | integer | `10000` (10s) | Base delay for exponential backoff |
+| `JOB_MARKET_LOCK_TIMEOUT_MS` | integer | `5000` (5s)   | Advisory lock acquisition timeout  |
 
 ### 8.2 Runtime Configuration (DB)
 
 Stored in a `config` table or market-level `config` JSONB column:
 
-| Key | Type | Description |
-|---|---|---|
-| `job.runtime.enabled` | boolean | Per-market job enable/disable |
-| `job.runtime.batch_size` | integer | Override batch size per market |
-| `job.runtime.catchup_max_days` | integer | Max catchup days (default: 7) |
+| Key                            | Type    | Description                    |
+| ------------------------------ | ------- | ------------------------------ |
+| `job.runtime.enabled`          | boolean | Per-market job enable/disable  |
+| `job.runtime.batch_size`       | integer | Override batch size per market |
+| `job.runtime.catchup_max_days` | integer | Max catchup days (default: 7)  |
 
 ---
 
 ## 9. Related Documents
 
-| Document | Location |
-|---|---|
-| Phase 3 Architecture | [`../03-architecture/PHASE_3_ARCHITECTURE.md`](../03-architecture/PHASE_3_ARCHITECTURE.md) |
-| Error Code Reference | [`./PHASE_3_ERROR_CODES.md`](./PHASE_3_ERROR_CODES.md) |
-| Ledger Invariant Document | [`./PHASE_3_LEDGER_INVARIANTS.md`](./PHASE_3_LEDGER_INVARIANTS.md) |
-| Migration Runbook | [`./PHASE_3_MIGRATION_RUNBOOK.md`](./PHASE_3_MIGRATION_RUNBOOK.md) |
+| Document                  | Location                                                                                                               |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Phase 3 Architecture      | [`../03-architecture/PHASE_3_ARCHITECTURE.md`](../03-architecture/PHASE_3_ARCHITECTURE.md)                             |
+| Error Code Reference      | [`./PHASE_3_ERROR_CODES.md`](./PHASE_3_ERROR_CODES.md)                                                                 |
+| Ledger Invariant Document | [`./PHASE_3_LEDGER_INVARIANTS.md`](./PHASE_3_LEDGER_INVARIANTS.md)                                                     |
+| Migration Runbook         | [`./PHASE_3_MIGRATION_RUNBOOK.md`](./PHASE_3_MIGRATION_RUNBOOK.md)                                                     |
 | Agent 7 Delivery Evidence | [`../06-phase-reports/p3-agent7/P3_S2_DELIVERY_EVIDENCE.md`](../06-phase-reports/p3-agent7/P3_S2_DELIVERY_EVIDENCE.md) |
-| Wallet Service | `apps/api/src/wallet/wallet.service.ts` |
-| Reward Service | `apps/api/src/reward/reward.service.ts` |
-| Job Type Definitions | `apps/api/src/daily-job/job.types.ts` |
+| Wallet Service            | `apps/api/src/wallet/wallet.service.ts`                                                                                |
+| Reward Service            | `apps/api/src/reward/reward.service.ts`                                                                                |
+| Job Type Definitions      | `apps/api/src/daily-job/job.types.ts`                                                                                  |

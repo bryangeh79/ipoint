@@ -12,11 +12,11 @@ Wave 2 adds 2 new database tables and 1 new enumeration type on top of the Wave 
 
 ### Inventory
 
-| # | Type | Object | Owner Agent | Wave | Rollback |
-|---|---|---|---|---|---|
-| 1 | Enum | `daily_job_status` | Agent 4 | Wave 2 | DROP TYPE |
-| 2 | Table | `daily_job_runs` | Agent 4 | Wave 2 | DROP TABLE |
-| 3 | Table | `reward_daily_accruals` | Agent 4 | Wave 2 | DROP TABLE |
+| #   | Type  | Object                  | Owner Agent | Wave   | Rollback   |
+| --- | ----- | ----------------------- | ----------- | ------ | ---------- |
+| 1   | Enum  | `daily_job_status`      | Agent 4     | Wave 2 | DROP TYPE  |
+| 2   | Table | `daily_job_runs`        | Agent 4     | Wave 2 | DROP TABLE |
+| 3   | Table | `reward_daily_accruals` | Agent 4     | Wave 2 | DROP TABLE |
 
 ### Complete Phase 3 Migration Order (All Waves)
 
@@ -60,6 +60,7 @@ CREATE TYPE daily_job_status AS ENUM (
 **Used by:** `daily_job_runs.status`
 
 **Design notes:**
+
 - `PENDING` — Job run created, awaiting processing
 - `RUNNING` — Worker has acquired lock and is processing
 - `COMPLETED` — All eligible plans processed
@@ -134,28 +135,29 @@ COMMENT ON TABLE reward_daily_accruals IS 'Daily iPoint reward accrual records. 
 ### 2.4 Difference from Wave 1 ERD
 
 The Wave 1 ERD defined `reward_daily_accruals` as having:
+
 - `timezone` (text) → Changed to `market_timezone` (to match actual schema)
 - `executed_at_utc` (timestamptz) — unchanged
 - `audit_correlation_id` (uuid) — added in Wave 2 for audit traceability
 
 ### 2.5 Existing Schemas Modified
 
-| Table | Change | Rationale |
-|---|---|---|
+| Table                    | Change                                                                              | Rationale                                                                                                            |
+| ------------------------ | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `member_wallet_accounts` | Added `pending_balance`, `available_balance`, `reversed_balance`, `version` columns | Enhanced from Wave 1 single-balance model to 3-component balance model for PENDING/AVAILABLE/REVERSED state tracking |
 
 ### 2.6 Column Type Alignment
 
 All Phase 3 numeric columns use `numeric(38,10)` to match the existing MCP ledger convention:
 
-| Table | Numeric Columns | Precision |
-|---|---|---|
-| `member_wallet_accounts` | `pending_balance`, `available_balance`, `reversed_balance` | (38,10) |
-| `member_wallet_entries` | `amount`, `balance_before`, `balance_after` | (38,10) |
-| `reward_rule_versions` | `reward_rate`, `cap_value`, `minimum_reward` | (38,10) |
-| `reward_plans` | `total_earned`, `cap_amount` | (38,10) |
-| `reward_sources` | `transaction_amount` | (38,10) |
-| `reward_daily_accruals` | `amount` | (38,10) |
+| Table                    | Numeric Columns                                            | Precision |
+| ------------------------ | ---------------------------------------------------------- | --------- |
+| `member_wallet_accounts` | `pending_balance`, `available_balance`, `reversed_balance` | (38,10)   |
+| `member_wallet_entries`  | `amount`, `balance_before`, `balance_after`                | (38,10)   |
+| `reward_rule_versions`   | `reward_rate`, `cap_value`, `minimum_reward`               | (38,10)   |
+| `reward_plans`           | `total_earned`, `cap_amount`                               | (38,10)   |
+| `reward_sources`         | `transaction_amount`                                       | (38,10)   |
+| `reward_daily_accruals`  | `amount`                                                   | (38,10)   |
 
 ---
 
@@ -296,7 +298,8 @@ export class PgBossModule {}
 export class DailyJobWorker implements OnModuleInit {
   constructor(
     @Inject('PGBOSS') private readonly boss: PgBoss,
-    @Inject(DailyJobOrchestrator) private readonly orchestrator: DailyJobOrchestrator,
+    @Inject(DailyJobOrchestrator)
+    private readonly orchestrator: DailyJobOrchestrator,
   ) {}
 
   async onModuleInit() {
@@ -330,25 +333,25 @@ pg-boss worker picks up job
 
 ### 5.1 Existing Tables Not Modified
 
-| Table | Impact | Notes |
-|---|---|---|
-| `accounts` | None | Unchanged |
-| `members` | None | Unchanged; wallet/reward tables reference via FK |
-| `markets` | None | Unchanged; daily_job_runs references via FK |
-| `merchant_branches` | None | Unchanged; reward_plans already references |
-| `mcp_accounts` / `mcp_ledger_entries` | None | Phase 1/2 tables; no changes |
-| All other Phase 0-2 tables | None | No schema modifications |
+| Table                                 | Impact | Notes                                            |
+| ------------------------------------- | ------ | ------------------------------------------------ |
+| `accounts`                            | None   | Unchanged                                        |
+| `members`                             | None   | Unchanged; wallet/reward tables reference via FK |
+| `markets`                             | None   | Unchanged; daily_job_runs references via FK      |
+| `merchant_branches`                   | None   | Unchanged; reward_plans already references       |
+| `mcp_accounts` / `mcp_ledger_entries` | None   | Phase 1/2 tables; no changes                     |
+| All other Phase 0-2 tables            | None   | No schema modifications                          |
 
 ### 5.2 Existing Application Code Not Modified
 
-| Module | Impact | Notes |
-|---|---|---|
-| Auth module | None | No change required |
-| Member module | None | No change required |
-| KYC module | None | No change required |
-| Discovery module | None | No change required |
-| Merchant module | None | No change required |
-| MCP module | None | No change required |
+| Module           | Impact | Notes              |
+| ---------------- | ------ | ------------------ |
+| Auth module      | None   | No change required |
+| Member module    | None   | No change required |
+| KYC module       | None   | No change required |
+| Discovery module | None   | No change required |
+| Merchant module  | None   | No change required |
+| MCP module       | None   | No change required |
 
 ### 5.3 Potential Breaking Changes (None)
 
@@ -477,12 +480,12 @@ pnpm db:push:check
 
 ## 9. Related Documents
 
-| Document | Location |
-|---|---|
-| Phase 3 Migration Runbook (Wave 1) | [`./PHASE_3_MIGRATION_RUNBOOK.md`](./PHASE_3_MIGRATION_RUNBOOK.md) |
-| Phase 3 ERD | [`../03-architecture/PHASE_3_ERD.md`](../03-architecture/PHASE_3_ERD.md) |
-| Daily Job Runbook | [`./PHASE_3_DAILY_JOB_RUNBOOK.md`](./PHASE_3_DAILY_JOB_RUNBOOK.md) |
-| Ledger Invariant Document | [`./PHASE_3_LEDGER_INVARIANTS.md`](./PHASE_3_LEDGER_INVARIANTS.md) |
-| Wave 2 Delivery Evidence | [`../06-phase-reports/p3-agent7/P3_S2_DELIVERY_EVIDENCE.md`](../06-phase-reports/p3-agent7/P3_S2_DELIVERY_EVIDENCE.md) |
-| Database Schema | `packages/database/schema/index.ts` |
-| Migration Config | `packages/database/drizzle.config.ts` |
+| Document                           | Location                                                                                                               |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Phase 3 Migration Runbook (Wave 1) | [`./PHASE_3_MIGRATION_RUNBOOK.md`](./PHASE_3_MIGRATION_RUNBOOK.md)                                                     |
+| Phase 3 ERD                        | [`../03-architecture/PHASE_3_ERD.md`](../03-architecture/PHASE_3_ERD.md)                                               |
+| Daily Job Runbook                  | [`./PHASE_3_DAILY_JOB_RUNBOOK.md`](./PHASE_3_DAILY_JOB_RUNBOOK.md)                                                     |
+| Ledger Invariant Document          | [`./PHASE_3_LEDGER_INVARIANTS.md`](./PHASE_3_LEDGER_INVARIANTS.md)                                                     |
+| Wave 2 Delivery Evidence           | [`../06-phase-reports/p3-agent7/P3_S2_DELIVERY_EVIDENCE.md`](../06-phase-reports/p3-agent7/P3_S2_DELIVERY_EVIDENCE.md) |
+| Database Schema                    | `packages/database/schema/index.ts`                                                                                    |
+| Migration Config                   | `packages/database/drizzle.config.ts`                                                                                  |

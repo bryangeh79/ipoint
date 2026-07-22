@@ -12,20 +12,20 @@ Phase 3 introduces 6 new database tables and 5 new enumeration types to support 
 
 ### Migration Inventory
 
-| # | Type | Object | Owner Agent | Rollback |
-|---|---|---|---|---|
-| 1 | Enum | `reward_source_type` | Agent 3 | DROP TYPE |
-| 2 | Enum | `reward_rule_rate_type` | Agent 2 | DROP TYPE |
-| 3 | Enum | `reward_plan_status` | Agent 2 | DROP TYPE |
-| 4 | Table | `reward_rule_versions` | Agent 2 | DROP TABLE |
-| 5 | Table | `reward_sources` | Agent 3 | DROP TABLE |
-| 6 | Table | `reward_plans` | Agent 2 | DROP TABLE |
-| 7 | Enum | `wallet_account_status` | Agent 1 | DROP TYPE |
-| 8 | Enum | `wallet_entry_type` | Agent 1 | DROP TYPE |
-| 9 | Enum | `wallet_entry_subtype` | Agent 1 | DROP TYPE |
-| 10 | Table | `member_wallet_accounts` | Agent 1 | DROP TABLE |
-| 11 | Table | `member_wallet_entries` | Agent 1 | DROP TABLE |
-| 12 | Table | `reward_daily_accruals` | Agent 4 | DROP TABLE |
+| #   | Type  | Object                   | Owner Agent | Rollback   |
+| --- | ----- | ------------------------ | ----------- | ---------- |
+| 1   | Enum  | `reward_source_type`     | Agent 3     | DROP TYPE  |
+| 2   | Enum  | `reward_rule_rate_type`  | Agent 2     | DROP TYPE  |
+| 3   | Enum  | `reward_plan_status`     | Agent 2     | DROP TYPE  |
+| 4   | Table | `reward_rule_versions`   | Agent 2     | DROP TABLE |
+| 5   | Table | `reward_sources`         | Agent 3     | DROP TABLE |
+| 6   | Table | `reward_plans`           | Agent 2     | DROP TABLE |
+| 7   | Enum  | `wallet_account_status`  | Agent 1     | DROP TYPE  |
+| 8   | Enum  | `wallet_entry_type`      | Agent 1     | DROP TYPE  |
+| 9   | Enum  | `wallet_entry_subtype`   | Agent 1     | DROP TYPE  |
+| 10  | Table | `member_wallet_accounts` | Agent 1     | DROP TABLE |
+| 11  | Table | `member_wallet_entries`  | Agent 1     | DROP TABLE |
+| 12  | Table | `reward_daily_accruals`  | Agent 4     | DROP TABLE |
 
 ---
 
@@ -52,11 +52,11 @@ SELECT pg_database_size(current_database()) / 1024 / 1024 AS db_size_mb;
 
 ### 2.3 Maintenance Window
 
-| Environment | Window | Downtime Expected |
-|---|---|---|
-| Development | Any time | None |
-| Staging | Outside business hours | < 5 minutes |
-| Production | Scheduled maintenance window | < 2 minutes (DDL only) |
+| Environment | Window                       | Downtime Expected      |
+| ----------- | ---------------------------- | ---------------------- |
+| Development | Any time                     | None                   |
+| Staging     | Outside business hours       | < 5 minutes            |
+| Production  | Scheduled maintenance window | < 2 minutes (DDL only) |
 
 ---
 
@@ -504,9 +504,9 @@ Note: CONCURRENTLY requires more time and cannot run inside a transaction.
 
 ## 8. Related Documents
 
-| Document | Location |
-|---|---|
+| Document                              | Location                                                                                                                                       |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Migration & Rollback Strategy (P3-S1) | [`../06-phase-reports/p3-s1/PHASE_3_MIGRATION_AND_ROLLBACK_STRATEGY.md`](../06-phase-reports/p3-s1/PHASE_3_MIGRATION_AND_ROLLBACK_STRATEGY.md) |
-| Phase 3 ERD | [`../03-architecture/PHASE_3_ERD.md`](../03-architecture/PHASE_3_ERD.md) |
-| Phase 3 Architecture | [`../03-architecture/PHASE_3_ARCHITECTURE.md`](../03-architecture/PHASE_3_ARCHITECTURE.md) |
-| Deployment & Operations Guide | [`./06_iPoint_Deployment_Security_and_Operations_V1.0.md`](./06_iPoint_Deployment_Security_and_Operations_V1.0.md) |
+| Phase 3 ERD                           | [`../03-architecture/PHASE_3_ERD.md`](../03-architecture/PHASE_3_ERD.md)                                                                       |
+| Phase 3 Architecture                  | [`../03-architecture/PHASE_3_ARCHITECTURE.md`](../03-architecture/PHASE_3_ARCHITECTURE.md)                                                     |
+| Deployment & Operations Guide         | [`./06_iPoint_Deployment_Security_and_Operations_V1.0.md`](./06_iPoint_Deployment_Security_and_Operations_V1.0.md)                             |

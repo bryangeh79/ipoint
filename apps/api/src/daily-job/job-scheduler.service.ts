@@ -1,4 +1,9 @@
-import { Inject, Injectable, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  type OnApplicationBootstrap,
+  type OnApplicationShutdown,
+} from '@nestjs/common';
 import { sql } from 'drizzle-orm';
 import type { Pool } from 'pg';
 import { DatabaseService } from '../database/database.service.js';
@@ -38,7 +43,9 @@ function advisoryLockKey(
 }
 
 @Injectable()
-export class JobSchedulerService implements OnApplicationBootstrap, OnApplicationShutdown {
+export class JobSchedulerService
+  implements OnApplicationBootstrap, OnApplicationShutdown
+{
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
   private readonly recurringIntervalMs: number;
   private readonly workerCount: number;
@@ -53,9 +60,7 @@ export class JobSchedulerService implements OnApplicationBootstrap, OnApplicatio
     this.recurringIntervalMs = Number(
       process.env['DAILY_JOB_INTERVAL_MS'] ?? (5 * 60 * 1000).toString(),
     );
-    this.workerCount = Number(
-      process.env['DAILY_JOB_WORKER_COUNT'] ?? '3',
-    );
+    this.workerCount = Number(process.env['DAILY_JOB_WORKER_COUNT'] ?? '3');
   }
 
   async onApplicationBootstrap(): Promise<void> {
@@ -266,7 +271,10 @@ export class JobSchedulerService implements OnApplicationBootstrap, OnApplicatio
         await this.processJob(job.id, job.name, job.data);
       } catch (err) {
         console.error(`[JobScheduler] Job ${job.id} failed:`, err);
-        await this.failJob(job.id, err instanceof Error ? err.message : String(err));
+        await this.failJob(
+          job.id,
+          err instanceof Error ? err.message : String(err),
+        );
       }
     }
 

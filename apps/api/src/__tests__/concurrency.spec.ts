@@ -157,18 +157,14 @@ describe('Two Workers, Same Market, Same Day — Lock Prevents Duplicate', () =>
 
     // Worker 2 tries same accrual (same plan, same date)
     // Idempotency check: ik already exists
-    const existingIk = fixture.entries.find(
-      (e) => e.idempotencyKey === ik1,
-    );
+    const existingIk = fixture.entries.find((e) => e.idempotencyKey === ik1);
     expect(existingIk).toBeDefined();
 
     // Worker 2 should NOT create a second entry
     const currentCount = fixture.entries.length;
 
     // Attempt to duplicate (should be prevented)
-    const ikExists = fixture.entries.some(
-      (e) => e.idempotencyKey === ik1,
-    );
+    const ikExists = fixture.entries.some((e) => e.idempotencyKey === ik1);
     if (!ikExists) {
       // Would create entry
       fixture.entries.push({
@@ -277,9 +273,7 @@ describe('Idempotency Key Collision', () => {
     });
 
     // Second submission with same IK (cached result)
-    const matchingEntry = fixture.entries.find(
-      (e) => e.idempotencyKey === ik,
-    );
+    const matchingEntry = fixture.entries.find((e) => e.idempotencyKey === ik);
     expect(matchingEntry).toBeDefined();
     expect(matchingEntry!.amount).toBe('50.0000000000');
 
@@ -379,7 +373,10 @@ describe('Transaction Rollback', () => {
 
     if (!shouldRollback) {
       // This would succeed
-      fixture.balance = addDecimal(fixture.balance, toDecimal('100.0000000000'));
+      fixture.balance = addDecimal(
+        fixture.balance,
+        toDecimal('100.0000000000'),
+      );
       fixture.entries.push({
         entryId: randomUUID(),
         accountId: fixture.walletId,
@@ -455,7 +452,10 @@ describe('Transaction Rollback', () => {
     const ik = makeIdempotencyKey('entry', fixture.walletId);
 
     // Inside transaction:
-    const tempBalance = addDecimal(fixture.balance, toDecimal('100.0000000000'));
+    const tempBalance = addDecimal(
+      fixture.balance,
+      toDecimal('100.0000000000'),
+    );
 
     // Transaction fails → rollback
     const transactionSucceeded = false;

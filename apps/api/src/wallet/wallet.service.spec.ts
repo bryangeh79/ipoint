@@ -216,9 +216,7 @@ describe('WalletService', () => {
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
-        then: vi.fn((cb: any) =>
-          Promise.resolve(cb([{ maxSeq: 0n }])),
-        ),
+        then: vi.fn((cb: any) => Promise.resolve(cb([{ maxSeq: 0n }]))),
       };
       // Mock update returning
       db.returning.mockResolvedValueOnce([
@@ -228,11 +226,11 @@ describe('WalletService', () => {
       db.returning.mockResolvedValueOnce([sampleEntryRow]);
 
       // Now handle runTransaction
-      db.runTransaction = vi.fn().mockImplementation(
-        async (cb: (tx: any) => Promise<any>) => {
+      db.runTransaction = vi
+        .fn()
+        .mockImplementation(async (cb: (tx: any) => Promise<any>) => {
           return cb(db);
-        },
-      );
+        });
       // Need to handle the maxSeq query that uses `then` directly
       const svc = makeService(db);
 
@@ -326,9 +324,7 @@ describe('WalletService', () => {
         orderBy: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
         offset: vi.fn().mockReturnThis(),
-        then: vi.fn((cb: any) =>
-          Promise.resolve(cb([sampleEntryRow])),
-        ),
+        then: vi.fn((cb: any) => Promise.resolve(cb([sampleEntryRow]))),
       };
       // count
       const countChain = {
@@ -392,9 +388,9 @@ describe('WalletService', () => {
       db.limit.mockResolvedValueOnce([]);
       const svc = makeService(db);
 
-      await expect(
-        svc.getEntry(walletId, randomUUID()),
-      ).rejects.toThrow(WalletError);
+      await expect(svc.getEntry(walletId, randomUUID())).rejects.toThrow(
+        WalletError,
+      );
     });
   });
 
@@ -423,9 +419,13 @@ describe('WalletService', () => {
           'ADJUSTMENT',
         ] as const;
         for (const entryType of validTypes) {
-          expect(['PENDING', 'AVAILABLE', 'REVERSED', 'COMPENSATION', 'ADJUSTMENT']).toContain(
-            entryType,
-          );
+          expect([
+            'PENDING',
+            'AVAILABLE',
+            'REVERSED',
+            'COMPENSATION',
+            'ADJUSTMENT',
+          ]).toContain(entryType);
         }
       });
     });

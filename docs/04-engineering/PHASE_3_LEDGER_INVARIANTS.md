@@ -28,12 +28,12 @@ For every member_wallet_accounts row:
 
 ### 1.1 Invariant Enforcement
 
-| Layer | Enforcement | Mechanism |
-|---|---|---|
-| **Application** | Compute + verify | `WalletService.createEntry()` updates balance via SQL arithmetic in the same transaction |
-| **Database** | Computed balances stored as denormalized columns | `pending_balance`, `available_balance`, `reversed_balance` on `member_wallet_accounts` |
-| **Audit** | Balance snapshots in every entry | `balance_before` and `balance_after` on `member_wallet_entries` provide full traceability |
-| **Reconciliation** | External validation | SELECT SUM(amount) vs account.balance should match; periodic reconciliation job recommended |
+| Layer              | Enforcement                                      | Mechanism                                                                                   |
+| ------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| **Application**    | Compute + verify                                 | `WalletService.createEntry()` updates balance via SQL arithmetic in the same transaction    |
+| **Database**       | Computed balances stored as denormalized columns | `pending_balance`, `available_balance`, `reversed_balance` on `member_wallet_accounts`      |
+| **Audit**          | Balance snapshots in every entry                 | `balance_before` and `balance_after` on `member_wallet_entries` provide full traceability   |
+| **Reconciliation** | External validation                              | SELECT SUM(amount) vs account.balance should match; periodic reconciliation job recommended |
 
 ### 1.2 Optimistic Concurrency Control
 
@@ -69,12 +69,12 @@ If a concurrent update increments `version` before this transaction commits, the
 
 Wallet ledger entries are **strictly append-only**:
 
-| Operation | Allowed? | Rationale |
-|---|---|---|
-| INSERT | ✅ Yes | New ledger entries |
-| SELECT | ✅ Yes | Read entries |
-| UPDATE | ❌ No | Would break audit trail |
-| DELETE | ❌ No | Would destroy balance history |
+| Operation | Allowed? | Rationale                     |
+| --------- | -------- | ----------------------------- |
+| INSERT    | ✅ Yes   | New ledger entries            |
+| SELECT    | ✅ Yes   | Read entries                  |
+| UPDATE    | ❌ No    | Would break audit trail       |
+| DELETE    | ❌ No    | Would destroy balance history |
 
 ### 2.2 Database-Level Enforcement
 
@@ -91,12 +91,12 @@ Wallet ledger entries are **strictly append-only**:
 
 ### 2.3 What "Immutable" Means for Operations
 
-| Operation | Immutable? | How It's Done |
-|---|---|---|
-| Reversal | ✅ Immutable (new entry) | New entry with `entry_type = 'REVERSED'` referencing original via `reference_id` |
-| Correction | ✅ Immutable (new entry) | New entry with `entry_type = 'ADJUSTMENT'` or `'COMPENSATION'` |
-| Refund | ✅ Immutable (new entry) | Refund creates new credit entry; original debit stays |
-| Mistake | ✅ Immutable (new entry) | Full reversal + new correct entry |
+| Operation  | Immutable?               | How It's Done                                                                    |
+| ---------- | ------------------------ | -------------------------------------------------------------------------------- |
+| Reversal   | ✅ Immutable (new entry) | New entry with `entry_type = 'REVERSED'` referencing original via `reference_id` |
+| Correction | ✅ Immutable (new entry) | New entry with `entry_type = 'ADJUSTMENT'` or `'COMPENSATION'`                   |
+| Refund     | ✅ Immutable (new entry) | Refund creates new credit entry; original debit stays                            |
+| Mistake    | ✅ Immutable (new entry) | Full reversal + new correct entry                                                |
 
 ### 2.4 Entry Lifecycle
 
@@ -113,25 +113,25 @@ Entry Created
 
 ### 2.5 Column Immutability Justification
 
-| Column | Immutable? | Why |
-|---|---|---|
-| `id` | ✅ Yes | PK; never changes |
-| `wallet_account_id` | ✅ Yes | FK; changing would re-parent history |
-| `member_id` | ✅ Yes | Context; changing would break audit |
-| `market_id` | ✅ Yes | Context; changing would break audit |
-| `entry_sequence` | ✅ Yes | Monotonic sequence; changing would reorder history |
-| `entry_type` | ✅ Yes | Type defines behavior; changing would rewrite history |
-| `amount` | ✅ Yes | Core financial value |
-| `balance_before` | ✅ Yes | Balance snapshot; changing would invalidate invariant |
-| `balance_after` | ✅ Yes | Balance snapshot; changing would invalidate invariant |
-| `idempotency_key` | ✅ Yes | Uniqueness guarantee |
-| `reference_type` | ✅ Yes | Links to external entity |
-| `reference_id` | ✅ Yes | Links to external entity |
-| `description` | ✅ Yes | Human-readable context |
-| `reason` | ✅ Yes | Why the entry exists |
-| `actor_id` | ✅ Yes | Who caused the change |
-| `market_timezone` | ✅ Yes | Timezone at recording time |
-| `created_at` | ✅ Yes | Timestamp of creation |
+| Column              | Immutable? | Why                                                   |
+| ------------------- | ---------- | ----------------------------------------------------- |
+| `id`                | ✅ Yes     | PK; never changes                                     |
+| `wallet_account_id` | ✅ Yes     | FK; changing would re-parent history                  |
+| `member_id`         | ✅ Yes     | Context; changing would break audit                   |
+| `market_id`         | ✅ Yes     | Context; changing would break audit                   |
+| `entry_sequence`    | ✅ Yes     | Monotonic sequence; changing would reorder history    |
+| `entry_type`        | ✅ Yes     | Type defines behavior; changing would rewrite history |
+| `amount`            | ✅ Yes     | Core financial value                                  |
+| `balance_before`    | ✅ Yes     | Balance snapshot; changing would invalidate invariant |
+| `balance_after`     | ✅ Yes     | Balance snapshot; changing would invalidate invariant |
+| `idempotency_key`   | ✅ Yes     | Uniqueness guarantee                                  |
+| `reference_type`    | ✅ Yes     | Links to external entity                              |
+| `reference_id`      | ✅ Yes     | Links to external entity                              |
+| `description`       | ✅ Yes     | Human-readable context                                |
+| `reason`            | ✅ Yes     | Why the entry exists                                  |
+| `actor_id`          | ✅ Yes     | Who caused the change                                 |
+| `market_timezone`   | ✅ Yes     | Timezone at recording time                            |
+| `created_at`        | ✅ Yes     | Timestamp of creation                                 |
 
 ---
 
@@ -149,16 +149,17 @@ await walletService.createLedgerEntry({
   memberId: originalEntry.memberId,
   marketId: originalEntry.marketId,
   entryType: 'REVERSED',
-  amount: originalEntry.amount,          // Same amount as original
+  amount: originalEntry.amount, // Same amount as original
   idempotencyKey: `REV:${originalEntry.id}`,
   referenceType: 'WALLET_ENTRY',
-  referenceId: originalEntry.id,         // Reference the reversed entry
+  referenceId: originalEntry.id, // Reference the reversed entry
   reason: 'Admin reversal: incorrect reward amount',
   actorId: adminUserId,
 });
 ```
 
 **Result:**
+
 ```
 Original entry:   PENDING    +100.00    balance_before=0    balance_after=100
 Reversal entry:   REVERSED   +100.00    balance_before=100  balance_after=200
@@ -175,7 +176,7 @@ Reversal entry:   REVERSED   +100.00    balance_before=100  balance_after=200
 await walletService.createLedgerEntry({
   memberId,
   marketId,
-  entryType: 'COMPENSATION',     // Adds to availableBalance
+  entryType: 'COMPENSATION', // Adds to availableBalance
   amount: '50.00',
   idempotencyKey: `COMP:${correlationId}`,
   reason: 'Promotional credit: welcome bonus',
@@ -240,15 +241,15 @@ await walletService.createLedgerEntry({
 
 ### 4.1 What Must Be Audited
 
-| Action | Audit Event | Entity Type |
-|---|---|---|
-| Wallet created | `WALLET_CREATED` | `MEMBER_WALLET_ACCOUNT` |
-| Ledger entry created | `WALLET_ENTRY_CREATED` | `MEMBER_WALLET_ENTRY` |
-| Reward accrual posted | `REWARD_ACCRUAL_POSTED` | `REWARD_DAILY_ACCRUAL` |
-| Reward entitlement created | `REWARD_ENTITLEMENT_CREATED` | `REWARD_PLAN` |
-| Reward entitlement reversed | `REWARD_ENTITLEMENT_REVERSED` | `REWARD_SOURCE` |
-| Admin adjustment | `WALLET_ADJUSTMENT_CREATED` | `MEMBER_WALLET_ENTRY` |
-| Job run completed | `DAILY_JOB_COMPLETED` | `DAILY_JOB_RUN` |
+| Action                      | Audit Event                   | Entity Type             |
+| --------------------------- | ----------------------------- | ----------------------- |
+| Wallet created              | `WALLET_CREATED`              | `MEMBER_WALLET_ACCOUNT` |
+| Ledger entry created        | `WALLET_ENTRY_CREATED`        | `MEMBER_WALLET_ENTRY`   |
+| Reward accrual posted       | `REWARD_ACCRUAL_POSTED`       | `REWARD_DAILY_ACCRUAL`  |
+| Reward entitlement created  | `REWARD_ENTITLEMENT_CREATED`  | `REWARD_PLAN`           |
+| Reward entitlement reversed | `REWARD_ENTITLEMENT_REVERSED` | `REWARD_SOURCE`         |
+| Admin adjustment            | `WALLET_ADJUSTMENT_CREATED`   | `MEMBER_WALLET_ENTRY`   |
+| Job run completed           | `DAILY_JOB_COMPLETED`         | `DAILY_JOB_RUN`         |
 
 ### 4.2 Audit Record Structure (from `audit_logs`)
 
@@ -288,26 +289,27 @@ const correlationId = randomUUID();
 ```
 
 This enables full traceability:
+
 ```
 Troubleshoot query:
   SELECT * FROM member_wallet_entries
   WHERE idempotency_key LIKE '%correlationId%';
-  
+
   SELECT * FROM reward_daily_accruals
   WHERE audit_correlation_id = 'correlationId';
-  
+
   SELECT * FROM audit_logs
   WHERE request_id = 'correlationId';
 ```
 
 ### 4.4 Retention & Archival
 
-| Data | Retention | Archival Policy |
-|---|---|---|
-| `member_wallet_entries` | Permanent | Never delete; archive to cold storage after 7 years if needed |
-| `reward_daily_accruals` | Permanent | Never delete; historical reward data |
-| `audit_logs` | Configurable (default: 7 years) | Archive monthly; purge after retention period |
-| `daily_job_runs` | 1 year | Purge after 1 year; maintain daily summaries |
+| Data                    | Retention                       | Archival Policy                                               |
+| ----------------------- | ------------------------------- | ------------------------------------------------------------- |
+| `member_wallet_entries` | Permanent                       | Never delete; archive to cold storage after 7 years if needed |
+| `reward_daily_accruals` | Permanent                       | Never delete; historical reward data                          |
+| `audit_logs`            | Configurable (default: 7 years) | Archive monthly; purge after retention period                 |
+| `daily_job_runs`        | 1 year                          | Purge after 1 year; maintain daily summaries                  |
 
 ### 4.5 Reconciliation Procedure
 
@@ -341,13 +343,13 @@ WHERE a.pending_balance != COALESCE((
 
 ### 5.1 Valid Entry Types
 
-| Type | Balance Component | Sign | Description |
-|---|---|---|---|
-| `PENDING` | pendingBalance | + | Reward accrual, awaiting availability |
-| `AVAILABLE` | availableBalance | + | Reward moved from pending to available |
-| `REVERSED` | reversedBalance | + | Reversal of a previous entry |
-| `COMPENSATION` | availableBalance | + | Admin-granted compensation |
-| `ADJUSTMENT` | availableBalance | + | System adjustment |
+| Type           | Balance Component | Sign | Description                            |
+| -------------- | ----------------- | ---- | -------------------------------------- |
+| `PENDING`      | pendingBalance    | +    | Reward accrual, awaiting availability  |
+| `AVAILABLE`    | availableBalance  | +    | Reward moved from pending to available |
+| `REVERSED`     | reversedBalance   | +    | Reversal of a previous entry           |
+| `COMPENSATION` | availableBalance  | +    | Admin-granted compensation             |
+| `ADJUSTMENT`   | availableBalance  | +    | System adjustment                      |
 
 ### 5.2 Balance Composition
 
@@ -415,10 +417,10 @@ const key = `REWARD:TX:${transactionId}`;
 
 ### 6.3 Idempotency Behavior
 
-| Scenario | Behavior | HTTP Equivalent |
-|---|---|---|
-| Same key, same payload | Return existing entry (200) | Idempotent-safe |
-| Same key, different payload | Reject with error (409) | Idempotency conflict |
+| Scenario                    | Behavior                    | HTTP Equivalent      |
+| --------------------------- | --------------------------- | -------------------- |
+| Same key, same payload      | Return existing entry (200) | Idempotent-safe      |
+| Same key, different payload | Reject with error (409)     | Idempotency conflict |
 
 ---
 
@@ -452,25 +454,25 @@ const key = `REWARD:TX:${transactionId}`;
 
 ## 8. Testing Invariants
 
-| Test | What It Validates |
-|---|---|
-| `createEntry + getBalance` | Balance updates correctly |
-| `createEntry with duplicate key` | Idempotency returns existing entry |
-| `createEntry with different amount, same key` | Idempotency conflict error |
-| `Reverse entry + verify balances` | Reversal creates compensating entry |
-| `Concurrent createEntry on same wallet` | OCC version check rejects one |
-| `Wallet entries after reversal` | Original entry unchanged |
+| Test                                          | What It Validates                   |
+| --------------------------------------------- | ----------------------------------- |
+| `createEntry + getBalance`                    | Balance updates correctly           |
+| `createEntry with duplicate key`              | Idempotency returns existing entry  |
+| `createEntry with different amount, same key` | Idempotency conflict error          |
+| `Reverse entry + verify balances`             | Reversal creates compensating entry |
+| `Concurrent createEntry on same wallet`       | OCC version check rejects one       |
+| `Wallet entries after reversal`               | Original entry unchanged            |
 
 ---
 
 ## 9. Related Documents
 
-| Document | Location |
-|---|---|
-| Wallet Ledger Contract | [`../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md`](../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md) |
+| Document                   | Location                                                                                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Wallet Ledger Contract     | [`../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md`](../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md)             |
 | Reversal & Correction Spec | [`../06-phase-reports/p3-s1/PHASE_3_REVERSAL_AND_CORRECTION_SPEC.md`](../06-phase-reports/p3-s1/PHASE_3_REVERSAL_AND_CORRECTION_SPEC.md) |
-| Decimal & Currency Spec | [`../06-phase-reports/p3-s1/PHASE_3_DECIMAL_AND_CURRENCY_SPEC.md`](../06-phase-reports/p3-s1/PHASE_3_DECIMAL_AND_CURRENCY_SPEC.md) |
-| Phase 3 ERD | [`../03-architecture/PHASE_3_ERD.md`](../03-architecture/PHASE_3_ERD.md) |
-| Daily Job Runbook | [`./PHASE_3_DAILY_JOB_RUNBOOK.md`](./PHASE_3_DAILY_JOB_RUNBOOK.md) |
-| Wallet Service | `apps/api/src/wallet/wallet.service.ts` |
-| Wallet Types | `apps/api/src/wallet/wallet.types.ts` |
+| Decimal & Currency Spec    | [`../06-phase-reports/p3-s1/PHASE_3_DECIMAL_AND_CURRENCY_SPEC.md`](../06-phase-reports/p3-s1/PHASE_3_DECIMAL_AND_CURRENCY_SPEC.md)       |
+| Phase 3 ERD                | [`../03-architecture/PHASE_3_ERD.md`](../03-architecture/PHASE_3_ERD.md)                                                                 |
+| Daily Job Runbook          | [`./PHASE_3_DAILY_JOB_RUNBOOK.md`](./PHASE_3_DAILY_JOB_RUNBOOK.md)                                                                       |
+| Wallet Service             | `apps/api/src/wallet/wallet.service.ts`                                                                                                  |
+| Wallet Types               | `apps/api/src/wallet/wallet.types.ts`                                                                                                    |

@@ -251,60 +251,60 @@ CREATE TYPE wallet_entry_subtype AS ENUM (
 
 ## 3. Foreign Key Integrity
 
-| Child Table | FK Column | Parent Table | Delete Rule | Purpose |
-|---|---|---|---|---|
-| reward_rule_versions | market_id | markets | CASCADE | Rule per market |
-| reward_sources | member_id | members | RESTRICT | Reward belongs to member |
-| reward_sources | market_id | markets | RESTRICT | Reward in market context |
-| reward_sources | merchant_id | merchants | RESTRICT | Reward from merchant |
-| reward_plans | member_id | members | RESTRICT | Plan owned by member |
-| reward_plans | market_id | markets | RESTRICT | Plan in market |
-| reward_plans | merchant_id | merchants | RESTRICT | Plan for merchant |
-| reward_plans | rule_version_id | reward_rule_versions | SET NULL | Historical preservation |
-| reward_daily_accruals | reward_plan_id | reward_plans | CASCADE | Accrual belongs to plan |
-| reward_daily_accruals | member_id | members | RESTRICT | Denormalized for query perf |
-| reward_daily_accruals | market_id | markets | RESTRICT | Denormalized for query perf |
-| reward_daily_accruals | rule_version_id | reward_rule_versions | RESTRICT | Rule applied |
-| reward_daily_accruals | wallet_entry_id | member_wallet_entries | SET NULL | Entry may be reversed |
-| member_wallet_accounts | member_id | members | RESTRICT | Wallet belongs to member |
-| member_wallet_accounts | market_id | markets | RESTRICT | Wallet in market |
-| member_wallet_entries | account_id | member_wallet_accounts | CASCADE | Entry in account |
-| member_wallet_entries | reward_plan_id | reward_plans | SET NULL | Historical preservation |
-| member_wallet_entries | reversal_of | member_wallet_entries | SET NULL | Self-referencing FK |
+| Child Table            | FK Column       | Parent Table           | Delete Rule | Purpose                     |
+| ---------------------- | --------------- | ---------------------- | ----------- | --------------------------- |
+| reward_rule_versions   | market_id       | markets                | CASCADE     | Rule per market             |
+| reward_sources         | member_id       | members                | RESTRICT    | Reward belongs to member    |
+| reward_sources         | market_id       | markets                | RESTRICT    | Reward in market context    |
+| reward_sources         | merchant_id     | merchants              | RESTRICT    | Reward from merchant        |
+| reward_plans           | member_id       | members                | RESTRICT    | Plan owned by member        |
+| reward_plans           | market_id       | markets                | RESTRICT    | Plan in market              |
+| reward_plans           | merchant_id     | merchants              | RESTRICT    | Plan for merchant           |
+| reward_plans           | rule_version_id | reward_rule_versions   | SET NULL    | Historical preservation     |
+| reward_daily_accruals  | reward_plan_id  | reward_plans           | CASCADE     | Accrual belongs to plan     |
+| reward_daily_accruals  | member_id       | members                | RESTRICT    | Denormalized for query perf |
+| reward_daily_accruals  | market_id       | markets                | RESTRICT    | Denormalized for query perf |
+| reward_daily_accruals  | rule_version_id | reward_rule_versions   | RESTRICT    | Rule applied                |
+| reward_daily_accruals  | wallet_entry_id | member_wallet_entries  | SET NULL    | Entry may be reversed       |
+| member_wallet_accounts | member_id       | members                | RESTRICT    | Wallet belongs to member    |
+| member_wallet_accounts | market_id       | markets                | RESTRICT    | Wallet in market            |
+| member_wallet_entries  | account_id      | member_wallet_accounts | CASCADE     | Entry in account            |
+| member_wallet_entries  | reward_plan_id  | reward_plans           | SET NULL    | Historical preservation     |
+| member_wallet_entries  | reversal_of     | member_wallet_entries  | SET NULL    | Self-referencing FK         |
 
 ---
 
 ## 4. Business Rule Constraints
 
-| Constraint | Enforcement | When Violated |
-|---|---|---|
-| One wallet per (member, market) | UNIQUE(member_id, market_id) | WALLET_ALREADY_EXISTS |
-| Entry amount never zero | CHECK(amount != 0) | WALLET_INVALID_AMOUNT |
-| One idempotency key per account | UNIQUE(account_id, idempotency_key) | WALLET_DUPLICATE_ENTRY |
-| Reversal entries must reference original | CHECK with entry_type validation | WALLET_REVERSAL_INVALID |
-| One source per (type, id, member, market) | UNIQUE(source_type, source_id, member_id, market_id) | REWARD_SOURCE_DUPLICATE |
-| One plan per source key | UNIQUE(source_type, source_id, member_id, market_id) | REWARD_PLAN_DUPLICATE_SOURCE |
-| No duplicate daily accrual | UNIQUE(reward_plan_id, market_local_date, ledger_entry_type) | SETTLEMENT_IDEMPOTENCY_CONFLICT |
-| Rule dates consistent | CHECK(effective_from < effective_until) | REWARD_RULE_INVALID_DATE |
-| No negative amounts | Application check + numeric(38,10) min | WALLET_INVALID_AMOUNT |
+| Constraint                                | Enforcement                                                  | When Violated                   |
+| ----------------------------------------- | ------------------------------------------------------------ | ------------------------------- |
+| One wallet per (member, market)           | UNIQUE(member_id, market_id)                                 | WALLET_ALREADY_EXISTS           |
+| Entry amount never zero                   | CHECK(amount != 0)                                           | WALLET_INVALID_AMOUNT           |
+| One idempotency key per account           | UNIQUE(account_id, idempotency_key)                          | WALLET_DUPLICATE_ENTRY          |
+| Reversal entries must reference original  | CHECK with entry_type validation                             | WALLET_REVERSAL_INVALID         |
+| One source per (type, id, member, market) | UNIQUE(source_type, source_id, member_id, market_id)         | REWARD_SOURCE_DUPLICATE         |
+| One plan per source key                   | UNIQUE(source_type, source_id, member_id, market_id)         | REWARD_PLAN_DUPLICATE_SOURCE    |
+| No duplicate daily accrual                | UNIQUE(reward_plan_id, market_local_date, ledger_entry_type) | SETTLEMENT_IDEMPOTENCY_CONFLICT |
+| Rule dates consistent                     | CHECK(effective_from < effective_until)                      | REWARD_RULE_INVALID_DATE        |
+| No negative amounts                       | Application check + numeric(38,10) min                       | WALLET_INVALID_AMOUNT           |
 
 ---
 
 ## 5. Index Strategy
 
-| Table | Index | Type | Purpose |
-|---|---|---|---|
-| reward_rule_versions | (market_id, effective_from) | B-tree | Rule resolution by market+date |
-| reward_sources | (member_id) | B-tree | Member source lookup |
-| reward_sources | (market_id) | B-tree | Market-wide source queries |
-| reward_plans | (member_id, market_id, status) | B-tree | Member plan listing with filter |
-| reward_plans | (status) WHERE status = 'ACTIVE' | Partial B-tree | Worker query active plans |
-| reward_daily_accruals | (reward_plan_id, market_local_date) | B-tree | Settlement history lookup |
-| reward_daily_accruals | (idempotency_key) | B-tree UNIQUE | Primary idempotency enforcement |
-| member_wallet_accounts | (member_id) | B-tree | Member wallet list |
-| member_wallet_accounts | (market_id) | B-tree | Market-wide wallet queries |
-| member_wallet_entries | (account_id, created_at DESC) | B-tree | Paginated entry listing |
-| member_wallet_entries | (idempotency_key) | B-tree UNIQUE | Entry idempotency enforcement |
+| Table                  | Index                               | Type           | Purpose                         |
+| ---------------------- | ----------------------------------- | -------------- | ------------------------------- |
+| reward_rule_versions   | (market_id, effective_from)         | B-tree         | Rule resolution by market+date  |
+| reward_sources         | (member_id)                         | B-tree         | Member source lookup            |
+| reward_sources         | (market_id)                         | B-tree         | Market-wide source queries      |
+| reward_plans           | (member_id, market_id, status)      | B-tree         | Member plan listing with filter |
+| reward_plans           | (status) WHERE status = 'ACTIVE'    | Partial B-tree | Worker query active plans       |
+| reward_daily_accruals  | (reward_plan_id, market_local_date) | B-tree         | Settlement history lookup       |
+| reward_daily_accruals  | (idempotency_key)                   | B-tree UNIQUE  | Primary idempotency enforcement |
+| member_wallet_accounts | (member_id)                         | B-tree         | Member wallet list              |
+| member_wallet_accounts | (market_id)                         | B-tree         | Market-wide wallet queries      |
+| member_wallet_entries  | (account_id, created_at DESC)       | B-tree         | Paginated entry listing         |
+| member_wallet_entries  | (idempotency_key)                   | B-tree UNIQUE  | Entry idempotency enforcement   |
 
 ---
 
@@ -333,10 +333,10 @@ Rollback is the reverse of this order.
 
 ## 7. Related Documents
 
-| Document | Location |
-|---|---|
-| Phase 3 Architecture | [`PHASE_3_ARCHITECTURE.md`](./PHASE_3_ARCHITECTURE.md) |
-| Wallet Ledger Contract | [`../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md`](../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md) |
+| Document                   | Location                                                                                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 3 Architecture       | [`PHASE_3_ARCHITECTURE.md`](./PHASE_3_ARCHITECTURE.md)                                                                                   |
+| Wallet Ledger Contract     | [`../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md`](../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md)             |
 | Settlement & Timezone Spec | [`../06-phase-reports/p3-s1/PHASE_3_SETTLEMENT_AND_TIMEZONE_SPEC.md`](../06-phase-reports/p3-s1/PHASE_3_SETTLEMENT_AND_TIMEZONE_SPEC.md) |
-| Migration Runbook | [`../04-engineering/PHASE_3_MIGRATION_RUNBOOK.md`](../04-engineering/PHASE_3_MIGRATION_RUNBOOK.md) |
-| Error Codes Reference | [`../04-engineering/PHASE_3_ERROR_CODES.md`](../04-engineering/PHASE_3_ERROR_CODES.md) |
+| Migration Runbook          | [`../04-engineering/PHASE_3_MIGRATION_RUNBOOK.md`](../04-engineering/PHASE_3_MIGRATION_RUNBOOK.md)                                       |
+| Error Codes Reference      | [`../04-engineering/PHASE_3_ERROR_CODES.md`](../04-engineering/PHASE_3_ERROR_CODES.md)                                                   |

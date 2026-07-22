@@ -181,7 +181,10 @@ function createMockDb() {
 }
 
 function makeService(db: ReturnType<typeof createMockDb>) {
-  return new JobService({ db, runTransaction: vi.fn() } as unknown as DatabaseService);
+  return new JobService({
+    db,
+    runTransaction: vi.fn(),
+  } as unknown as DatabaseService);
 }
 
 function makeServiceWithTx(
@@ -237,11 +240,13 @@ describe('JobService', () => {
           marketId,
           localBusinessDate,
         }),
-      ).rejects.toThrow(jobRunAlreadyExistsError(
-        JOB_TYPE_DAILY_REWARD_ACCRUAL,
-        marketId,
-        localBusinessDate,
-      ));
+      ).rejects.toThrow(
+        jobRunAlreadyExistsError(
+          JOB_TYPE_DAILY_REWARD_ACCRUAL,
+          marketId,
+          localBusinessDate,
+        ),
+      );
     });
   });
 
@@ -310,7 +315,11 @@ describe('JobService', () => {
 
       const svc = makeService(db);
       await expect(
-        svc.getJobRun(JOB_TYPE_DAILY_REWARD_ACCRUAL, marketId, localBusinessDate),
+        svc.getJobRun(
+          JOB_TYPE_DAILY_REWARD_ACCRUAL,
+          marketId,
+          localBusinessDate,
+        ),
       ).rejects.toThrow(jobRunNotFoundError());
     });
   });
@@ -366,7 +375,9 @@ describe('JobService', () => {
       tx.returning.mockResolvedValueOnce([pendingRun]);
 
       // Step 2: update to RUNNING
-      tx.returning.mockResolvedValueOnce([{ ...pendingRun, status: 'RUNNING', startedAt: new Date() }]);
+      tx.returning.mockResolvedValueOnce([
+        { ...pendingRun, status: 'RUNNING', startedAt: new Date() },
+      ]);
 
       // Step 3: fetch market
       tx.limit.mockResolvedValueOnce([marketRow()]);
@@ -378,7 +389,9 @@ describe('JobService', () => {
       tx.limit.mockResolvedValueOnce([existingAccrual]);
 
       // Step 6: no more plans, so update to COMPLETED
-      tx.returning.mockResolvedValueOnce([{ ...pendingRun, status: 'COMPLETED' }]);
+      tx.returning.mockResolvedValueOnce([
+        { ...pendingRun, status: 'COMPLETED' },
+      ]);
 
       const svc = makeServiceWithTx((cb) => cb(tx));
       const result = await svc.processDailyAccruals({
@@ -436,13 +449,17 @@ describe('JobService', () => {
       sgTx.returning.mockResolvedValueOnce([sgRun]);
 
       // Step 2: update to RUNNING
-      sgTx.returning.mockResolvedValueOnce([{ ...sgRun, status: 'RUNNING', startedAt: new Date() }]);
+      sgTx.returning.mockResolvedValueOnce([
+        { ...sgRun, status: 'RUNNING', startedAt: new Date() },
+      ]);
 
       // Step 3: fetch market
-      sgTx.limit.mockResolvedValueOnce([{
-        id: sgMarketId,
-        timezone: 'Asia/Singapore',
-      }]);
+      sgTx.limit.mockResolvedValueOnce([
+        {
+          id: sgMarketId,
+          timezone: 'Asia/Singapore',
+        },
+      ]);
 
       // Step 4: scan plans — no eligible plans (empty)
       sgTx.limit.mockResolvedValueOnce([]);
@@ -475,7 +492,10 @@ describe('JobService', () => {
       const db = createMockDb();
 
       // Simulate existing crashed run
-      const crashedRun = jobRunRow({ status: 'RUNNING', startedAt: new Date() });
+      const crashedRun = jobRunRow({
+        status: 'RUNNING',
+        startedAt: new Date(),
+      });
 
       // Conflict — no insert
       db.onConflictDoNothing.mockReturnThis();
@@ -489,11 +509,13 @@ describe('JobService', () => {
           marketId,
           localBusinessDate,
         }),
-      ).rejects.toThrow(jobRunAlreadyExistsError(
-        JOB_TYPE_DAILY_REWARD_ACCRUAL,
-        marketId,
-        localBusinessDate,
-      ));
+      ).rejects.toThrow(
+        jobRunAlreadyExistsError(
+          JOB_TYPE_DAILY_REWARD_ACCRUAL,
+          marketId,
+          localBusinessDate,
+        ),
+      );
 
       // In production, a recovery mechanism would resolve this by
       // checking the status and either restarting or completing it.
@@ -531,7 +553,9 @@ describe('JobService', () => {
       tx.returning.mockResolvedValueOnce([run]);
 
       // Step 2: update to RUNNING
-      tx.returning.mockResolvedValueOnce([{ ...run, status: 'RUNNING', startedAt: new Date() }]);
+      tx.returning.mockResolvedValueOnce([
+        { ...run, status: 'RUNNING', startedAt: new Date() },
+      ]);
 
       // Step 3: fetch market
       tx.limit.mockResolvedValueOnce([marketRow()]);
@@ -553,11 +577,13 @@ describe('JobService', () => {
       tx.limit.mockResolvedValueOnce([]);
 
       // Step 9: insert accrual
-      tx.returning.mockResolvedValueOnce([accrualRow({
-        id: randomUUID(),
-        rewardPlanId: plan1Id,
-        amount: '0.1369863014',
-      })]);
+      tx.returning.mockResolvedValueOnce([
+        accrualRow({
+          id: randomUUID(),
+          rewardPlanId: plan1Id,
+          amount: '0.1369863014',
+        }),
+      ]);
 
       // Step 10: get wallet
       const wallet = walletRow({ id: randomUUID() });
@@ -579,12 +605,14 @@ describe('JobService', () => {
       tx.limit.mockResolvedValueOnce([]); // no rule found => error
 
       // Step 16: update job run as FAILED
-      tx.returning.mockResolvedValueOnce([{
-        ...run,
-        status: 'FAILED',
-        processedCount: 1,
-        failedCount: 1,
-      }]);
+      tx.returning.mockResolvedValueOnce([
+        {
+          ...run,
+          status: 'FAILED',
+          processedCount: 1,
+          failedCount: 1,
+        },
+      ]);
 
       const svc = makeServiceWithTx((cb) => cb(tx));
       const result = await svc.processDailyAccruals({
@@ -659,13 +687,17 @@ describe('JobService', () => {
       innerTx.onConflictDoNothing.mockReturnThis();
       innerTx.returning.mockResolvedValueOnce([newRun]);
       // update to RUNNING
-      innerTx.returning.mockResolvedValueOnce([{ ...newRun, status: 'RUNNING', startedAt: new Date() }]);
+      innerTx.returning.mockResolvedValueOnce([
+        { ...newRun, status: 'RUNNING', startedAt: new Date() },
+      ]);
       // fetch market
       innerTx.limit.mockResolvedValueOnce([marketRow()]);
       // scan plans — no eligible (already processed)
       innerTx.limit.mockResolvedValueOnce([]);
       // update to COMPLETED
-      innerTx.returning.mockResolvedValueOnce([{ ...newRun, status: 'COMPLETED' }]);
+      innerTx.returning.mockResolvedValueOnce([
+        { ...newRun, status: 'COMPLETED' },
+      ]);
 
       const svc = makeServiceWithTx((cb) => {
         // First call from retryFailedItems runs in outer tx
@@ -715,7 +747,9 @@ describe('JobService', () => {
       tx.returning.mockResolvedValueOnce([run]);
 
       // Step 2: update to RUNNING
-      tx.returning.mockResolvedValueOnce([{ ...run, status: 'RUNNING', startedAt: new Date() }]);
+      tx.returning.mockResolvedValueOnce([
+        { ...run, status: 'RUNNING', startedAt: new Date() },
+      ]);
 
       // Step 3: fetch market
       tx.limit.mockResolvedValueOnce([marketRow()]);
@@ -746,12 +780,14 @@ describe('JobService', () => {
       tx.returning.mockResolvedValueOnce([]);
 
       // Step 12: update job run — partial failure
-      tx.returning.mockResolvedValueOnce([{
-        ...run,
-        status: 'FAILED',
-        processedCount: 0,
-        failedCount: 1,
-      }]);
+      tx.returning.mockResolvedValueOnce([
+        {
+          ...run,
+          status: 'FAILED',
+          processedCount: 0,
+          failedCount: 1,
+        },
+      ]);
 
       const svc = makeServiceWithTx((cb) => cb(tx));
       const result = await svc.processDailyAccruals({
@@ -794,7 +830,9 @@ describe('JobService', () => {
       tx.returning.mockResolvedValueOnce([run]);
 
       // update to RUNNING
-      tx.returning.mockResolvedValueOnce([{ ...run, status: 'RUNNING', startedAt: new Date() }]);
+      tx.returning.mockResolvedValueOnce([
+        { ...run, status: 'RUNNING', startedAt: new Date() },
+      ]);
 
       // fetch market
       tx.limit.mockResolvedValueOnce([marketRow()]);
@@ -803,11 +841,13 @@ describe('JobService', () => {
       tx.limit.mockResolvedValueOnce([]);
 
       // update to COMPLETED
-      tx.returning.mockResolvedValueOnce([{
-        ...run,
-        status: 'COMPLETED',
-        completedAt: new Date(),
-      }]);
+      tx.returning.mockResolvedValueOnce([
+        {
+          ...run,
+          status: 'COMPLETED',
+          completedAt: new Date(),
+        },
+      ]);
 
       const svc = makeServiceWithTx((cb) => cb(tx));
       const result = await svc.processDailyAccruals({

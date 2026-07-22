@@ -200,9 +200,7 @@ export class JobService {
    *
    * @returns A job run checkpoint with counts
    */
-  async processDailyAccruals(
-    params: ProcessDailyAccrualsParams,
-  ): Promise<{
+  async processDailyAccruals(params: ProcessDailyAccrualsParams): Promise<{
     jobRunId: string;
     processedCount: number;
     failedCount: number;
@@ -401,11 +399,16 @@ export class JobService {
       .where(
         and(
           inArray(rewardDailyAccruals.rewardPlanId, planIds),
-          eq(rewardDailyAccruals.marketLocalDate, params.localBusinessDate as any),
+          eq(
+            rewardDailyAccruals.marketLocalDate,
+            params.localBusinessDate as any,
+          ),
         ),
       );
 
-    const existingPlanIds = new Set(existingAccruals.map((a) => a.rewardPlanId));
+    const existingPlanIds = new Set(
+      existingAccruals.map((a) => a.rewardPlanId),
+    );
 
     return rows
       .filter((r) => !existingPlanIds.has(r.id))
@@ -436,7 +439,10 @@ export class JobService {
     // 1. Calculate daily accrual amount
     const dailyAmount = await this.calculateDailyAccrual(tx, plan);
 
-    if (new Decimal(dailyAmount).isZero() || new Decimal(dailyAmount).isNegative()) {
+    if (
+      new Decimal(dailyAmount).isZero() ||
+      new Decimal(dailyAmount).isNegative()
+    ) {
       return {
         accrual: null,
         error: `Calculated daily amount (${dailyAmount}) is not positive for plan ${plan.id}`,
@@ -466,7 +472,10 @@ export class JobService {
       .where(
         and(
           eq(rewardDailyAccruals.rewardPlanId, plan.id),
-          eq(rewardDailyAccruals.marketLocalDate, params.localBusinessDate as any),
+          eq(
+            rewardDailyAccruals.marketLocalDate,
+            params.localBusinessDate as any,
+          ),
           eq(rewardDailyAccruals.ledgerEntryType, 'PENDING'),
         ),
       )

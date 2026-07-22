@@ -251,21 +251,86 @@ describe('Cross-Module Contract Validation', () => {
 describe('API Endpoint Contract — Cross-Module', () => {
   const allContractEndpoints = [
     // Wallet endpoints
-    { method: 'GET', path: '/api/v1/wallets', domain: 'wallet', auth: 'member' },
-    { method: 'GET', path: '/api/v1/wallets/:id', domain: 'wallet', auth: 'member+admin' },
-    { method: 'GET', path: '/api/v1/wallets/:id/entries', domain: 'wallet', auth: 'member' },
-    { method: 'POST', path: '/api/v1/admin/wallets/:id/reversal', domain: 'wallet', auth: 'admin' },
-    { method: 'GET', path: '/api/v1/admin/wallets', domain: 'wallet', auth: 'admin' },
-    { method: 'GET', path: '/api/v1/admin/wallets/:id', domain: 'wallet', auth: 'admin' },
+    {
+      method: 'GET',
+      path: '/api/v1/wallets',
+      domain: 'wallet',
+      auth: 'member',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/wallets/:id',
+      domain: 'wallet',
+      auth: 'member+admin',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/wallets/:id/entries',
+      domain: 'wallet',
+      auth: 'member',
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/admin/wallets/:id/reversal',
+      domain: 'wallet',
+      auth: 'admin',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/admin/wallets',
+      domain: 'wallet',
+      auth: 'admin',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/admin/wallets/:id',
+      domain: 'wallet',
+      auth: 'admin',
+    },
     // Reward plan endpoints
-    { method: 'GET', path: '/api/v1/admin/reward-plans', domain: 'reward', auth: 'admin' },
-    { method: 'GET', path: '/api/v1/admin/reward-plans/:id', domain: 'reward', auth: 'admin' },
-    { method: 'POST', path: '/api/v1/admin/reward-plans/:id/suspend', domain: 'reward', auth: 'admin' },
-    { method: 'POST', path: '/api/v1/admin/reward-plans/:id/resume', domain: 'reward', auth: 'admin' },
-    { method: 'GET', path: '/api/v1/reward-plans', domain: 'reward', auth: 'member' },
+    {
+      method: 'GET',
+      path: '/api/v1/admin/reward-plans',
+      domain: 'reward',
+      auth: 'admin',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/admin/reward-plans/:id',
+      domain: 'reward',
+      auth: 'admin',
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/admin/reward-plans/:id/suspend',
+      domain: 'reward',
+      auth: 'admin',
+    },
+    {
+      method: 'POST',
+      path: '/api/v1/admin/reward-plans/:id/resume',
+      domain: 'reward',
+      auth: 'admin',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/reward-plans',
+      domain: 'reward',
+      auth: 'member',
+    },
     // Rule version endpoints
-    { method: 'POST', path: '/api/v1/admin/reward-rule-versions', domain: 'rule', auth: 'admin' },
-    { method: 'GET', path: '/api/v1/admin/reward-rule-versions', domain: 'rule', auth: 'admin' },
+    {
+      method: 'POST',
+      path: '/api/v1/admin/reward-rule-versions',
+      domain: 'rule',
+      auth: 'admin',
+    },
+    {
+      method: 'GET',
+      path: '/api/v1/admin/reward-rule-versions',
+      domain: 'rule',
+      auth: 'admin',
+    },
   ] as const;
 
   it('documents all Phase 3 endpoints with correct methods', () => {
@@ -330,36 +395,166 @@ describe('Cross-Domain Error Code Coverage', () => {
 
   const allDomainErrors: DomainErrorCode[] = [
     // Wallet domain
-    { code: 'WALLET_NOT_FOUND', httpStatus: 404, domain: 'wallet', category: 'NOT_FOUND' },
-    { code: 'WALLET_ACCESS_DENIED', httpStatus: 403, domain: 'wallet', category: 'FORBIDDEN' },
-    { code: 'WALLET_MARKET_ACCESS_DENIED', httpStatus: 403, domain: 'wallet', category: 'FORBIDDEN' },
-    { code: 'WALLET_ALREADY_EXISTS', httpStatus: 409, domain: 'wallet', category: 'CONFLICT' },
-    { code: 'WALLET_INVALID_STATUS', httpStatus: 400, domain: 'wallet', category: 'VALIDATION' },
-    { code: 'WALLET_INVALID_AMOUNT', httpStatus: 400, domain: 'wallet', category: 'VALIDATION' },
-    { code: 'WALLET_INSUFFICIENT_BALANCE', httpStatus: 400, domain: 'wallet', category: 'VALIDATION' },
-    { code: 'WALLET_DUPLICATE_ENTRY', httpStatus: 409, domain: 'wallet', category: 'CONFLICT' },
-    { code: 'WALLET_ENTRY_NOT_FOUND', httpStatus: 404, domain: 'wallet', category: 'NOT_FOUND' },
-    { code: 'WALLET_REVERSAL_INVALID', httpStatus: 400, domain: 'wallet', category: 'VALIDATION' },
-    { code: 'WALLET_REVERSAL_ALREADY_EXISTS', httpStatus: 409, domain: 'wallet', category: 'CONFLICT' },
-    { code: 'WALLET_IDEMPOTENCY_CONFLICT', httpStatus: 409, domain: 'wallet', category: 'CONFLICT' },
+    {
+      code: 'WALLET_NOT_FOUND',
+      httpStatus: 404,
+      domain: 'wallet',
+      category: 'NOT_FOUND',
+    },
+    {
+      code: 'WALLET_ACCESS_DENIED',
+      httpStatus: 403,
+      domain: 'wallet',
+      category: 'FORBIDDEN',
+    },
+    {
+      code: 'WALLET_MARKET_ACCESS_DENIED',
+      httpStatus: 403,
+      domain: 'wallet',
+      category: 'FORBIDDEN',
+    },
+    {
+      code: 'WALLET_ALREADY_EXISTS',
+      httpStatus: 409,
+      domain: 'wallet',
+      category: 'CONFLICT',
+    },
+    {
+      code: 'WALLET_INVALID_STATUS',
+      httpStatus: 400,
+      domain: 'wallet',
+      category: 'VALIDATION',
+    },
+    {
+      code: 'WALLET_INVALID_AMOUNT',
+      httpStatus: 400,
+      domain: 'wallet',
+      category: 'VALIDATION',
+    },
+    {
+      code: 'WALLET_INSUFFICIENT_BALANCE',
+      httpStatus: 400,
+      domain: 'wallet',
+      category: 'VALIDATION',
+    },
+    {
+      code: 'WALLET_DUPLICATE_ENTRY',
+      httpStatus: 409,
+      domain: 'wallet',
+      category: 'CONFLICT',
+    },
+    {
+      code: 'WALLET_ENTRY_NOT_FOUND',
+      httpStatus: 404,
+      domain: 'wallet',
+      category: 'NOT_FOUND',
+    },
+    {
+      code: 'WALLET_REVERSAL_INVALID',
+      httpStatus: 400,
+      domain: 'wallet',
+      category: 'VALIDATION',
+    },
+    {
+      code: 'WALLET_REVERSAL_ALREADY_EXISTS',
+      httpStatus: 409,
+      domain: 'wallet',
+      category: 'CONFLICT',
+    },
+    {
+      code: 'WALLET_IDEMPOTENCY_CONFLICT',
+      httpStatus: 409,
+      domain: 'wallet',
+      category: 'CONFLICT',
+    },
     // Reward plan domain
-    { code: 'REWARD_PLAN_NOT_FOUND', httpStatus: 404, domain: 'reward', category: 'NOT_FOUND' },
-    { code: 'REWARD_PLAN_DUPLICATE', httpStatus: 409, domain: 'reward', category: 'CONFLICT' },
-    { code: 'REWARD_PLAN_INVALID_STATE', httpStatus: 400, domain: 'reward', category: 'VALIDATION' },
-    { code: 'REWARD_MARKET_ACCESS_DENIED', httpStatus: 403, domain: 'reward', category: 'FORBIDDEN' },
+    {
+      code: 'REWARD_PLAN_NOT_FOUND',
+      httpStatus: 404,
+      domain: 'reward',
+      category: 'NOT_FOUND',
+    },
+    {
+      code: 'REWARD_PLAN_DUPLICATE',
+      httpStatus: 409,
+      domain: 'reward',
+      category: 'CONFLICT',
+    },
+    {
+      code: 'REWARD_PLAN_INVALID_STATE',
+      httpStatus: 400,
+      domain: 'reward',
+      category: 'VALIDATION',
+    },
+    {
+      code: 'REWARD_MARKET_ACCESS_DENIED',
+      httpStatus: 403,
+      domain: 'reward',
+      category: 'FORBIDDEN',
+    },
     // Reward rule domain
-    { code: 'REWARD_RULE_VERSION_NOT_FOUND', httpStatus: 404, domain: 'rule', category: 'NOT_FOUND' },
-    { code: 'REWARD_RULE_VERSION_CONFLICT', httpStatus: 409, domain: 'rule', category: 'CONFLICT' },
-    { code: 'REWARD_RULE_NO_EFFECTIVE_VERSION', httpStatus: 400, domain: 'rule', category: 'VALIDATION' },
+    {
+      code: 'REWARD_RULE_VERSION_NOT_FOUND',
+      httpStatus: 404,
+      domain: 'rule',
+      category: 'NOT_FOUND',
+    },
+    {
+      code: 'REWARD_RULE_VERSION_CONFLICT',
+      httpStatus: 409,
+      domain: 'rule',
+      category: 'CONFLICT',
+    },
+    {
+      code: 'REWARD_RULE_NO_EFFECTIVE_VERSION',
+      httpStatus: 400,
+      domain: 'rule',
+      category: 'VALIDATION',
+    },
     // Reward source domain
-    { code: 'REWARD_SOURCE_NOT_FOUND', httpStatus: 404, domain: 'source', category: 'NOT_FOUND' },
-    { code: 'REWARD_SOURCE_DUPLICATE', httpStatus: 409, domain: 'source', category: 'CONFLICT' },
-    { code: 'REWARD_SOURCE_ALREADY_CONSUMED', httpStatus: 409, domain: 'source', category: 'CONFLICT' },
+    {
+      code: 'REWARD_SOURCE_NOT_FOUND',
+      httpStatus: 404,
+      domain: 'source',
+      category: 'NOT_FOUND',
+    },
+    {
+      code: 'REWARD_SOURCE_DUPLICATE',
+      httpStatus: 409,
+      domain: 'source',
+      category: 'CONFLICT',
+    },
+    {
+      code: 'REWARD_SOURCE_ALREADY_CONSUMED',
+      httpStatus: 409,
+      domain: 'source',
+      category: 'CONFLICT',
+    },
     // Daily job domain
-    { code: 'DAILY_JOB_ALREADY_RUNNING', httpStatus: 409, domain: 'job', category: 'CONFLICT' },
-    { code: 'DAILY_JOB_NOT_FOUND', httpStatus: 404, domain: 'job', category: 'NOT_FOUND' },
-    { code: 'DAILY_JOB_LOCK_FAILED', httpStatus: 423, domain: 'job', category: 'LOCKED' },
-    { code: 'DAILY_JOB_PARTIAL_FAILURE', httpStatus: 500, domain: 'job', category: 'VALIDATION' },
+    {
+      code: 'DAILY_JOB_ALREADY_RUNNING',
+      httpStatus: 409,
+      domain: 'job',
+      category: 'CONFLICT',
+    },
+    {
+      code: 'DAILY_JOB_NOT_FOUND',
+      httpStatus: 404,
+      domain: 'job',
+      category: 'NOT_FOUND',
+    },
+    {
+      code: 'DAILY_JOB_LOCK_FAILED',
+      httpStatus: 423,
+      domain: 'job',
+      category: 'LOCKED',
+    },
+    {
+      code: 'DAILY_JOB_PARTIAL_FAILURE',
+      httpStatus: 500,
+      domain: 'job',
+      category: 'VALIDATION',
+    },
   ];
 
   it('covers all 5 Phase 3 domains with error codes', () => {
@@ -547,7 +742,12 @@ describe('Cross-Module Data Flow Contracts', () => {
 
   it('idempotency keys across modules do not collide by design', () => {
     const walletIk = makeIdempotencyKey('entry', 'wallet-1');
-    const rewardPlanIk = makeRewardPlanKey('PURCHASE_TRANSACTION', 'source-1', 'member-1', 'market-1');
+    const rewardPlanIk = makeRewardPlanKey(
+      'PURCHASE_TRANSACTION',
+      'source-1',
+      'member-1',
+      'market-1',
+    );
     const accrualIk = makeAccrualKey('plan-1', '2026-08-15');
 
     // Different prefixes

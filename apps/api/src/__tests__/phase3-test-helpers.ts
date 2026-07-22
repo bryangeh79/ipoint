@@ -42,10 +42,7 @@ export function toDecimal(value: number | string): Decimal38_10 {
 /**
  * Add two decimal strings and return the result as a Decimal38_10.
  */
-export function addDecimal(
-  a: Decimal38_10,
-  b: Decimal38_10,
-): Decimal38_10 {
+export function addDecimal(a: Decimal38_10, b: Decimal38_10): Decimal38_10 {
   const sum =
     BigInt(a.replace('.', '').padEnd(11, '0')) +
     BigInt(b.replace('.', '').padEnd(11, '0'));
@@ -77,7 +74,11 @@ export function subtractDecimal(
  */
 export function isPositive(value: Decimal38_10): boolean {
   const normalized = value.replace(/^0+(?=\d)/, '');
-  return normalized !== '0' && normalized !== '0.0000000000' && !normalized.startsWith('-');
+  return (
+    normalized !== '0' &&
+    normalized !== '0.0000000000' &&
+    !normalized.startsWith('-')
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -249,9 +250,7 @@ export function createWalletWithEntries(
       entrySubtype: 'DAILY_ACCRUAL',
       rewardPlanId: randomUUID(),
       idempotencyKey: makeIdempotencyKey('entry', walletId),
-      createdAt: new Date(
-        Date.UTC(2026, 7, 1 + i, 0, 0, 0),
-      ).toISOString(),
+      createdAt: new Date(Date.UTC(2026, 7, 1 + i, 0, 0, 0)).toISOString(),
     });
   }
 
@@ -435,9 +434,7 @@ export function createRewardRuleVersionFixture(
  *
  * Returns { valid, computedBalance, diff } for detailed failure reporting.
  */
-export function verifyBalanceInvariant(
-  fixture: WalletFixture,
-): {
+export function verifyBalanceInvariant(fixture: WalletFixture): {
   valid: boolean;
   computedBalance: Decimal38_10;
   diff: string;
@@ -488,10 +485,7 @@ export function verifyMarketIsolation(
 /**
  * Get the local date string (YYYY-MM-DD) for a UTC timestamp in a given IANA timezone.
  */
-export function getLocalDate(
-  utcIso: string,
-  timezone: string,
-): string {
+export function getLocalDate(utcIso: string, timezone: string): string {
   // No external dependency — we use Date + UTC offset approximation.
   // For production, use date-fns-tz or Luxon.
   const utcDate = new Date(utcIso);

@@ -1,8 +1,4 @@
-import {
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   memberWalletAccounts,
   memberWalletEntries,
@@ -211,9 +207,7 @@ export class TransactionRewardLinkageService {
             transaction_amount: input.amount,
             transaction_currency: input.currency,
             transaction_time: input.transactionTime.toISOString(),
-            ...(packageSnapshot
-              ? { merchant_package: packageSnapshot }
-              : {}),
+            ...(packageSnapshot ? { merchant_package: packageSnapshot } : {}),
             ...(ruleVersion ? { reward_rule: ruleVersion } : {}),
           },
           activatedAt: new Date(),
@@ -236,9 +230,7 @@ export class TransactionRewardLinkageService {
           transactionAmount: normalizeDecimal(input.amount),
           currency: input.currency,
           merchantPackageSnapshot: packageSnapshot ?? {},
-          serviceFeeSnapshot: serviceFeeRate
-            ? { rate: serviceFeeRate }
-            : {},
+          serviceFeeSnapshot: serviceFeeRate ? { rate: serviceFeeRate } : {},
           rewardRuleVersionId: ruleVersion?.id ?? null,
           consumed: !!rewardAmount,
           createdAt: new Date(),
@@ -283,8 +275,7 @@ export class TransactionRewardLinkageService {
         planId,
         rewardRuleVersionId: ruleVersion?.id ?? null,
         rewardAmount,
-        merchantPackageId:
-          packageSnapshot?.service_fee_profile_id ?? null,
+        merchantPackageId: packageSnapshot?.service_fee_profile_id ?? null,
         merchantPackageName: packageSnapshot?.package_name ?? null,
         merchantPackageRate: packageSnapshot?.rate ?? null,
         serviceFeeRate,
@@ -577,10 +568,7 @@ export class TransactionRewardLinkageService {
         version: 1,
       })
       .onConflictDoUpdate({
-        target: [
-          memberWalletAccounts.memberId,
-          memberWalletAccounts.marketId,
-        ],
+        target: [memberWalletAccounts.memberId, memberWalletAccounts.marketId],
         set: {
           pendingBalance: sql`${memberWalletAccounts.pendingBalance} + ${normalizeDecimal(rewardAmount)}`,
           version: sql`${memberWalletAccounts.version} + 1`,

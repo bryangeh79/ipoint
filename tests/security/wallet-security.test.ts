@@ -41,21 +41,112 @@ describe('Auth Guard Presence on Wallet/Reward APIs', () => {
 
   const walletEndpoints: EndpointSecurity[] = [
     // Member endpoints - require auth + ownership check
-    { path: '/api/v1/wallets', method: 'GET', requiresAuth: true, authType: 'member', ownershipCheckRequired: true, marketScopeCheckRequired: false },
-    { path: '/api/v1/wallets/:id', method: 'GET', requiresAuth: true, authType: 'member+admin', ownershipCheckRequired: true, marketScopeCheckRequired: false },
-    { path: '/api/v1/wallets/:id/entries', method: 'GET', requiresAuth: true, authType: 'member', ownershipCheckRequired: true, marketScopeCheckRequired: false },
+    {
+      path: '/api/v1/wallets',
+      method: 'GET',
+      requiresAuth: true,
+      authType: 'member',
+      ownershipCheckRequired: true,
+      marketScopeCheckRequired: false,
+    },
+    {
+      path: '/api/v1/wallets/:id',
+      method: 'GET',
+      requiresAuth: true,
+      authType: 'member+admin',
+      ownershipCheckRequired: true,
+      marketScopeCheckRequired: false,
+    },
+    {
+      path: '/api/v1/wallets/:id/entries',
+      method: 'GET',
+      requiresAuth: true,
+      authType: 'member',
+      ownershipCheckRequired: true,
+      marketScopeCheckRequired: false,
+    },
     // Admin endpoints - require admin auth + market access
-    { path: '/api/v1/admin/wallets', method: 'GET', requiresAuth: true, authType: 'admin', ownershipCheckRequired: false, marketScopeCheckRequired: true },
-    { path: '/api/v1/admin/wallets/:id', method: 'GET', requiresAuth: true, authType: 'admin', ownershipCheckRequired: false, marketScopeCheckRequired: true },
-    { path: '/api/v1/admin/wallets/:id/reversal', method: 'POST', requiresAuth: true, authType: 'admin', ownershipCheckRequired: false, marketScopeCheckRequired: true },
+    {
+      path: '/api/v1/admin/wallets',
+      method: 'GET',
+      requiresAuth: true,
+      authType: 'admin',
+      ownershipCheckRequired: false,
+      marketScopeCheckRequired: true,
+    },
+    {
+      path: '/api/v1/admin/wallets/:id',
+      method: 'GET',
+      requiresAuth: true,
+      authType: 'admin',
+      ownershipCheckRequired: false,
+      marketScopeCheckRequired: true,
+    },
+    {
+      path: '/api/v1/admin/wallets/:id/reversal',
+      method: 'POST',
+      requiresAuth: true,
+      authType: 'admin',
+      ownershipCheckRequired: false,
+      marketScopeCheckRequired: true,
+    },
     // Reward endpoints
-    { path: '/api/v1/admin/reward-plans', method: 'GET', requiresAuth: true, authType: 'admin', ownershipCheckRequired: false, marketScopeCheckRequired: true },
-    { path: '/api/v1/admin/reward-plans/:id', method: 'GET', requiresAuth: true, authType: 'admin', ownershipCheckRequired: false, marketScopeCheckRequired: true },
-    { path: '/api/v1/admin/reward-plans/:id/suspend', method: 'POST', requiresAuth: true, authType: 'admin', ownershipCheckRequired: false, marketScopeCheckRequired: true },
-    { path: '/api/v1/admin/reward-plans/:id/resume', method: 'POST', requiresAuth: true, authType: 'admin', ownershipCheckRequired: false, marketScopeCheckRequired: true },
-    { path: '/api/v1/reward-plans', method: 'GET', requiresAuth: true, authType: 'member', ownershipCheckRequired: true, marketScopeCheckRequired: false },
-    { path: '/api/v1/admin/reward-rule-versions', method: 'GET', requiresAuth: true, authType: 'admin', ownershipCheckRequired: false, marketScopeCheckRequired: true },
-    { path: '/api/v1/admin/reward-rule-versions', method: 'POST', requiresAuth: true, authType: 'admin', ownershipCheckRequired: false, marketScopeCheckRequired: true },
+    {
+      path: '/api/v1/admin/reward-plans',
+      method: 'GET',
+      requiresAuth: true,
+      authType: 'admin',
+      ownershipCheckRequired: false,
+      marketScopeCheckRequired: true,
+    },
+    {
+      path: '/api/v1/admin/reward-plans/:id',
+      method: 'GET',
+      requiresAuth: true,
+      authType: 'admin',
+      ownershipCheckRequired: false,
+      marketScopeCheckRequired: true,
+    },
+    {
+      path: '/api/v1/admin/reward-plans/:id/suspend',
+      method: 'POST',
+      requiresAuth: true,
+      authType: 'admin',
+      ownershipCheckRequired: false,
+      marketScopeCheckRequired: true,
+    },
+    {
+      path: '/api/v1/admin/reward-plans/:id/resume',
+      method: 'POST',
+      requiresAuth: true,
+      authType: 'admin',
+      ownershipCheckRequired: false,
+      marketScopeCheckRequired: true,
+    },
+    {
+      path: '/api/v1/reward-plans',
+      method: 'GET',
+      requiresAuth: true,
+      authType: 'member',
+      ownershipCheckRequired: true,
+      marketScopeCheckRequired: false,
+    },
+    {
+      path: '/api/v1/admin/reward-rule-versions',
+      method: 'GET',
+      requiresAuth: true,
+      authType: 'admin',
+      ownershipCheckRequired: false,
+      marketScopeCheckRequired: true,
+    },
+    {
+      path: '/api/v1/admin/reward-rule-versions',
+      method: 'POST',
+      requiresAuth: true,
+      authType: 'admin',
+      ownershipCheckRequired: false,
+      marketScopeCheckRequired: true,
+    },
   ];
 
   it('every wallet and reward endpoint should require authentication', () => {
@@ -217,7 +308,9 @@ describe('No Client-Side Storage of Wallet Data', () => {
     const localStorageKeys: string[] = [];
     const walletStorageKeys = localStorageKeys.filter(
       (key) =>
-        key.includes('wallet') || key.includes('balance') || key.includes('reward'),
+        key.includes('wallet') ||
+        key.includes('balance') ||
+        key.includes('reward'),
     );
     expect(walletStorageKeys).toHaveLength(0);
   });
@@ -226,7 +319,9 @@ describe('No Client-Side Storage of Wallet Data', () => {
     const sessionStorageKeys: string[] = [];
     const rewardStorageKeys = sessionStorageKeys.filter(
       (key) =>
-        key.includes('wallet') || key.includes('balance') || key.includes('reward'),
+        key.includes('wallet') ||
+        key.includes('balance') ||
+        key.includes('reward'),
     );
     expect(rewardStorageKeys).toHaveLength(0);
   });
@@ -295,7 +390,8 @@ describe('No PII or Financial Amounts in Logs', () => {
 
   it('should mask sensitive values in error logs', () => {
     // Error logs should contain error codes, not sensitive data
-    const errorLog = 'WALLET_NOT_FOUND: Wallet account not found. request_id=req_abc123';
+    const errorLog =
+      'WALLET_NOT_FOUND: Wallet account not found. request_id=req_abc123';
     expect(errorLog).toContain('WALLET_NOT_FOUND');
     expect(errorLog).not.toMatch(/\d+\.\d+/u); // No amounts in error logs
   });
@@ -359,7 +455,8 @@ describe('Cross-Member Wallet Access Prevention', () => {
   it('wallet queries should be scoped by current member_id', () => {
     // Contract: Wallet queries scoped by WHERE member_id = :current_member_id
     const currentMemberId = randomUUID();
-    const walletQuery = 'SELECT * FROM member_wallet_accounts WHERE member_id = $1';
+    const walletQuery =
+      'SELECT * FROM member_wallet_accounts WHERE member_id = $1';
     expect(walletQuery).toContain('member_id = $1');
   });
 
@@ -368,7 +465,10 @@ describe('Cross-Member Wallet Access Prevention', () => {
     const memberBWalletId = randomUUID();
 
     // If member A tries to access member B's wallet
-    const requestContext = { memberId: memberA.memberId, walletId: memberBWalletId };
+    const requestContext = {
+      memberId: memberA.memberId,
+      walletId: memberBWalletId,
+    };
 
     // Ownership check should fail
     const ownershipValid = requestContext.memberId === 'mem_b';
@@ -434,8 +534,16 @@ describe('Cross-Market Leakage Prevention', () => {
 describe('Append-Only Ledger Property', () => {
   it('wallet entries should be immutable after creation', () => {
     // Contract: Once created, a ledger entry must never be modified or deleted
-    const entryProperties = ['id', 'account_id', 'amount', 'balance_before',
-      'balance_after', 'entry_type', 'idempotency_key', 'created_at'];
+    const entryProperties = [
+      'id',
+      'account_id',
+      'amount',
+      'balance_before',
+      'balance_after',
+      'entry_type',
+      'idempotency_key',
+      'created_at',
+    ];
     // Entry should NOT have an updated_at column
     expect(entryProperties).not.toContain('updated_at');
     expect(entryProperties).not.toContain('deleted_at');
@@ -473,21 +581,28 @@ describe('Append-Only Ledger Property', () => {
 describe('Threat Model Mitigations', () => {
   it('should prevent replay attack via unique reward_plans constraint', () => {
     // Contract: UNIQUE (source_type, source_id, member_id, market_id)
-    const uniqueColumns = ['source_type', 'source_id', 'member_id', 'market_id'];
+    const uniqueColumns = [
+      'source_type',
+      'source_id',
+      'member_id',
+      'market_id',
+    ];
     expect(uniqueColumns).toHaveLength(4);
   });
 
   it('should prevent duplicate settlement via idempotent accrual key', () => {
     // Contract: UNIQUE (reward_plan_id, market_local_date, ledger_entry_type)
-    const idempotencyColumns = ['reward_plan_id', 'market_local_date', 'ledger_entry_type'];
+    const idempotencyColumns = [
+      'reward_plan_id',
+      'market_local_date',
+      'ledger_entry_type',
+    ];
     expect(idempotencyColumns).toHaveLength(3);
   });
 
   it('should log audit entries for every wallet mutation', () => {
     // Contract: Every mutation creates an audit log entry
-    const mutationOperations = [
-      'POST /api/v1/admin/wallets/:id/reversal',
-    ];
+    const mutationOperations = ['POST /api/v1/admin/wallets/:id/reversal'];
     expect(mutationOperations.length).toBeGreaterThan(0);
   });
 
@@ -512,9 +627,7 @@ describe('Threat Model Mitigations', () => {
 describe('Rate Limiting', () => {
   it('wallet mutation endpoints should have rate limiting', () => {
     // POST operations that mutate state should be rate-limited
-    const mutationEndpoints = [
-      'POST /api/v1/admin/wallets/:id/reversal',
-    ];
+    const mutationEndpoints = ['POST /api/v1/admin/wallets/:id/reversal'];
     expect(mutationEndpoints.length).toBe(1);
   });
 
