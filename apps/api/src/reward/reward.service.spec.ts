@@ -99,7 +99,7 @@ function createService(options: {
 
   const executeMock = vi.fn();
 
-  const transactionMock = vi.fn();
+  const transactionMock = vi.fn(async (cb: Function) => cb(db));
 
   const queryBuilder = {
     select: selectMock,
@@ -149,14 +149,12 @@ function createService(options: {
         where: vi.fn().mockReturnValue({ returning: updateReturningMock }),
       }),
     }),
-    transaction: vi.fn(),
+    transaction: transactionMock,
   };
 
   const database = {
     db,
-    runTransaction: vi.fn(async (cb: Function) => {
-      return cb(db);
-    }),
+    runTransaction: vi.fn(async (cb: Function) => db.transaction(cb)),
   } as unknown as DatabaseService;
 
   return {
