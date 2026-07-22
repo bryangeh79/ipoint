@@ -8,6 +8,7 @@ import {
   walletAlreadyExistsError,
   duplicateIdempotencyKeyError,
   invalidAmountError,
+  walletEntryNotFoundError,
 } from './wallet.errors.js';
 import type {
   WalletAccountResponse,
@@ -379,7 +380,6 @@ export class WalletService {
       .limit(1);
 
     if (!rows[0]) {
-      const { walletEntryNotFoundError } = await import('./wallet.errors.js');
       throw walletEntryNotFoundError();
     }
 
