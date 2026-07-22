@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js';
 import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DatabaseService } from '../database/database.service.js';
@@ -154,7 +155,7 @@ function createService(options: {
 
   const database = {
     db,
-    runTransaction: vi.fn(async (cb: Function) => cb(db)),
+    runTransaction: vi.fn(async (cb: Function) => db.transaction(cb)),
   } as unknown as DatabaseService;
 
   return {
@@ -755,10 +756,43 @@ describe('RewardService', () => {
     });
   });
 
-  // ─── Minimum Reward / Cap Boundary ────────────────────────────────
+  // ─── Cap Amount Resolution ────────────────────────────────────────
 
-  describe('cap boundary', () => {
-    it('resolves FLAT cap from rule version', async () => {
+  describe('capAmount resolution', () => {
+    /** Build a transaction mock that simulates the code path through resolveCapAmount.
+     *  Query sequence inside transaction:
+     *    1. duplicate plan check → returns []
+     *    2. resolveCapAmount rule lookup → returns [rule]
+     */
+    function capTransaction(rule: Record<string, unknown>) {
+      let queryCount = 0;
+      return {
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              limit: () => {
+                queryCount++;
+                if (queryCount === 1) return Promise.resolve([]);
+                if (queryCount === 2) return Promise.resolve([rule]);
+                return Promise.resolve([]);
+              },
+            }),
+          }),
+        }),
+        insert: () => ({
+          values: (vals: Record<string, unknown>) => ({
+            returning: () => Promise.resolve([planRow({ ...vals })]),
+          }),
+        }),
+        update: () => ({
+          set: () => ({
+            where: () => Promise.resolve(),
+          }),
+        }),
+      };
+    }
+
+    it('returns FLAT cap as-is from rule version', async () => {
       const rule = ruleVersionRow({ capType: 'FLAT', capValue: '500.00' });
       const source = sourceRow({ rewardRuleVersionId: rule.id });
       const { service, returnMock, transactionMock } = createService({
@@ -766,35 +800,41 @@ describe('RewardService', () => {
         sources: [source],
       });
 
-      returnMock.mockResolvedValueOnce([source]).mockResolvedValueOnce([]);
+      // FIX: returnMock is the .then() of queryBuilder. When await calls it
+      // as .then(resolve,reject), we must call resolve() for the await to complete.
+      returnMock.mockImplementation((resolve: (v: unknown) => void) => {
+        resolve([source]);
+      });
+      transactionMock.mockImplementation(async (cb: Function) =>
+        cb(capTransaction(rule)),
+      );
 
+      const result = await service.createPlanFromSource(source.id as string);
+
+      expect(result.capAmount).toBe('500.00');
+    });
+
+    it('returns null when rewardRuleVersionId is not set', async () => {
+      const source = sourceRow({ rewardRuleVersionId: null });
+      const { service, returnMock, transactionMock } = createService({
+        sources: [source],
+      });
+
+      returnMock.mockImplementation((resolve: (v: unknown) => void) => {
+        resolve([source]);
+      });
       transactionMock.mockImplementation(async (cb: Function) => {
-        let capFromTx: string | null = null;
         const tx = {
           select: () => ({
             from: () => ({
               where: () => ({
-                limit: () => {
-                  if (capFromTx === null) {
-                    capFromTx = 'resolved';
-                    return Promise.resolve([rule]);
-                  }
-                  return Promise.resolve([]);
-                },
+                limit: () => Promise.resolve([]),
               }),
             }),
           }),
           insert: () => ({
             values: (vals: Record<string, unknown>) => ({
-              returning: () =>
-                Promise.resolve([
-                  planRow({
-                    sourceId: source.sourceId,
-                    ruleVersionId: rule.id,
-                    capAmount: rule.capType === 'FLAT' ? rule.capValue : null,
-                    ...vals,
-                  }),
-                ]),
+              returning: () => Promise.resolve([planRow({ ...vals })]),
             }),
           }),
           update: () => ({
@@ -807,8 +847,247 @@ describe('RewardService', () => {
       });
 
       const result = await service.createPlanFromSource(source.id as string);
-      // Since the test infrastructure is simplified, we just verify the operation doesn't throw
-      expect(result).toBeDefined();
+
+      expect(result.capAmount).toBeNull();
+    });
+
+    it('returns null when capType is NONE', async () => {
+      const rule = ruleVersionRow({ capType: 'NONE', capValue: '0' });
+      const source = sourceRow({ rewardRuleVersionId: rule.id });
+      const { service, returnMock, transactionMock } = createService({
+        ruleVersions: [rule],
+        sources: [source],
+      });
+
+      returnMock.mockImplementation((resolve: (v: unknown) => void) => {
+        resolve([source]);
+      });
+      transactionMock.mockImplementation(async (cb: Function) =>
+        cb(capTransaction(rule)),
+      );
+
+      const result = await service.createPlanFromSource(source.id as string);
+
+      expect(result.capAmount).toBeNull();
+    });
+
+    it('returns null when rule version is not found', async () => {
+      const ruleId = randomUUID();
+      const source = sourceRow({
+        rewardRuleVersionId: ruleId,
+      });
+      const { service, returnMock, transactionMock } = createService({
+        sources: [source],
+      });
+
+      returnMock.mockImplementation((resolve: (v: unknown) => void) => {
+        resolve([source]);
+      });
+
+      // Cap resolution: rule lookup returns empty → returns null
+      let qc = 0;
+      transactionMock.mockImplementation(async (cb: Function) => {
+        const tx = {
+          select: () => ({
+            from: () => ({
+              where: () => ({
+                limit: () => {
+                  qc++;
+                  if (qc === 2) return Promise.resolve([]); // rule not found
+                  return Promise.resolve([]);
+                },
+              }),
+            }),
+          }),
+          insert: () => ({
+            values: (vals: Record<string, unknown>) => ({
+              returning: () => Promise.resolve([planRow({ ...vals })]),
+            }),
+          }),
+          update: () => ({
+            set: () => ({
+              where: () => Promise.resolve(),
+            }),
+          }),
+        };
+        return cb(tx);
+      });
+
+      const result = await service.createPlanFromSource(source.id as string);
+
+      expect(result.capAmount).toBeNull();
+    });
+
+    it('resolves RATIO cap using decimal.js arithmetic with HALF_UP rounding', async () => {
+      const rule = ruleVersionRow({
+        capType: 'RATIO',
+        capValue: '0.02',
+      });
+      const source = sourceRow({
+        rewardRuleVersionId: rule.id,
+        transactionAmount: '500.00',
+      });
+      const { service, returnMock, transactionMock } = createService({
+        ruleVersions: [rule],
+        sources: [source],
+      });
+
+      returnMock.mockImplementation((resolve: (v: unknown) => void) => {
+        resolve([source]);
+      });
+      transactionMock.mockImplementation(async (cb: Function) =>
+        cb(capTransaction(rule)),
+      );
+
+      // 500.00 * 0.02 = 10.00 → "10.0000000000"
+      const expected = new Decimal('500.00')
+        .mul(new Decimal('0.02'))
+        .toDecimalPlaces(10, Decimal.ROUND_HALF_UP)
+        .toFixed(10);
+
+      const result = await service.createPlanFromSource(source.id as string);
+
+      expect(result.capAmount).toBe(expected);
+    });
+
+    it('handles decimal boundary: precise multiplication with HALF_UP rounding', async () => {
+      const rule = ruleVersionRow({
+        capType: 'RATIO',
+        capValue: '0.33333333333', // 1/3 approx – recurring decimal
+      });
+      const source = sourceRow({
+        rewardRuleVersionId: rule.id,
+        transactionAmount: '100.00',
+      });
+      const { service, returnMock, transactionMock } = createService({
+        ruleVersions: [rule],
+        sources: [source],
+      });
+
+      returnMock.mockImplementation((resolve: (v: unknown) => void) => {
+        resolve([source]);
+      });
+      transactionMock.mockImplementation(async (cb: Function) =>
+        cb(capTransaction(rule)),
+      );
+
+      const expected = new Decimal('100.00')
+        .mul(new Decimal('0.33333333333'))
+        .toDecimalPlaces(10, Decimal.ROUND_HALF_UP)
+        .toFixed(10);
+
+      const result = await service.createPlanFromSource(source.id as string);
+
+      expect(result.capAmount).toBe(expected);
+    });
+
+    it('handles HALF_UP rounding correctly at the 10th decimal place', async () => {
+      // Value that produces a rounding halfway case at the 11th decimal
+      // 0.00000000005 → rounds up to 0.0000000001 at 10dp with HALF_UP
+      const rule = ruleVersionRow({
+        capType: 'RATIO',
+        capValue: '1',
+      });
+      const source = sourceRow({
+        rewardRuleVersionId: rule.id,
+        transactionAmount: '0.00000000005',
+      });
+      const { service, returnMock, transactionMock } = createService({
+        ruleVersions: [rule],
+        sources: [source],
+      });
+
+      returnMock.mockImplementation((resolve: (v: unknown) => void) => {
+        resolve([source]);
+      });
+      transactionMock.mockImplementation(async (cb: Function) =>
+        cb(capTransaction(rule)),
+      );
+
+      const expected = new Decimal('0.00000000005')
+        .mul(new Decimal('1'))
+        .toDecimalPlaces(10, Decimal.ROUND_HALF_UP)
+        .toFixed(10);
+
+      const result = await service.createPlanFromSource(source.id as string);
+
+      expect(result.capAmount).toBe(expected);
+    });
+
+    it('handles zero transaction amount with RATIO cap', async () => {
+      const rule = ruleVersionRow({
+        capType: 'RATIO',
+        capValue: '0.05',
+      });
+      const source = sourceRow({
+        rewardRuleVersionId: rule.id,
+        transactionAmount: '0',
+      });
+      const { service, returnMock, transactionMock } = createService({
+        ruleVersions: [rule],
+        sources: [source],
+      });
+
+      returnMock.mockImplementation((resolve: (v: unknown) => void) => {
+        resolve([source]);
+      });
+      transactionMock.mockImplementation(async (cb: Function) =>
+        cb(capTransaction(rule)),
+      );
+
+      // 0 * 0.05 = 0 → "0.0000000000"
+      const result = await service.createPlanFromSource(source.id as string);
+
+      expect(result.capAmount).toBe('0.0000000000');
+    });
+
+    it('ensures output is numeric(38,10) format: exactly 10 decimal places', async () => {
+      // FLAT caps should remain as-is from DB (e.g. '500.00')
+      const rule = ruleVersionRow({ capType: 'FLAT', capValue: '500' });
+      const source = sourceRow({ rewardRuleVersionId: rule.id });
+      const { service, returnMock, transactionMock } = createService({
+        ruleVersions: [rule],
+        sources: [source],
+      });
+
+      returnMock.mockImplementation((resolve: (v: unknown) => void) => {
+        resolve([source]);
+      });
+      transactionMock.mockImplementation(async (cb: Function) =>
+        cb(capTransaction(rule)),
+      );
+
+      const result = await service.createPlanFromSource(source.id as string);
+
+      // FLAT returns capValue as-is from DB (string)
+      expect(result.capAmount).toBe('500');
+
+      // Also verify RATIO produces 10 decimal places
+      const ratioRule = ruleVersionRow({
+        id: randomUUID(),
+        capType: 'RATIO',
+        capValue: '1',
+      });
+      const ratioSource = sourceRow({
+        rewardRuleVersionId: ratioRule.id,
+        transactionAmount: '1',
+      });
+      const { service: s2, returnMock: rm2, transactionMock: tm2 } = createService({
+        ruleVersions: [ratioRule],
+        sources: [ratioSource],
+      });
+
+      rm2.mockImplementation((resolve: (v: unknown) => void) => {
+        resolve([ratioSource]);
+      });
+      tm2.mockImplementation(async (cb: Function) =>
+        cb(capTransaction(ratioRule)),
+      );
+
+      const r2 = await s2.createPlanFromSource(ratioSource.id as string);
+
+      // Must have exactly 10 decimal places for RATIO caps
+      expect(r2.capAmount).toMatch(/^\d+\.\d{10}$/);
     });
   });
 
