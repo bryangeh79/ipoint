@@ -51,20 +51,21 @@ describe('Phase 3 — Expected Schema Validation', () => {
           'id',
           'member_id',
           'market_id',
-          'balance',
-          'currency',
-          'status',
+          'pending_balance',
+          'available_balance',
+          'reversed_balance',
+          'version',
           'created_at',
           'updated_at',
+          'archived_at',
         ]),
       );
     });
 
-    it('should NOT include mutable balance columns as source of truth', () => {
-      // Balance should be derived from ledger entries per the contract
+    it('should include version and archived_at for optimistic concurrency and soft delete', () => {
       const columns = expectedSchema['member_wallet_accounts'] ?? [];
-      expect(columns).not.toContain('total_balance');
-      expect(columns).not.toContain('available_balance');
+      expect(columns).toContain('version');
+      expect(columns).toContain('archived_at');
     });
   });
 
@@ -78,18 +79,21 @@ describe('Phase 3 — Expected Schema Validation', () => {
       expect(columns).toEqual(
         expect.arrayContaining([
           'id',
-          'account_id',
+          'wallet_account_id',
+          'member_id',
+          'market_id',
+          'entry_sequence',
+          'entry_type',
           'amount',
           'balance_before',
           'balance_after',
-          'entry_type',
-          'entry_subtype',
-          'reward_plan_id',
           'idempotency_key',
-          'reversal_of',
+          'reference_type',
+          'reference_id',
+          'description',
           'reason',
           'actor_id',
-          'correlation_id',
+          'market_timezone',
           'created_at',
         ]),
       );
@@ -103,9 +107,9 @@ describe('Phase 3 — Expected Schema Validation', () => {
     });
 
     it('should reference member_wallet_accounts via FK', () => {
-      // Contract specifies: account_id (FK -> member_wallet_accounts.id)
+      // Contract specifies: wallet_account_id (FK -> member_wallet_accounts.id)
       const columns = expectedSchema['member_wallet_entries'] ?? [];
-      expect(columns).toContain('account_id');
+      expect(columns).toContain('wallet_account_id');
     });
   });
 
@@ -148,11 +152,17 @@ describe('Phase 3 — Expected Schema Validation', () => {
       expect(columns).toEqual(
         expect.arrayContaining([
           'id',
-          'reward_plan_id',
-          'version_label',
-          'rate',
+          'name',
+          'description',
           'effective_from',
-          'effective_until',
+          'effective_to',
+          'reward_rate',
+          'cap_type',
+          'cap_value',
+          'minimum_reward',
+          'market_id',
+          'created_by',
+          'archived_at',
           'created_at',
         ]),
       );
@@ -175,7 +185,11 @@ describe('Phase 3 — Expected Schema Validation', () => {
           'market_id',
           'merchant_id',
           'transaction_amount',
-          'consumed_at',
+          'currency',
+          'merchant_package_snapshot',
+          'service_fee_snapshot',
+          'reward_rule_version_id',
+          'consumed',
           'created_at',
         ]),
       );
@@ -193,11 +207,17 @@ describe('Phase 3 — Expected Schema Validation', () => {
         expect.arrayContaining([
           'id',
           'reward_plan_id',
+          'member_id',
+          'market_id',
+          'reward_rule_version_id',
+          'market_timezone',
           'market_local_date',
-          'ledger_entry_id',
-          'amount',
-          'rule_version_id',
           'executed_at_utc',
+          'amount',
+          'ledger_entry_type',
+          'idempotency_key',
+          'audit_correlation_id',
+          'created_at',
         ]),
       );
     });
@@ -243,7 +263,7 @@ describe('Phase 3 — Migration Pipeline Readiness', () => {
   it('should have a correct migration checksum manifest', async () => {
     const checksums = await calculateMigrationChecksums();
     expect(checksums).toBeDefined();
-    expect(Object.keys(checksums).length).toBeGreaterThanOrEqual(14);
+    expect(Object.keys(checksums).length).toBeGreaterThanOrEqual(15);
   });
 
   it('should have all Phase 1/2 migrations present', async () => {
@@ -269,14 +289,18 @@ describe('Phase 3 — Migration Pipeline Readiness', () => {
     }
   });
 
-  it('should not have pre-existing Phase 3 migration files', async () => {
-    // P3-S1 should NOT create migrations — this validates no premature implementation
+  it('should have the initial Phase 3 migration file', async () => {
+    // P3-S1 includes the initial Phase 3 migration
     const checksums = await calculateMigrationChecksums();
-    const phase3Pattern = /0014_phase_3_/u;
+    const phase3Pattern = /0014_/u;
     const phase3Migrations = Object.keys(checksums).filter((file) =>
       phase3Pattern.test(file),
     );
-    expect(phase3Migrations).toEqual([]);
+    expect(phase3Migrations.length).toBeGreaterThanOrEqual(1);
+    for (const migration of phase3Migrations) {
+      expect(checksums[migration]).toBeDefined();
+      expect(typeof checksums[migration]).toBe('string');
+    }
   });
 
   it('should allow new Phase 3 migrations to be appended', async () => {
@@ -285,9 +309,9 @@ describe('Phase 3 — Migration Pipeline Readiness', () => {
     const checksums = await calculateMigrationChecksums();
     const sortedFiles = Object.keys(checksums).sort();
     const lastMigration = sortedFiles[sortedFiles.length - 1];
-    expect(lastMigration).toMatch(/^0013_/u);
-    // Next available index is 14
-    expect(Number.parseInt(lastMigration!.slice(0, 4), 10)).toBe(13);
+    expect(lastMigration).toMatch(/^0014_/u);
+    // Next available index is 15
+    expect(Number.parseInt(lastMigration!.slice(0, 4), 10)).toBe(14);
   });
 
   it('should have a valid checksum manifest file', async () => {
@@ -297,7 +321,7 @@ describe('Phase 3 — Migration Pipeline Readiness', () => {
     );
     const manifest = JSON.parse(manifestContent);
     expect(typeof manifest).toBe('object');
-    expect(Object.keys(manifest).length).toBeGreaterThanOrEqual(14);
+    expect(Object.keys(manifest).length).toBeGreaterThanOrEqual(15);
   });
 });
 
@@ -356,11 +380,11 @@ describe('Phase 3 — Schema Design Invariants', () => {
     expect(columns).toContain('market_id');
   });
 
-  it('member_wallet_entries should have idempotent insertion (UNIQUE account_id + idempotency_key)', () => {
-    // Contract: UNIQUE (account_id, idempotency_key)
+  it('member_wallet_entries should have idempotent insertion (UNIQUE wallet_account_id + idempotency_key)', () => {
+    // Contract: UNIQUE (wallet_account_id, idempotency_key)
     const columns = expectedSchema['member_wallet_entries'] ?? [];
     expect(columns).toContain('idempotency_key');
-    expect(columns).toContain('account_id');
+    expect(columns).toContain('wallet_account_id');
   });
 
   it('reward_plans should have unique constraint (source_type + source_id + member_id + market_id)', () => {

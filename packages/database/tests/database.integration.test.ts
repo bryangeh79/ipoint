@@ -56,6 +56,9 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
     await expect(verifyMigrationChecksums()).resolves.toHaveProperty(
       '0013_admin_member_notes.sql',
     );
+    await expect(verifyMigrationChecksums()).resolves.toHaveProperty(
+      '0014_phase_3_reward_and_wallet_schema.sql',
+    );
     await expect(assertNoSchemaDrift(connection.pool)).resolves.toBeUndefined();
     await expect(migrate(connection.pool)).resolves.toBeUndefined();
     const applied = await connection.pool.query<{ filename: string }>(
@@ -76,6 +79,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0011_member_kyc_level_2_hardening.sql',
       '0012_merchant_discovery_indexes.sql',
       '0013_admin_member_notes.sql',
+      '0014_phase_3_reward_and_wallet_schema.sql',
     ]);
   });
 
