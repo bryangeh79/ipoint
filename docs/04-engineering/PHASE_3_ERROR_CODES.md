@@ -319,3 +319,222 @@ All errors with HTTP status ≥ 500 must be logged with:
 | API Contract Draft | [`../06-phase-reports/p3-s1/PHASE_3_API_CONTRACT_DRAFT.md`](../06-phase-reports/p3-s1/PHASE_3_API_CONTRACT_DRAFT.md) |
 | Wallet Ledger Contract | [`../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md`](../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md) |
 | Phase 3 Architecture | [`../03-architecture/PHASE_3_ARCHITECTURE.md`](../03-architecture/PHASE_3_ARCHITECTURE.md) |
+| Ledger Invariant Document | [`./PHASE_3_LEDGER_INVARIANTS.md`](./PHASE_3_LEDGER_INVARIANTS.md) |
+| Daily Job Runbook | [`./PHASE_3_DAILY_JOB_RUNBOOK.md`](./PHASE_3_DAILY_JOB_RUNBOOK.md) |
+
+---
+
+## 12. Wave 2 — Daily Job Domain (Agent 4)
+
+**Error class:** `DailyJobError`
+**Code prefix:** `DAILY_JOB_*`
+**Module:** `apps/api/src/daily-job/job.types.ts`
+
+| Error Code | HTTP Status | Message | When Raised |
+|---|---|---|---|
+| `DAILY_JOB_NOT_FOUND` | 404 | Daily job run not found. | GET/PATCH by non-existent job ID |
+| `DAILY_JOB_ALREADY_COMPLETED` | 409 | Job run has already been completed for this market and date. | Attempt to re-process a completed job without force |
+| `DAILY_JOB_MARKET_LOCKED` | 409 | Another job is running for this market. | Concurrent execution attempt (advisory lock contention) |
+| `DAILY_JOB_TIMEZONE_INVALID` | 500 | Market timezone configuration is invalid. | IANA timezone validation failure at job start |
+| `DAILY_JOB_ACCRUAL_FAILED` | 500 | Failed to post daily accrual for reward plan. | Wallet entry or DB error during accrual |
+| `DAILY_JOB_PLAN_SKIPPED` | 400 | Reward plan skipped during accrual processing. | Plan status not ACTIVE, or rule version missing |
+| `DAILY_JOB_RULE_NOT_FOUND` | 422 | No effective rule version for market and date. | Rule version gap for market on business date |
+| `DAILY_JOB_WALLET_CREATION_FAILED` | 500 | Failed to create wallet during accrual processing. | DB error during lazy wallet creation |
+| `DAILY_JOB_BALANCE_CORRUPTION` | 500 | Wallet balance inconsistency detected during accrual. | Optimistic lock conflict or balance mismatch |
+| `DAILY_JOB_POLL_DISABLED` | 503 | Daily job polling is disabled via configuration. | `JOB_ENABLED=false` or runtime config disabled |
+
+### Factory Functions
+
+```typescript
+export function dailyJobNotFoundError(jobRunId?: string): DailyJobError {
+  return new DailyJobError('DAILY_JOB_NOT_FOUND', 'Daily job run not found.', { jobRunId });
+}
+export function dailyJobAlreadyCompletedError(marketId: string, date: string): DailyJobError {
+  return new DailyJobError('DAILY_JOB_ALREADY_COMPLETED', 'Job has already been completed for this market and date.', { marketId, date });
+}
+export function dailyJobMarketLockedError(marketId: string): DailyJobError {
+  return new DailyJobError('DAILY_JOB_MARKET_LOCKED', 'Another job is running for this market.', { marketId });
+}
+export function dailyJobAccrualFailedError(planId: string, error?: string): DailyJobError {
+  return new DailyJobError('DAILY_JOB_ACCRUAL_FAILED', 'Failed to post daily accrual for reward plan.', { planId, error });
+}
+export function dailyJobRuleNotFoundError(marketId: string, date: string): DailyJobError {
+  return new DailyJobError('DAILY_JOB_RULE_NOT_FOUND', 'No effective rule version for market and date.', { marketId, date });
+}
+export function dailyJobBalanceCorruptionError(walletId: string, expected: string, actual: string): DailyJobError {
+  return new DailyJobError('DAILY_JOB_BALANCE_CORRUPTION', 'Wallet balance inconsistency detected.', { walletId, expected, actual });
+}
+export function dailyJobPollDisabledError(): DailyJobError {
+  return new DailyJobError('DAILY_JOB_POLL_DISABLED', 'Daily job polling is disabled via configuration.');
+}
+```
+
+---
+
+## 13. Wave 2 — Admin Adjustment Domain (Agent 5)
+
+**Error class:** `AdminRewardError`
+**Code prefix:** `ADMIN_ADJUSTMENT_*`
+**Module:** `apps/api/src/admin-reward/admin-reward.types.ts`
+
+| Error Code | HTTP Status | Message | When Raised |
+|---|---|---|---|
+| `ADMIN_ADJUSTMENT_NOT_FOUND` | 404 | Admin adjustment request not found. | Lookup by non-existent adjustment ID |
+| `ADMIN_ADJUSTMENT_INVALID_AMOUNT` | 400 | Adjustment amount must be a positive number. | Zero or negative amount provided |
+| `ADMIN_ADJUSTMENT_INVALID_STATE` | 400 | Adjustment request is not in a valid state for this operation. | Approve already approved, or cancel executed adjustment |
+| `ADMIN_ADJUSTMENT_WALLET_FROZEN` | 422 | Cannot adjust a frozen wallet. | Wallet status is FROZEN at time of adjustment |
+| `ADMIN_ADJUSTMENT_MARKET_ACCESS_DENIED` | 403 | Admin does not have access to this market for adjustments. | Market scope check failure |
+| `ADMIN_ADJUSTMENT_SELF_APPROVAL_DENIED` | 403 | Maker cannot approve their own adjustment request. | Maker-checker violation |
+| `ADMIN_ADJUSTMENT_DUPLICATE_KEY` | 409 | An adjustment with this idempotency key already exists. | Idempotency key reuse |
+| `ADMIN_ADJUSTMENT_EXECUTION_FAILED` | 500 | Failed to execute wallet adjustment. | DB or wallet service error during execution |
+| `ADMIN_ADJUSTMENT_REASON_REQUIRED` | 400 | A reason must be provided for admin adjustments. | Empty or missing reason field |
+
+### Factory Functions
+
+```typescript
+export function adminAdjustmentNotFoundError(adjustmentId?: string): AdminRewardError {
+  return new AdminRewardError('ADMIN_ADJUSTMENT_NOT_FOUND', 'Admin adjustment request not found.', { adjustmentId });
+}
+export function adminAdjustmentInvalidAmountError(amount: string): AdminRewardError {
+  return new AdminRewardError('ADMIN_ADJUSTMENT_INVALID_AMOUNT', 'Adjustment amount must be a positive number.', { amount });
+}
+export function adminAdjustmentInvalidStateError(state: string, operation: string): AdminRewardError {
+  return new AdminRewardError('ADMIN_ADJUSTMENT_INVALID_STATE', 'Adjustment request is not in a valid state for this operation.', { state, operation });
+}
+export function adminAdjustmentWalletFrozenError(walletId: string): AdminRewardError {
+  return new AdminRewardError('ADMIN_ADJUSTMENT_WALLET_FROZEN', 'Cannot adjust a frozen wallet.', { walletId });
+}
+export function adminAdjustmentSelfApprovalDeniedError(): AdminRewardError {
+  return new AdminRewardError('ADMIN_ADJUSTMENT_SELF_APPROVAL_DENIED', 'Maker cannot approve their own adjustment request.');
+}
+export function adminAdjustmentExecutionFailedError(adjustmentId: string, error?: string): AdminRewardError {
+  return new AdminRewardError('ADMIN_ADJUSTMENT_EXECUTION_FAILED', 'Failed to execute wallet adjustment.', { adjustmentId, error });
+}
+export function adminAdjustmentReasonRequiredError(): AdminRewardError {
+  return new AdminRewardError('ADMIN_ADJUSTMENT_REASON_REQUIRED', 'A reason must be provided for admin adjustments.');
+}
+```
+
+---
+
+## 14. Wave 2 — Admin Reward Domain (Agent 5)
+
+**Error class:** `AdminRewardError`
+**Code prefix:** `ADMIN_REWARD_*`
+**Module:** `apps/api/src/admin-reward/admin-reward.types.ts`
+
+| Error Code | HTTP Status | Message | When Raised |
+|---|---|---|---|
+| `ADMIN_REWARD_RULE_VERSION_NOT_FOUND` | 404 | Rule version not found. | Admin lookup by non-existent rule version ID |
+| `ADMIN_REWARD_RULE_VERSION_ARCHIVED` | 400 | Cannot modify an archived rule version. | Edit/delete on archived rule |
+| `ADMIN_REWARD_JOB_NOT_FOUND` | 404 | Job run not found. | Admin lookup by non-existent job run ID |
+| `ADMIN_REWARD_MARKET_ACCESS_DENIED` | 403 | Admin does not have access to this market. | Market scope check failure |
+| `ADMIN_REWARD_WALLET_NOT_FOUND` | 404 | Wallet not found for member and market. | Admin wallet lookup fails |
+| `ADMIN_REWARD_ADJUSTMENT_INVALID_AMOUNT` | 400 | Adjustment amount must be a positive number. | Invalid amount for wallet adjustment |
+| `ADMIN_REWARD_ADJUSTMENT_NOT_FOUND` | 404 | Adjustment request not found. | Lookup by non-existent adjustment ID |
+| `ADMIN_REWARD_IDEMPOTENCY_CONFLICT` | 409 | Idempotency key conflict. | Duplicate idempotency key for admin operation |
+| `ADMIN_REWARD_JOB_RETRY_FAILED` | 500 | Failed to retry job run. | Job status update error |
+| `ADMIN_REWARD_JOB_FORCE_COMPLETE_FAILED` | 500 | Failed to force-complete job run. | Job status update error |
+| `ADMIN_REWARD_SETTLEMENT_TRIGGER_FAILED` | 500 | Failed to trigger settlement. | Worker initialization failure |
+
+### Factory Functions
+
+```typescript
+export function adminRewardRuleVersionNotFoundError(versionId?: string): AdminRewardError {
+  return new AdminRewardError('ADMIN_REWARD_RULE_VERSION_NOT_FOUND', 'Rule version not found.', { versionId });
+}
+export function adminRewardJobNotFoundError(jobRunId?: string): AdminRewardError {
+  return new AdminRewardError('ADMIN_REWARD_JOB_NOT_FOUND', 'Job run not found.', { jobRunId });
+}
+export function adminRewardMarketAccessDeniedError(marketId?: string): AdminRewardError {
+  return new AdminRewardError('ADMIN_REWARD_MARKET_ACCESS_DENIED', 'Admin does not have access to this market.', { marketId });
+}
+export function adminRewardJobRetryFailedError(jobRunId: string, error?: string): AdminRewardError {
+  return new AdminRewardError('ADMIN_REWARD_JOB_RETRY_FAILED', 'Failed to retry job run.', { jobRunId, error });
+}
+export function adminRewardSettlementTriggerFailedError(error?: string): AdminRewardError {
+  return new AdminRewardError('ADMIN_REWARD_SETTLEMENT_TRIGGER_FAILED', 'Failed to trigger settlement.', { error });
+}
+```
+
+---
+
+## 15. Wave 2 — pg-boss Integration (Future)
+
+**Error class:** `PgBossError` (future)
+**Code prefix:** `PGBOSS_*`
+**Module:** `apps/api/src/daily-job/` (future)
+
+These error codes are **reserved** for future pg-boss integration. Do not implement until pg-boss is adopted.
+
+| Error Code | HTTP Status | Message | When Raised |
+|---|---|---|---|
+| `PGBOSS_CONNECTION_FAILED` | 500 | Failed to connect to pg-boss. | Database connection pool exhausted |
+| `PGBOSS_SCHEDULE_CREATION_FAILED` | 500 | Failed to create pg-boss schedule. | Cron expression parsing error |
+| `PGBOSS_JOB_ENQUEUE_FAILED` | 500 | Failed to enqueue job in pg-boss. | Queue insertion error |
+| `PGBOSS_JOB_ALREADY_SCHEDULED` | 409 | A job with this schedule key already exists. | Duplicate schedule registration |
+| `PGBOSS_WORKER_NOT_STARTED` | 503 | pg-boss worker has not started. | Startup initialization failure |
+| `PGBOSS_JOB_TIMEOUT` | 500 | Job exceeded maximum execution time. | Job expired (pg-boss expireInHours) |
+
+
+---
+
+## 16. Error Code Allocation Map (Updated for Wave 2)
+
+| Prefix Range | Module | Owner Agent | Status |
+|---|---|---|---|
+| `WALLET_*` | Wallet | Agent 1 | Allocated |
+| `WALLET_ENTRY_*` | Wallet Entry | Agent 1 | Allocated |
+| `REWARD_PLAN_*` | Reward Plan | Agent 2 | Allocated |
+| `REWARD_RULE_*` | Reward Rule | Agent 2 | Allocated |
+| `REWARD_SOURCE_*` | Reward Source | Agent 3 | Allocated |
+| `SETTLEMENT_*` | Settlement (Wave 1) | Agent 0 | Reserved |
+| `ADMIN_WALLET_*` | Admin Wallet (Wave 1) | Agent 0 | Reserved |
+| `ADMIN_REWARD_*` | Admin Reward (Wave 1) | Agent 0 | Reserved |
+| `DAILY_JOB_*` | Daily Job (Wave 2) | Agent 4 | **Allocated** |
+| `ADMIN_ADJUSTMENT_*` | Admin Adjustment (Wave 2) | Agent 5 | **Allocated** |
+| `PGBOSS_*` | pg-boss (Future) | Agent 4 | Reserved |
+
+### Error Code Counts
+
+| Domain | Wave 1 | Wave 2 | Total |
+|---|---|---|---|
+| Wallet | 12 | 0 | 12 |
+| Reward Plan | 9 | 0 | 9 |
+| Reward Rule | 7 | 0 | 7 |
+| Reward Source | 5 | 0 | 5 |
+| Settlement | 9 | 0 | 9 |
+| Admin Wallet | 3 | 0 | 3 |
+| Admin Reward | 3 | 11 | 14 |
+| Daily Job | 0 | 10 | 10 |
+| Admin Adjustment | 0 | 9 | 9 |
+| pg-boss (reserved) | 0 | 6 | 6 |
+| **Total** | **48** | **36** | **84** |
+
+### HTTP Status Distribution (Wave 2)
+
+| HTTP Status | Count | Codes |
+|---|---|---|
+| 400 Bad Request | 6 | DAILY_JOB_PLAN_SKIPPED, ADMIN_ADJUSTMENT_INVALID_AMOUNT, ADMIN_ADJUSTMENT_INVALID_STATE, ADMIN_ADJUSTMENT_REASON_REQUIRED, ADMIN_REWARD_RULE_VERSION_ARCHIVED, ADMIN_ADJUSTMENT_WALLET_FROZEN |
+| 403 Forbidden | 3 | ADMIN_ADJUSTMENT_MARKET_ACCESS_DENIED, ADMIN_ADJUSTMENT_SELF_APPROVAL_DENIED, ADMIN_REWARD_MARKET_ACCESS_DENIED |
+| 404 Not Found | 6 | DAILY_JOB_NOT_FOUND, ADMIN_ADJUSTMENT_NOT_FOUND, ADMIN_REWARD_RULE_VERSION_NOT_FOUND, ADMIN_REWARD_JOB_NOT_FOUND, ADMIN_REWARD_WALLET_NOT_FOUND, ADMIN_REWARD_ADJUSTMENT_NOT_FOUND |
+| 409 Conflict | 4 | DAILY_JOB_ALREADY_COMPLETED, DAILY_JOB_MARKET_LOCKED, ADMIN_ADJUSTMENT_DUPLICATE_KEY, ADMIN_REWARD_IDEMPOTENCY_CONFLICT |
+| 422 Unprocessable Entity | 2 | DAILY_JOB_RULE_NOT_FOUND, ADMIN_ADJUSTMENT_WALLET_FROZEN |
+| 500 Internal Server Error | 8 | DAILY_JOB_TIMEZONE_INVALID, DAILY_JOB_ACCRUAL_FAILED, DAILY_JOB_WALLET_CREATION_FAILED, DAILY_JOB_BALANCE_CORRUPTION, ADMIN_ADJUSTMENT_EXECUTION_FAILED, ADMIN_REWARD_JOB_RETRY_FAILED, ADMIN_REWARD_JOB_FORCE_COMPLETE_FAILED, ADMIN_REWARD_SETTLEMENT_TRIGGER_FAILED |
+| 503 Service Unavailable | 2 | DAILY_JOB_POLL_DISABLED, PGBOSS_WORKER_NOT_STARTED |
+
+---
+
+## 17. Related Documents (Updated for Wave 2)
+
+| Document | Location |
+|---|---|
+| Error Registry (Agent 0) | [`../06-phase-reports/p3-agent0/PHASE_3_ERROR_REGISTRY.md`](../06-phase-reports/p3-agent0/PHASE_3_ERROR_REGISTRY.md) |
+| API Contract Draft | [`../06-phase-reports/p3-s1/PHASE_3_API_CONTRACT_DRAFT.md`](../06-phase-reports/p3-s1/PHASE_3_API_CONTRACT_DRAFT.md) |
+| Wallet Ledger Contract | [`../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md`](../06-phase-reports/p3-s1/PHASE_3_WALLET_LEDGER_CONTRACT.md) |
+| Phase 3 Architecture | [`../03-architecture/PHASE_3_ARCHITECTURE.md`](../03-architecture/PHASE_3_ARCHITECTURE.md) |
+| Daily Job Runbook | [`./PHASE_3_DAILY_JOB_RUNBOOK.md`](./PHASE_3_DAILY_JOB_RUNBOOK.md) |
+| Ledger Invariant Document | [`./PHASE_3_LEDGER_INVARIANTS.md`](./PHASE_3_LEDGER_INVARIANTS.md) |
+| Admin Reward Types | `apps/api/src/admin-reward/admin-reward.types.ts` |
+| Daily Job Types | `apps/api/src/daily-job/job.types.ts` |
+| Wave 2 Delivery Evidence | [`../06-phase-reports/p3-agent7/P3_S2_DELIVERY_EVIDENCE.md`](../06-phase-reports/p3-agent7/P3_S2_DELIVERY_EVIDENCE.md) |

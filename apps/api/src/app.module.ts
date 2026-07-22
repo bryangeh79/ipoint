@@ -14,8 +14,10 @@ import { KycModule } from './kyc/kyc.module.js';
 import { AdminKycModule } from './admin-kyc/admin-kyc.module.js';
 import { DiscoveryModule } from './discovery/discovery.module.js';
 import { AdminMemberModule } from './admin-member/admin-member.module.js';
+import { AdminRewardModule } from './admin-reward/admin-reward.module.js';
 import { RewardModule } from './reward/reward.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
+import { DailyJobModule } from './daily-job/job.module.js';
 import {
   RequestIdMiddleware,
   resolveRequestId,
@@ -57,8 +59,10 @@ import {
     AdminKycModule,
     DiscoveryModule,
     AdminMemberModule,
+    AdminRewardModule,
     RewardModule,
     WalletModule,
+    DailyJobModule,
   ],
 })
 export class AppModule implements NestModule {

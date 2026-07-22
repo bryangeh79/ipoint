@@ -212,6 +212,13 @@ export const memberWalletEntryType = pgEnum('member_wallet_entry_type', [
   'ADJUSTMENT',
 ]);
 
+export const dailyJobStatus = pgEnum('daily_job_status', [
+  'PENDING',
+  'RUNNING',
+  'COMPLETED',
+  'FAILED',
+]);
+
 export const accounts = pgTable(
   'accounts',
   {
@@ -2225,6 +2232,80 @@ export const rewardSources = pgTable(
   ],
 );
 
+export const dailyJobRuns = pgTable(
+  'daily_job_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobType: text('job_type').notNull(),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    localBusinessDate: date('local_business_date').notNull(),
+    status: dailyJobStatus('status').notNull().default('PENDING'),
+    startedAt: utcTimestamp('started_at'),
+    completedAt: utcTimestamp('completed_at'),
+    totalEntitlements: integer('total_entitlements').notNull().default(0),
+    processedCount: integer('processed_count').notNull().default(0),
+    failedCount: integer('failed_count').notNull().default(0),
+    errorDetail: text('error_detail'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('daily_job_runs_type_market_date_unique').on(
+      table.jobType,
+      table.marketId,
+      table.localBusinessDate,
+    ),
+    index('daily_job_runs_status_idx').on(table.status),
+    index('daily_job_runs_market_date_idx').on(table.marketId, table.localBusinessDate),
+    check('daily_job_runs_job_type_check', sql`char_length(${table.jobType}) > 0`),
+    check('daily_job_runs_total_entitlements_check', sql`${table.totalEntitlements} >= 0`),
+    check('daily_job_runs_processed_count_check', sql`${table.processedCount} >= 0`),
+    check('daily_job_runs_failed_count_check', sql`${table.failedCount} >= 0`),
+  ],
+);
+
+export const rewardDailyAccruals = pgTable(
+  'reward_daily_accruals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    rewardPlanId: uuid('reward_plan_id')
+      .notNull()
+      .references(() => rewardPlans.id, { onDelete: 'restrict' }),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    rewardRuleVersionId: uuid('reward_rule_version_id').references(
+      () => rewardRuleVersions.id,
+      { onDelete: 'restrict' },
+    ),
+    marketTimezone: text('market_timezone').notNull(),
+    marketLocalDate: date('market_local_date').notNull(),
+    executedAtUtc: utcTimestamp('executed_at_utc').notNull(),
+    amount: numeric('amount', { precision: 38, scale: 10 }).notNull(),
+    ledgerEntryType: memberWalletEntryType('ledger_entry_type').notNull(),
+    idempotencyKey: text('idempotency_key').notNull(),
+    auditCorrelationId: uuid('audit_correlation_id'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('reward_daily_accruals_idempotency_unique').on(
+      table.rewardPlanId,
+      table.marketLocalDate,
+      table.ledgerEntryType,
+    ),
+    unique('reward_daily_accruals_idempotency_key_unique').on(table.idempotencyKey),
+    index('reward_daily_accruals_member_market_idx').on(table.memberId, table.marketId),
+    index('reward_daily_accruals_plan_date_idx').on(table.rewardPlanId, table.marketLocalDate),
+    check('reward_daily_accruals_amount_check', sql`${table.amount} > 0`),
+    check('reward_daily_accruals_idempotency_check', sql`char_length(${table.idempotencyKey}) > 0`),
+  ],
+);
+
 export const schema = {
   accounts,
   credentials,
@@ -2288,4 +2369,6 @@ export const schema = {
   rewardRuleVersions,
   rewardPlans,
   rewardSources,
+  dailyJobRuns,
+  rewardDailyAccruals,
 };
