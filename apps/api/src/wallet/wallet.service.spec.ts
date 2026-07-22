@@ -126,24 +126,18 @@ describe('WalletService', () => {
 
   describe('getWallets', () => {
     it('returns empty array when member has no wallets', async () => {
-      const db = createMockDb();
-      db.orderBy.mockReturnThis();
-      db.limit.mockReturnThis();
-      vi.spyOn(db, 'select').mockReturnThis();
-      vi.spyOn(db as any, 'then').mockResolvedValue([]);
-      // Since the method returns a promise from the chained calls, we need to mock differently
-      const mockRows: any[] = [];
+      // Create a db mock where the chain select().from().where().orderBy() returns a Promise
       const mockChain = {
         select: vi.fn().mockReturnThis(),
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
-        orderBy: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockResolvedValue([] as any[]),
         limit: vi.fn().mockReturnThis(),
-        then: vi.fn((cb: any) => Promise.resolve(cb(mockRows))),
       };
-      // override the db to return a thenable
-      const altDb = { ...db, select: vi.fn(() => mockChain) };
-      const svc = makeService(altDb as any);
+      const svc = makeService({
+        ...createMockDb(),
+        select: vi.fn(() => mockChain),
+      } as any);
 
       const result = await svc.getWallets(memberId);
       expect(result).toEqual([]);
@@ -154,12 +148,13 @@ describe('WalletService', () => {
         select: vi.fn().mockReturnThis(),
         from: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
-        orderBy: vi.fn().mockReturnThis(),
-        then: vi.fn((cb: any) => Promise.resolve(cb([sampleWalletRow]))),
+        orderBy: vi.fn().mockResolvedValue([sampleWalletRow] as any[]),
+        limit: vi.fn().mockReturnThis(),
       };
-      const db = createMockDb();
-      const altDb = { ...db, select: vi.fn(() => mockChain) };
-      const svc = makeService(altDb as any);
+      const svc = makeService({
+        ...createMockDb(),
+        select: vi.fn(() => mockChain),
+      } as any);
 
       const result = await svc.getWallets(memberId);
       expect(result).toHaveLength(1);
@@ -224,12 +219,16 @@ describe('WalletService', () => {
         limit: vi.fn().mockReturnThis(),
         then: vi.fn((cb: any) => Promise.resolve(cb([{ maxSeq: 0n }]))),
       };
-      // Mock update returning
+      // Mock wallet update returning
       db.returning.mockResolvedValueOnce([
         { ...sampleWalletRow, pendingBalance: '100.0000000000', version: 2 },
       ]);
-      // Mock insert returning
+      // Mock entry insert returning
       db.returning.mockResolvedValueOnce([sampleEntryRow]);
+      // Mock wallet insert returning (when wallet doesn't exist yet)
+      db.returning.mockResolvedValueOnce([
+        { ...sampleWalletRow, pendingBalance: '100.0000000000' },
+      ]);
 
       // Now handle runTransaction
       db.runTransaction = vi
