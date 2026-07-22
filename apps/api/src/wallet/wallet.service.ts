@@ -34,7 +34,7 @@ export class WalletService {
       pendingBalance: row.pendingBalance,
       availableBalance: row.availableBalance,
       reversedBalance: row.reversedBalance,
-      version: row.version,
+      version: row.version as number,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };

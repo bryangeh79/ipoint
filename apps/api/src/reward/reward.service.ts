@@ -169,16 +169,19 @@ export class RewardService {
     if (!source) throw rewardSourceNotFoundError();
     if (source.consumed) throw rewardSourceAlreadyConsumedError();
 
+    // Narrow to non-nullable for closure safety
+    const src = source;
+
     return this.database.runTransaction(async (tx) => {
       const existingPlan = await tx
         .select({ id: rewardPlans.id })
         .from(rewardPlans)
         .where(
           and(
-            eq(rewardPlans.sourceType, source.sourceType),
-            eq(rewardPlans.sourceId, source.sourceId),
-            eq(rewardPlans.memberId, source.memberId),
-            eq(rewardPlans.marketId, source.marketId),
+            eq(rewardPlans.sourceType, src.sourceType),
+            eq(rewardPlans.sourceId, src.sourceId),
+            eq(rewardPlans.memberId, src.memberId),
+            eq(rewardPlans.marketId, src.marketId),
           ),
         )
         .limit(1);
@@ -188,21 +191,21 @@ export class RewardService {
       const [plan] = await tx
         .insert(rewardPlans)
         .values({
-          sourceType: source.sourceType,
-          sourceId: source.sourceId,
-          memberId: source.memberId,
-          marketId: source.marketId,
-          merchantId: source.merchantId,
+          sourceType: src.sourceType,
+          sourceId: src.sourceId,
+          memberId: src.memberId,
+          marketId: src.marketId,
+          merchantId: src.merchantId,
           status: 'SCHEDULED',
           totalEarned: '0',
-          capAmount: source.rewardRuleVersionId
+          capAmount: src.rewardRuleVersionId
             ? null
-            : await this.resolveCapAmount(tx, source),
+            : await this.resolveCapAmount(tx, src),
           snapshot: {
-            merchantPackageSnapshot: source.merchantPackageSnapshot,
-            serviceFeeSnapshot: source.serviceFeeSnapshot,
-            transactionAmount: source.transactionAmount,
-            currency: source.currency,
+            merchantPackageSnapshot: src.merchantPackageSnapshot,
+            serviceFeeSnapshot: src.serviceFeeSnapshot,
+            transactionAmount: src.transactionAmount,
+            currency: src.currency,
           },
           ruleVersionId: null,
         })

@@ -109,12 +109,17 @@ export class JobService {
       errorDetail?: string | null;
     },
   ): Promise<DailyJobRunResponse> {
+    // Filter out undefined values to avoid type mismatch with drizzle .set()
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updates).filter(
+        ([, v]) => v !== undefined,
+      ),
+    ) as Record<string, unknown>;
+    filteredUpdates.updatedAt = new Date();
+
     const [run] = await this.database.db
       .update(dailyJobRuns)
-      .set({
-        ...updates,
-        updatedAt: new Date(),
-      })
+      .set(filteredUpdates)
       .where(eq(dailyJobRuns.id, runId))
       .returning();
 

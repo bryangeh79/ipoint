@@ -487,7 +487,9 @@ export class AdminRewardService {
             .returning();
 
           if (!compEntry) {
-            throw new Error('Failed to create compensating wallet ledger entry');
+            throw new Error(
+              'Failed to create compensating wallet ledger entry',
+            );
           }
 
           // Audit trail for compensating entry
