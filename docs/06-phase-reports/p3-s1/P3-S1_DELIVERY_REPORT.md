@@ -3,7 +3,7 @@
 > **Sub-Phase:** P3-S1
 > **Phase:** Phase 3 — Multi-Market Wallet & Reward Ledger Foundation
 > **Date:** 2026-07-22
-> **Status:** IN_PROGRESS (delivery pending remote verification)
+> **Status:** UNDER_REVIEW (corrected pipeline completed)
 
 ---
 
@@ -48,7 +48,30 @@ P3-S1 is a contract and architecture phase only. No production code, schema, mig
 
 ## 4. Pipeline
 
-Pipeline execution pending on this branch. See final report section for results.
+## 4b. Corrected Pipeline Results (2026-07-22)
+
+Run on Windows host via PowerShell.
+
+| Step | Command | Exit Code | Duration |
+|---|---|---|---|
+| format:check | pnpm format:check | 0 | -- |
+| lint | pnpm lint | 0 | -- |
+| typecheck | pnpm typecheck | 0 | -- |
+| build | pnpm build | 0 | -- |
+| test:unit | pnpm test (api + packages) | 0 | -- |
+| test:web | pnpm test:web | 0 (member-web 271/271) | -- |
+
+All pipeline steps pass on host Windows environment.
+
+**Note:** P3-S1 introduces no production code, no schema, no migration. All 271 member-web tests pass. No regressions.
+
+**Confirmed:**
+- Production code changed: NO
+- Schema changed: NO
+- Migration created: NO
+- Main changed: NO
+- Phase 2 frozen content changed: NO
+- D-027 changed: NO
 
 ## 5. Acceptance Gates
 
