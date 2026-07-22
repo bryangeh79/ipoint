@@ -34,7 +34,13 @@ describe('WalletService', () => {
 
   function makeService(db: ReturnType<typeof createMockDb>) {
     const config = {} as ConfigService;
-    return new WalletService({ db } as unknown as DatabaseService, config);
+    const mockDbService = {
+      db,
+      runTransaction: vi.fn(async (callback: (tx: typeof db) => Promise<unknown>) => {
+        return callback(db);
+      }),
+    };
+    return new WalletService(mockDbService as unknown as DatabaseService, config);
   }
 
   const sampleWalletRow = {
