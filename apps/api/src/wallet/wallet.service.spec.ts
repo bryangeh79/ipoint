@@ -219,16 +219,16 @@ describe('WalletService', () => {
         limit: vi.fn().mockReturnThis(),
         then: vi.fn((cb: any) => Promise.resolve(cb([{ maxSeq: 0n }]))),
       };
+      // Mock wallet insert returning (wallet doesn't exist yet — select chain returns [])
+      db.returning.mockResolvedValueOnce([
+        { ...sampleWalletRow, pendingBalance: '0', version: 1 },
+      ]);
       // Mock wallet update returning
       db.returning.mockResolvedValueOnce([
         { ...sampleWalletRow, pendingBalance: '100.0000000000', version: 2 },
       ]);
       // Mock entry insert returning
       db.returning.mockResolvedValueOnce([sampleEntryRow]);
-      // Mock wallet insert returning (when wallet doesn't exist yet)
-      db.returning.mockResolvedValueOnce([
-        { ...sampleWalletRow, pendingBalance: '100.0000000000' },
-      ]);
 
       // Now handle runTransaction
       db.runTransaction = vi
