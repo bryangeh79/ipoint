@@ -5,9 +5,11 @@
 name: Phase 3 CI
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - 'phase/3-**'
+      - 'task/p3-**'
   pull_request:
     branches:
       - 'phase/3-**'
@@ -123,6 +125,43 @@ jobs:
         run: pnpm test:database
       - name: Verify database after tests
         run: pnpm db:checksum && pnpm db:drift
+
+  phase3-tests:
+    name: Phase 3 wallet + reward + job tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: \${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: \${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Wallet service tests
+        run: pnpm test -- apps/api/src/wallet --reporter verbose
+      - name: Reward service tests
+        run: pnpm test -- apps/api/src/reward --reporter verbose
+      - name: Transaction reward tests
+        run: pnpm test -- apps/api/src/transaction-reward --reporter verbose
+      - name: Daily job tests
+        run: pnpm test -- apps/api/src/daily-job --reporter verbose
+      - name: Admin reward tests
+        run: pnpm test -- apps/api/src/admin-reward --reporter verbose
+      - name: Ledger invariant tests
+        run: pnpm test -- apps/api/src/__tests__/ledger-invariants --reporter verbose
+      - name: Concurrency tests
+        run: pnpm test -- apps/api/src/__tests__/concurrency --reporter verbose
+      - name: Timezone tests
+        run: pnpm test -- apps/api/src/__tests__/timezone --reporter verbose
+      - name: Cross-module integration tests
+        run: pnpm test -- apps/api/src/__tests__/cross-module --reporter verbose
+      - name: Contract tests
+        run: pnpm test -- tests/contract --reporter verbose
+      - name: Security tests
+        run: pnpm test -- tests/security --reporter verbose
 
   api-tests:
     name: API integration tests
