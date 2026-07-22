@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
-  ApiBody,
   ApiOperation,
   ApiQuery,
   ApiResponse,
@@ -91,7 +90,6 @@ export class WalletController {
     description:
       'Creates an immutable ledger entry. This is the ONLY way to change a wallet balance. Idempotent via idempotencyKey.',
   })
-  @ApiBody({ type: createLedgerEntrySchema })
   @ApiResponse({ status: 201, description: 'Ledger entry created.' })
   @ApiResponse({ status: 400, description: 'Validation error.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })

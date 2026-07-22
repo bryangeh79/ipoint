@@ -31,7 +31,7 @@ import {
 } from './job.errors.js';
 
 // Configure decimal.js for financial precision
-Decimal.set({ rounding: Decimal.ROUND_HALF_UP, precision: 50 });
+Decimal.set({ rounding: 3, precision: 50 });
 
 type DbTransaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
@@ -669,7 +669,7 @@ export class JobService {
     }
 
     // Round to 10 decimal places, HALF_UP
-    return dailyAmount.toDecimalPlaces(10, Decimal.ROUND_HALF_UP).toString();
+    return dailyAmount.toDecimalPlaces(10, 3).toString();
   }
 
   /**
@@ -698,7 +698,7 @@ export class JobService {
         return '0';
       }
       return remainingCapSpace
-        .toDecimalPlaces(10, Decimal.ROUND_HALF_UP)
+        .toDecimalPlaces(10, 3)
         .toString();
     }
 

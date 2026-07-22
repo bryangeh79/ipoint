@@ -163,7 +163,7 @@ describe('WalletService', () => {
 
       const result = await svc.getWallets(memberId);
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(walletId);
+      expect(result[0]!.id).toBe(walletId);
     });
   });
 
@@ -235,13 +235,7 @@ describe('WalletService', () => {
       // Mock entry insert returning
       db.returning.mockResolvedValueOnce([sampleEntryRow]);
 
-      // Now handle runTransaction
-      db.runTransaction = vi
-        .fn()
-        .mockImplementation(async (cb: (tx: any) => Promise<any>) => {
-          return cb(db);
-        });
-      // Need to handle the maxSeq query that uses `then` directly
+      // Already handled by makeService's runTransaction wrapper
       const svc = makeService(db);
 
       // Mock the maxSeq part
@@ -281,9 +275,6 @@ describe('WalletService', () => {
       const db = createMockDb();
       // Mock duplicate idempotency check: entry already exists
       db.limit.mockResolvedValueOnce([sampleEntryRow]);
-      db.runTransaction = vi
-        .fn()
-        .mockImplementation(async (cb: (tx: any) => Promise<any>) => cb(db));
 
       const svc = makeService(db);
 
@@ -309,10 +300,6 @@ describe('WalletService', () => {
       // Mock max sequence
       db.select = vi.fn().mockReturnThis();
       // The transaction should throw on optimistic lock failure
-      db.runTransaction = vi
-        .fn()
-        .mockImplementation(async (cb: (tx: any) => Promise<any>) => cb(db));
-
       const svc = makeService(db);
 
       // Mock update returning empty (optimistic lock failure)

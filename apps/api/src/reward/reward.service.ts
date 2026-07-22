@@ -1,4 +1,4 @@
-import Decimal from 'decimal.js';
+import { Decimal } from 'decimal.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, count, desc, eq, isNull, lte, sql } from 'drizzle-orm';
 import {
@@ -392,7 +392,7 @@ export class RewardService {
       const ratio = new Decimal(rule.capValue!);
       return txAmount
         .mul(ratio)
-        .toDecimalPlaces(10, 4)
+        .toDecimalPlaces(10, Decimal.ROUND_HALF_UP)
         .toFixed(10);
     }
 
