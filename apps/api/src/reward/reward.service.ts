@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, count, desc, eq, isNull, lte, sql } from 'drizzle-orm';
 import {
@@ -153,8 +154,9 @@ export class RewardService {
       .orderBy(desc(rewardRuleVersions.effectiveFrom))
       .limit(1);
 
-    if (!rows[0]) throw rewardRuleNoEffectiveVersionError(marketId);
-    return this.mapRuleVersion(rows[0]);
+    const ruleVersionRow = rows[0];
+    if (!ruleVersionRow) throw rewardRuleNoEffectiveVersionError(marketId);
+    return this.mapRuleVersion(ruleVersionRow);
   }
 
   // ─── Reward Plans ──────────────────────────────────────────────────
@@ -170,7 +172,7 @@ export class RewardService {
     if (source.consumed) throw rewardSourceAlreadyConsumedError();
 
     // Narrow to non-nullable for closure safety
-    const src = source;
+    const src = source as NonNullable<typeof source>;
 
     return this.database.runTransaction(async (tx) => {
       const existingPlan = await tx
@@ -199,8 +201,8 @@ export class RewardService {
           status: 'SCHEDULED',
           totalEarned: '0',
           capAmount: src.rewardRuleVersionId
-            ? null
-            : await this.resolveCapAmount(tx, src),
+            ? await this.resolveCapAmount(tx, src)
+            : null,
           snapshot: {
             merchantPackageSnapshot: src.merchantPackageSnapshot,
             serviceFeeSnapshot: src.serviceFeeSnapshot,
@@ -387,9 +389,12 @@ export class RewardService {
     if (rule.capType === 'FLAT') return rule.capValue;
 
     if (rule.capType === 'RATIO') {
-      const transactionAmount = Number(source.transactionAmount);
-      const capRatio = Number(rule.capValue);
-      return String(transactionAmount * capRatio);
+      const txAmount = new Decimal(source.transactionAmount);
+      const ratio = new Decimal(rule.capValue);
+      return txAmount
+        .mul(ratio)
+        .toDecimalPlaces(10, Decimal.ROUND_HALF_UP)
+        .toFixed(10);
     }
 
     return null;
