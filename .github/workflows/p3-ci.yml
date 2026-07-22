@@ -1,7 +1,4 @@
 # Phase 3 CI — Multi-Market Wallet & Reward Ledger
-# Trigger: push to phase/3-* branches
-# Runs: install, format:check, lint, typecheck, build, test (with PostgreSQL service container)
-
 name: Phase 3 CI
 
 on:
@@ -25,7 +22,6 @@ concurrency:
 
 env:
   NODE_VERSION: '24'
-  PNPM_VERSION: '9.15.9'
   DATABASE_URL: postgresql://ipoint:ipoint_ci@127.0.0.1:5432/ipoint_ci
   REDIS_URL: redis://127.0.0.1:6379
 
@@ -36,20 +32,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Format check
-        run: pnpm format:check
-      - name: Lint
-        run: pnpm lint
-      - name: Typecheck
-        run: pnpm typecheck
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
 
   build:
     name: Build all packages
@@ -57,16 +47,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build
-        run: pnpm build
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
 
   unit-tests:
     name: Unit tests
@@ -74,19 +60,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Run unit tests
-        run: pnpm test -- --reporter verbose
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test -- --reporter verbose
+
+  phase3-tests:
+    name: Phase 3 module tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test -- apps/api/src/wallet --reporter verbose
+      - run: pnpm test -- apps/api/src/reward --reporter verbose
+      - run: pnpm test -- apps/api/src/transaction-reward --reporter verbose
+      - run: pnpm test -- apps/api/src/daily-job --reporter verbose
+      - run: pnpm test -- apps/api/src/admin-reward --reporter verbose
+      - run: pnpm test -- apps/api/src/__tests__/ledger-invariants --reporter verbose
+      - run: pnpm test -- apps/api/src/__tests__/concurrency --reporter verbose
+      - run: pnpm test -- apps/api/src/__tests__/timezone --reporter verbose
+      - run: pnpm test -- apps/api/src/__tests__/cross-module --reporter verbose
+      - run: pnpm test -- tests/contract --reporter verbose
+      - run: pnpm test -- tests/security --reporter verbose
 
   database-tests:
-    name: Database tests (with PostgreSQL)
+    name: Database tests
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -105,63 +110,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Verify immutable migration checksums
-        run: pnpm db:checksum
-      - name: Migrate empty database
-        run: pnpm db:migrate
-      - name: Seed database (idempotent)
-        run: pnpm db:seed && pnpm db:seed
-      - name: Verify schema drift
-        run: pnpm db:drift
-      - name: Run database tests
-        run: pnpm test:database
-      - name: Verify database after tests
-        run: pnpm db:checksum && pnpm db:drift
-
-  phase3-tests:
-    name: Phase 3 wallet + reward + job tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: \${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: \${{ env.NODE_VERSION }}
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Wallet service tests
-        run: pnpm test -- apps/api/src/wallet --reporter verbose
-      - name: Reward service tests
-        run: pnpm test -- apps/api/src/reward --reporter verbose
-      - name: Transaction reward tests
-        run: pnpm test -- apps/api/src/transaction-reward --reporter verbose
-      - name: Daily job tests
-        run: pnpm test -- apps/api/src/daily-job --reporter verbose
-      - name: Admin reward tests
-        run: pnpm test -- apps/api/src/admin-reward --reporter verbose
-      - name: Ledger invariant tests
-        run: pnpm test -- apps/api/src/__tests__/ledger-invariants --reporter verbose
-      - name: Concurrency tests
-        run: pnpm test -- apps/api/src/__tests__/concurrency --reporter verbose
-      - name: Timezone tests
-        run: pnpm test -- apps/api/src/__tests__/timezone --reporter verbose
-      - name: Cross-module integration tests
-        run: pnpm test -- apps/api/src/__tests__/cross-module --reporter verbose
-      - name: Contract tests
-        run: pnpm test -- tests/contract --reporter verbose
-      - name: Security tests
-        run: pnpm test -- tests/security --reporter verbose
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:checksum
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+      - run: pnpm db:seed
+      - run: pnpm db:drift
+      - run: pnpm test:database
+      - run: pnpm db:checksum
+      - run: pnpm db:drift
 
   api-tests:
     name: API integration tests
@@ -183,15 +144,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Migrate and seed
-        run: pnpm db:migrate && pnpm db:seed
-      - name: Run API tests
-        run: pnpm test:api
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+      - run: pnpm test:api
