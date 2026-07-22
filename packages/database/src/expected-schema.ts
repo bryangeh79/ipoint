@@ -711,4 +711,73 @@ export const expectedSchema = {
     'consumed',
     'created_at',
   ],
+
+  // ─── Phase 3: Wallet Accounts ───────────────────────────────────────
+  member_wallet_accounts: [
+    'id',
+    'member_id',
+    'market_id',
+    'pending_balance',
+    'available_balance',
+    'reversed_balance',
+    'version',
+    'created_at',
+    'updated_at',
+    'archived_at',
+  ],
+
+  // ─── Phase 3: Wallet Entries ────────────────────────────────────────
+  member_wallet_entries: [
+    'id',
+    'wallet_account_id',
+    'member_id',
+    'market_id',
+    'entry_sequence',
+    'entry_type',
+    'amount',
+    'balance_before',
+    'balance_after',
+    'idempotency_key',
+    'reference_type',
+    'reference_id',
+    'description',
+    'reason',
+    'actor_id',
+    'market_timezone',
+    'created_at',
+  ],
+
+  // ─── Phase 3: Daily Job Runs ────────────────────────────────────────
+  daily_job_runs: [
+    'id',
+    'job_type',
+    'market_id',
+    'local_business_date',
+    'status',
+    'started_at',
+    'completed_at',
+    'total_entitlements',
+    'processed_count',
+    'failed_count',
+    'error_detail',
+    'created_at',
+    'updated_at',
+  ],
+
+  // ─── Phase 3: Reward Daily Accruals ─────────────────────────────────
+  reward_daily_accruals: [
+    'id',
+    'reward_plan_id',
+    'member_id',
+    'market_id',
+    'reward_rule_version_id',
+    'market_timezone',
+    'market_local_date',
+    'executed_at_utc',
+    'amount',
+    'ledger_entry_type',
+    'idempotency_key',
+    'audit_correlation_id',
+    'created_at',
+  ],
 } as const;
