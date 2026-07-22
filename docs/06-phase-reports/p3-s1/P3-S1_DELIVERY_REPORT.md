@@ -65,3 +65,12 @@ Top decisions requiring Command Center attention:
 4. Rounding mode (HALF_UP / HALF_EVEN)
 5. Reward cap model (flat / ratio / tiered)
 6. Minimum reward amount
+
+## Execution Bridge Test
+
+
+
+> Added by OpenClaw for host-bridge-execution test.
+
+> Date: 2026-07-22T15:58:31.2584885+08:00
+
