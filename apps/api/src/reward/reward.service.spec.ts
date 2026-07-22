@@ -1072,7 +1072,11 @@ describe('RewardService', () => {
         rewardRuleVersionId: ratioRule.id,
         transactionAmount: '1',
       });
-      const { service: s2, returnMock: rm2, transactionMock: tm2 } = createService({
+      const {
+        service: s2,
+        returnMock: rm2,
+        transactionMock: tm2,
+      } = createService({
         ruleVersions: [ratioRule],
         sources: [ratioSource],
       });

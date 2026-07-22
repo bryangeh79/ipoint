@@ -167,7 +167,9 @@ export class JobService {
   }> {
     const conditions = and(
       params.marketId ? eq(dailyJobRuns.marketId, params.marketId) : undefined,
-      params.status ? eq(dailyJobRuns.status, params.status as DailyJobStatus) : undefined,
+      params.status
+        ? eq(dailyJobRuns.status, params.status as DailyJobStatus)
+        : undefined,
     );
 
     const totalResult = await this.database.db
@@ -406,10 +408,7 @@ export class JobService {
       .where(
         and(
           inArray(rewardDailyAccruals.rewardPlanId, planIds),
-          eq(
-            rewardDailyAccruals.marketLocalDate,
-            params.localBusinessDate,
-          ),
+          eq(rewardDailyAccruals.marketLocalDate, params.localBusinessDate),
         ),
       );
 
@@ -479,10 +478,7 @@ export class JobService {
       .where(
         and(
           eq(rewardDailyAccruals.rewardPlanId, plan.id),
-          eq(
-            rewardDailyAccruals.marketLocalDate,
-            params.localBusinessDate,
-          ),
+          eq(rewardDailyAccruals.marketLocalDate, params.localBusinessDate),
           eq(rewardDailyAccruals.ledgerEntryType, 'PENDING'),
         ),
       )
