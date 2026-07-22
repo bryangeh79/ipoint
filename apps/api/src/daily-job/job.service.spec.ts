@@ -340,7 +340,7 @@ describe('JobService', () => {
 
       expect(result.total).toBe(2);
       expect(result.runs).toHaveLength(2);
-      expect(result.runs[0].marketId).toBe(marketId);
+      expect(result.runs[0]!.marketId).toBe(marketId);
     });
   });
 
@@ -798,7 +798,7 @@ describe('JobService', () => {
 
       expect(result.processedCount).toBe(0);
       expect(result.failedCount).toBe(1);
-      expect(result.results[0].error).toContain('Concurrent wallet update');
+      expect(result.results[0]!.error).toContain('Concurrent wallet update');
     });
   });
 

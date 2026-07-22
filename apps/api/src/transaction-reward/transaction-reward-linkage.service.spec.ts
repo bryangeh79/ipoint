@@ -381,8 +381,12 @@ describe('TransactionRewardLinkageService', () => {
 
       // Mock the select chain
       db.db.select = vi.fn().mockReturnThis();
-      (db.db as unknown as Record<string, unknown>).from = vi.fn().mockReturnThis();
-      (db.db as unknown as Record<string, unknown>).where = vi.fn().mockReturnThis();
+      (db.db as unknown as Record<string, unknown>).from = vi
+        .fn()
+        .mockReturnThis();
+      (db.db as unknown as Record<string, unknown>).where = vi
+        .fn()
+        .mockReturnThis();
       (db.db as unknown as Record<string, unknown>).limit = vi
         .fn()
         .mockResolvedValue([mockSource]);
@@ -401,9 +405,15 @@ describe('TransactionRewardLinkageService', () => {
       const { service, db } = createService();
 
       db.db.select = vi.fn().mockReturnThis();
-      (db.db as unknown as Record<string, unknown>).from = vi.fn().mockReturnThis();
-      (db.db as unknown as Record<string, unknown>).where = vi.fn().mockReturnThis();
-      (db.db as unknown as Record<string, unknown>).limit = vi.fn().mockResolvedValue([]);
+      (db.db as unknown as Record<string, unknown>).from = vi
+        .fn()
+        .mockReturnThis();
+      (db.db as unknown as Record<string, unknown>).where = vi
+        .fn()
+        .mockReturnThis();
+      (db.db as unknown as Record<string, unknown>).limit = vi
+        .fn()
+        .mockResolvedValue([]);
 
       await expect(
         service.getSourceByTransaction('nonexistent-id'),
