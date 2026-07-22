@@ -23,22 +23,22 @@ The primary blocker for all CI steps in the sandbox is **insufficient memory (EN
 
 ### 2.1 Build Pipeline (pnpm build)
 
-| Step | Expected | Actual in Sandbox | Resolved? |
-|------|----------|-------------------|-----------|
-| `pnpm install` | Install all deps | ENOMEM — not enough memory | ❌ Cannot test in sandbox |
-| `pnpm build` | Compile all packages | Cannot execute (install prerequisite failed) | ❌ Requires host/GitHub runner |
+| Step           | Expected             | Actual in Sandbox                            | Resolved?                      |
+| -------------- | -------------------- | -------------------------------------------- | ------------------------------ |
+| `pnpm install` | Install all deps     | ENOMEM — not enough memory                   | ❌ Cannot test in sandbox      |
+| `pnpm build`   | Compile all packages | Cannot execute (install prerequisite failed) | ❌ Requires host/GitHub runner |
 
 ### 2.2 Static Analysis Issues Identified
 
 The following potential TypeScript issues were identified by code inspection and must be verified on a proper CI runner:
 
-| # | File | Issue | Severity |
-|---|------|-------|----------|
-| 1 | `apps/api/src/wallet/wallet.service.ts:340` | Dynamic `await import('./wallet.errors.js')` used instead of static import for `walletEntryNotFoundError`. This breaks tree-shaking and may cause circular dependency issues. | MEDIUM |
-| 2 | `apps/api/src/wallet/wallet.service.ts` | Import of `memberWalletAccounts`, `memberWalletEntries` from `@ipoint/database` must be exported from the database package's `schema/index.ts`. **Confirmed exported.** | ✅ OK |
-| 3 | `apps/api/src/wallet/wallet.module.ts` | Imports `DatabaseModule` from `../database/database.module.js` and `AuthModule` from `../auth/auth.module.js` — modules must exist and export required providers. | NEEDS BUILD VERIFICATION |
-| 4 | `packages/database/src/expected-schema.ts` | Missing Phase 3 tables: `member_wallet_accounts`, `member_wallet_entries`, `daily_job_runs`, `reward_daily_accruals`. **FIX APPLIED** — see Agent D. | ✅ FIXED |
-| 5 | `packages/database/src/drift-check.ts` | Drift check compares `expected-schema` against live DB schema. Now aligned after fix. | NEEDS DB VERIFICATION |
+| #   | File                                        | Issue                                                                                                                                                                         | Severity                 |
+| --- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| 1   | `apps/api/src/wallet/wallet.service.ts:340` | Dynamic `await import('./wallet.errors.js')` used instead of static import for `walletEntryNotFoundError`. This breaks tree-shaking and may cause circular dependency issues. | MEDIUM                   |
+| 2   | `apps/api/src/wallet/wallet.service.ts`     | Import of `memberWalletAccounts`, `memberWalletEntries` from `@ipoint/database` must be exported from the database package's `schema/index.ts`. **Confirmed exported.**       | ✅ OK                    |
+| 3   | `apps/api/src/wallet/wallet.module.ts`      | Imports `DatabaseModule` from `../database/database.module.js` and `AuthModule` from `../auth/auth.module.js` — modules must exist and export required providers.             | NEEDS BUILD VERIFICATION |
+| 4   | `packages/database/src/expected-schema.ts`  | Missing Phase 3 tables: `member_wallet_accounts`, `member_wallet_entries`, `daily_job_runs`, `reward_daily_accruals`. **FIX APPLIED** — see Agent D.                          | ✅ FIXED                 |
+| 5   | `packages/database/src/drift-check.ts`      | Drift check compares `expected-schema` against live DB schema. Now aligned after fix.                                                                                         | NEEDS DB VERIFICATION    |
 
 ### 2.3 Recommended Build Fixes
 
@@ -52,28 +52,28 @@ The following potential TypeScript issues were identified by code inspection and
 
 ### 3.1 Test Pipeline (pnpm test -- apps/api/src/wallet)
 
-| Step | Expected | Actual in Sandbox | Resolved? |
-|------|----------|-------------------|-----------|
+| Step                      | Expected       | Actual in Sandbox                        | Resolved?                 |
+| ------------------------- | -------------- | ---------------------------------------- | ------------------------- |
 | `vitest run` wallet tests | All tests pass | Cannot execute (no build, no DB, ENOMEM) | ❌ Cannot test in sandbox |
 
 ### 3.2 Test Analysis
 
 The wallet test files were reviewed for correctness:
 
-| Test File | File | Tests | Status |
-|-----------|------|-------|--------|
-| Unit tests | `wallet.service.spec.ts` | 14 test cases | ✅ Code structure verified |
-| Integration tests | `wallet.http.integration.spec.ts` | 4 test (all skipped) | ✅ Requires DB — skipped |
+| Test File         | File                              | Tests                | Status                     |
+| ----------------- | --------------------------------- | -------------------- | -------------------------- |
+| Unit tests        | `wallet.service.spec.ts`          | 14 test cases        | ✅ Code structure verified |
+| Integration tests | `wallet.http.integration.spec.ts` | 4 test (all skipped) | ✅ Requires DB — skipped   |
 
 ### 3.3 Unit Test Issues Identified
 
-| # | Test | Issue | Severity |
-|---|------|-------|----------|
-| 1 | `createLedgerEntry creates a pending entry successfully` | Complex Drizzle query builder mocking with `runTransaction`. The mock setup polls `db.select` for multiple different return values using `callCount` tracking. Mock complexity may hide real bugs. | MEDIUM |
-| 2 | `getWallets` | Uses `.then()` on mock chain objects instead of returning proper Drizzle Query Promise. The test for `getWallets` creates a `mockChain` with `.then()` which mimics the Drizzle query builder's thenable behavior. May cause timing issues. | LOW |
-| 3 | `getEntries` | Uses `callCount` to route different mock return values. Fragile; adding a new query to the method would break the count ordering. | LOW |
-| 4 | `getEntry` | The service code uses `await import('./wallet.errors.js')` for dynamic import of `walletEntryNotFoundError`. This is an odd pattern — all other errors use static imports at top of file. | MEDIUM |
-| 5 | `balance computation` | Validates that `pendingBalance` is a string, not numeric. This aligns with the API response types. | ✅ OK |
+| #   | Test                                                     | Issue                                                                                                                                                                                                                                       | Severity |
+| --- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| 1   | `createLedgerEntry creates a pending entry successfully` | Complex Drizzle query builder mocking with `runTransaction`. The mock setup polls `db.select` for multiple different return values using `callCount` tracking. Mock complexity may hide real bugs.                                          | MEDIUM   |
+| 2   | `getWallets`                                             | Uses `.then()` on mock chain objects instead of returning proper Drizzle Query Promise. The test for `getWallets` creates a `mockChain` with `.then()` which mimics the Drizzle query builder's thenable behavior. May cause timing issues. | LOW      |
+| 3   | `getEntries`                                             | Uses `callCount` to route different mock return values. Fragile; adding a new query to the method would break the count ordering.                                                                                                           | LOW      |
+| 4   | `getEntry`                                               | The service code uses `await import('./wallet.errors.js')` for dynamic import of `walletEntryNotFoundError`. This is an odd pattern — all other errors use static imports at top of file.                                                   | MEDIUM   |
+| 5   | `balance computation`                                    | Validates that `pendingBalance` is a string, not numeric. This aligns with the API response types.                                                                                                                                          | ✅ OK    |
 
 ### 3.4 Recommended Test Fixes
 
@@ -95,37 +95,38 @@ The wallet test files were reviewed for correctness:
 
 ### 4.1 Schema Drift Pipeline
 
-| Step | Expected | Actual in Sandbox | Resolved? |
-|------|----------|-------------------|-----------|
-| `pnpm db:checksum` | Verify immutable checksums | Cannot execute (no pnpm build, no DB) | ❌ Cannot test in sandbox |
-| `pnpm db:migrate` | Apply pending migrations | Cannot execute (no PostgreSQL available) | ❌ Requires PostgreSQL |
-| `pnpm db:drift` | Detect schema drift | Cannot execute | ❌ Requires PostgreSQL |
+| Step               | Expected                   | Actual in Sandbox                        | Resolved?                 |
+| ------------------ | -------------------------- | ---------------------------------------- | ------------------------- |
+| `pnpm db:checksum` | Verify immutable checksums | Cannot execute (no pnpm build, no DB)    | ❌ Cannot test in sandbox |
+| `pnpm db:migrate`  | Apply pending migrations   | Cannot execute (no PostgreSQL available) | ❌ Requires PostgreSQL    |
+| `pnpm db:drift`    | Detect schema drift        | Cannot execute                           | ❌ Requires PostgreSQL    |
 
 ### 4.2 Schema Drift: expected-schema.ts vs schema/index.ts
 
-| Phase 3 Table | expected-schema.ts (before) | expected-schema.ts (after) | schema/index.ts |
-|---------------|---------------------------|--------------------------|-----------------|
-| `member_wallet_accounts` | ❌ MISSING | ✅ ADDED | ✅ Present |
-| `member_wallet_entries` | ❌ MISSING | ✅ ADDED | ✅ Present |
-| `daily_job_runs` | ❌ MISSING | ✅ ADDED | ✅ Present |
-| `reward_daily_accruals` | ❌ MISSING | ✅ ADDED | ✅ Present |
-| `reward_rule_versions` | ✅ Present | ✅ Unchanged | ✅ Present |
-| `reward_plans` | ✅ Present | ✅ Unchanged | ✅ Present |
-| `reward_sources` | ✅ Present | ✅ Unchanged | ✅ Present |
+| Phase 3 Table            | expected-schema.ts (before) | expected-schema.ts (after) | schema/index.ts |
+| ------------------------ | --------------------------- | -------------------------- | --------------- |
+| `member_wallet_accounts` | ❌ MISSING                  | ✅ ADDED                   | ✅ Present      |
+| `member_wallet_entries`  | ❌ MISSING                  | ✅ ADDED                   | ✅ Present      |
+| `daily_job_runs`         | ❌ MISSING                  | ✅ ADDED                   | ✅ Present      |
+| `reward_daily_accruals`  | ❌ MISSING                  | ✅ ADDED                   | ✅ Present      |
+| `reward_rule_versions`   | ✅ Present                  | ✅ Unchanged               | ✅ Present      |
+| `reward_plans`           | ✅ Present                  | ✅ Unchanged               | ✅ Present      |
+| `reward_sources`         | ✅ Present                  | ✅ Unchanged               | ✅ Present      |
 
 ### 4.3 Migration File Status
 
-| Check | Status | Notes |
-|-------|--------|-------|
-| Migration directory exists | ✅ `packages/database/migrations/` | Checkable |
-| Phase 3 migration files | ⚠️ UNKNOWN | Run `ls migrations/` on host to verify |
-| `db:checksum` passes | ⚠️ NEEDS VERIFICATION | Requires running on host/CI |
-| `db:drift` passes | ⚠️ NEEDS VERIFICATION | Requires running on host/CI |
-| `db:migrate` succeeds | ⚠️ NEEDS VERIFICATION | Requires PostgreSQL on host/CI |
+| Check                      | Status                             | Notes                                  |
+| -------------------------- | ---------------------------------- | -------------------------------------- |
+| Migration directory exists | ✅ `packages/database/migrations/` | Checkable                              |
+| Phase 3 migration files    | ⚠️ UNKNOWN                         | Run `ls migrations/` on host to verify |
+| `db:checksum` passes       | ⚠️ NEEDS VERIFICATION              | Requires running on host/CI            |
+| `db:drift` passes          | ⚠️ NEEDS VERIFICATION              | Requires running on host/CI            |
+| `db:migrate` succeeds      | ⚠️ NEEDS VERIFICATION              | Requires PostgreSQL on host/CI         |
 
 ### 4.4 Migration Strategy
 
 Per `PHASE_3_MIGRATION_AND_ROLLBACK_STRATEGY.md`:
+
 - Phase 3 migrations should be **forward-only additive** (no destructive DDL)
 - Each migration must have a **reversible down migration**
 - **Checksums must be immutable** — once applied, a migration file cannot change
@@ -227,18 +228,18 @@ CREATE TABLE IF NOT EXISTS reward_daily_accruals (
 
 ### 5.1 Failure Summary
 
-| CI Pipeline | Status | Blocker | Fix Path |
-|-------------|--------|---------|----------|
-| Format check | ⚠️ UNVERIFIED | ENOMEM sandbox | Run on host/CI |
-| Lint | ⚠️ UNVERIFIED | ENOMEM sandbox | Run on host/CI |
-| TypeCheck | ⚠️ UNVERIFIED | ENOMEM sandbox | Run on host/CI |
+| CI Pipeline        | Status            | Blocker        | Fix Path       |
+| ------------------ | ----------------- | -------------- | -------------- |
+| Format check       | ⚠️ UNVERIFIED     | ENOMEM sandbox | Run on host/CI |
+| Lint               | ⚠️ UNVERIFIED     | ENOMEM sandbox | Run on host/CI |
+| TypeCheck          | ⚠️ UNVERIFIED     | ENOMEM sandbox | Run on host/CI |
 | Build all packages | ❌ NOT EXECUTABLE | ENOMEM sandbox | Run on host/CI |
-| Unit tests | ❌ NOT EXECUTABLE | ENOMEM sandbox | Run on host/CI |
-| Wallet tests | ❌ NOT EXECUTABLE | ENOMEM sandbox | Run on host/CI |
-| DB checksum | ❌ NOT EXECUTABLE | No PostgreSQL | Run on host/CI |
-| DB migrate | ❌ NOT EXECUTABLE | No PostgreSQL | Run on host/CI |
-| DB drift | ❌ NOT EXECUTABLE | No PostgreSQL | Run on host/CI |
-| DB seed | ❌ NOT EXECUTABLE | No PostgreSQL | Run on host/CI |
+| Unit tests         | ❌ NOT EXECUTABLE | ENOMEM sandbox | Run on host/CI |
+| Wallet tests       | ❌ NOT EXECUTABLE | ENOMEM sandbox | Run on host/CI |
+| DB checksum        | ❌ NOT EXECUTABLE | No PostgreSQL  | Run on host/CI |
+| DB migrate         | ❌ NOT EXECUTABLE | No PostgreSQL  | Run on host/CI |
+| DB drift           | ❌ NOT EXECUTABLE | No PostgreSQL  | Run on host/CI |
+| DB seed            | ❌ NOT EXECUTABLE | No PostgreSQL  | Run on host/CI |
 
 ### 5.2 Issues Requiring Human Attention
 
@@ -254,14 +255,14 @@ CREATE TABLE IF NOT EXISTS reward_daily_accruals (
 
 ### 5.3 Follow-up Actions
 
-| # | Action | Owner | Priority |
-|---|--------|-------|----------|
-| 1 | Run `pnpm build` on Windows host | Codex CLI (host) | HIGH |
-| 2 | Run `pnpm test -- apps/api/src/wallet --reporter verbose` on host | Codex CLI (host) | HIGH |
-| 3 | Verify `expected-schema.ts` changes work with `pnpm db:drift` on host | Codex CLI (host) | MEDIUM |
-| 4 | Create/verify Phase 3 migration files | Codex CLI (host) | MEDIUM |
-| 5 | Fix dynamic import in `wallet.service.ts` (line ~340) | Codex CLI | LOW |
-| 6 | Run `pnpm db:checksum` to verify migration file integrity | Codex CLI (host) | MEDIUM |
+| #   | Action                                                                | Owner            | Priority |
+| --- | --------------------------------------------------------------------- | ---------------- | -------- |
+| 1   | Run `pnpm build` on Windows host                                      | Codex CLI (host) | HIGH     |
+| 2   | Run `pnpm test -- apps/api/src/wallet --reporter verbose` on host     | Codex CLI (host) | HIGH     |
+| 3   | Verify `expected-schema.ts` changes work with `pnpm db:drift` on host | Codex CLI (host) | MEDIUM   |
+| 4   | Create/verify Phase 3 migration files                                 | Codex CLI (host) | MEDIUM   |
+| 5   | Fix dynamic import in `wallet.service.ts` (line ~340)                 | Codex CLI        | LOW      |
+| 6   | Run `pnpm db:checksum` to verify migration file integrity             | Codex CLI (host) | MEDIUM   |
 
 ---
 
@@ -317,4 +318,4 @@ CREATE TABLE IF NOT EXISTS reward_daily_accruals (
 
 ---
 
-*Document created: 2026-07-22 18:00 MYT | Status: AWAITING HOST CI VERIFICATION*
+_Document created: 2026-07-22 18:00 MYT | Status: AWAITING HOST CI VERIFICATION_

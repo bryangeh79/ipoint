@@ -19,3 +19,7 @@ memory/
 .codex-*.md
 DECISIONS.md
 GEMINI.md
+
+# Tooling caches installed by pnpm or other package managers
+.tools/
+.pnpm-store/
