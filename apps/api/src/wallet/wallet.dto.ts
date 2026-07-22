@@ -1,27 +1,5 @@
 import { z } from 'zod';
 
-export const marketCodeSchema = z
-  .string()
-  .trim()
-  .min(2)
-  .max(16)
-  .regex(/^[A-Z0-9_-]+$/);
-
-export const timezoneSchema = z
-  .string()
-  .trim()
-  .refine(
-    (value) => {
-      try {
-        Intl.DateTimeFormat(undefined, { timeZone: value });
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    { message: 'Must be a valid IANA timezone' },
-  );
-
 export const walletEntryTypeSchema = z.enum([
   'PENDING',
   'AVAILABLE',
@@ -37,7 +15,10 @@ export const createLedgerEntrySchema = z
     entryType: walletEntryTypeSchema,
     amount: z
       .string()
-      .regex(/^\d+(\.\d{1,10})?$/, 'Must be a positive numeric string with up to 10 decimal places.'),
+      .regex(
+        /^\d+(\.\d{1,10})?$/,
+        'Must be a positive numeric string with up to 10 decimal places.',
+      ),
     idempotencyKey: z.string().min(1).max(255),
     referenceType: z.string().min(1).max(100).optional(),
     referenceId: z.string().min(1).max(255).optional(),
@@ -50,12 +31,11 @@ export const createLedgerEntrySchema = z
 
 export type CreateLedgerEntryDto = z.infer<typeof createLedgerEntrySchema>;
 
-export const paginationSchema = z
+export const paginationQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(100).default(20),
     offset: z.coerce.number().int().min(0).default(0),
-    cursor: z.string().uuid().optional(),
   })
   .strict();
 
-export type PaginationDto = z.infer<typeof paginationSchema>;
+export type PaginationQueryDto = z.infer<typeof paginationQuerySchema>;

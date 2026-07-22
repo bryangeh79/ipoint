@@ -657,4 +657,58 @@ export const expectedSchema = {
     'reason',
     'decided_at',
   ],
+
+  // ─── Phase 3: Reward Rule Versions ──────────────────────────────────
+  reward_rule_versions: [
+    'id',
+    'name',
+    'description',
+    'effective_from',
+    'effective_to',
+    'reward_rate',
+    'cap_type',
+    'cap_value',
+    'minimum_reward',
+    'market_id',
+    'created_by',
+    'archived_at',
+    'created_at',
+  ],
+
+  // ─── Phase 3: Reward Plans ──────────────────────────────────────────
+  reward_plans: [
+    'id',
+    'source_type',
+    'source_id',
+    'member_id',
+    'market_id',
+    'merchant_id',
+    'status',
+    'total_earned',
+    'cap_amount',
+    'snapshot',
+    'rule_version_id',
+    'activated_at',
+    'completed_at',
+    'reversed_at',
+    'created_at',
+    'updated_at',
+  ],
+
+  // ─── Phase 3: Reward Sources ────────────────────────────────────────
+  reward_sources: [
+    'id',
+    'source_type',
+    'source_id',
+    'member_id',
+    'market_id',
+    'merchant_id',
+    'transaction_amount',
+    'currency',
+    'merchant_package_snapshot',
+    'service_fee_snapshot',
+    'reward_rule_version_id',
+    'consumed',
+    'created_at',
+  ],
 } as const;

@@ -138,6 +138,19 @@ export const packageChangeRequestStatus = pgEnum(
 export const authAccountAccessType = pgEnum('auth_account_access_type', [
   'PRIMARY_OWNER',
 ]);
+export const rewardPlanStatus = pgEnum('reward_plan_status', [
+  'SCHEDULED',
+  'ACTIVE',
+  'CAPPED',
+  'SUSPENDED',
+  'REVERSED',
+  'COMPLETED',
+]);
+export const rewardCapType = pgEnum('reward_cap_type', [
+  'NONE',
+  'FLAT',
+  'RATIO',
+]);
 export const memberStatus = pgEnum('member_status', [
   'PENDING_EMAIL_VERIFICATION',
   'ACTIVE',
@@ -191,6 +204,13 @@ export const memberAccountCountryChangeRequestStatus = pgEnum(
   'member_account_country_change_request_status',
   ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'],
 );
+export const memberWalletEntryType = pgEnum('member_wallet_entry_type', [
+  'PENDING',
+  'AVAILABLE',
+  'REVERSED',
+  'COMPENSATION',
+  'ADJUSTMENT',
+]);
 
 export const accounts = pgTable(
   'accounts',
@@ -1952,6 +1972,259 @@ export const mcpAdjustmentDecisions = pgTable(
   ],
 );
 
+
+export const memberWalletAccounts = pgTable(
+  'member_wallet_accounts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    pendingBalance: numeric('pending_balance', {
+      precision: 38,
+      scale: 10,
+    })
+      .notNull()
+      .default('0'),
+    availableBalance: numeric('available_balance', {
+      precision: 38,
+      scale: 10,
+    })
+      .notNull()
+      .default('0'),
+    reversedBalance: numeric('reversed_balance', {
+      precision: 38,
+      scale: 10,
+    })
+      .notNull()
+      .default('0'),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+    archivedAt: utcTimestamp('archived_at'),
+  },
+  (table) => [
+    unique('member_wallet_accounts_member_market_unique').on(
+      table.memberId,
+      table.marketId,
+    ),
+    check(
+      'member_wallet_accounts_pending_balance_check',
+      sql`${table.pendingBalance} >= 0`,
+    ),
+    check(
+      'member_wallet_accounts_available_balance_check',
+      sql`${table.availableBalance} >= 0`,
+    ),
+    check(
+      'member_wallet_accounts_reversed_balance_check',
+      sql`${table.reversedBalance} >= 0`,
+    ),
+    check('member_wallet_accounts_version_check', sql`${table.version} > 0`),
+  ],
+);
+
+export const memberWalletEntries = pgTable(
+  'member_wallet_entries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    walletAccountId: uuid('wallet_account_id')
+      .notNull()
+      .references(() => memberWalletAccounts.id, { onDelete: 'restrict' }),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    entrySequence: bigint('entry_sequence', { mode: 'bigint' }).notNull(),
+    entryType: memberWalletEntryType('entry_type').notNull(),
+    amount: numeric('amount', { precision: 38, scale: 10 }).notNull(),
+    balanceBefore: numeric('balance_before', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    balanceAfter: numeric('balance_after', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    idempotencyKey: text('idempotency_key').notNull(),
+    referenceType: text('reference_type'),
+    referenceId: text('reference_id'),
+    description: text('description'),
+    reason: text('reason'),
+    actorId: text('actor_id'),
+    marketTimezone: text('market_timezone'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('member_wallet_entries_wallet_sequence_unique').on(
+      table.walletAccountId,
+      table.entrySequence,
+    ),
+    unique('member_wallet_entries_idempotency_key_unique').on(
+      table.idempotencyKey,
+    ),
+    index('member_wallet_entries_member_market_idx').on(
+      table.memberId,
+      table.marketId,
+    ),
+    index('member_wallet_entries_reference_idx').on(
+      table.referenceType,
+      table.referenceId,
+    ),
+    check('member_wallet_entries_amount_check', sql`${table.amount} > 0`),
+  ],
+);
+
+export const rewardRuleVersions = pgTable(
+  'reward_rule_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    description: text('description'),
+    effectiveFrom: utcTimestamp('effective_from').notNull(),
+    effectiveTo: utcTimestamp('effective_to'),
+    rewardRate: numeric('reward_rate', { precision: 38, scale: 10 }).notNull(),
+    capType: rewardCapType('cap_type').notNull().default('NONE'),
+    capValue: numeric('cap_value', { precision: 38, scale: 10 })
+      .notNull()
+      .default('0'),
+    minimumReward: numeric('minimum_reward', { precision: 38, scale: 10 })
+      .notNull()
+      .default('0'),
+    marketId: uuid('market_id').references(() => markets.id, {
+      onDelete: 'restrict',
+    }),
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    archivedAt: utcTimestamp('archived_at'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('reward_rule_versions_market_effective_idx').on(
+      table.marketId,
+      table.effectiveFrom,
+    ),
+    check(
+      'reward_rule_versions_rate_check',
+      sql`${table.rewardRate} >= 0`,
+    ),
+    check(
+      'reward_rule_versions_cap_value_check',
+      sql`(${table.capType} = 'NONE' and ${table.capValue} = 0) or (${table.capType} != 'NONE' and ${table.capValue} > 0)`,
+    ),
+    check(
+      'reward_rule_versions_minimum_reward_check',
+      sql`${table.minimumReward} >= 0`,
+    ),
+    check(
+      'reward_rule_versions_period_check',
+      sql`${table.effectiveTo} is null or ${table.effectiveTo} > ${table.effectiveFrom}`,
+    ),
+  ],
+);
+
+export const rewardPlans = pgTable(
+  'reward_plans',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sourceType: text('source_type').notNull(),
+    sourceId: uuid('source_id').notNull(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    merchantId: uuid('merchant_id')
+      .notNull()
+      .references(() => merchantBranches.id, { onDelete: 'restrict' }),
+    status: rewardPlanStatus('status').notNull().default('SCHEDULED'),
+    totalEarned: numeric('total_earned', { precision: 38, scale: 10 })
+      .notNull()
+      .default('0'),
+    capAmount: numeric('cap_amount', { precision: 38, scale: 10 }),
+    snapshot: jsonb('snapshot'),
+    ruleVersionId: uuid('rule_version_id').references(
+      () => rewardRuleVersions.id,
+      { onDelete: 'restrict' },
+    ),
+    activatedAt: utcTimestamp('activated_at'),
+    completedAt: utcTimestamp('completed_at'),
+    reversedAt: utcTimestamp('reversed_at'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('reward_plans_source_unique').on(
+      table.sourceType,
+      table.sourceId,
+      table.memberId,
+      table.marketId,
+    ),
+    index('reward_plans_member_market_status_idx').on(
+      table.memberId,
+      table.marketId,
+      table.status,
+    ),
+    index('reward_plans_status_idx').on(table.status),
+    check(
+      'reward_plans_total_earned_check',
+      sql`${table.totalEarned} >= 0`,
+    ),
+  ],
+);
+
+export const rewardSources = pgTable(
+  'reward_sources',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sourceType: text('source_type').notNull(),
+    sourceId: uuid('source_id').notNull(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    merchantId: uuid('merchant_id')
+      .notNull()
+      .references(() => merchantBranches.id, { onDelete: 'restrict' }),
+    transactionAmount: numeric('transaction_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    currency: text('currency').notNull(),
+    merchantPackageSnapshot: jsonb('merchant_package_snapshot'),
+    serviceFeeSnapshot: jsonb('service_fee_snapshot'),
+    rewardRuleVersionId: uuid('reward_rule_version_id').references(
+      () => rewardRuleVersions.id,
+      { onDelete: 'restrict' },
+    ),
+    consumed: boolean('consumed').notNull().default(false),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('reward_sources_type_id_unique').on(table.sourceType, table.sourceId),
+    unique('reward_sources_source_unique').on(
+      table.sourceType,
+      table.sourceId,
+      table.memberId,
+      table.marketId,
+    ),
+    index('reward_sources_member_idx').on(table.memberId),
+    check(
+      'reward_sources_transaction_amount_check',
+      sql`${table.transactionAmount} > 0`,
+    ),
+  ],
+);
+
 export const schema = {
   accounts,
   credentials,
@@ -2010,4 +2283,9 @@ export const schema = {
   mcpRefundRequests,
   mcpAdjustmentRequests,
   mcpAdjustmentDecisions,
+  memberWalletAccounts,
+  memberWalletEntries,
+  rewardRuleVersions,
+  rewardPlans,
+  rewardSources,
 };
