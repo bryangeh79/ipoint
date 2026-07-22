@@ -503,7 +503,12 @@ describe('Ledger Invariant: No Entries with Negative Amount (raw)', () => {
     for (const entryType of entryTypes) {
       const amount = toDecimal('10.0000000000');
       const balBefore = balance;
-      balance = addDecimal(balance, amount);
+      // Reversal entries reduce the balance; all other types increase it
+      if (entryType === 'REVERSAL') {
+        balance = subtractDecimal(balance, amount);
+      } else {
+        balance = addDecimal(balance, amount);
+      }
       wallet.entries.push({
         entryId: randomUUID(),
         accountId: wallet.walletId,
@@ -528,8 +533,8 @@ describe('Ledger Invariant: No Entries with Negative Amount (raw)', () => {
       expect(isPositive(entry.amount)).toBe(true);
     }
 
-    // 4 entries × 10 = 40
-    expect(wallet.balance).toBe('40.0000000000');
+    // Accrual: 10, Reversal: subtract 10, Correction: 10, Adjustment: 10 = 20
+    expect(wallet.balance).toBe('20.0000000000');
 
     const invariant = verifyBalanceInvariant(wallet);
     expect(invariant.valid).toBe(true);
