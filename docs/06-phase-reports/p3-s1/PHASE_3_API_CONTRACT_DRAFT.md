@@ -9,6 +9,7 @@
 ## 1. API Conventions
 
 Phase 3 follows existing API conventions:
+
 - Base path: `/api/v1`
 - OpenAPI documentation via existing validation pipeline
 - Zod validation for request/response schemas
@@ -24,6 +25,7 @@ Phase 3 follows existing API conventions:
 List the authenticated member's wallets across all accessible markets.
 
 **Response:**
+
 ```json
 {
   "wallets": [
@@ -50,6 +52,7 @@ List the authenticated member's wallets across all accessible markets.
 Get wallet detail with balance and summary.
 
 **Response:**
+
 ```json
 {
   "id": "uuid",
@@ -80,6 +83,7 @@ Get wallet detail with balance and summary.
 Paginated list of wallet ledger entries.
 
 **Query params:**
+
 - `page` (default 1)
 - `limit` (default 20, max 100)
 - `entry_type` (optional filter)
@@ -87,6 +91,7 @@ Paginated list of wallet ledger entries.
 - `to_date` (optional)
 
 **Response:**
+
 ```json
 {
   "entries": [
@@ -117,6 +122,7 @@ Paginated list of wallet ledger entries.
 List all wallets (with market and member filters).
 
 **Query params:**
+
 - `member_id` (optional filter)
 - `market_id` (optional filter)
 - `status` (optional filter)
@@ -137,6 +143,7 @@ Get wallet detail (same as member endpoint but admin-authorized).
 Create a compensating entry.
 
 **Request:**
+
 ```json
 {
   "amount": "-500.00",
@@ -147,6 +154,7 @@ Create a compensating entry.
 ```
 
 **Response:**
+
 ```json
 {
   "reversal_entry_id": "uuid",
@@ -163,6 +171,7 @@ Create a compensating entry.
 List reward plans (with filters).
 
 **Query params:**
+
 - `member_id`, `market_id`, `merchant_id`
 - `status` (SCHEDULED, ACTIVE, CAPPED, SUSPENDED, REVERSED, COMPLETED)
 - `page`, `limit`
@@ -202,6 +211,7 @@ Member's own reward plans.
 Create a new rule version.
 
 **Request:**
+
 ```json
 {
   "name": "MY 2026 Q3 Rate",
@@ -230,6 +240,7 @@ List rule versions (with market and effective date filters).
 Get settlement status per market.
 
 **Response:**
+
 ```json
 {
   "markets": [
@@ -249,18 +260,18 @@ Get settlement status per market.
 
 ## 7. Error Codes
 
-| Code | HTTP Status | Description |
-|---|---|---|
-| WALLET_NOT_FOUND | 404 | Wallet does not exist |
-| WALLET_ACCESS_DENIED | 403 | Member does not own this wallet |
-| WALLET_DUPLICATE_ENTRY | 409 | Idempotency key conflict |
-| WALLET_INSUFFICIENT_BALANCE | 422 | Not enough available balance |
-| REWARD_PLAN_NOT_FOUND | 404 | Reward plan does not exist |
-| REWARD_PLAN_INVALID_STATE | 422 | Cannot perform action in current state |
-| REWARD_PLAN_DUPLICATE | 409 | Reward plan already exists for source |
-| REWARD_RULE_VERSION_NOT_FOUND | 404 | Rule version does not exist |
-| REWARD_RULE_NO_EFFECTIVE_VERSION | 422 | No effective rule for this market+date |
-| MARKET_ACCESS_DENIED | 403 | Admin not authorized for this market |
+| Code                             | HTTP Status | Description                            |
+| -------------------------------- | ----------- | -------------------------------------- |
+| WALLET_NOT_FOUND                 | 404         | Wallet does not exist                  |
+| WALLET_ACCESS_DENIED             | 403         | Member does not own this wallet        |
+| WALLET_DUPLICATE_ENTRY           | 409         | Idempotency key conflict               |
+| WALLET_INSUFFICIENT_BALANCE      | 422         | Not enough available balance           |
+| REWARD_PLAN_NOT_FOUND            | 404         | Reward plan does not exist             |
+| REWARD_PLAN_INVALID_STATE        | 422         | Cannot perform action in current state |
+| REWARD_PLAN_DUPLICATE            | 409         | Reward plan already exists for source  |
+| REWARD_RULE_VERSION_NOT_FOUND    | 404         | Rule version does not exist            |
+| REWARD_RULE_NO_EFFECTIVE_VERSION | 422         | No effective rule for this market+date |
+| MARKET_ACCESS_DENIED             | 403         | Admin not authorized for this market   |
 
 ---
 
@@ -275,6 +286,7 @@ The `pnpm openapi:validate` command should pass after documenting Phase 3 endpoi
 ## 9. Rate Limiting
 
 **DECISION_REQUIRED:** Rate limit strategy for wallet endpoints:
+
 - Per-member: e.g., 100 requests/minute for wallet reads
 - Per-IP: for admin endpoints
 - No rate limit: internal worker-to-API calls

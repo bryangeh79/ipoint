@@ -65,9 +65,9 @@ For Phase 3, the reward source record may be created manually via admin tools (d
 
 ## 5. Phase 3 Constraints
 
-| Constraint | Detail |
-|---|---|
-| Source types in Phase 3 | Only minimal source contract defined. Production source events require Phase 4 Transaction Engine. |
-| No transaction ingestion | Phase 3 does not build the pipeline that produces purchase events. |
-| P3-S1 action | Define the source contract structure and its relationship to Reward Plans. |
-| Source validation | DECISION_REQUIRED — What are the validation rules for a qualifying source event? |
+| Constraint               | Detail                                                                                             |
+| ------------------------ | -------------------------------------------------------------------------------------------------- |
+| Source types in Phase 3  | Only minimal source contract defined. Production source events require Phase 4 Transaction Engine. |
+| No transaction ingestion | Phase 3 does not build the pipeline that produces purchase events.                                 |
+| P3-S1 action             | Define the source contract structure and its relationship to Reward Plans.                         |
+| Source validation        | DECISION_REQUIRED — What are the validation rules for a qualifying source event?                   |

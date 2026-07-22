@@ -13,6 +13,7 @@
 Establish the **Multi-Market Wallet** and **Reward Ledger Foundation** — the core financial infrastructure for iPoint rewards across markets.
 
 After Phase 3, the system will:
+
 - Maintain per-member, per-market wallet accounts
 - Reward qualifying purchase transactions with iPoint daily accrual
 - Execute settlement according to each consumption market's local timezone
@@ -46,39 +47,39 @@ Out of Scope (Phase 4+)
 
 ## 3. Sub-Phase Planning
 
-| Sub-Phase | Scope | Status |
-|---|---|---|
-| **P3-S1** | Architecture audit, contract freeze, design documents | **IN_PROGRESS** |
-| **P3-S2** | Wallet schema, ledger contract, API endpoints (NOT_AUTHORIZED) | NOT_AUTHORIZED |
-| **P3-S3** | Reward Plan, Rule Version, Source contracts (NOT_AUTHORIZED) | NOT_AUTHORIZED |
-| **P3-S4** | Settlement worker, daily accrual, idempotent retry (NOT_AUTHORIZED) | NOT_AUTHORIZED |
-| **P3-S5** | Integration, E2E, security audit, acceptance (NOT_AUTHORIZED) | NOT_AUTHORIZED |
+| Sub-Phase | Scope                                                               | Status          |
+| --------- | ------------------------------------------------------------------- | --------------- |
+| **P3-S1** | Architecture audit, contract freeze, design documents               | **IN_PROGRESS** |
+| **P3-S2** | Wallet schema, ledger contract, API endpoints (NOT_AUTHORIZED)      | NOT_AUTHORIZED  |
+| **P3-S3** | Reward Plan, Rule Version, Source contracts (NOT_AUTHORIZED)        | NOT_AUTHORIZED  |
+| **P3-S4** | Settlement worker, daily accrual, idempotent retry (NOT_AUTHORIZED) | NOT_AUTHORIZED  |
+| **P3-S5** | Integration, E2E, security audit, acceptance (NOT_AUTHORIZED)       | NOT_AUTHORIZED  |
 
 ---
 
 ## 4. P3-S1 Deliverables Checklist
 
-| # | Deliverable | File | Status |
-|---|---|---|---|
-| 1 | Existing Architecture Audit | P3-S1_EXISTING_SYSTEM_AUDIT.md | ✅ |
-| 2 | Phase 3 Master Plan | PHASE_3_MASTER_PLAN.md | ✅ |
-| 3 | Phase 3 Architecture | PHASE_3_ARCHITECTURE.md | ✅ |
-| 4 | Phase 3 ERD | PHASE_3_ERD.md | ✅ |
-| 5 | Wallet State Model | PHASE_3_WALLET_LEDGER_CONTRACT.md | ✅ |
-| 6 | Reward Plan State Machine | PHASE_3_REWARD_PLAN_CONTRACT.md | ✅ |
-| 7 | Reward Rule Version Contract | PHASE_3_REWARD_RULE_VERSION_CONTRACT.md | ✅ |
-| 8 | Reward Source Contract | PHASE_3_REWARD_SOURCE_CONTRACT.md | ✅ |
-| 9 | Daily Settlement Contract | PHASE_3_SETTLEMENT_AND_TIMEZONE_SPEC.md | ✅ |
-| 10 | Timezone and Market-Day Contract | PHASE_3_SETTLEMENT_AND_TIMEZONE_SPEC.md | ✅ |
-| 11 | Idempotency Specification | PHASE_3_IDEMPOTENCY_SPEC.md | ✅ |
-| 12 | Decimal, Currency and Precision Specification | PHASE_3_DECIMAL_AND_CURRENCY_SPEC.md | ✅ |
-| 13 | Reversal and Correction Contract | PHASE_3_REVERSAL_AND_CORRECTION_SPEC.md | ✅ |
-| 14 | Security and Privacy Boundary | PHASE_3_SECURITY_AND_PRIVACY.md | ✅ |
-| 15 | RBAC and Market Access Matrix | PHASE_3_RBAC_MARKET_ACCESS_MATRIX.md | ✅ |
-| 16 | API Contract Draft | PHASE_3_API_CONTRACT_DRAFT.md | ✅ |
-| 17 | Migration Strategy | PHASE_3_MIGRATION_AND_ROLLBACK_STRATEGY.md | ✅ |
-| 18 | Test and E2E Matrix | PHASE_3_TEST_AND_E2E_MATRIX.md | ✅ |
-| 19 | Open Questions and Decision Register | PHASE_3_OPEN_QUESTIONS.md | ✅ |
+| #   | Deliverable                                   | File                                       | Status |
+| --- | --------------------------------------------- | ------------------------------------------ | ------ |
+| 1   | Existing Architecture Audit                   | P3-S1_EXISTING_SYSTEM_AUDIT.md             | ✅     |
+| 2   | Phase 3 Master Plan                           | PHASE_3_MASTER_PLAN.md                     | ✅     |
+| 3   | Phase 3 Architecture                          | PHASE_3_ARCHITECTURE.md                    | ✅     |
+| 4   | Phase 3 ERD                                   | PHASE_3_ERD.md                             | ✅     |
+| 5   | Wallet State Model                            | PHASE_3_WALLET_LEDGER_CONTRACT.md          | ✅     |
+| 6   | Reward Plan State Machine                     | PHASE_3_REWARD_PLAN_CONTRACT.md            | ✅     |
+| 7   | Reward Rule Version Contract                  | PHASE_3_REWARD_RULE_VERSION_CONTRACT.md    | ✅     |
+| 8   | Reward Source Contract                        | PHASE_3_REWARD_SOURCE_CONTRACT.md          | ✅     |
+| 9   | Daily Settlement Contract                     | PHASE_3_SETTLEMENT_AND_TIMEZONE_SPEC.md    | ✅     |
+| 10  | Timezone and Market-Day Contract              | PHASE_3_SETTLEMENT_AND_TIMEZONE_SPEC.md    | ✅     |
+| 11  | Idempotency Specification                     | PHASE_3_IDEMPOTENCY_SPEC.md                | ✅     |
+| 12  | Decimal, Currency and Precision Specification | PHASE_3_DECIMAL_AND_CURRENCY_SPEC.md       | ✅     |
+| 13  | Reversal and Correction Contract              | PHASE_3_REVERSAL_AND_CORRECTION_SPEC.md    | ✅     |
+| 14  | Security and Privacy Boundary                 | PHASE_3_SECURITY_AND_PRIVACY.md            | ✅     |
+| 15  | RBAC and Market Access Matrix                 | PHASE_3_RBAC_MARKET_ACCESS_MATRIX.md       | ✅     |
+| 16  | API Contract Draft                            | PHASE_3_API_CONTRACT_DRAFT.md              | ✅     |
+| 17  | Migration Strategy                            | PHASE_3_MIGRATION_AND_ROLLBACK_STRATEGY.md | ✅     |
+| 18  | Test and E2E Matrix                           | PHASE_3_TEST_AND_E2E_MATRIX.md             | ✅     |
+| 19  | Open Questions and Decision Register          | PHASE_3_OPEN_QUESTIONS.md                  | ✅     |
 
 ---
 
@@ -117,10 +118,10 @@ P3-S1 is accepted when Command Center verifies remotely:
 
 ## 7. Risks
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Missing worker infrastructure | Cannot schedule daily settlement | Design worker contract in P3-S1; implement in P3-S4 |
-| Missing Redis module | No distributed lock capability | Design lock contract; decide strategy |
-| Decimal precision choice | Inconsistent reward calculation | Define in P3-S1 contract; mark DECISION_REQUIRED |
-| Cross-market timezone errors | Settlement on wrong day | Explicit timezone contract with edge-case coverage |
-| Concurrent execution | Duplicate accrual | Idempotency by reward_plan_id + market_local_date + ledger_entry_type |
+| Risk                          | Impact                           | Mitigation                                                            |
+| ----------------------------- | -------------------------------- | --------------------------------------------------------------------- |
+| Missing worker infrastructure | Cannot schedule daily settlement | Design worker contract in P3-S1; implement in P3-S4                   |
+| Missing Redis module          | No distributed lock capability   | Design lock contract; decide strategy                                 |
+| Decimal precision choice      | Inconsistent reward calculation  | Define in P3-S1 contract; mark DECISION_REQUIRED                      |
+| Cross-market timezone errors  | Settlement on wrong day          | Explicit timezone contract with edge-case coverage                    |
+| Concurrent execution          | Duplicate accrual                | Idempotency by reward_plan_id + market_local_date + ledger_entry_type |

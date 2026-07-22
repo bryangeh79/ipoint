@@ -72,13 +72,13 @@ Previously posted ledger entries must NOT be recalculated or rewritten.
 
 ## 5. Rule Change Scenarios
 
-| Scenario | Behavior | Correct |
-|---|---|---|
-| New rule created today, effective from yesterday | Future accruals use new rule if market_local_date >= effective_from | ✅ |
-| Rule rate increased mid-month | Daily accruals after effective_from use new rate; prior days in same month unchanged | ✅ |
-| Rule rate decreased | Same as increase — only future unaccrued dates use new rate | ✅ |
-| Rule expired (effective_until passed) | Next accrual fails safe — must be resolved by admin | ✅ (graceful handling required) |
-| Rule deleted (soft) | Accruals after deletion date stop; historical entries preserved | ✅ |
+| Scenario                                         | Behavior                                                                             | Correct                         |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------- |
+| New rule created today, effective from yesterday | Future accruals use new rule if market_local_date >= effective_from                  | ✅                              |
+| Rule rate increased mid-month                    | Daily accruals after effective_from use new rate; prior days in same month unchanged | ✅                              |
+| Rule rate decreased                              | Same as increase — only future unaccrued dates use new rate                          | ✅                              |
+| Rule expired (effective_until passed)            | Next accrual fails safe — must be resolved by admin                                  | ✅ (graceful handling required) |
+| Rule deleted (soft)                              | Accruals after deletion date stop; historical entries preserved                      | ✅                              |
 
 ---
 

@@ -93,6 +93,7 @@ reward-rule ────┘
 ```
 
 **Worker Execution Model (CONFIGURABLE):**
+
 - Periodic polling (every N minutes)
 - Triggers: market midnight detection
 - Retry: independent per plan/market
@@ -119,27 +120,27 @@ Request ──> Auth Guard ──> Ownership Check ──> Market Check
 
 ## 5. Security Boundaries
 
-| Layer | Protection |
-|---|---|
-| API Transport | HTTPS only (existing) |
-| Authentication | JWT + Auth Guard (reuse) |
-| Authorization | Member ownership + market isolation |
-| Network | NetworkOnly for wallet APIs |
-| Client | Memory-only token, no cache |
-| Storage | Immutable ledger entries |
-| Calculation | Server-side decimal math only |
-| Audit | Request ID + audit log for every mutation |
+| Layer          | Protection                                |
+| -------------- | ----------------------------------------- |
+| API Transport  | HTTPS only (existing)                     |
+| Authentication | JWT + Auth Guard (reuse)                  |
+| Authorization  | Member ownership + market isolation       |
+| Network        | NetworkOnly for wallet APIs               |
+| Client         | Memory-only token, no cache               |
+| Storage        | Immutable ledger entries                  |
+| Calculation    | Server-side decimal math only             |
+| Audit          | Request ID + audit log for every mutation |
 
 ---
 
 ## 6. Key Architectural Decisions (DECISION_REQUIRED)
 
-| Decision | Options | Recommendation |
-|---|---|---|
-| Worker framework | BullMQ / pg-boss / database polling | DECISION_REQUIRED |
-| Distributed lock | Redis / PostgreSQL advisory / database row lock | DECISION_REQUIRED |
-| Queue infrastructure | BullMQ / pg-boss / none (database polling) | DECISION_REQUIRED |
-| Redis integration module | Build P3-S2 / defer | DECISION_REQUIRED |
-| iPoint amount decimal precision | (38,10) match MCP / (20,4) / custom | DECISION_REQUIRED |
-| Cap model | Flat / ratio / tiered / configurable | DECISION_REQUIRED |
-| Rounding mode | HALF_UP / HALF_DOWN / CEILING / FLOOR | DECISION_REQUIRED |
+| Decision                        | Options                                         | Recommendation    |
+| ------------------------------- | ----------------------------------------------- | ----------------- |
+| Worker framework                | BullMQ / pg-boss / database polling             | DECISION_REQUIRED |
+| Distributed lock                | Redis / PostgreSQL advisory / database row lock | DECISION_REQUIRED |
+| Queue infrastructure            | BullMQ / pg-boss / none (database polling)      | DECISION_REQUIRED |
+| Redis integration module        | Build P3-S2 / defer                             | DECISION_REQUIRED |
+| iPoint amount decimal precision | (38,10) match MCP / (20,4) / custom             | DECISION_REQUIRED |
+| Cap model                       | Flat / ratio / tiered / configurable            | DECISION_REQUIRED |
+| Rounding mode                   | HALF_UP / HALF_DOWN / CEILING / FLOOR           | DECISION_REQUIRED |

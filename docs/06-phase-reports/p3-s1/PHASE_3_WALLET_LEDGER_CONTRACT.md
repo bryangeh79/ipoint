@@ -78,13 +78,14 @@ CHECK (amount != 0)
 
 **LOCKED — MVP Scope:**
 
-| Dimension | Behavior | Implementation |
-|---|---|---|
-| **pending** | Amounts not yet available (future) | Separate running total or status flag; DECISION_REQUIRED |
-| **available** | Amounts that can be used/redeemed | `balance` field in wallet_account |
-| **reversed** | Amounts returned via compensating entry | Negative ledger entry with `reversal_of` FK |
+| Dimension     | Behavior                                | Implementation                                           |
+| ------------- | --------------------------------------- | -------------------------------------------------------- |
+| **pending**   | Amounts not yet available (future)      | Separate running total or status flag; DECISION_REQUIRED |
+| **available** | Amounts that can be used/redeemed       | `balance` field in wallet_account                        |
+| **reversed**  | Amounts returned via compensating entry | Negative ledger entry with `reversal_of` FK              |
 
 **NOT in scope (reserved only):**
+
 - `redeemed` — Redemption Center (Phase 6)
 - `expired` — Expiry engine (deferred)
 - `withdrawn` — Withdrawal (deferred)
@@ -94,13 +95,13 @@ CHECK (amount != 0)
 
 ## 6. Wallet API Behavior (P3-S2+ Design)
 
-| Operation | Description | Idempotent |
-|---|---|---|
-| GET /wallets | List member's wallets (own) | Yes (read) |
-| GET /wallets/:id | Get wallet + balance | Yes (read) |
-| GET /wallets/:id/entries | List ledger entries (paginated) | Yes (read) |
-| POST /wallets/:id/reversal | Create compensating entry | Yes (idempotency key) |
-| POST /admin/wallets/:id/adjustment | Admin adjustment (deferred to Phase 7+) | No |
+| Operation                          | Description                             | Idempotent            |
+| ---------------------------------- | --------------------------------------- | --------------------- |
+| GET /wallets                       | List member's wallets (own)             | Yes (read)            |
+| GET /wallets/:id                   | Get wallet + balance                    | Yes (read)            |
+| GET /wallets/:id/entries           | List ledger entries (paginated)         | Yes (read)            |
+| POST /wallets/:id/reversal         | Create compensating entry               | Yes (idempotency key) |
+| POST /admin/wallets/:id/adjustment | Admin adjustment (deferred to Phase 7+) | No                    |
 
 ---
 

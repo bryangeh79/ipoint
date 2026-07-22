@@ -84,14 +84,14 @@ UNIQUE (source_type, source_id, member_id, market_id)
 
 ### State Descriptions
 
-| State | Meaning | Entry Condition | Exit Conditions |
-|---|---|---|---|
-| **SCHEDULED** | Source event captured, plan created | After reward_source creation | Source validated → ACTIVE |
-| **ACTIVE** | Daily accrual is running | Source qualifies, rule version assigned | Cap hit → CAPPED; Admin suspend → SUSPENDED; Reversal → REVERSED; Accrual complete → COMPLETED |
-| **CAPPED** | Maximum reward amount reached | Plan's total_earned >= cap_amount | Admin override → ACTIVE (deferred) |
-| **SUSPENDED** | Daily accrual paused by admin | Admin action | Admin resume → ACTIVE; Reversal → REVERSED |
-| **REVERSED** | All accruals returned | Compensation entry created | Terminal state |
-| **COMPLETED** | Max accrual reached or plan expired | No more accrual possible | Terminal state |
+| State         | Meaning                             | Entry Condition                         | Exit Conditions                                                                                |
+| ------------- | ----------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **SCHEDULED** | Source event captured, plan created | After reward_source creation            | Source validated → ACTIVE                                                                      |
+| **ACTIVE**    | Daily accrual is running            | Source qualifies, rule version assigned | Cap hit → CAPPED; Admin suspend → SUSPENDED; Reversal → REVERSED; Accrual complete → COMPLETED |
+| **CAPPED**    | Maximum reward amount reached       | Plan's total_earned >= cap_amount       | Admin override → ACTIVE (deferred)                                                             |
+| **SUSPENDED** | Daily accrual paused by admin       | Admin action                            | Admin resume → ACTIVE; Reversal → REVERSED                                                     |
+| **REVERSED**  | All accruals returned               | Compensation entry created              | Terminal state                                                                                 |
+| **COMPLETED** | Max accrual reached or plan expired | No more accrual possible                | Terminal state                                                                                 |
 
 **DECISION_REQUIRED:** Whether CAPPED should auto-transition to COMPLETED, or remain a separate state for admin review.
 
@@ -114,13 +114,13 @@ Later merchant package changes must NOT rewrite historical data.
 
 ## 5. Reward Plan Lifecycle Events
 
-| Event | Effect | Preconditions |
-|---|---|---|
-| Plan created | reward_plans row inserted, status=SCHEDULED | Source unique constraint passes |
-| Plan activated | status=ACTIVE, activated_at set | Source validated, rule version assigned |
-| Daily accrual | wallet entry created, total_earned incremented | Plan is ACTIVE, new market day |
-| Cap reached | status=CAPPED | total_earned >= cap_amount |
-| Plan suspended | status=SUSPENDED | Admin action |
-| Plan resumed | status=ACTIVE | Admin action |
-| Plan reversed | status=REVERSED, all entries compensated | Compensating entry created |
-| Plan completed | status=COMPLETED | All accrual exhausted |
+| Event          | Effect                                         | Preconditions                           |
+| -------------- | ---------------------------------------------- | --------------------------------------- |
+| Plan created   | reward_plans row inserted, status=SCHEDULED    | Source unique constraint passes         |
+| Plan activated | status=ACTIVE, activated_at set                | Source validated, rule version assigned |
+| Daily accrual  | wallet entry created, total_earned incremented | Plan is ACTIVE, new market day          |
+| Cap reached    | status=CAPPED                                  | total_earned >= cap_amount              |
+| Plan suspended | status=SUSPENDED                               | Admin action                            |
+| Plan resumed   | status=ACTIVE                                  | Admin action                            |
+| Plan reversed  | status=REVERSED, all entries compensated       | Compensating entry created              |
+| Plan completed | status=COMPLETED                               | All accrual exhausted                   |

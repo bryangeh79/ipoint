@@ -18,17 +18,17 @@
 
 ## 2. Proposed Migration Sequence (P3-S2+)
 
-| Step | Migration | Type | Description |
-|---|---|---|---|
-| 0014 | Create `member_wallet_accounts` | ADD TABLE | New wallet table |
-| 0015 | Create `member_wallet_entries` | ADD TABLE | Ledger entries with FK to wallets |
-| 0016 | Create `wallet_indexes` | ADD INDEX | Query performance indexes |
-| 0017 | Create `reward_rule_versions` | ADD TABLE | Rule version table |
-| 0018 | Create `reward_sources` | ADD TABLE | Source event records |
-| 0019 | Create `reward_plans` | ADD TABLE | Reward plan lifecycle |
-| 0020 | Create `reward_plan_indexes` | ADD INDEX | Performance indexes |
-| 0021 | Create `reward_daily_accruals` | ADD TABLE | Daily settlement records |
-| 0022 | Create `accrual_indexes` | ADD INDEX | Accrual query indexes |
+| Step | Migration                       | Type      | Description                       |
+| ---- | ------------------------------- | --------- | --------------------------------- |
+| 0014 | Create `member_wallet_accounts` | ADD TABLE | New wallet table                  |
+| 0015 | Create `member_wallet_entries`  | ADD TABLE | Ledger entries with FK to wallets |
+| 0016 | Create `wallet_indexes`         | ADD INDEX | Query performance indexes         |
+| 0017 | Create `reward_rule_versions`   | ADD TABLE | Rule version table                |
+| 0018 | Create `reward_sources`         | ADD TABLE | Source event records              |
+| 0019 | Create `reward_plans`           | ADD TABLE | Reward plan lifecycle             |
+| 0020 | Create `reward_plan_indexes`    | ADD INDEX | Performance indexes               |
+| 0021 | Create `reward_daily_accruals`  | ADD TABLE | Daily settlement records          |
+| 0022 | Create `accrual_indexes`        | ADD INDEX | Accrual query indexes             |
 
 ---
 
@@ -36,33 +36,34 @@
 
 New tables (no backfill needed — all new data). However:
 
-| Migration | Nullable Consideration |
-|---|---|
-| member_wallet_accounts | All columns NOT NULL except optionals |
-| member_wallet_entries | `reward_plan_id` nullable (independent wallet admin operations) |
-| | `reversal_of` nullable (only reversal entries have this) |
-| reward_plans | `cap_amount` nullable (uncapped plans) |
-| | `completed_at` nullable (only completed plans) |
-| reward_rule_versions | `market_id` nullable (global rules) |
-| | `effective_until` nullable (no expiry) |
+| Migration              | Nullable Consideration                                          |
+| ---------------------- | --------------------------------------------------------------- |
+| member_wallet_accounts | All columns NOT NULL except optionals                           |
+| member_wallet_entries  | `reward_plan_id` nullable (independent wallet admin operations) |
+|                        | `reversal_of` nullable (only reversal entries have this)        |
+| reward_plans           | `cap_amount` nullable (uncapped plans)                          |
+|                        | `completed_at` nullable (only completed plans)                  |
+| reward_rule_versions   | `market_id` nullable (global rules)                             |
+|                        | `effective_until` nullable (no expiry)                          |
 
 ---
 
 ## 4. Unique Constraint Rollout
 
-| Table | Constraint | Type | Notes |
-|---|---|---|---|
-| member_wallet_accounts | (member_id, market_id) | UNIQUE | Simple unique index |
-| member_wallet_entries | (account_id, idempotency_key) | UNIQUE | Performance + idempotency |
-| reward_sources | (source_type, source_id, member_id, market_id) | UNIQUE | Dedup source events |
-| reward_plans | (source_type, source_id, member_id, market_id) | UNIQUE | One plan per event per member per market |
-| reward_daily_accruals | (reward_plan_id, market_local_date, ledger_entry_type) | UNIQUE | No duplicate settlement |
+| Table                  | Constraint                                             | Type   | Notes                                    |
+| ---------------------- | ------------------------------------------------------ | ------ | ---------------------------------------- |
+| member_wallet_accounts | (member_id, market_id)                                 | UNIQUE | Simple unique index                      |
+| member_wallet_entries  | (account_id, idempotency_key)                          | UNIQUE | Performance + idempotency                |
+| reward_sources         | (source_type, source_id, member_id, market_id)         | UNIQUE | Dedup source events                      |
+| reward_plans           | (source_type, source_id, member_id, market_id)         | UNIQUE | One plan per event per member per market |
+| reward_daily_accruals  | (reward_plan_id, market_local_date, ledger_entry_type) | UNIQUE | No duplicate settlement                  |
 
 ---
 
 ## 5. Index Creation Strategy
 
 Create indexes **after** table creation (separate migration step) to:
+
 - Keep table creation fast
 - Allow indexes to be created concurrently (PostgreSQL `CREATE INDEX CONCURRENTLY`)
 - Minimize production impact
@@ -88,6 +89,7 @@ Step 9: Enable settlement worker per-market (gradual rollout)
 ## 7. Worker-Disabled Deployment State
 
 New settlement worker must be deployable in a **disabled** state:
+
 - No automatic scheduling
 - Manual trigger only (for testing)
 - Feature flag: `SETTLEMENT_WORKER_ENABLED` (default false)
@@ -123,6 +125,7 @@ Strategy mirrors existing `migration-runner.ts` checksum/rollback pattern:
 ## 10. Backup and Restore Prerequisites
 
 Before any Phase 3 migration in production:
+
 - Full database backup
 - Verify backup integrity (restore to staging)
 - Document restore procedure
@@ -175,6 +178,7 @@ Compensating migration for 0017-0022:
 ### Reconciliation Before Rollback
 
 Before destructive rollback:
+
 1. Export all wallet/ledger data for record-keeping
 2. Verify no active accrual state that would be lost
 3. Create audit trail documenting the rollback reason and authorization
@@ -183,13 +187,13 @@ Before destructive rollback:
 
 ## 13. Summary
 
-| Aspect | Strategy |
-|---|---|
-| Migration style | Forward-only SQL via existing runner |
-| Table creation | ADD TABLE only (no schema changes to existing tables) |
-| Rollback (soft) | Feature flag disable |
-| Rollback (hard) | Compensating DROP TABLE migration |
-| Data preservation | Export before destructive operations |
-| Gradual rollout | Per-market enablement |
-| Reconciliation gate | Balance = SUM(entries) before enablement |
-| Backup | Full DB backup before any migration |
+| Aspect              | Strategy                                              |
+| ------------------- | ----------------------------------------------------- |
+| Migration style     | Forward-only SQL via existing runner                  |
+| Table creation      | ADD TABLE only (no schema changes to existing tables) |
+| Rollback (soft)     | Feature flag disable                                  |
+| Rollback (hard)     | Compensating DROP TABLE migration                     |
+| Data preservation   | Export before destructive operations                  |
+| Gradual rollout     | Per-market enablement                                 |
+| Reconciliation gate | Balance = SUM(entries) before enablement              |
+| Backup              | Full DB backup before any migration                   |

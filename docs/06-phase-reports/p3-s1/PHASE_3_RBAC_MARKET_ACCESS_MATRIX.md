@@ -7,40 +7,40 @@
 
 ## 1. Roles
 
-| Role | Description |
-|---|---|
-| **Member** | iPoint app end-user. Owns wallets. |
-| **Admin** | System operator. Manages rules, plans, corrections. |
-| **Super Admin** | Cross-market admin. Can access all markets. |
+| Role             | Description                                                 |
+| ---------------- | ----------------------------------------------------------- |
+| **Member**       | iPoint app end-user. Owns wallets.                          |
+| **Admin**        | System operator. Manages rules, plans, corrections.         |
+| **Super Admin**  | Cross-market admin. Can access all markets.                 |
 | **Market Admin** | Admin scoped to specific markets via `market_access` table. |
 
 ---
 
 ## 2. Permission Matrix
 
-| Operation | Member | Super Admin | Market Admin | Notes |
-|---|---|---|---|---|
-| **Wallet** | | | | |
-| View own wallets (list) | ✅ Own only | ✅ All | ✅ Own market | |
-| View own wallet detail | ✅ Own only | ✅ All | ✅ Own market | |
-| View own wallet entries | ✅ Own only | ✅ All | ✅ Own market | |
-| View another member's wallet | ❌ | ✅ | ✅ (own market) | |
-| **Rewards** | | | | |
-| View own reward plans | ✅ Own only | ✅ All | ✅ Own market | |
-| View own reward accruals | ✅ Own only | ✅ All | ✅ Own market | |
-| Create reward plan | ❌ | ✅ | ✅ (own market) | Admin-only |
-| Modify reward plan | ❌ | ✅ | ✅ (own market) | Status transitions |
-| Create rule version | ❌ | ✅ | ❌ | Super Admin only |
-| **Corrections** | | | | |
-| Create reversal entry | ❌ | ✅ | ✅ (own market) | Admin-only |
-| Create adjustment entry | ❌ | ✅ | ✅ (own market) | Admin-only |
-| **Admin Operations** | | | | |
-| View all wallets | ❌ | ✅ | ✅ (own market) | |
-| View reward plan statuses | ❌ | ✅ | ✅ (own market) | |
-| Daily settlement status | ❌ | ✅ | ✅ (own market) | Read-only |
-| **Reports** | | | | |
-| Balance reconciliation | ❌ | ✅ | ✅ (own market) | |
-| Accrual audit report | ❌ | ✅ | ✅ (own market) | |
+| Operation                    | Member      | Super Admin | Market Admin    | Notes              |
+| ---------------------------- | ----------- | ----------- | --------------- | ------------------ |
+| **Wallet**                   |             |             |                 |                    |
+| View own wallets (list)      | ✅ Own only | ✅ All      | ✅ Own market   |                    |
+| View own wallet detail       | ✅ Own only | ✅ All      | ✅ Own market   |                    |
+| View own wallet entries      | ✅ Own only | ✅ All      | ✅ Own market   |                    |
+| View another member's wallet | ❌          | ✅          | ✅ (own market) |                    |
+| **Rewards**                  |             |             |                 |                    |
+| View own reward plans        | ✅ Own only | ✅ All      | ✅ Own market   |                    |
+| View own reward accruals     | ✅ Own only | ✅ All      | ✅ Own market   |                    |
+| Create reward plan           | ❌          | ✅          | ✅ (own market) | Admin-only         |
+| Modify reward plan           | ❌          | ✅          | ✅ (own market) | Status transitions |
+| Create rule version          | ❌          | ✅          | ❌              | Super Admin only   |
+| **Corrections**              |             |             |                 |                    |
+| Create reversal entry        | ❌          | ✅          | ✅ (own market) | Admin-only         |
+| Create adjustment entry      | ❌          | ✅          | ✅ (own market) | Admin-only         |
+| **Admin Operations**         |             |             |                 |                    |
+| View all wallets             | ❌          | ✅          | ✅ (own market) |                    |
+| View reward plan statuses    | ❌          | ✅          | ✅ (own market) |                    |
+| Daily settlement status      | ❌          | ✅          | ✅ (own market) | Read-only          |
+| **Reports**                  |             |             |                 |                    |
+| Balance reconciliation       | ❌          | ✅          | ✅ (own market) |                    |
+| Accrual audit report         | ❌          | ✅          | ✅ (own market) |                    |
 
 ---
 
@@ -57,11 +57,13 @@ market_access
 ```
 
 Market Admin scope:
+
 - Can only perform wallet/reward operations within assigned markets
 - Cannot create cross-market rule versions (Super Admin only)
 - Cannot access wallets from unauthorized markets
 
 Super Admin scope:
+
 - All markets
 - Rule version creation
 - System configuration
@@ -112,15 +114,15 @@ POST /api/v1/admin/wallets/:id/reversal
 
 ## 5. Member Self-Service vs Admin Operations
 
-| Operation | Member Self-Service | Admin |
-|---|---|---|
-| View balance | ✅ Read-only | ✅ Read-only |
-| View ledger history | ✅ Read-only | ✅ Read-only |
-| Create reward plan | ❌ | ✅ |
-| Suspend/resume reward plan | ❌ | ✅ |
-| Create rule version | ❌ | ✅ (Super Admin) |
-| Wallet reversal | ❌ | ✅ |
-| Balance adjustment | ❌ | ✅ (deferred Phase 7+) |
+| Operation                  | Member Self-Service | Admin                  |
+| -------------------------- | ------------------- | ---------------------- |
+| View balance               | ✅ Read-only        | ✅ Read-only           |
+| View ledger history        | ✅ Read-only        | ✅ Read-only           |
+| Create reward plan         | ❌                  | ✅                     |
+| Suspend/resume reward plan | ❌                  | ✅                     |
+| Create rule version        | ❌                  | ✅ (Super Admin)       |
+| Wallet reversal            | ❌                  | ✅                     |
+| Balance adjustment         | ❌                  | ✅ (deferred Phase 7+) |
 
 ---
 
@@ -128,8 +130,8 @@ POST /api/v1/admin/wallets/:id/reversal
 
 The matrix includes columns for future roles (Agent, Merchant) and future operations (Redemption, Withdrawal). These are placeholders only and are **NOT implemented in Phase 3**.
 
-| Future Operation | Member | Agent | Merchant Admin |
-|---|---|---|---|
-| Redeem iPoints (Phase 6) | ✅ | N/A | Manage catalog |
-| Withdraw (deferred) | ✅ | N/A | N/A |
-| View commission (Phase 5) | N/A | ✅ | N/A |
+| Future Operation          | Member | Agent | Merchant Admin |
+| ------------------------- | ------ | ----- | -------------- |
+| Redeem iPoints (Phase 6)  | ✅     | N/A   | Manage catalog |
+| Withdraw (deferred)       | ✅     | N/A   | N/A            |
+| View commission (Phase 5) | N/A    | ✅    | N/A            |

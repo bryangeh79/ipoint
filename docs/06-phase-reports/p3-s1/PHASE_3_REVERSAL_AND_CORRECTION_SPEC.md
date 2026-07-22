@@ -14,6 +14,7 @@
 ## 2. Reversal Types
 
 ### Full Reversal
+
 Cancel an entire ledger entry by creating an equal opposing entry.
 
 ```
@@ -23,6 +24,7 @@ Net effect: 0.00 iPoint
 ```
 
 ### Partial Correction
+
 Adjust a portion of a previous entry.
 
 ```
@@ -37,15 +39,15 @@ Net effect:  70.00 iPoint
 
 Every reversal/compensating entry must include:
 
-| Field | Required | Description |
-|---|---|---|
-| amount | ✅ | Negative of (or partial to) original amount |
-| entry_type | ✅ | 'REVERSAL' or 'CORRECTION' |
-| reversal_of | ✅ | FK to the original ledger entry being reversed |
-| reason | ✅ | Human-readable explanation |
-| actor_id | ✅ | Who performed the reversal (admin UUID) |
-| idempotency_key | ✅ | Prevents duplicate reversal |
-| correlation_id | ✅ | Links reversal to original event chain |
+| Field           | Required | Description                                    |
+| --------------- | -------- | ---------------------------------------------- |
+| amount          | ✅       | Negative of (or partial to) original amount    |
+| entry_type      | ✅       | 'REVERSAL' or 'CORRECTION'                     |
+| reversal_of     | ✅       | FK to the original ledger entry being reversed |
+| reason          | ✅       | Human-readable explanation                     |
+| actor_id        | ✅       | Who performed the reversal (admin UUID)        |
+| idempotency_key | ✅       | Prevents duplicate reversal                    |
+| correlation_id  | ✅       | Links reversal to original event chain         |
 
 ---
 
@@ -76,6 +78,7 @@ When a reward plan is reversed or suspended:
 ## 6. Scope Boundaries
 
 **LOCKED — OUT OF SCOPE for Phase 3:**
+
 - Full refund workflow (Phase 4+)
 - Dispute workflow (Phase 4+)
 - Merchant transaction cancellation (Phase 4+)
@@ -84,6 +87,7 @@ When a reward plan is reversed or suspended:
 - Operator adjustment endpoint (Phase 7+)
 
 **Phase 3 covers only:**
+
 - Underlying domain and ledger contracts for compensation
 - Reversal table design and relationships
 - Reward plan state transitions related to reversal
@@ -94,12 +98,14 @@ When a reward plan is reversed or suspended:
 ## 7. Reconciliation
 
 Reversal and correction operations must produce audit log entries with:
+
 - Correlation to original ledger entry
 - Actor attribution
 - Reason documentation
 - Balance impact calculation
 
 A reconciliation function (design only, not implement) should be able to:
+
 - Sum all entries per account
 - Verify balance matches
 - Identify entries without proper reversal linkage

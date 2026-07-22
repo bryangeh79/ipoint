@@ -79,12 +79,12 @@ Recovery:
 
 ## 6. Idempotency Key Generation
 
-| Operation | Key Format | Example |
-|---|---|---|
-| Reward Plan creation | `reward_plan:{source_type}:{source_id}:{member_id}:{market_id}` | `reward_plan:PURCHASE:abc-123:usr-456:mar-789` |
-| Daily accrual | `daily_accrual:{reward_plan_id}:{market_local_date}:{entry_type}` | `daily_accrual:plan-001:2026-08-01:REWARD_ACCRUAL` |
-| Wallet entry | `wallet_entry:{account_id}:{original_operation_key}` | `wallet_entry:acct-001:daily_accrual:plan-001:2026-08-01` |
-| Reversal | `reversal:{original_entry_id}` | `reversal:entry-uuid-xyz` |
+| Operation            | Key Format                                                        | Example                                                   |
+| -------------------- | ----------------------------------------------------------------- | --------------------------------------------------------- |
+| Reward Plan creation | `reward_plan:{source_type}:{source_id}:{member_id}:{market_id}`   | `reward_plan:PURCHASE:abc-123:usr-456:mar-789`            |
+| Daily accrual        | `daily_accrual:{reward_plan_id}:{market_local_date}:{entry_type}` | `daily_accrual:plan-001:2026-08-01:REWARD_ACCRUAL`        |
+| Wallet entry         | `wallet_entry:{account_id}:{original_operation_key}`              | `wallet_entry:acct-001:daily_accrual:plan-001:2026-08-01` |
+| Reversal             | `reversal:{original_entry_id}`                                    | `reversal:entry-uuid-xyz`                                 |
 
 ---
 

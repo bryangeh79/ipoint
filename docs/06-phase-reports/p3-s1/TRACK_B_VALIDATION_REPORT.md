@@ -4,7 +4,7 @@
 > **Sprint:** P3-S1  
 > **Date:** 2026-07-22  
 > **Agent:** Codex CLI — Track B Validation Agent  
-> **Branch:** phase/3-multi-market-wallet-reward-ledger  
+> **Branch:** phase/3-multi-market-wallet-reward-ledger
 
 ---
 
@@ -30,23 +30,23 @@ The sandbox environment (Docker container) cannot run the pnpm pipeline due to *
 
 ## 2. Environment Snapshot
 
-| Component | Value | Status |
-|---|---|---|
-| **OS** | Linux (Docker container) | PASS |
-| **Node (system)** | v18.20.4 via `/usr/bin/node` | PASS (below min req) |
-| **Node (project min)** | v22.23.1 via `./node22` | PASS (meets >=22.0.0) |
-| **pnpm (PATH)** | Not found | FAIL |
-| **pnpm (./pnpm static binary)** | 63.9 MB ELF binary, causes SIGKILL | FAIL |
-| **pnpm (via npm install)** | Works via `./node22 /tmp/node_modules/pnpm/bin/pnpm.cjs` | PARTIAL |
-| **Corepack** | Not available in container | FAIL |
-| **node_modules/ .pnpm store** | 646 entry dirs, most empty after failed install | CORRUPTED |
-| **node_modules/ hoisted symlinks** | All 28 original symlinks broken or removed | FAIL |
-| **pnpm global store** | `/workspace/.pnpm-store/v3/` exists with content | PASS |
-| **Git** | Not available in container | FAIL |
-| **GitHub CLI** | Not available in container | SKIP |
-| **DATABASE_URL** | Not set | FAIL |
-| **REDIS_URL** | Not set | FAIL |
-| **Docker** | Not available (we're inside a container) | SKIP |
+| Component                          | Value                                                    | Status                |
+| ---------------------------------- | -------------------------------------------------------- | --------------------- |
+| **OS**                             | Linux (Docker container)                                 | PASS                  |
+| **Node (system)**                  | v18.20.4 via `/usr/bin/node`                             | PASS (below min req)  |
+| **Node (project min)**             | v22.23.1 via `./node22`                                  | PASS (meets >=22.0.0) |
+| **pnpm (PATH)**                    | Not found                                                | FAIL                  |
+| **pnpm (./pnpm static binary)**    | 63.9 MB ELF binary, causes SIGKILL                       | FAIL                  |
+| **pnpm (via npm install)**         | Works via `./node22 /tmp/node_modules/pnpm/bin/pnpm.cjs` | PARTIAL               |
+| **Corepack**                       | Not available in container                               | FAIL                  |
+| **node_modules/ .pnpm store**      | 646 entry dirs, most empty after failed install          | CORRUPTED             |
+| **node_modules/ hoisted symlinks** | All 28 original symlinks broken or removed               | FAIL                  |
+| **pnpm global store**              | `/workspace/.pnpm-store/v3/` exists with content         | PASS                  |
+| **Git**                            | Not available in container                               | FAIL                  |
+| **GitHub CLI**                     | Not available in container                               | SKIP                  |
+| **DATABASE_URL**                   | Not set                                                  | FAIL                  |
+| **REDIS_URL**                      | Not set                                                  | FAIL                  |
+| **Docker**                         | Not available (we're inside a container)                 | SKIP                  |
 
 ---
 
@@ -54,41 +54,44 @@ The sandbox environment (Docker container) cannot run the pnpm pipeline due to *
 
 ### 3.1 Check Matrix
 
-| # | Check | Result | Detail |
-|---|---|---|---|
-| 1a | `node --version` | ✅ PASS | v18.20.4 |
-| 1b | `./node22 --version` | ✅ PASS | v22.23.1 — meets >=22.0.0 |
-| 2a | `pnpm --version` (PATH) | ❌ FAIL | Not in PATH. Need `pnpm@9.15.9` |
-| 2b | `./pnpm` binary | ⚠️ INFO | 63.9 MB ELF binary, causes SIGKILL |
-| 3a | `corepack enable` | ❌ FAIL | Not installed |
-| 3b | `corepack prepare pnpm` | ❌ FAIL | Corepack unavailable |
-| 4a | node_modules exists | ✅ PASS | Directory found |
-| 4b | symlink: prettier | ❌ FAIL | Missing (removed by failed pnpm install) |
-| 4c | symlink: vitest | ❌ FAIL | Missing |
-| 4d | symlink: eslint | ❌ FAIL | Missing |
-| 4e | symlink: typescript | ❌ FAIL | Missing |
-| 4f | symlink health (all) | ❌ FAIL | 0/28 working, 28 broken |
-| 4g | .pnpm virtual store | ✅ PASS | 646 package entries (partially empty) |
-| 4h | .bin scripts | ✅ PASS | 24 shims found (snapshot before corruption) |
-| 5 | pnpm store directory | ✅ PASS | `.pnpm-store/v3/` exists with content |
-| 6 | git --version | ❌ FAIL | Not installed in sandbox |
-| 7 | gh auth status | ⏭️ SKIP | Not available |
-| 8 | DATABASE_URL | ❌ FAIL | Not set |
-| 9 | REDIS_URL | ❌ FAIL | Not set |
-| 10 | docker --version | ⏭️ SKIP | Not available |
+| #   | Check                   | Result  | Detail                                      |
+| --- | ----------------------- | ------- | ------------------------------------------- |
+| 1a  | `node --version`        | ✅ PASS | v18.20.4                                    |
+| 1b  | `./node22 --version`    | ✅ PASS | v22.23.1 — meets >=22.0.0                   |
+| 2a  | `pnpm --version` (PATH) | ❌ FAIL | Not in PATH. Need `pnpm@9.15.9`             |
+| 2b  | `./pnpm` binary         | ⚠️ INFO | 63.9 MB ELF binary, causes SIGKILL          |
+| 3a  | `corepack enable`       | ❌ FAIL | Not installed                               |
+| 3b  | `corepack prepare pnpm` | ❌ FAIL | Corepack unavailable                        |
+| 4a  | node_modules exists     | ✅ PASS | Directory found                             |
+| 4b  | symlink: prettier       | ❌ FAIL | Missing (removed by failed pnpm install)    |
+| 4c  | symlink: vitest         | ❌ FAIL | Missing                                     |
+| 4d  | symlink: eslint         | ❌ FAIL | Missing                                     |
+| 4e  | symlink: typescript     | ❌ FAIL | Missing                                     |
+| 4f  | symlink health (all)    | ❌ FAIL | 0/28 working, 28 broken                     |
+| 4g  | .pnpm virtual store     | ✅ PASS | 646 package entries (partially empty)       |
+| 4h  | .bin scripts            | ✅ PASS | 24 shims found (snapshot before corruption) |
+| 5   | pnpm store directory    | ✅ PASS | `.pnpm-store/v3/` exists with content       |
+| 6   | git --version           | ❌ FAIL | Not installed in sandbox                    |
+| 7   | gh auth status          | ⏭️ SKIP | Not available                               |
+| 8   | DATABASE_URL            | ❌ FAIL | Not set                                     |
+| 9   | REDIS_URL               | ❌ FAIL | Not set                                     |
+| 10  | docker --version        | ⏭️ SKIP | Not available                               |
 
 ### 3.2 Root Cause Analysis
 
 **Primary failure: Broken symlinks from host path dependency.**
+
 - pnpm on Windows created `node_modules/` symlinks using absolute paths referencing `/mnt/c/AI_WORKSPACE/...` (WSL translation of `C:\AI_WORKSPACE\...`).
 - Inside the sandbox container, `/mnt/host/` is not mounted, so **every symlink resolves to a non-existent path**.
 
 **Secondary failure: Corrupted .pnpm virtual store.**
+
 - Running `pnpm install --frozen-lockfile` via a locally-installed pnpm (npm-installed in `/tmp/`) began by **removing the existing node_modules content** before failing with `ENOMEM` (out of memory).
 - This left 646 directory entries in `node_modules/.pnpm/` but most are **empty shells** — their package content (e.g., `prettier/bin/prettier.cjs`, `vitest/dist/cli.js`) was deleted.
 - The global store at `.pnpm-store/v3/` still contains the original content but pnpm cannot restore from it in a low-memory environment.
 
 **Tertiary failure: Insufficient sandbox memory.**
+
 - `rm -rf` on large directories and `pnpm install` both fail with `SIGKILL` (OOM killer) or `ENOMEM`.
 - The sandbox container memory limit is too low for pnpm's flat dependency resolution with 815+ packages.
 
@@ -172,6 +175,7 @@ This is no longer applicable since the store was corrupted.
 ```
 
 **Key differences from the existing `ci.yml`:**
+
 - Trigger scoped to `phase/3-*` branches
 - Simplified test strategy focused on Phase 3 deliverables
 - Uses `--reporter verbose` for test output
@@ -190,6 +194,7 @@ This is no longer applicable since the store was corrupted.
 ```
 
 **Steps executed:**
+
 1. `pnpm install --frozen-lockfile` (unless `-NoInstall`)
 2. `pnpm format:check`
 3. `pnpm lint`
@@ -203,13 +208,13 @@ This is no longer applicable since the store was corrupted.
 
 ## 7. Artifacts Summary
 
-| File | Lines | Purpose |
-|---|---|---|
-| `scripts/validate-environment.mjs` | ~340 | Comprehensive environment validation (10 checks) |
-| `scripts/host-pipeline.ps1` | ~120 | Windows host pipeline automation |
-| `.github/workflows/p3-ci.yml` | ~155 | GitHub Actions workflow for Phase 3 |
-| `scripts/fix-pnpm-symlinks.mjs` | ~160 | Symlink repair utility (reference) |
-| This report | ~210 | — |
+| File                               | Lines | Purpose                                          |
+| ---------------------------------- | ----- | ------------------------------------------------ |
+| `scripts/validate-environment.mjs` | ~340  | Comprehensive environment validation (10 checks) |
+| `scripts/host-pipeline.ps1`        | ~120  | Windows host pipeline automation                 |
+| `.github/workflows/p3-ci.yml`      | ~155  | GitHub Actions workflow for Phase 3              |
+| `scripts/fix-pnpm-symlinks.mjs`    | ~160  | Symlink repair utility (reference)               |
+| This report                        | ~210  | —                                                |
 
 ---
 

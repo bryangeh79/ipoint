@@ -131,51 +131,51 @@
 
 ## 2. Foreign Key Relationships
 
-| Child Table | Parent Table | FK Column |
-|---|---|---|
-| member_wallet_accounts | members | member_id |
-| member_wallet_accounts | markets | market_id |
-| member_wallet_entries | member_wallet_accounts | account_id |
-| member_wallet_entries | member_wallet_entries | reversal_of (self-ref) |
-| member_wallet_entries | reward_daily_accruals | reward_plan_id (nullable) |
-| reward_sources | members | member_id |
-| reward_sources | markets | market_id |
-| reward_sources | merchants | merchant_id |
-| reward_plans | members | member_id |
-| reward_plans | markets | market_id |
-| reward_plans | merchants | merchant_id |
-| reward_plans | reward_rule_versions | rule_version_id (nullable) |
-| reward_plans | reward_sources | source_type + source_id (logical) |
-| reward_daily_accruals | reward_plans | reward_plan_id |
-| reward_daily_accruals | reward_rule_versions | rule_version_id |
-| reward_daily_accruals | member_wallet_entries | wallet_entry_id (nullable) |
-| reward_rule_versions | markets | market_id (nullable) |
+| Child Table            | Parent Table           | FK Column                         |
+| ---------------------- | ---------------------- | --------------------------------- |
+| member_wallet_accounts | members                | member_id                         |
+| member_wallet_accounts | markets                | market_id                         |
+| member_wallet_entries  | member_wallet_accounts | account_id                        |
+| member_wallet_entries  | member_wallet_entries  | reversal_of (self-ref)            |
+| member_wallet_entries  | reward_daily_accruals  | reward_plan_id (nullable)         |
+| reward_sources         | members                | member_id                         |
+| reward_sources         | markets                | market_id                         |
+| reward_sources         | merchants              | merchant_id                       |
+| reward_plans           | members                | member_id                         |
+| reward_plans           | markets                | market_id                         |
+| reward_plans           | merchants              | merchant_id                       |
+| reward_plans           | reward_rule_versions   | rule_version_id (nullable)        |
+| reward_plans           | reward_sources         | source_type + source_id (logical) |
+| reward_daily_accruals  | reward_plans           | reward_plan_id                    |
+| reward_daily_accruals  | reward_rule_versions   | rule_version_id                   |
+| reward_daily_accruals  | member_wallet_entries  | wallet_entry_id (nullable)        |
+| reward_rule_versions   | markets                | market_id (nullable)              |
 
 ---
 
 ## 3. Unique Constraints Summary
 
-| Table | Unique Constraint | Purpose |
-|---|---|---|
-| member_wallet_accounts | (member_id, market_id) | One wallet per member per market |
-| member_wallet_entries | (account_id, idempotency_key) | Prevent duplicate ledger entries |
-| reward_sources | (source_type, source_id, member_id, market_id) | One reward plan per qualifying event |
-| reward_plans | (source_type, source_id, member_id, market_id) | Idempotent plan creation |
-| reward_daily_accruals | (reward_plan_id, market_local_date, ledger_entry_type) | No duplicate daily settlement |
+| Table                  | Unique Constraint                                      | Purpose                              |
+| ---------------------- | ------------------------------------------------------ | ------------------------------------ |
+| member_wallet_accounts | (member_id, market_id)                                 | One wallet per member per market     |
+| member_wallet_entries  | (account_id, idempotency_key)                          | Prevent duplicate ledger entries     |
+| reward_sources         | (source_type, source_id, member_id, market_id)         | One reward plan per qualifying event |
+| reward_plans           | (source_type, source_id, member_id, market_id)         | Idempotent plan creation             |
+| reward_daily_accruals  | (reward_plan_id, market_local_date, ledger_entry_type) | No duplicate daily settlement        |
 
 ---
 
 ## 4. Index Strategy
 
-| Table | Index | Type |
-|---|---|---|
-| member_wallet_accounts | (member_id) | B-tree |
-| member_wallet_accounts | (market_id) | B-tree |
-| member_wallet_entries | (account_id, created_at) | B-tree |
-| member_wallet_entries | (idempotency_key) | B-tree |
-| reward_plans | (member_id, market_id, status) | B-tree |
-| reward_plans | (status) | Partial index on ACTIVE |
-| reward_daily_accruals | (reward_plan_id, market_local_date) | B-tree |
-| reward_daily_accruals | (idempotency_key) | B-tree |
-| reward_rule_versions | (market_id, effective_from) | B-tree |
-| reward_sources | (member_id) | B-tree |
+| Table                  | Index                               | Type                    |
+| ---------------------- | ----------------------------------- | ----------------------- |
+| member_wallet_accounts | (member_id)                         | B-tree                  |
+| member_wallet_accounts | (market_id)                         | B-tree                  |
+| member_wallet_entries  | (account_id, created_at)            | B-tree                  |
+| member_wallet_entries  | (idempotency_key)                   | B-tree                  |
+| reward_plans           | (member_id, market_id, status)      | B-tree                  |
+| reward_plans           | (status)                            | Partial index on ACTIVE |
+| reward_daily_accruals  | (reward_plan_id, market_local_date) | B-tree                  |
+| reward_daily_accruals  | (idempotency_key)                   | B-tree                  |
+| reward_rule_versions   | (market_id, effective_from)         | B-tree                  |
+| reward_sources         | (member_id)                         | B-tree                  |

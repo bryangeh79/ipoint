@@ -35,13 +35,13 @@ Worker Execution (UTC):
 
 Every reward_daily_accrual record must contain:
 
-| Field | Type | Purpose |
-|---|---|---|
-| market_id | uuid | Links to market definition |
-| market_timezone | text (IANA) | e.g. "Asia/Kuala_Lumpur" |
-| market_local_date | date (YYYY-MM-DD) | Business settlement date |
-| executed_at_utc | timestamptz | When execution actually occurred |
-| rule_version_id | uuid | The rule version used for this accrual |
+| Field             | Type              | Purpose                                |
+| ----------------- | ----------------- | -------------------------------------- |
+| market_id         | uuid              | Links to market definition             |
+| market_timezone   | text (IANA)       | e.g. "Asia/Kuala_Lumpur"               |
+| market_local_date | date (YYYY-MM-DD) | Business settlement date               |
+| executed_at_utc   | timestamptz       | When execution actually occurred       |
+| rule_version_id   | uuid              | The rule version used for this accrual |
 
 ---
 
@@ -135,11 +135,11 @@ After failure recovery:
 
 ## 5. Timezone Validation Requirements
 
-| Validation | Rule |
-|---|---|
-| IANA database | All timezone strings must be valid IANA timezone identifiers |
-| Market creation | Market timezone must be validated at creation time |
-| Worker startup | Worker must validate all market timezones on startup |
+| Validation       | Rule                                                                           |
+| ---------------- | ------------------------------------------------------------------------------ |
+| IANA database    | All timezone strings must be valid IANA timezone identifiers                   |
+| Market creation  | Market timezone must be validated at creation time                             |
+| Worker startup   | Worker must validate all market timezones on startup                           |
 | Graceful failure | Invalid timezone must not crash entire worker — skip that market and log error |
 
 ---
@@ -149,6 +149,7 @@ After failure recovery:
 **LOCKED:** Do not rely on host operating-system timezone.
 
 Worker infrastructure may execute in UTC, but must calculate and persist:
+
 - market_id
 - market_timezone
 - market_local_date
