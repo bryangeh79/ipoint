@@ -8,7 +8,15 @@
 //
 // Usage:   node22 scripts/fix-pnpm-symlinks.mjs [--dry-run] [--essential-only]
 
-import { existsSync, readdirSync, lstatSync, readlinkSync, unlinkSync, symlinkSync, mkdirSync } from 'fs';
+import {
+  existsSync,
+  readdirSync,
+  lstatSync,
+  readlinkSync,
+  unlinkSync,
+  symlinkSync,
+  mkdirSync,
+} from 'fs';
 import { resolve, join, relative, dirname } from 'path';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -22,8 +30,11 @@ if (!existsSync(PNPM)) {
   process.exit(1);
 }
 
-console.log('Mode: ' + (DRY_RUN ? 'DRY RUN (no changes)' : 'LIVE') + 
-            (ESSENTIAL_ONLY ? ', essential packages only' : ', all packages'));
+console.log(
+  'Mode: ' +
+    (DRY_RUN ? 'DRY RUN (no changes)' : 'LIVE') +
+    (ESSENTIAL_ONLY ? ', essential packages only' : ', all packages'),
+);
 
 // ── Build store map ──
 // Maps full package name → real path inside .pnpm store
@@ -65,16 +76,25 @@ console.log('Store indexed: ' + storeMap.size + ' packages');
 
 // ── Packages that MUST be hoisted for the pipeline to work ──
 const ESSENTIAL = [
-  'prettier', 'vitest', 'eslint', 'typescript',
-  '@eslint/js', '@eslint/eslintrc',
-  '@typescript-eslint/eslint-plugin', '@typescript-eslint/parser',
-  '@vitejs/plugin-react', '@vitest/coverage-v8',
+  'prettier',
+  'vitest',
+  'eslint',
+  'typescript',
+  '@eslint/js',
+  '@eslint/eslintrc',
+  '@typescript-eslint/eslint-plugin',
+  '@typescript-eslint/parser',
+  '@vitejs/plugin-react',
+  '@vitest/coverage-v8',
   '@playwright/test',
   '@ipoint/database',
   // types
-  '@types/node', '@types/react', '@types/react-dom',
+  '@types/node',
+  '@types/react',
+  '@types/react-dom',
   // bin dependencies
-  'vite', 'tsc',
+  'vite',
+  'tsc',
 ];
 
 // ── Ensure a directory exists ──
@@ -97,7 +117,9 @@ function createSymlink(targetPath, linkPath, pkgName) {
   }
 
   if (DRY_RUN) {
-    console.log('  [DRY] symlink: ' + pkgName + ' \u2192 ' + relative(ROOT, targetPath));
+    console.log(
+      '  [DRY] symlink: ' + pkgName + ' \u2192 ' + relative(ROOT, targetPath),
+    );
     return;
   }
 
@@ -119,7 +141,10 @@ console.log('\nCreating symlinks...');
 for (const pkgName of targetPackages) {
   if (DRY_RUN && !ESSENTIAL_ONLY && targetPackages.length > 100) {
     // In dry-run all mode, just show first 10 to keep output manageable
-    if (created >= 10) { created = targetPackages.length; break; }
+    if (created >= 10) {
+      created = targetPackages.length;
+      break;
+    }
   }
 
   const targetPath = storeMap.get(pkgName);
@@ -182,5 +207,9 @@ if (existsSync(vendorBins) && existsSync(join(vendorBins, '.bin'))) {
 console.log('\nDone. Run `ls -la node_modules/prettier` to verify.');
 
 function realpath(p) {
-  try { return readlinkSync(p); } catch { return p; }
+  try {
+    return readlinkSync(p);
+  } catch {
+    return p;
+  }
 }
