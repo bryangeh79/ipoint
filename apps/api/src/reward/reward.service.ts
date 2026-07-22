@@ -171,8 +171,7 @@ export class RewardService {
     if (!source) throw rewardSourceNotFoundError();
     if (source.consumed) throw rewardSourceAlreadyConsumedError();
 
-    // Narrow to non-nullable for closure safety
-    const src = source as NonNullable<typeof source>;
+    const src = source!;
 
     return this.database.runTransaction(async (tx) => {
       const existingPlan = await tx
@@ -389,11 +388,11 @@ export class RewardService {
     if (rule.capType === 'FLAT') return rule.capValue;
 
     if (rule.capType === 'RATIO') {
-      const txAmount = new Decimal(source.transactionAmount);
-      const ratio = new Decimal(rule.capValue);
+      const txAmount = new Decimal(source.transactionAmount!);
+      const ratio = new Decimal(rule.capValue!);
       return txAmount
         .mul(ratio)
-        .toDecimalPlaces(10, Decimal.ROUND_HALF_UP)
+        .toDecimalPlaces(10, 4)
         .toFixed(10);
     }
 

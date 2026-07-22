@@ -41,11 +41,24 @@ export function toDecimal(value: number | string): Decimal38_10 {
 
 /**
  * Add two decimal strings and return the result as a Decimal38_10.
+ * Handles positive and negative values correctly.
  */
 export function addDecimal(a: Decimal38_10, b: Decimal38_10): Decimal38_10 {
   const sum =
     BigInt(a.replace('.', '').padEnd(11, '0')) +
     BigInt(b.replace('.', '').padEnd(11, '0'));
+
+  // When the sum is negative, JavaScript BigInt division and modulo
+  // preserve the sign on the remainder, producing malformed output
+  // like "-1.-2345678901". Normalise by negating the sum, computing
+  // the parts from the absolute value, then prepending the minus sign.
+  if (sum < 0n) {
+    const absSum = -sum;
+    const integerPart = absSum / 10_000_000_000n;
+    const fractionalPart = absSum % 10_000_000_000n;
+    return `-${integerPart}.${fractionalPart.toString().padStart(10, '0')}`;
+  }
+
   const integerPart = sum / 10_000_000_000n;
   const fractionalPart = sum % 10_000_000_000n;
   return `${integerPart}.${fractionalPart.toString().padStart(10, '0')}`;
@@ -430,6 +443,15 @@ export function createRewardRuleVersionFixture(
 // ---------------------------------------------------------------------------
 
 /**
+ * Helper: convert a Decimal38_10 string to a BigInt representing the
+ * value scaled by 10^10 (matching the internal representation used by
+ * addDecimal and subtractDecimal).
+ */
+function decimalToBigInt(value: Decimal38_10): bigint {
+  return BigInt(value.replace('.', '').padEnd(11, '0'));
+}
+
+/**
  * Verify the balance invariant: balance === SUM(entries.amount).
  *
  * Returns { valid, computedBalance, diff } for detailed failure reporting.
@@ -445,12 +467,19 @@ export function verifyBalanceInvariant(fixture: WalletFixture): {
   }
 
   const expected = fixture.balance;
+
+  // Use BigInt comparison instead of string comparison to avoid
+  // lexicographic ordering bugs (e.g. '1399.0000000000' < '600.0000000000'
+  // when compared as strings because '1' < '6').
+  const aInt = decimalToBigInt(computedBalance);
+  const bInt = decimalToBigInt(expected);
+
   const diff =
-    computedBalance === expected
+    aInt === bInt
       ? '0.0000000000'
       : subtractDecimal(
-          computedBalance > expected ? computedBalance : expected,
-          computedBalance > expected ? expected : computedBalance,
+          aInt > bInt ? computedBalance : expected,
+          aInt > bInt ? expected : computedBalance,
         );
 
   return {
