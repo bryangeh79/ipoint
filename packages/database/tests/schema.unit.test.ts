@@ -404,6 +404,7 @@ describe('database foundation schema', () => {
       '0011_member_kyc_level_2_hardening.sql',
       '0012_merchant_discovery_indexes.sql',
       '0013_admin_member_notes.sql',
+      '0014_phase_3_reward_and_wallet_schema.sql',
     ]);
     const migration = await readFile(
       `${migrationsDirectory}/0000_database_foundation.sql`,
