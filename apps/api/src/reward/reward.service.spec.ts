@@ -154,7 +154,7 @@ function createService(options: {
 
   const database = {
     db,
-    runTransaction: vi.fn(async (cb: Function) => db.transaction(cb)),
+    runTransaction: vi.fn(async (cb: Function) => cb(db)),
   } as unknown as DatabaseService;
 
   return {
