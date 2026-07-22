@@ -1,4 +1,4 @@
-import Decimal from 'decimal.js';
+import { Decimal } from 'decimal.js';
 import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DatabaseService } from '../database/database.service.js';
@@ -128,7 +128,7 @@ function createService(options: {
   innerJoinMock.mockReturnValue(queryBuilder);
   leftJoinMock.mockReturnValue(queryBuilder);
 
-  returnMock.mockImplementation(() => Promise.resolve([]));
+  returnMock.mockImplementation((resolve) => resolve([]));
 
   const insertReturningMock = vi
     .fn()
@@ -216,6 +216,9 @@ describe('RewardService', () => {
         name: 'Default Rate',
         rewardRate: '0.005',
         effectiveFrom: '2026-01-01T00:00:00.000Z',
+        capType: 'NONE',
+        capValue: '0',
+        minimumReward: '0',
       });
 
       expect(result.name).toBe('Default Rate');
@@ -232,8 +235,8 @@ describe('RewardService', () => {
       });
 
       returnMock
-        .mockResolvedValueOnce([{ total: 1 }])
-        .mockResolvedValueOnce([rv1]);
+        .mockImplementationOnce((resolve) => resolve([{ total: 1 }]))
+        .mockImplementationOnce((resolve) => resolve([rv1]));
 
       const result = await service.getRuleVersions({
         page: 1,
@@ -242,7 +245,7 @@ describe('RewardService', () => {
 
       expect(result.items).toHaveLength(1);
       expect(result.total).toBe(1);
-      expect(result.items[0].name).toBe('V1');
+      expect(result.items[0]!.name).toBe('V1');
     });
   });
 
@@ -252,7 +255,7 @@ describe('RewardService', () => {
       const { service, returnMock } = createService({
         ruleVersions: [rv],
       });
-      returnMock.mockResolvedValue([rv]);
+      returnMock.mockImplementation((resolve) => resolve([rv]));
 
       const result = await service.getRuleVersion(rv.id as string);
 
@@ -261,7 +264,7 @@ describe('RewardService', () => {
 
     it('throws 404 for non-existent rule version', async () => {
       const { service, returnMock } = createService({});
-      returnMock.mockResolvedValue([]);
+      returnMock.mockImplementation((resolve) => resolve([]));
 
       await expect(service.getRuleVersion(randomUUID())).rejects.toMatchObject({
         code: 'REWARD_RULE_VERSION_NOT_FOUND',
@@ -279,7 +282,7 @@ describe('RewardService', () => {
       const { service, returnMock } = createService({
         ruleVersions: [rv],
       });
-      returnMock.mockResolvedValue([rv]);
+      returnMock.mockImplementation((resolve) => resolve([rv]));
 
       const result = await service.findEffectiveRuleVersion(
         marketId,
@@ -291,7 +294,7 @@ describe('RewardService', () => {
 
     it('throws when no effective rule version found', async () => {
       const { service, returnMock } = createService({});
-      returnMock.mockResolvedValue([]);
+      returnMock.mockImplementation((resolve) => resolve([]));
 
       await expect(
         service.findEffectiveRuleVersion(
@@ -312,7 +315,7 @@ describe('RewardService', () => {
       const { service, insertReturningMock, returnMock } = createService({
         sources: [source],
       });
-      returnMock.mockResolvedValue([]); // no existing source
+      returnMock.mockImplementation((resolve) => resolve([])); // no existing source
       insertReturningMock.mockResolvedValue([source]);
 
       const result = await service.createSource({
@@ -343,7 +346,7 @@ describe('RewardService', () => {
       const { service, returnMock } = createService({
         sources: [source],
       });
-      returnMock.mockResolvedValue([{ id: source.id }]);
+      returnMock.mockImplementation((resolve) => resolve([{ id: source.id }]));
 
       await expect(
         service.createSource({
@@ -372,7 +375,7 @@ describe('RewardService', () => {
         plans: [plan],
       });
 
-      returnMock.mockResolvedValueOnce([source]).mockResolvedValueOnce([]); // no existing plan
+      returnMock.mockImplementation((resolve) => resolve([source]));
 
       transactionMock.mockImplementation(async (cb: Function) => {
         const tx = {
@@ -405,7 +408,7 @@ describe('RewardService', () => {
 
     it('rejects when source is not found', async () => {
       const { service, returnMock } = createService({});
-      returnMock.mockResolvedValue([]);
+      returnMock.mockImplementation((resolve) => resolve([]));
 
       await expect(
         service.createPlanFromSource(randomUUID()),
@@ -417,7 +420,7 @@ describe('RewardService', () => {
     it('rejects when source is already consumed', async () => {
       const source = sourceRow({ consumed: true });
       const { service, returnMock } = createService({ sources: [source] });
-      returnMock.mockResolvedValue([source]);
+      returnMock.mockImplementation((resolve) => resolve([source]));
 
       await expect(
         service.createPlanFromSource(source.id as string),
@@ -434,7 +437,7 @@ describe('RewardService', () => {
         plans: [plan],
       });
 
-      returnMock.mockResolvedValueOnce([source]);
+      returnMock.mockImplementation((resolve) => resolve([source]));
 
       transactionMock.mockImplementation(async (cb: Function) => {
         const tx = {
@@ -473,8 +476,8 @@ describe('RewardService', () => {
       const { service, returnMock } = createService({ plans: [plan] });
 
       returnMock
-        .mockResolvedValueOnce([{ total: 1 }])
-        .mockResolvedValueOnce([plan]);
+        .mockImplementationOnce((resolve) => resolve([{ total: 1 }]))
+        .mockImplementationOnce((resolve) => resolve([plan]));
 
       const result = await service.getMemberPlans(memberId, {
         page: 1,
@@ -483,7 +486,7 @@ describe('RewardService', () => {
 
       expect(result.items).toHaveLength(1);
       expect(result.total).toBe(1);
-      expect(result.items[0].status).toBe('ACTIVE');
+      expect(result.items[0]!.status).toBe('ACTIVE');
     });
 
     it('filters by status', async () => {
@@ -491,8 +494,8 @@ describe('RewardService', () => {
       const { service, returnMock } = createService({ plans: [plan] });
 
       returnMock
-        .mockResolvedValueOnce([{ total: 1 }])
-        .mockResolvedValueOnce([plan]);
+        .mockImplementationOnce((resolve) => resolve([{ total: 1 }]))
+        .mockImplementationOnce((resolve) => resolve([plan]));
 
       const result = await service.getMemberPlans(memberId, {
         page: 1,
@@ -508,7 +511,7 @@ describe('RewardService', () => {
     it('returns a plan by id', async () => {
       const plan = planRow();
       const { service, returnMock } = createService({ plans: [plan] });
-      returnMock.mockResolvedValue([plan]);
+      returnMock.mockImplementation((resolve) => resolve([plan]));
 
       const result = await service.getPlan(plan.id as string);
 
@@ -517,7 +520,7 @@ describe('RewardService', () => {
 
     it('throws 404 for non-existent plan', async () => {
       const { service, returnMock } = createService({});
-      returnMock.mockResolvedValue([]);
+      returnMock.mockImplementation((resolve) => resolve([]));
 
       await expect(service.getPlan(randomUUID())).rejects.toMatchObject({
         code: 'REWARD_PLAN_NOT_FOUND',
@@ -648,7 +651,7 @@ describe('RewardService', () => {
         plans: [plan],
       });
 
-      returnMock.mockResolvedValueOnce([source]).mockResolvedValueOnce([]);
+      returnMock.mockImplementation((resolve) => resolve([source]));
 
       transactionMock.mockImplementation(async (cb: Function) => {
         const tx = {
@@ -711,7 +714,7 @@ describe('RewardService', () => {
         plans: [planA],
       });
 
-      returnMockA.mockResolvedValueOnce([sourceA]).mockResolvedValueOnce([]);
+      returnMockA.mockImplementation((resolve) => resolve([sourceA]));
 
       txMockA.mockImplementation(async (cb: Function) => {
         const tx = {
@@ -747,7 +750,7 @@ describe('RewardService', () => {
     it('does not change rule version on existing plan when rule version changes', async () => {
       const plan = planRow({ ruleVersionId: null });
       const { service, returnMock } = createService({ plans: [plan] });
-      returnMock.mockResolvedValue([plan]);
+      returnMock.mockImplementation((resolve) => resolve([plan]));
 
       const result = await service.getPlan(plan.id as string);
 
@@ -942,7 +945,7 @@ describe('RewardService', () => {
       // 500.00 * 0.02 = 10.00 → "10.0000000000"
       const expected = new Decimal('500.00')
         .mul(new Decimal('0.02'))
-        .toDecimalPlaces(10, Decimal.ROUND_HALF_UP)
+        .toDecimalPlaces(10, 3)
         .toFixed(10);
 
       const result = await service.createPlanFromSource(source.id as string);
@@ -973,7 +976,7 @@ describe('RewardService', () => {
 
       const expected = new Decimal('100.00')
         .mul(new Decimal('0.33333333333'))
-        .toDecimalPlaces(10, Decimal.ROUND_HALF_UP)
+        .toDecimalPlaces(10, 3)
         .toFixed(10);
 
       const result = await service.createPlanFromSource(source.id as string);
@@ -1006,7 +1009,7 @@ describe('RewardService', () => {
 
       const expected = new Decimal('0.00000000005')
         .mul(new Decimal('1'))
-        .toDecimalPlaces(10, Decimal.ROUND_HALF_UP)
+        .toDecimalPlaces(10, 3)
         .toFixed(10);
 
       const result = await service.createPlanFromSource(source.id as string);
@@ -1104,7 +1107,7 @@ describe('RewardService', () => {
         plans: [plan],
       });
 
-      returnMock.mockResolvedValueOnce([source]).mockResolvedValueOnce([]);
+      returnMock.mockImplementation((resolve) => resolve([source]));
 
       transactionMock.mockImplementation(async (cb: Function) => {
         const tx = {

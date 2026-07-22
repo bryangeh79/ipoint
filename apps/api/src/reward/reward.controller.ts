@@ -112,7 +112,7 @@ export class RewardController {
         message: 'Only member accounts can perform this action.',
       });
     }
-    const memberId = (actor as unknown as Record<string, string>).memberId;
+    const memberId = (actor as unknown as Record<string, string>).memberId!;
     return { accountId: actor.accountId, memberId };
   }
 
