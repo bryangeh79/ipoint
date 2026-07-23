@@ -5,6 +5,10 @@ import { act } from 'react';
 import { afterEach, vi } from 'vitest';
 
 afterEach(async () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
   // Wrap cleanup in act to flush pending React 19 dev-mode effects,
   // preventing "not wrapped in act(...)" warnings on stderr.
   //
@@ -28,26 +32,28 @@ afterEach(async () => {
   });
 });
 
-// Mock matchMedia for responsive tests
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation((query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
-});
+if (typeof window !== 'undefined') {
+  // Mock matchMedia for responsive tests
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
 
-// Mock navigator.languages for i18n
-Object.defineProperty(navigator, 'languages', {
-  writable: true,
-  value: ['en-US', 'en'],
-});
+  // Mock navigator.languages for i18n
+  Object.defineProperty(navigator, 'languages', {
+    writable: true,
+    value: ['en-US', 'en'],
+  });
+}
 
 // Ensure crypto.randomUUID is available
 if (typeof crypto.randomUUID === 'undefined') {
