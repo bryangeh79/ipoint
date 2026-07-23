@@ -14,5 +14,6 @@
   "0012_merchant_discovery_indexes.sql": "62ad0e5da23273f462449af55acb1401801a14a9a00743d152b31e963af70147",
   "0013_admin_member_notes.sql": "cfa46f73c97bdb28f217992015247d6defde723eb576c96ec103f0d83b684262",
   "0014_phase_3_reward_and_wallet_schema.sql": "c3ea9c6aafdbfdad3f4b80143411907fdb85cf6340394badf6bea34242d75a19",
-  "0015_phase_4_transaction_schema.sql": "c4edefba45491b9575f580514cb58b27c75df12dd5757aca1d68af9c452eadb4"
+  "0015_phase_4_transaction_schema.sql": "c4edefba45491b9575f580514cb58b27c75df12dd5757aca1d68af9c452eadb4",
+  "0016_phase_4_s3_audit_idempotency_nullable.sql": "b6971650bf4cdd41512490428f3942d0f84007c838b3867a5bed458f141d9499"
 }

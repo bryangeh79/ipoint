@@ -9,6 +9,8 @@ import {
   markets,
   mcpAccounts,
   memberQrIdentities,
+  memberProfiles,
+  memberWalletAccounts,
   members,
   merchantAccountAccess,
   merchantBranches,
@@ -18,10 +20,11 @@ import {
   rewardRuleVersions,
   serviceFeeProfiles,
   serviceFeeVersions,
+  transactionAuditReferences,
   transactionPreviewSessions,
 } from '@ipoint/database';
 import { seedFoundation } from '@ipoint/database/seeds/foundation';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { Server } from 'node:http';
 import supertest from 'supertest';
 import {
@@ -39,7 +42,10 @@ import { AUTH_RATE_LIMITER } from '../../auth/auth.constants.js';
 import { AuthService } from '../../auth/auth.service.js';
 import type { InMemoryRateLimiter } from '../../auth/rate-limit.port.js';
 import { DatabaseService } from '../../database/database.service.js';
-import type { TransactionPreviewResponse } from '../transaction.dto.js';
+import type {
+  TransactionConfirmResponse,
+  TransactionPreviewResponse,
+} from '../transaction.dto.js';
 
 const databaseUrl = process.env['DATABASE_URL'];
 const password = 'Transaction-Preview-Test-123!';
@@ -52,6 +58,7 @@ interface Fixture {
   merchantToken: string;
   outsiderToken: string;
   memberId: string;
+  memberAccountId: string;
   qrToken: string;
   assignmentId: string;
   secondAssignmentId?: string;
@@ -118,6 +125,9 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
       estimatedMcpDebit: '10.00',
       currentMcpBalance: '500.00',
       estimatedMcpBalanceAfter: '490.00',
+      mcpSufficient: true,
+      confirmAllowed: true,
+      mcpShortfall: '0.00',
       rewardRate: '0.0500000000',
       expectedDailyRewardAmount: '0.0500000000',
       rewardCap: '1000.0000000000',
@@ -235,6 +245,9 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
       estimatedMcpDebit: '10.00',
       currentMcpBalance: '1.00',
       estimatedMcpBalanceAfter: '-9.00',
+      mcpSufficient: false,
+      confirmAllowed: false,
+      mcpShortfall: '9.00',
     });
   });
 
@@ -310,6 +323,349 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
       (row?.expiresAt?.getTime() ?? 0) - (row?.createdAt.getTime() ?? 0),
     ).toBe(60 * 60 * 1000);
     expect(body.previewExpiresAt).toBe(row?.expiresAt?.toISOString());
+  });
+
+  it('confirms the full flow atomically with complete financial and receipt snapshots', async () => {
+    const previewResponse = await preview({
+      transactionNote: 'Printable note',
+    }).expect(201);
+    const previewResult = previewBody(previewResponse);
+    const response = await confirm(previewResult.previewSessionId, {
+      merchantReceiptNumber: 'POS-10001',
+    }).expect(201);
+    const body = confirmBody(response);
+
+    expect(body).toMatchObject({
+      status: 'CONFIRMED',
+      currency: 'MYR',
+      amount: '100.00',
+      serviceFee: '10.00',
+      mcpDeducted: '10.00',
+      mcpBalanceAfter: '490.00',
+      dailyRewardAmount: '0.0500000000',
+      rewardCap: '1000.0000000000',
+      rewardStartBusinessDate: previewResult.rewardStartDate,
+      merchant: {
+        merchantName: 'Preview Merchant Group',
+        branchId: null,
+        branchName: 'Preview Merchant',
+      },
+    });
+    expect(body.rewardRuleVersion).toEqual(expect.any(String));
+    expect(body.merchant.merchantId).toEqual(expect.any(String));
+    expect(body.market.marketCode).toEqual(expect.any(String));
+    expect(body.transactionNumber).toMatch(/^\d+$/u);
+    expect(body.transactionTime).toEqual(expect.any(String));
+    expect(body.receiptData).toEqual({
+      transactionNumber: body.transactionNumber,
+      status: 'CONFIRMED',
+      merchant: body.merchant,
+      member: {
+        maskedReference: previewResult.protectedMemberReference,
+        displayName: 'Preview Member',
+      },
+      market: body.market,
+      currency: 'MYR',
+      purchaseAmount: '100.00',
+      package: {
+        packageId: fixture.assignmentId,
+        packageName: 'Preview Package',
+        serviceFeeRate: '10.0000000000',
+      },
+      serviceFeeAmount: '10.00',
+      reward: {
+        rewardRuleVersionId: body.rewardRuleVersion,
+        rewardRate: '0.0500000000',
+        dailyRewardAmount: '0.0500000000',
+        rewardCap: '1000.0000000000',
+        rewardStartBusinessDate: previewResult.rewardStartDate,
+      },
+      merchantReceiptNumber: 'POS-10001',
+      transactionNote: 'Printable note',
+      transactionTime: body.transactionTime,
+    });
+    expect(body.receiptData).not.toHaveProperty('mcpBalance');
+    expect(body.receiptData).not.toHaveProperty('mcpBalanceAfter');
+
+    const persisted = await database.pool.query<{
+      purchase_amount: string;
+      service_fee_rate: string;
+      service_fee_amount: string;
+      mcp_amount: string;
+      mcp_balance_after: string;
+      reward_rate: string;
+      daily_reward_amount: string;
+      reward_cap: string;
+      reward_start_business_date: string;
+      reward_source_market_id: string;
+      reward_plan_market_id: string;
+      wallet_market_id: string;
+      wallet_entry_market_id: string;
+      wallet_entry_amount: string;
+      mcp_direction: string;
+      mcp_entry_type: string;
+    }>(
+      `SELECT
+         transaction.purchase_amount,
+         fee.rate AS service_fee_rate,
+         fee.amount AS service_fee_amount,
+         debit.amount AS mcp_amount,
+         debit.balance_after AS mcp_balance_after,
+         transaction.reward_rate,
+         transaction.daily_reward_amount,
+         transaction.reward_cap,
+         transaction.reward_start_business_date::text,
+         source.market_id AS reward_source_market_id,
+         plan.market_id AS reward_plan_market_id,
+         wallet.market_id AS wallet_market_id,
+         wallet_entry.market_id AS wallet_entry_market_id,
+         wallet_entry.amount AS wallet_entry_amount,
+         mcp_entry.direction::text AS mcp_direction,
+         mcp_entry.entry_type::text AS mcp_entry_type
+       FROM transactions transaction
+       JOIN transaction_service_fees fee ON fee.transaction_id = transaction.id
+       JOIN transaction_mcp_debits debit ON debit.transaction_id = transaction.id
+       JOIN mcp_ledger_entries mcp_entry ON mcp_entry.id = debit.mcp_ledger_entry_id
+       JOIN transaction_reward_links reward_link ON reward_link.transaction_id = transaction.id
+       JOIN reward_sources source ON source.id = reward_link.reward_source_id
+       JOIN reward_plans plan ON plan.id = reward_link.reward_plan_id
+       JOIN member_wallet_entries wallet_entry
+         ON wallet_entry.reference_type = 'TRANSACTION'
+        AND wallet_entry.reference_id = transaction.id::text
+       JOIN member_wallet_accounts wallet ON wallet.id = wallet_entry.wallet_account_id
+       WHERE transaction.transaction_number = $1`,
+      [body.transactionNumber],
+    );
+    expect(persisted.rows[0]).toMatchObject({
+      purchase_amount: '100.0000000000',
+      service_fee_rate: '10.0000000000',
+      service_fee_amount: '10.0000000000',
+      mcp_amount: '10.0000000000',
+      mcp_balance_after: '490.0000000000',
+      reward_rate: '0.0500000000',
+      daily_reward_amount: '0.0500000000',
+      reward_cap: '1000.0000000000',
+      reward_start_business_date: previewResult.rewardStartDate,
+      reward_source_market_id: fixture.marketId,
+      reward_plan_market_id: fixture.marketId,
+      wallet_market_id: fixture.marketId,
+      wallet_entry_market_id: fixture.marketId,
+      wallet_entry_amount: '0.0500000000',
+      mcp_direction: 'DEBIT',
+      mcp_entry_type: 'TRANSACTION_DEDUCTION',
+    });
+  });
+
+  it('creates globally unique transaction numbers', async () => {
+    const firstPreview = previewBody(await preview().expect(201));
+    const first = confirmBody(
+      await confirm(firstPreview.previewSessionId).expect(201),
+    );
+    const secondPreview = previewBody(await preview().expect(201));
+    const second = confirmBody(
+      await confirm(secondPreview.previewSessionId).expect(201),
+    );
+
+    expect(first.transactionNumber).not.toBe(second.transactionNumber);
+  });
+
+  it('rolls back every critical write boundary without partial financial state', async () => {
+    const boundaries = [
+      'transactions',
+      'transaction_service_fees',
+      'transaction_mcp_debits',
+      'reward_plans',
+      'reward_sources',
+      'member_wallet_entries',
+      'transaction_reward_links',
+      'transaction_audit_references',
+    ] as const;
+    await database.pool.query(`
+      CREATE OR REPLACE FUNCTION p4_s3_test_fail_insert()
+      RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN
+        RAISE EXCEPTION 'P4_S3_TEST_WRITE_BOUNDARY';
+      END;
+      $$;
+    `);
+    try {
+      for (const table of boundaries) {
+        rateLimiter.clear();
+        fixture = await createFixture();
+        const previewResult = previewBody(await preview().expect(201));
+        const before = await confirmationState(previewResult.previewSessionId);
+        await database.pool.query(
+          `CREATE TRIGGER p4_s3_test_boundary
+           BEFORE INSERT ON ${table}
+           FOR EACH ROW EXECUTE FUNCTION p4_s3_test_fail_insert()`,
+        );
+        try {
+          await confirm(previewResult.previewSessionId).expect(500);
+        } finally {
+          await database.pool.query(
+            `DROP TRIGGER p4_s3_test_boundary ON ${table}`,
+          );
+        }
+        const after = await confirmationState(previewResult.previewSessionId);
+        expect(after, table).toEqual(before);
+        expect(after.previewStatus, table).toBe('PREVIEWED');
+      }
+    } finally {
+      await database.pool.query(
+        'DROP FUNCTION IF EXISTS p4_s3_test_fail_insert()',
+      );
+    }
+  });
+
+  it('rejects a merchant suspended between Preview and Confirm', async () => {
+    const previewResult = previewBody(await preview().expect(201));
+    await database.db
+      .update(merchantBranches)
+      .set({ status: 'SUSPENDED' })
+      .where(eq(merchantBranches.id, fixture.branchId));
+
+    const response = await confirm(previewResult.previewSessionId).expect(403);
+    expectErrorCode(response.body, 'TRANSACTION_MERCHANT_INACTIVE');
+    expect(
+      (await confirmationState(previewResult.previewSessionId)).transactions,
+    ).toBe('0');
+  });
+
+  it('rejects when MCP falls below the Preview requirement', async () => {
+    const previewResult = previewBody(await preview().expect(201));
+    const payloadHash = createHash('sha256')
+      .update('p4-s3-test-mcp-reduction')
+      .digest('hex');
+    await database.db.execute(sql`
+      SELECT * FROM append_mcp_ledger_entry(
+        (SELECT id FROM mcp_accounts WHERE merchant_branch_id = ${fixture.branchId}),
+        'ADVERTISING_DEDUCTION'::mcp_entry_type,
+        'DEBIT'::mcp_direction,
+        495::numeric,
+        -495::numeric,
+        -495::numeric,
+        'TEST',
+        ${randomUUID()},
+        ${randomUUID()},
+        ${payloadHash},
+        'SYSTEM',
+        'TEST',
+        'P4_S3_MCP_RECHECK',
+        ${new Date()},
+        NULL,
+        '{}'::jsonb
+      )
+    `);
+
+    const response = await confirm(previewResult.previewSessionId).expect(409);
+    expectErrorCode(response.body, 'TRANSACTION_INSUFFICIENT_MCP');
+    expect(await currentMcpBalance()).toBe('5.0000000000');
+    expect(
+      (await confirmationState(previewResult.previewSessionId)).transactions,
+    ).toBe('0');
+  });
+
+  it('credits the consumption-market wallet for a cross-market Member', async () => {
+    await database.db
+      .update(accounts)
+      .set({ accountCountry: 'VN' })
+      .where(eq(accounts.id, fixture.memberAccountId));
+    const previewResult = previewBody(await preview().expect(201));
+    const confirmed = confirmBody(
+      await confirm(previewResult.previewSessionId).expect(201),
+    );
+    const wallets = await database.db
+      .select({ marketId: memberWalletAccounts.marketId })
+      .from(memberWalletAccounts)
+      .where(eq(memberWalletAccounts.memberId, fixture.memberId));
+
+    expect(confirmed.market.marketCode).toEqual(expect.any(String));
+    expect(wallets).toEqual([{ marketId: fixture.marketId }]);
+  });
+
+  it('uses exact decimal HALF_UP rounding from the frozen Preview snapshot', async () => {
+    const previewResult = previewBody(
+      await preview({ amount: '10.05' }).expect(201),
+    );
+    expect(previewResult.estimatedMcpDebit).toBe('1.01');
+    expect(previewResult.expectedDailyRewardAmount).toBe('0.0050250000');
+
+    const confirmed = confirmBody(
+      await confirm(previewResult.previewSessionId).expect(201),
+    );
+    expect(confirmed).toMatchObject({
+      amount: '10.05',
+      serviceFee: '1.01',
+      mcpDeducted: '1.01',
+      mcpBalanceAfter: '498.99',
+      dailyRewardAmount: '0.0050250000',
+    });
+  });
+
+  it('writes complete redacted audit references without secrets or tokens', async () => {
+    const previewResult = previewBody(await preview().expect(201));
+    const confirmed = confirmBody(
+      await confirm(previewResult.previewSessionId).expect(201),
+    );
+    const audits = await database.pool.query<{
+      action: string;
+      before: unknown;
+      after: unknown;
+    }>(
+      `SELECT action, before, after
+       FROM audit_logs
+       WHERE entity_id IN (
+         $1,
+         (SELECT id::text FROM transactions WHERE transaction_number = $2)
+       )
+       ORDER BY occurred_at`,
+      [previewResult.previewSessionId, confirmed.transactionNumber],
+    );
+    const references = await database.db
+      .select({
+        eventType: transactionAuditReferences.eventType,
+        idempotencyRecordId: transactionAuditReferences.idempotencyRecordId,
+      })
+      .from(transactionAuditReferences)
+      .where(
+        eq(
+          transactionAuditReferences.previewSessionId,
+          previewResult.previewSessionId,
+        ),
+      );
+    const serialized = JSON.stringify(audits.rows);
+
+    expect(audits.rows.map((row) => row.action)).toEqual([
+      'TRANSACTION_PREVIEW_CREATED',
+      'TRANSACTION_CONFIRMED',
+    ]);
+    expect(references).toEqual([
+      { eventType: 'PREVIEW_CREATED', idempotencyRecordId: null },
+      { eventType: 'CONFIRMED', idempotencyRecordId: null },
+    ]);
+    expect(serialized).not.toContain(fixture.qrToken);
+    expect(serialized).not.toContain(password);
+    expect(serialized.toLowerCase()).not.toContain('authorization');
+    expect(serialized.toLowerCase()).not.toContain('bearer');
+  });
+
+  it('rejects an expired Preview', async () => {
+    const previewResult = previewBody(await preview().expect(201));
+    await database.db
+      .update(transactionPreviewSessions)
+      .set({ status: 'EXPIRED', failureCode: 'PREVIEW_EXPIRED' })
+      .where(eq(transactionPreviewSessions.id, previewResult.previewSessionId));
+
+    const response = await confirm(previewResult.previewSessionId).expect(409);
+    expectErrorCode(response.body, 'TRANSACTION_PREVIEW_EXPIRED');
+  });
+
+  it('rejects an already-confirmed Preview', async () => {
+    const previewResult = previewBody(await preview().expect(201));
+    await confirm(previewResult.previewSessionId).expect(201);
+
+    const response = await confirm(previewResult.previewSessionId).expect(409);
+    expectErrorCode(response.body, 'TRANSACTION_PREVIEW_ALREADY_CONFIRMED');
   });
 
   function validPayload() {
@@ -408,6 +764,10 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
       })
       .returning({ id: members.id });
     const memberId = memberRows[0]?.id ?? '';
+    await database.db.insert(memberProfiles).values({
+      memberId,
+      displayName: 'Preview Member',
+    });
     const qrToken = `qr-${randomUUID()}`;
     await database.db.insert(memberQrIdentities).values({
       memberId,
@@ -435,6 +795,7 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
       merchantToken,
       outsiderToken,
       memberId,
+      memberAccountId,
       qrToken,
       assignmentId,
     };
@@ -572,6 +933,58 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     return result.rows[0];
   }
 
+  function confirm(
+    previewSessionId: string,
+    body: Record<string, unknown> = {},
+  ) {
+    return supertest(server)
+      .post(`/api/v1/merchant/transactions/${previewSessionId}/confirm`)
+      .set('authorization', `Bearer ${fixture.merchantToken}`)
+      .send(body);
+  }
+
+  async function confirmationState(previewSessionId: string) {
+    const state = await database.pool.query<{
+      previewStatus: string;
+      transactions: string;
+      fees: string;
+      debits: string;
+      rewardLinks: string;
+      rewardSources: string;
+      rewardPlans: string;
+      walletEntries: string;
+      mcpBalance: string;
+    }>(
+      `SELECT
+         (SELECT status::text FROM transaction_preview_sessions WHERE id = $1) AS "previewStatus",
+         (SELECT count(*) FROM transactions WHERE preview_session_id = $1) AS transactions,
+         (SELECT count(*) FROM transaction_service_fees fee
+           JOIN transactions transaction ON transaction.id = fee.transaction_id
+          WHERE transaction.preview_session_id = $1) AS fees,
+         (SELECT count(*) FROM transaction_mcp_debits debit
+           JOIN transactions transaction ON transaction.id = debit.transaction_id
+          WHERE transaction.preview_session_id = $1) AS debits,
+         (SELECT count(*) FROM transaction_reward_links reward_link
+           JOIN transactions transaction ON transaction.id = reward_link.transaction_id
+          WHERE transaction.preview_session_id = $1) AS "rewardLinks",
+         (SELECT count(*) FROM reward_sources source
+           JOIN transactions transaction ON transaction.id = source.source_id
+          WHERE transaction.preview_session_id = $1) AS "rewardSources",
+         (SELECT count(*) FROM reward_plans plan
+           JOIN transactions transaction ON transaction.id = plan.source_id
+          WHERE transaction.preview_session_id = $1) AS "rewardPlans",
+         (SELECT count(*) FROM member_wallet_entries wallet_entry
+           JOIN transactions transaction ON transaction.id::text = wallet_entry.reference_id
+          WHERE transaction.preview_session_id = $1) AS "walletEntries",
+         (SELECT available_balance FROM mcp_accounts
+          WHERE merchant_branch_id = (
+            SELECT merchant_branch_id FROM transaction_preview_sessions WHERE id = $1
+          )) AS "mcpBalance"`,
+      [previewSessionId],
+    );
+    return state.rows[0]!;
+  }
+
   function expectErrorCode(body: unknown, code: string): void {
     expect(body).toMatchObject({ error: { code } });
   }
@@ -580,5 +993,11 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     body: unknown;
   }): TransactionPreviewResponse {
     return response.body as TransactionPreviewResponse;
+  }
+
+  function confirmBody(response: {
+    body: unknown;
+  }): TransactionConfirmResponse {
+    return response.body as TransactionConfirmResponse;
   }
 });

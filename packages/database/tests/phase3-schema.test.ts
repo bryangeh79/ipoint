@@ -309,9 +309,9 @@ describe('Phase 3 — Migration Pipeline Readiness', () => {
     const checksums = await calculateMigrationChecksums();
     const sortedFiles = Object.keys(checksums).sort();
     const lastMigration = sortedFiles[sortedFiles.length - 1];
-    expect(lastMigration).toMatch(/^0015_/u);
-    // Next available index is 16
-    expect(Number.parseInt(lastMigration!.slice(0, 4), 10)).toBe(15);
+    expect(lastMigration).toMatch(/^0016_/u);
+    // Next available index is 17
+    expect(Number.parseInt(lastMigration!.slice(0, 4), 10)).toBe(16);
   });
 
   it('should have a valid checksum manifest file', async () => {

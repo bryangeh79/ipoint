@@ -2847,11 +2847,12 @@ export const transactionAuditReferences = pgTable(
     transactionId: uuid('transaction_id').references(() => transactions.id, {
       onDelete: 'restrict',
     }),
-    idempotencyRecordId: uuid('idempotency_record_id')
-      .notNull()
-      .references(() => transactionIdempotencyRecords.id, {
+    idempotencyRecordId: uuid('idempotency_record_id').references(
+      () => transactionIdempotencyRecords.id,
+      {
         onDelete: 'restrict',
-      }),
+      },
+    ),
     previewCreatorAccountId: uuid('preview_creator_account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'restrict' }),

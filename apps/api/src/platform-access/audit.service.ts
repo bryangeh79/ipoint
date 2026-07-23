@@ -119,4 +119,48 @@ export class AuditService {
       occurredAt,
     });
   }
+
+  async appendWithinTransactionWithId(
+    tx: DatabaseTransaction,
+    input: PrivilegedAuditInput,
+  ): Promise<string> {
+    const occurredAt = new Date();
+    const auditRows = await tx
+      .insert(auditLogs)
+      .values({
+        actorType: input.actor.type,
+        actorId: input.actor.id,
+        marketId: input.marketId,
+        action: input.action,
+        entityType: input.entity.type,
+        entityId: input.entity.id,
+        before: redactAuditValue(input.before),
+        after: redactAuditValue(input.after),
+        reason: input.reason,
+        result: input.result,
+        requestId: input.requestId,
+        ipAddress: input.ipAddress,
+        occurredAt,
+      })
+      .returning({ id: auditLogs.id });
+    const auditLogId = auditRows[0]?.id;
+    if (!auditLogId) {
+      throw new Error('Audit log insert did not return an identifier.');
+    }
+    await tx.insert(entityTimelines).values({
+      entityType: input.entity.type,
+      entityId: input.entity.id,
+      eventType: input.action,
+      actorType: input.actor.type,
+      actorId: input.actor.id,
+      marketId: input.marketId,
+      summary: input.summary,
+      metadata: {
+        result: input.result,
+        requestId: input.requestId,
+      },
+      occurredAt,
+    });
+    return auditLogId;
+  }
 }

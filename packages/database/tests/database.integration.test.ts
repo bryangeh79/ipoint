@@ -59,6 +59,12 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
     await expect(verifyMigrationChecksums()).resolves.toHaveProperty(
       '0014_phase_3_reward_and_wallet_schema.sql',
     );
+    await expect(verifyMigrationChecksums()).resolves.toHaveProperty(
+      '0015_phase_4_transaction_schema.sql',
+    );
+    await expect(verifyMigrationChecksums()).resolves.toHaveProperty(
+      '0016_phase_4_s3_audit_idempotency_nullable.sql',
+    );
     await expect(assertNoSchemaDrift(connection.pool)).resolves.toBeUndefined();
     await expect(migrate(connection.pool)).resolves.toBeUndefined();
     const applied = await connection.pool.query<{ filename: string }>(
@@ -80,7 +86,19 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0012_merchant_discovery_indexes.sql',
       '0013_admin_member_notes.sql',
       '0014_phase_3_reward_and_wallet_schema.sql',
+      '0015_phase_4_transaction_schema.sql',
+      '0016_phase_4_s3_audit_idempotency_nullable.sql',
     ]);
+
+    const auditReferenceColumn = await connection.pool.query<{
+      is_nullable: string;
+    }>(
+      `SELECT is_nullable
+       FROM information_schema.columns
+       WHERE table_name = 'transaction_audit_references'
+         AND column_name = 'idempotency_record_id'`,
+    );
+    expect(auditReferenceColumn.rows).toEqual([{ is_nullable: 'YES' }]);
   });
 
   it('applies merchant discovery columns, category tables, and query indexes', async () => {

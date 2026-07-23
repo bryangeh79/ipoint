@@ -4,6 +4,8 @@ import {
   Headers,
   Inject,
   Ip,
+  Param,
+  ParseUUIDPipe,
   Post,
   Req,
   UseGuards,
@@ -14,6 +16,8 @@ import { CurrentActor } from '../auth/current-actor.decorator.js';
 import type { RequestActor } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
 import {
+  transactionConfirmSchema,
+  type TransactionConfirmDto,
   transactionPreviewSchema,
   type TransactionPreviewDto,
 } from './transaction.dto.js';
@@ -71,6 +75,38 @@ export class TransactionController {
       input,
       key,
       marketContext?.trim() || undefined,
+      context,
+    );
+  }
+
+  @Post(':previewSessionId/confirm')
+  @UseGuards(AuthGuard)
+  confirm(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('previewSessionId', new ParseUUIDPipe()) previewSessionId: string,
+    @Body(new ZodValidationPipe(transactionConfirmSchema))
+    input: TransactionConfirmDto,
+    @Ip() ipAddress: string,
+    @Req() request: Request,
+  ) {
+    if (!actor || actor.type !== 'ACCOUNT') {
+      transactionForbidden(
+        transactionErrorCodes.merchantAccessDenied,
+        'An authenticated merchant staff account is required.',
+      );
+    }
+    const requestId = (request as unknown as Record<string, unknown>)[
+      'requestId'
+    ];
+    const context: TransactionRequestContext = {
+      ipAddress,
+      userAgent: request.headers['user-agent'],
+      ...(typeof requestId === 'string' ? { requestId } : {}),
+    };
+    return this.transactions.confirm(
+      actor.accountId,
+      previewSessionId,
+      input,
       context,
     );
   }

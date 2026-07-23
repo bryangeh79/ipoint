@@ -1,14 +1,24 @@
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { transactionPreviewSessions } from '@ipoint/database';
+import {
+  transactionAuditReferences,
+  transactionMcpDebits,
+  transactionPreviewSessions,
+  transactionRewardLinks,
+  transactions,
+  transactionServiceFees,
+} from '@ipoint/database';
 import { Decimal } from 'decimal.js';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service.js';
 import { AuditService } from '../platform-access/audit.service.js';
 import type {
+  TransactionConfirmDto,
+  TransactionConfirmResponse,
   TransactionPreviewDto,
   TransactionPreviewResponse,
 } from './transaction.dto.js';
+import { TransactionConfirmationRewardWriter } from './transaction-confirmation-reward.writer.js';
 import {
   transactionBadRequest,
   transactionConflict,
@@ -65,6 +75,58 @@ interface RewardRuleRow {
   minimumReward: string;
 }
 
+interface ConfirmPreviewRow {
+  [key: string]: unknown;
+  id: string;
+  status: string;
+  merchantBranchId: string;
+  merchantAccountId: string;
+  createdByStaffAccountId: string;
+  memberId: string;
+  protectedMemberReference: string;
+  marketId: string;
+  currency: string;
+  currencyScale: number;
+  purchaseAmount: string;
+  transactionNote: string | null;
+  merchantPackageAssignmentId: string;
+  merchantPackageVersion: number;
+  merchantPackageSnapshot: Record<string, unknown>;
+  serviceFeeRate: string;
+  serviceFeeAmount: string;
+  estimatedMcpDebit: string;
+  rewardRuleVersionId: string;
+  rewardRate: string;
+  rewardPrincipal: string;
+  rewardCap: string;
+  dailyRewardAmount: string;
+  rewardStartBusinessDate: string;
+  marketTimezone: string;
+  roundingMode: string;
+  previewedAt: Date | string;
+  expiresAt: Date | string | null;
+  merchantStatus: string;
+  publicMerchantId: string;
+  merchantName: string;
+  branchName: string;
+  marketCode: string;
+  memberStatus: string;
+  memberDisplayName: string | null;
+}
+
+interface McpAccountRow {
+  [key: string]: unknown;
+  id: string;
+  availableBalance: string;
+  status: string;
+}
+
+interface McpPostingRow {
+  [key: string]: unknown;
+  entryId: string;
+  projectedAvailableBalance: string;
+}
+
 export interface TransactionRequestContext {
   ipAddress?: string;
   userAgent?: string;
@@ -76,6 +138,8 @@ export class TransactionService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(TransactionConfirmationRewardWriter)
+    private readonly rewardWriter: TransactionConfirmationRewardWriter,
   ) {}
 
   async createPreview(
@@ -139,6 +203,11 @@ export class TransactionService {
     const normalizedBalanceAfter = estimatedBalanceAfter.toFixed(
       settings.currencyScale,
     );
+    const mcpSufficient = estimatedBalanceAfter.gte(0);
+    const mcpShortfall = Decimal.max(
+      new Decimal(0),
+      serviceFeeAmount.minus(mcpBalance),
+    ).toFixed(settings.currencyScale);
     const normalizedRewardCap = rewardCap.toFixed(10);
     const normalizedDailyReward = dailyRewardAmount.toFixed(10);
     const packageName =
@@ -196,7 +265,7 @@ export class TransactionService {
         );
       }
 
-      await this.audit.appendWithinTransaction(tx, {
+      const auditLogId = await this.audit.appendWithinTransactionWithId(tx, {
         actor: { type: 'ACCOUNT', id: staffAccountId },
         action: 'TRANSACTION_PREVIEW_CREATED',
         entity: { type: 'transaction_preview', id: previewSessionId },
@@ -215,6 +284,26 @@ export class TransactionService {
         ipAddress: requestContext.ipAddress,
         summary: 'Merchant transaction preview created.',
       });
+      await tx.insert(transactionAuditReferences).values({
+        eventType: 'PREVIEW_CREATED',
+        auditLogId,
+        previewSessionId,
+        previewCreatorAccountId: staffAccountId,
+        merchantAccountId: merchant.merchantAccountId,
+        staffAccountId,
+        protectedMemberReference,
+        marketId: merchant.marketId,
+        currency: settings.currencyCode,
+        purchaseAmount: normalizedAmount,
+        merchantPackageAssignmentId: selectedPackage.assignmentId,
+        merchantPackageVersion: selectedPackage.assignmentVersion,
+        serviceFeeRate: selectedPackage.rate,
+        rewardRuleVersionId: rewardRule.id,
+        requestId: requestContext.requestId,
+        clientChannel: 'MERCHANT_API',
+        previewedAt: createdAt,
+        createdAt,
+      });
 
       return {
         previewSessionId,
@@ -230,6 +319,9 @@ export class TransactionService {
         estimatedMcpDebit: normalizedFee,
         currentMcpBalance: normalizedBalance,
         estimatedMcpBalanceAfter: normalizedBalanceAfter,
+        mcpSufficient,
+        confirmAllowed: mcpSufficient,
+        mcpShortfall,
         rewardRate: rewardRule.rewardRate,
         expectedDailyRewardAmount: normalizedDailyReward,
         rewardCap: normalizedRewardCap,
@@ -240,6 +332,404 @@ export class TransactionService {
           timezone: merchant.timezone,
         },
         previewExpiresAt: expiresAt.toISOString(),
+      };
+    });
+  }
+
+  async confirm(
+    staffAccountId: string,
+    previewSessionId: string,
+    input: TransactionConfirmDto,
+    requestContext: TransactionRequestContext = {},
+  ): Promise<TransactionConfirmResponse> {
+    return this.database.runTransaction(async (tx) => {
+      const now = new Date();
+      const previewResult = await tx.execute<ConfirmPreviewRow>(sql`
+        SELECT
+          preview.id,
+          preview.status::text AS status,
+          preview.merchant_branch_id AS "merchantBranchId",
+          preview.merchant_account_id AS "merchantAccountId",
+          preview.created_by_staff_account_id AS "createdByStaffAccountId",
+          preview.member_id AS "memberId",
+          preview.protected_member_reference AS "protectedMemberReference",
+          preview.market_id AS "marketId",
+          preview.currency,
+          market_settings.currency_scale AS "currencyScale",
+          preview.purchase_amount AS "purchaseAmount",
+          preview.transaction_note AS "transactionNote",
+          preview.merchant_package_assignment_id AS "merchantPackageAssignmentId",
+          preview.merchant_package_version AS "merchantPackageVersion",
+          preview.merchant_package_snapshot AS "merchantPackageSnapshot",
+          preview.service_fee_rate AS "serviceFeeRate",
+          preview.service_fee_amount AS "serviceFeeAmount",
+          preview.estimated_mcp_debit AS "estimatedMcpDebit",
+          preview.reward_rule_version_id AS "rewardRuleVersionId",
+          preview.reward_rate AS "rewardRate",
+          preview.reward_principal AS "rewardPrincipal",
+          preview.reward_cap AS "rewardCap",
+          preview.daily_reward_amount AS "dailyRewardAmount",
+          preview.reward_start_business_date::text AS "rewardStartBusinessDate",
+          preview.market_timezone AS "marketTimezone",
+          preview.rounding_mode AS "roundingMode",
+          preview.previewed_at AS "previewedAt",
+          preview.expires_at AS "expiresAt",
+          branch.status::text AS "merchantStatus",
+          branch.merchant_id AS "publicMerchantId",
+          merchant_group.name AS "merchantName",
+          branch.name AS "branchName",
+          market.code AS "marketCode",
+          member.status::text AS "memberStatus",
+          member_profile.display_name AS "memberDisplayName"
+        FROM transaction_preview_sessions preview
+        JOIN merchant_branches branch
+          ON branch.id = preview.merchant_branch_id
+         AND branch.market_id = preview.market_id
+        JOIN merchant_groups merchant_group
+          ON merchant_group.id = branch.merchant_group_id
+        JOIN merchant_account_access merchant_access
+          ON merchant_access.merchant_group_id = merchant_group.id
+         AND merchant_access.account_id = ${staffAccountId}
+        JOIN markets market ON market.id = preview.market_id
+        JOIN market_transaction_settings market_settings
+          ON market_settings.market_id = preview.market_id
+         AND market_settings.currency_code = preview.currency
+        JOIN members member ON member.id = preview.member_id
+        LEFT JOIN member_profiles member_profile
+          ON member_profile.member_id = member.id
+        WHERE preview.id = ${previewSessionId}
+        FOR UPDATE OF preview
+      `);
+      const preview = previewResult.rows[0];
+      if (!preview) {
+        transactionNotFound(
+          transactionErrorCodes.previewNotFound,
+          'The transaction preview was not found or is not accessible.',
+        );
+      }
+      if (preview.status === 'CONFIRMED') {
+        transactionConflict(
+          transactionErrorCodes.previewAlreadyConfirmed,
+          'The transaction preview has already been confirmed.',
+        );
+      }
+      if (
+        preview.status === 'EXPIRED' ||
+        !preview.expiresAt ||
+        new Date(preview.expiresAt).getTime() <= now.getTime()
+      ) {
+        transactionConflict(
+          transactionErrorCodes.previewExpired,
+          'The transaction preview has expired.',
+        );
+      }
+      if (preview.status !== 'PREVIEWED') {
+        transactionConflict(
+          transactionErrorCodes.previewInvalidState,
+          'The transaction preview is not confirmable.',
+        );
+      }
+      if (preview.merchantStatus !== 'ACTIVE') {
+        transactionForbidden(
+          transactionErrorCodes.merchantInactive,
+          'Only an active merchant may confirm a transaction.',
+        );
+      }
+      if (preview.memberStatus !== 'ACTIVE') {
+        transactionForbidden(
+          transactionErrorCodes.memberInactive,
+          'Only an active member may participate in a transaction.',
+        );
+      }
+
+      const mcpResult = await tx.execute<McpAccountRow>(sql`
+        SELECT
+          id,
+          available_balance AS "availableBalance",
+          status::text AS status
+        FROM mcp_accounts
+        WHERE merchant_branch_id = ${preview.merchantBranchId}
+          AND market_id = ${preview.marketId}
+        FOR UPDATE
+      `);
+      const mcpAccount = mcpResult.rows[0];
+      if (!mcpAccount || mcpAccount.status !== 'ACTIVE') {
+        transactionNotFound(
+          transactionErrorCodes.mcpAccountMissing,
+          'The merchant MCP account is not available for transaction confirmation.',
+        );
+      }
+      if (
+        new Decimal(mcpAccount.availableBalance).lt(preview.estimatedMcpDebit)
+      ) {
+        transactionConflict(
+          transactionErrorCodes.insufficientMcp,
+          'The merchant MCP balance is insufficient to confirm this transaction.',
+        );
+      }
+
+      const transactionRows = await tx
+        .insert(transactions)
+        .values({
+          previewSessionId: preview.id,
+          merchantReceiptNumber: input.merchantReceiptNumber,
+          status: 'CONFIRMED',
+          merchantBranchId: preview.merchantBranchId,
+          merchantAccountId: preview.merchantAccountId,
+          confirmedByStaffAccountId: staffAccountId,
+          memberId: preview.memberId,
+          protectedMemberReference: preview.protectedMemberReference,
+          marketId: preview.marketId,
+          currency: preview.currency,
+          purchaseAmount: preview.purchaseAmount,
+          transactionNote: preview.transactionNote,
+          merchantPackageAssignmentId: preview.merchantPackageAssignmentId,
+          merchantPackageVersion: preview.merchantPackageVersion,
+          merchantPackageSnapshot: preview.merchantPackageSnapshot,
+          rewardRuleVersionId: preview.rewardRuleVersionId,
+          rewardRate: preview.rewardRate,
+          rewardPrincipal: preview.rewardPrincipal,
+          rewardCap: preview.rewardCap,
+          dailyRewardAmount: preview.dailyRewardAmount,
+          rewardStartBusinessDate: preview.rewardStartBusinessDate,
+          marketTimezone: preview.marketTimezone,
+          roundingMode: 'HALF_UP',
+          confirmedAt: now,
+          createdAt: now,
+        })
+        .returning({
+          id: transactions.id,
+          transactionNumber: transactions.transactionNumber,
+        });
+      const confirmedTransaction = transactionRows[0];
+      if (!confirmedTransaction) {
+        transactionConflict(
+          transactionErrorCodes.confirmationFailed,
+          'The confirmed transaction could not be created.',
+        );
+      }
+
+      await tx.insert(transactionServiceFees).values({
+        transactionId: confirmedTransaction.id,
+        marketId: preview.marketId,
+        currency: preview.currency,
+        rate: preview.serviceFeeRate,
+        principal: preview.purchaseAmount,
+        amount: preview.serviceFeeAmount,
+        createdAt: now,
+      });
+
+      const mcpPayloadHash = createHash('sha256')
+        .update(
+          JSON.stringify({
+            transactionId: confirmedTransaction.id,
+            mcpAccountId: mcpAccount.id,
+            amount: preview.estimatedMcpDebit,
+            marketId: preview.marketId,
+          }),
+          'utf8',
+        )
+        .digest('hex');
+      const mcpPostingResult = await tx.execute<McpPostingRow>(sql`
+        SELECT
+          entry_id AS "entryId",
+          projected_available_balance AS "projectedAvailableBalance"
+        FROM append_mcp_ledger_entry(
+          ${mcpAccount.id}::uuid,
+          'TRANSACTION_DEDUCTION'::mcp_entry_type,
+          'DEBIT'::mcp_direction,
+          ${preview.estimatedMcpDebit}::numeric,
+          ${new Decimal(preview.estimatedMcpDebit).negated().toFixed(10)}::numeric,
+          ${new Decimal(preview.estimatedMcpDebit).negated().toFixed(10)}::numeric,
+          'TRANSACTION',
+          ${confirmedTransaction.id},
+          ${`transaction:confirm:${confirmedTransaction.id}`},
+          ${mcpPayloadHash},
+          'ACCOUNT',
+          ${staffAccountId},
+          'TRANSACTION_CONFIRMATION',
+          ${now},
+          NULL,
+          ${JSON.stringify({
+            previewSessionId: preview.id,
+            marketId: preview.marketId,
+          })}::jsonb
+        )
+      `);
+      const mcpPosting = mcpPostingResult.rows[0];
+      if (!mcpPosting) {
+        transactionConflict(
+          transactionErrorCodes.confirmationFailed,
+          'The MCP debit could not be recorded.',
+        );
+      }
+
+      await tx.insert(transactionMcpDebits).values({
+        transactionId: confirmedTransaction.id,
+        marketId: preview.marketId,
+        mcpAccountId: mcpAccount.id,
+        mcpLedgerEntryId: mcpPosting.entryId,
+        amount: preview.estimatedMcpDebit,
+        balanceAfter: mcpPosting.projectedAvailableBalance,
+        createdAt: now,
+      });
+
+      const reward =
+        await this.rewardWriter.createRewardEntitlementInTransaction(tx, {
+          transactionId: confirmedTransaction.id,
+          memberId: preview.memberId,
+          marketId: preview.marketId,
+          merchantBranchId: preview.merchantBranchId,
+          amount: preview.purchaseAmount,
+          currency: preview.currency,
+          transactionTime: now,
+          packageSnapshot: preview.merchantPackageSnapshot,
+          serviceFeeRate: preview.serviceFeeRate,
+          serviceFeeAmount: preview.serviceFeeAmount,
+          rewardRuleVersionId: preview.rewardRuleVersionId,
+          rewardRate: preview.rewardRate,
+          dailyRewardAmount: preview.dailyRewardAmount,
+          rewardCap: preview.rewardCap,
+          rewardStartBusinessDate: preview.rewardStartBusinessDate,
+          marketTimezone: preview.marketTimezone,
+        });
+      await tx.insert(transactionRewardLinks).values({
+        transactionId: confirmedTransaction.id,
+        rewardSourceId: reward.sourceId,
+        rewardPlanId: reward.planId,
+        rewardRuleVersionId: preview.rewardRuleVersionId,
+        createdAt: now,
+      });
+
+      const transactionNumber =
+        confirmedTransaction.transactionNumber.toString();
+      const auditLogId = await this.audit.appendWithinTransactionWithId(tx, {
+        actor: { type: 'ACCOUNT', id: staffAccountId },
+        action: 'TRANSACTION_CONFIRMED',
+        entity: { type: 'transaction', id: confirmedTransaction.id },
+        marketId: preview.marketId,
+        after: {
+          transactionNumber,
+          previewSessionId: preview.id,
+          merchantPublicId: preview.publicMerchantId,
+          protectedMemberReference: preview.protectedMemberReference,
+          amount: preview.purchaseAmount,
+          currency: preview.currency,
+          serviceFeeAmount: preview.serviceFeeAmount,
+          mcpDeducted: preview.estimatedMcpDebit,
+          mcpBalanceAfter: mcpPosting.projectedAvailableBalance,
+          rewardRuleVersionId: preview.rewardRuleVersionId,
+          dailyRewardAmount: preview.dailyRewardAmount,
+          rewardStartBusinessDate: preview.rewardStartBusinessDate,
+        },
+        result: 'SUCCESS',
+        requestId: requestContext.requestId,
+        ipAddress: requestContext.ipAddress,
+        summary: `Merchant transaction ${transactionNumber} confirmed.`,
+      });
+      await tx.insert(transactionAuditReferences).values({
+        eventType: 'CONFIRMED',
+        auditLogId,
+        previewSessionId: preview.id,
+        transactionId: confirmedTransaction.id,
+        previewCreatorAccountId: preview.createdByStaffAccountId,
+        confirmerAccountId: staffAccountId,
+        merchantAccountId: preview.merchantAccountId,
+        staffAccountId,
+        protectedMemberReference: preview.protectedMemberReference,
+        marketId: preview.marketId,
+        currency: preview.currency,
+        purchaseAmount: preview.purchaseAmount,
+        merchantPackageAssignmentId: preview.merchantPackageAssignmentId,
+        merchantPackageVersion: preview.merchantPackageVersion,
+        serviceFeeRate: preview.serviceFeeRate,
+        rewardRuleVersionId: preview.rewardRuleVersionId,
+        requestId: requestContext.requestId,
+        clientChannel: 'MERCHANT_API',
+        previewedAt: new Date(preview.previewedAt),
+        confirmedAt: now,
+        createdAt: now,
+      });
+
+      await tx
+        .update(transactionPreviewSessions)
+        .set({
+          status: 'CONFIRMED',
+          confirmedAt: now,
+          expiresAt: null,
+          updatedAt: now,
+        })
+        .where(eq(transactionPreviewSessions.id, preview.id));
+
+      const merchant = {
+        merchantId: preview.publicMerchantId,
+        merchantName: preview.merchantName,
+        branchId: null,
+        branchName: preview.branchName,
+      };
+      const market = { marketCode: preview.marketCode };
+      const transactionTime = now.toISOString();
+      const purchaseAmount = new Decimal(preview.purchaseAmount).toFixed(
+        preview.currencyScale,
+      );
+      const serviceFeeAmount = new Decimal(preview.serviceFeeAmount).toFixed(
+        preview.currencyScale,
+      );
+      const mcpDeducted = new Decimal(preview.estimatedMcpDebit).toFixed(
+        preview.currencyScale,
+      );
+      const mcpBalanceAfter = new Decimal(
+        mcpPosting.projectedAvailableBalance,
+      ).toFixed(preview.currencyScale);
+      const packageName =
+        typeof preview.merchantPackageSnapshot['name'] === 'string'
+          ? preview.merchantPackageSnapshot['name']
+          : 'Custom package';
+      const receiptData = {
+        transactionNumber,
+        status: 'CONFIRMED' as const,
+        merchant,
+        member: {
+          maskedReference: preview.protectedMemberReference,
+          displayName: preview.memberDisplayName,
+        },
+        market,
+        currency: preview.currency,
+        purchaseAmount,
+        package: {
+          packageId: preview.merchantPackageAssignmentId,
+          packageName,
+          serviceFeeRate: preview.serviceFeeRate,
+        },
+        serviceFeeAmount,
+        reward: {
+          rewardRuleVersionId: preview.rewardRuleVersionId,
+          rewardRate: preview.rewardRate,
+          dailyRewardAmount: preview.dailyRewardAmount,
+          rewardCap: preview.rewardCap,
+          rewardStartBusinessDate: preview.rewardStartBusinessDate,
+        },
+        merchantReceiptNumber: input.merchantReceiptNumber ?? null,
+        transactionNote: preview.transactionNote,
+        transactionTime,
+      };
+
+      return {
+        transactionNumber,
+        status: 'CONFIRMED',
+        transactionTime,
+        merchant,
+        market,
+        currency: preview.currency,
+        amount: purchaseAmount,
+        serviceFee: serviceFeeAmount,
+        mcpDeducted,
+        mcpBalanceAfter,
+        rewardRuleVersion: preview.rewardRuleVersionId,
+        dailyRewardAmount: preview.dailyRewardAmount,
+        rewardCap: preview.rewardCap,
+        rewardStartBusinessDate: preview.rewardStartBusinessDate,
+        receiptData,
       };
     });
   }

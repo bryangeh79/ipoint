@@ -23,9 +23,15 @@ export const transactionErrorCodes = {
   packageInvalid: 'TRANSACTION_PACKAGE_INVALID',
   packageMissing: 'TRANSACTION_PACKAGE_MISSING',
   mcpAccountMissing: 'TRANSACTION_MCP_ACCOUNT_MISSING',
+  insufficientMcp: 'TRANSACTION_INSUFFICIENT_MCP',
   rewardRuleMissing: 'TRANSACTION_REWARD_RULE_MISSING',
   rewardRuleInvalid: 'TRANSACTION_REWARD_RULE_INVALID',
   previewCreationFailed: 'TRANSACTION_PREVIEW_CREATION_FAILED',
+  previewNotFound: 'TRANSACTION_PREVIEW_NOT_FOUND',
+  previewExpired: 'TRANSACTION_PREVIEW_EXPIRED',
+  previewAlreadyConfirmed: 'TRANSACTION_PREVIEW_ALREADY_CONFIRMED',
+  previewInvalidState: 'TRANSACTION_PREVIEW_INVALID_STATE',
+  confirmationFailed: 'TRANSACTION_CONFIRMATION_FAILED',
 } as const;
 
 export function transactionBadRequest(code: string, message: string): never {
