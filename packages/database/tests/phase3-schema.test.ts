@@ -304,15 +304,14 @@ describe('Phase 3 — Migration Pipeline Readiness', () => {
     }
   });
 
-  it('should allow new Phase 3 migrations to be appended', async () => {
-    // The migration runner supports incremental ordering; Phase 3 migrations
-    // should start at 0014_phase_3_wallet_schema.sql
+  it('should allow new Phase 4 migrations to be appended', async () => {
+    // Phase 4 migrations start at 0015
     const checksums = await calculateMigrationChecksums();
     const sortedFiles = Object.keys(checksums).sort();
     const lastMigration = sortedFiles[sortedFiles.length - 1];
-    expect(lastMigration).toMatch(/^0014_/u);
-    // Next available index is 15
-    expect(Number.parseInt(lastMigration!.slice(0, 4), 10)).toBe(14);
+    expect(lastMigration).toMatch(/^0015_/u);
+    // Next available index is 16
+    expect(Number.parseInt(lastMigration!.slice(0, 4), 10)).toBe(15);
   });
 
   it('should have a valid checksum manifest file', async () => {
