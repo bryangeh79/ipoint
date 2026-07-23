@@ -50,6 +50,7 @@ function createService(selects: unknown[][] = [], returning: unknown[][] = []) {
     select: vi.fn(() => query(selectQueue.shift() ?? [])),
     insert: vi.fn(() => mutation(returningQueue)),
     update: vi.fn(() => mutation(returningQueue)),
+    transaction: vi.fn((cb: (tx: typeof db) => Promise<unknown>) => cb(db)),
   };
   const database = {
     db,
@@ -236,16 +237,6 @@ describe('AdminRewardService', () => {
             id: walletId,
             memberId,
             marketId,
-            availableBalance: '100',
-            version: 1,
-          },
-        ],
-        [{ maxSeq: 0 }],
-        [
-          {
-            id: walletId,
-            memberId,
-            marketId,
             availableBalance: '150',
             version: 2,
           },
@@ -287,13 +278,11 @@ describe('AdminRewardService', () => {
           },
         ]),
       )
+      .mockReturnValueOnce(query([{ id: adminUserId }])) // market access check
       .mockReturnValueOnce(query([])) // no existing entry
       .mockReturnValueOnce(query([{ maxSeq: 0 }]))
-      .mockReturnValueOnce(query([])) // market access check
-      .mockReturnValueOnce(query([])) // idempotency
-      .mockReturnValueOnce(query([{ maxSeq: 0 }]))
-      .mockReturnValueOnce(query([])) // market access
-      .mockReturnValueOnce(query([])); // no existing entry
+      .mockReturnValueOnce(query([{ id: adminUserId }])) // market access (audit)
+      .mockReturnValueOnce(query([])); // no existing entry (audit)
 
     const result = await service.requestWalletAdjustment(actor, walletId, {
       amount: '50',
@@ -375,77 +364,60 @@ describe('AdminRewardService', () => {
       'appendWithinTransaction',
     );
 
-    const { service } = createService();
-    const txDb = {
-      select: vi
-        .fn()
-        .mockReturnValueOnce(
-          query([
-            {
-              id: walletId,
-              memberId,
-              marketId,
-              availableBalance: '100',
-              version: 1,
-            },
-          ]),
-        )
-        .mockReturnValueOnce(query([])) // market access check
-        .mockReturnValueOnce(query([])), // no existing entry
-      insert: vi
-        .fn()
-        .mockReturnValueOnce(
-          mutation([
-            [
-              {
-                id: walletId,
-                memberId,
-                marketId,
-                availableBalance: '150',
-                version: 2,
-              },
-            ],
-          ]),
-        )
-        .mockReturnValueOnce(
-          mutation([
-            [
-              {
-                id: randomUUID(),
-                walletAccountId: walletId,
-                memberId,
-                marketId,
-                entrySequence: 1n,
-                entryType: 'ADJUSTMENT',
-                amount: '50',
-                balanceBefore: '100',
-                balanceAfter: '150',
-                idempotencyKey: 'adj-audit',
-                referenceType: 'ADMIN_ADJUSTMENT',
-                referenceId: walletId,
-                description: 'Admin wallet adjustment: Audit test',
-                reason: 'Audit test',
-                actorId: adminUserId,
-                marketTimezone: null,
-                createdAt: now,
-              },
-            ],
-          ]),
-        ),
-      update: vi.fn().mockReturnValueOnce(
-        mutation([
-          [
-            {
-              id: walletId,
-              memberId,
-              marketId,
-              availableBalance: '150',
-              version: 2,
-            },
-          ],
+    const { service, db } = createService(
+      [],
+      [
+        [
+          {
+            id: walletId,
+            memberId,
+            marketId,
+            availableBalance: '150',
+            version: 2,
+          },
+        ],
+        [
+          {
+            id: randomUUID(),
+            walletAccountId: walletId,
+            memberId,
+            marketId,
+            entrySequence: 1n,
+            entryType: 'ADJUSTMENT',
+            amount: '50',
+            balanceBefore: '100',
+            balanceAfter: '150',
+            idempotencyKey: 'adj-audit',
+            referenceType: 'ADMIN_ADJUSTMENT',
+            referenceId: walletId,
+            description: 'Admin wallet adjustment: Audit test',
+            reason: 'Audit test',
+            actorId: adminUserId,
+            marketTimezone: null,
+            createdAt: now,
+          },
+        ],
+      ],
+    );
+    db.select.mockReset();
+    db.select
+      .mockReturnValueOnce(
+        query([
+          {
+            id: walletId,
+            memberId,
+            marketId,
+            availableBalance: '100',
+            version: 1,
+          },
         ]),
-      ),
-    };
+      )
+      .mockReturnValueOnce(query([{ id: adminUserId }])) // market access check
+      .mockReturnValueOnce(query([])) // no existing entry
+      .mockReturnValueOnce(query([{ maxSeq: 0 }]))
+      .mockReturnValueOnce(query([{ id: adminUserId }])) // market access (compensating)
+      .mockReturnValueOnce(query([])) // no existing entry (compensating)
+      .mockReturnValueOnce(query([{ maxSeq: 0 }])); // second entry sequence
 
     const result = await service.requestWalletAdjustment(actor, walletId, {
       amount: '50',
@@ -483,7 +455,71 @@ describe('AdminRewardService', () => {
   // ─── Compensating Entry Support ────────────────────────────────────
 
   it('creates a compensating entry when requested', async () => {
-    const { service } = createService();
+    const { service, db } = createService(
+      [],
+      [
+        [
+          {
+            id: walletId,
+            memberId,
+            marketId,
+            availableBalance: '600',
+            version: 2,
+          },
+        ],
+        [
+          {
+            id: randomUUID(),
+            walletAccountId: walletId,
+            memberId,
+            marketId,
+            entrySequence: 1n,
+            entryType: 'ADJUSTMENT',
+            amount: '100',
+            balanceBefore: '500',
+            balanceAfter: '600',
+            idempotencyKey: 'adj-comp',
+            referenceType: 'ADMIN_ADJUSTMENT',
+            referenceId: walletId,
+            description: 'Admin wallet adjustment: Test compensating',
+            reason: 'Test compensating',
+            actorId: adminUserId,
+            marketTimezone: null,
+            createdAt: now,
+          },
+        ],
+        [
+          {
+            id: walletId,
+            memberId,
+            marketId,
+            availableBalance: '500',
+            version: 3,
+          },
+        ],
+        [
+          {
+            id: randomUUID(),
+            walletAccountId: walletId,
+            memberId,
+            marketId,
+            entrySequence: 2n,
+            entryType: 'COMPENSATION',
+            amount: '100',
+            balanceBefore: '600',
+            balanceAfter: '500',
+            idempotencyKey: 'adj-comp-comp',
+            referenceType: 'COMPENSATING_ADJUSTMENT',
+            referenceId: 'entry-id',
+            description: 'Compensating entry: Reversal for testing',
+            reason: 'Reversal for testing',
+            actorId: adminUserId,
+            marketTimezone: null,
+            createdAt: now,
+          },
+        ],
+      ],
+    );
     // For compensating entries, two ledger entries should be created
     // (adjustment then compensation)
     const input = {
@@ -495,91 +531,25 @@ describe('AdminRewardService', () => {
       compensatingReason: 'Reversal for testing',
     };
 
-    const txDb = {
-      select: vi
-        .fn()
-        .mockReturnValueOnce(
-          query([
-            {
-              id: walletId,
-              memberId,
-              marketId,
-              availableBalance: '500',
-              version: 1,
-            },
-          ]),
-        )
-        .mockReturnValueOnce(query([])) // market access
-        .mockReturnValueOnce(query([])), // no existing entry
-      insert: vi
-        .fn()
-        .mockReturnValueOnce(
-          mutation([
-            [
-              {
-                id: walletId,
-                memberId,
-                marketId,
-                availableBalance: '600',
-                version: 2,
-              },
-            ],
-          ]),
-        )
-        .mockReturnValueOnce(
-          mutation([
-            [
-              {
-                id: randomUUID(),
-                walletAccountId: walletId,
-                memberId,
-                marketId,
-                entrySequence: 1n,
-                entryType: 'ADJUSTMENT',
-                amount: '100',
-                balanceBefore: '500',
-                balanceAfter: '600',
-                idempotencyKey: 'adj-comp',
-                referenceType: 'ADMIN_ADJUSTMENT',
-                referenceId: walletId,
-                description: 'Admin wallet adjustment: Test compensating',
-                reason: 'Test compensating',
-                actorId: adminUserId,
-                marketTimezone: null,
-                createdAt: now,
-              },
-            ],
-          ]),
-        ),
-      update: vi
-        .fn()
-        .mockReturnValueOnce(
-          mutation([
-            [
-              {
-                id: walletId,
-                memberId,
-                marketId,
-                availableBalance: '600',
-                version: 2,
-              },
-            ],
-          ]),
-        )
-        .mockReturnValueOnce(
-          mutation([
-            [
-              {
-                id: walletId,
-                memberId,
-                marketId,
-                availableBalance: '500',
-                version: 3,
-              },
-            ],
-          ]),
-        ),
-    };
+    db.select.mockReset();
+    db.select
+      .mockReturnValueOnce(
+        query([
+          {
+            id: walletId,
+            memberId,
+            marketId,
+            availableBalance: '500',
+            version: 1,
+          },
+        ]),
+      )
+      .mockReturnValueOnce(query([{ id: adminUserId }])) // market access
+      .mockReturnValueOnce(query([])) // no existing entry
+      .mockReturnValueOnce(query([{ maxSeq: 0 }]))
+      .mockReturnValueOnce(query([{ id: adminUserId }])) // market access
+      .mockReturnValueOnce(query([])) // no existing entry
+      .mockReturnValueOnce(query([{ maxSeq: 0 }])); // second entry sequence
 
     // Guard: compensating entry generates second ledger entry
     const result = await service.requestWalletAdjustment(

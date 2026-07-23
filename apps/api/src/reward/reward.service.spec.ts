@@ -82,8 +82,6 @@ function createService(options: {
   failTransaction?: boolean;
 }) {
   const ruleVersions = options.ruleVersions ?? [ruleVersionRow()];
-  const sources = options.sources ?? [sourceRow()];
-  const plans = options.plans ?? [];
 
   const selectMock = vi.fn().mockReturnThis();
   const fromMock = vi.fn().mockReturnThis();
@@ -97,8 +95,6 @@ function createService(options: {
   const leftJoinMock = vi.fn().mockReturnThis();
 
   const returnMock = vi.fn();
-
-  const executeMock = vi.fn();
 
   const transactionMock = vi.fn(async (cb: Function) => cb(db));
 
@@ -701,11 +697,6 @@ describe('RewardService', () => {
         marketId: marketAId,
         sourceId: sourceA.sourceId,
       });
-      const planB = planRow({
-        marketId: marketBId,
-        sourceId: sourceB.sourceId,
-      });
-
       const {
         service: serviceA,
         returnMock: returnMockA,

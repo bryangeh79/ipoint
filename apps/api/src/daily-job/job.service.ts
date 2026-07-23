@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, count, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, sql } from 'drizzle-orm';
 import { Decimal } from 'decimal.js';
 import {
   dailyJobRuns,
@@ -25,9 +25,7 @@ import {
   jobRunNotFoundError,
   jobRunAlreadyExistsError,
   jobRunInvalidStateError,
-  noEligibleRewardPlansError,
   rewardPlanAccrualCalculationError,
-  accrualDuplicateError,
 } from './job.errors.js';
 
 // Configure decimal.js for financial precision
@@ -456,7 +454,7 @@ export class JobService {
     }
 
     // 2. Apply cap check
-    const appliedAmount = await this.applyCap(tx, plan, dailyAmount);
+    const appliedAmount = this.applyCap(tx, plan, dailyAmount);
 
     if (new Decimal(appliedAmount).isZero()) {
       return {
@@ -675,11 +673,11 @@ export class JobService {
   /**
    * Apply cap logic to the calculated daily amount.
    */
-  private async applyCap(
+  private applyCap(
     tx: DbTransaction,
     plan: EligibleRewardPlan,
     dailyAmount: string,
-  ): Promise<string> {
+  ): string {
     // If no cap is configured, return the full amount
     if (!plan.capAmount) {
       return dailyAmount;
@@ -697,9 +695,7 @@ export class JobService {
       if (remainingCapSpace.isNegative() || remainingCapSpace.isZero()) {
         return '0';
       }
-      return remainingCapSpace
-        .toDecimalPlaces(10, 3)
-        .toString();
+      return remainingCapSpace.toDecimalPlaces(10, 3).toString();
     }
 
     return dailyAmount;
@@ -744,7 +740,6 @@ export class JobService {
       // Note: In a more sophisticated implementation, we'd have a failed_items
       // table. For now, we re-process via the plan scanning logic which skips
       // already-processed plans.
-      const marketTimezone = jobRun.marketId; // fetch from markets
       const market = await tx
         .select({ timezone: markets.timezone })
         .from(markets)
@@ -781,7 +776,7 @@ export class JobService {
       jobType: row.jobType,
       marketId: row.marketId,
       localBusinessDate: row.localBusinessDate,
-      status: row.status as DailyJobRunResponse['status'],
+      status: row.status,
       startedAt: row.startedAt?.toISOString() ?? null,
       completedAt: row.completedAt?.toISOString() ?? null,
       totalEntitlements: row.totalEntitlements,

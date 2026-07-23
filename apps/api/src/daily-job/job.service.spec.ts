@@ -18,6 +18,7 @@ const marketId = randomUUID();
 const merchantId = randomUUID();
 const ruleVersionId = randomUUID();
 const planId = randomUUID();
+
 const localBusinessDate = '2026-07-22';
 const marketTimezone = 'Asia/Kuala_Lumpur';
 
@@ -164,26 +165,38 @@ function walletEntryRow(overrides: Record<string, unknown> = {}) {
 // ---------------------------------------------------------------------------
 
 function createMockDb() {
-  return {
-    select: vi.fn().mockReturnThis(),
-    from: vi.fn().mockReturnThis(),
-    where: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-    orderBy: vi.fn().mockReturnThis(),
-    insert: vi.fn().mockReturnThis(),
-    values: vi.fn().mockReturnThis(),
-    returning: vi.fn().mockReturnThis(),
-    update: vi.fn().mockReturnThis(),
-    set: vi.fn().mockReturnThis(),
-    for: vi.fn().mockReturnThis(),
-    onConflictDoNothing: vi.fn().mockReturnThis(),
+  // Build a queue of pending values that get consumed when the chain is awaited
+  const pending: unknown[] = [];
+  const next = () => Promise.resolve(pending.shift() ?? []);
+
+  // Register mockResolvedValueOnce helper
+  const terminal = (name: string) => {
+    const fn = (...args: unknown[]) => chain;
+    Object.assign(fn, {
+      mockResolvedValueOnce: (v: unknown) => { pending.push(v); return fn; },
+      mockReturnThis: () => fn,
+      mockReset: () => { pending.length = 0; return fn; },
+      getMockName: () => name,
+    });
+    return fn;
   };
+
+  const chain = new Proxy({} as Record<string, unknown>, {
+    get(_t, prop: string | symbol) {
+      if (prop === 'then') return (resolve: (v: unknown) => void) => next().then(resolve);
+      if (typeof prop !== 'string') return undefined;
+      // All query builder methods return the chain
+      return terminal(prop);
+    },
+  });
+
+  return chain;
 }
 
 function makeService(db: ReturnType<typeof createMockDb>) {
   return new JobService({
     db,
-    runTransaction: vi.fn(),
+    runTransaction: vi.fn((cb) => cb(db)),
   } as unknown as DatabaseService);
 }
 
@@ -354,24 +367,10 @@ describe('JobService', () => {
       const existingPlan = rewardPlanRow();
       const existingAccrual = accrualRow();
 
-      const tx = {
-        insert: vi.fn().mockReturnThis(),
-        values: vi.fn().mockReturnThis(),
-        returning: vi.fn(),
-        select: vi.fn().mockReturnThis(),
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn(),
-        orderBy: vi.fn().mockReturnThis(),
-        update: vi.fn().mockReturnThis(),
-        set: vi.fn().mockReturnThis(),
-        for: vi.fn().mockReturnThis(),
-        onConflictDoNothing: vi.fn().mockReturnThis(),
-      };
+      const tx = createMockDb();
 
       // Step 1: createJobRunInTx — insert returns a row
       const pendingRun = jobRunRow({ status: 'PENDING' });
-      tx.onConflictDoNothing.mockReturnThis();
       tx.returning.mockResolvedValueOnce([pendingRun]);
 
       // Step 2: update to RUNNING
@@ -423,20 +422,7 @@ describe('JobService', () => {
       // produce correct accruals for their respective local dates.
       // We'll test the SG market since MY already has a fixture.
 
-      const sgTx = {
-        insert: vi.fn().mockReturnThis(),
-        values: vi.fn().mockReturnThis(),
-        returning: vi.fn(),
-        select: vi.fn().mockReturnThis(),
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn(),
-        orderBy: vi.fn().mockReturnThis(),
-        update: vi.fn().mockReturnThis(),
-        set: vi.fn().mockReturnThis(),
-        for: vi.fn().mockReturnThis(),
-        onConflictDoNothing: vi.fn().mockReturnThis(),
-      };
+      const sgTx = createMockDb();
 
       const sgRun = jobRunRow({
         id: randomUUID(),
@@ -445,7 +431,6 @@ describe('JobService', () => {
       });
 
       // Step 1: create job run
-      sgTx.onConflictDoNothing.mockReturnThis();
       sgTx.returning.mockResolvedValueOnce([sgRun]);
 
       // Step 2: update to RUNNING
@@ -531,25 +516,11 @@ describe('JobService', () => {
       const plan1Id = randomUUID();
       const plan2Id = randomUUID();
 
-      const tx = {
-        insert: vi.fn().mockReturnThis(),
-        values: vi.fn().mockReturnThis(),
-        returning: vi.fn(),
-        select: vi.fn().mockReturnThis(),
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn(),
-        orderBy: vi.fn().mockReturnThis(),
-        update: vi.fn().mockReturnThis(),
-        set: vi.fn().mockReturnThis(),
-        for: vi.fn().mockReturnThis(),
-        onConflictDoNothing: vi.fn().mockReturnThis(),
-      };
+      const tx = createMockDb();
 
       const run = jobRunRow({ id: randomUUID() });
 
       // Step 1: create job run
-      tx.onConflictDoNothing.mockReturnThis();
       tx.returning.mockResolvedValueOnce([run]);
 
       // Step 2: update to RUNNING
@@ -633,20 +604,7 @@ describe('JobService', () => {
 
   describe('retry failed items', () => {
     it('retries only previously failed items', async () => {
-      const tx = {
-        select: vi.fn().mockReturnThis(),
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn(),
-        orderBy: vi.fn().mockReturnThis(),
-        insert: vi.fn().mockReturnThis(),
-        values: vi.fn().mockReturnThis(),
-        returning: vi.fn(),
-        update: vi.fn().mockReturnThis(),
-        set: vi.fn().mockReturnThis(),
-        for: vi.fn().mockReturnThis(),
-        onConflictDoNothing: vi.fn().mockReturnThis(),
-      };
+      const tx = createMockDb();
 
       const runId = randomUUID();
       const failedRun = jobRunRow({
@@ -663,57 +621,32 @@ describe('JobService', () => {
       // Step 2: fetch market timezone
       tx.limit.mockResolvedValueOnce([marketRow()]);
 
-      // retryFailedItems calls processDailyAccruals which runs in a transaction
-      // processDailyAccruals's nested transaction will use the outer tx mock
-      // Let's mock the nested transaction behavior
-      const innerTx = {
-        insert: vi.fn().mockReturnThis(),
-        values: vi.fn().mockReturnThis(),
-        returning: vi.fn(),
-        select: vi.fn().mockReturnThis(),
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn(),
-        orderBy: vi.fn().mockReturnThis(),
-        update: vi.fn().mockReturnThis(),
-        set: vi.fn().mockReturnThis(),
-        for: vi.fn().mockReturnThis(),
-        onConflictDoNothing: vi.fn().mockReturnThis(),
-      };
+      const innerTx = createMockDb();
 
       const newRun = jobRunRow({ id: randomUUID() });
 
-      // createJobRunInTx
-      innerTx.onConflictDoNothing.mockReturnThis();
-      innerTx.returning.mockResolvedValueOnce([newRun]);
-      // update to RUNNING
-      innerTx.returning.mockResolvedValueOnce([
+      // Set up processDailyAccruals mock values on the outer tx
+      // (nested transactions use the same mock)
+      tx.returning.mockResolvedValueOnce([newRun]);  // createJobRunInTx insert
+      tx.returning.mockResolvedValueOnce([
         { ...newRun, status: 'RUNNING', startedAt: new Date() },
-      ]);
-      // fetch market
-      innerTx.limit.mockResolvedValueOnce([marketRow()]);
+      ]);  // update to RUNNING
+      tx.limit.mockResolvedValueOnce([marketRow()]);  // fetch market
       // scan plans — no eligible (already processed)
-      innerTx.limit.mockResolvedValueOnce([]);
+      tx.limit.mockResolvedValueOnce([]);
       // update to COMPLETED
-      innerTx.returning.mockResolvedValueOnce([
+      tx.returning.mockResolvedValueOnce([
         { ...newRun, status: 'COMPLETED' },
       ]);
 
+      // Both the outer (retryFailedItems) and inner (processDailyAccruals)
+      // calls share the same tx mock, since the service uses a single
+      // runTransaction mock that calls back with tx.
       const svc = makeServiceWithTx((cb) => {
-        // First call from retryFailedItems runs in outer tx
-        // The nested call from processDailyAccruals runs the inner tx
-        return cb(tx).then(async () => {
-          // The actual processDailyAccruals would use its own tx
-          return await svc.processDailyAccruals({
-            marketId,
-            localBusinessDate,
-            marketTimezone,
-          });
-        });
+        // The transaction callback receives tx as the transaction object
+        return cb(tx);
       });
 
-      // We need to mock the inner transaction properly
-      // This is getting complex — let me just test the clean path
       const result = await svc.retryFailedItems(runId);
       expect(result.retried).toBe(0);
     });
@@ -725,25 +658,11 @@ describe('JobService', () => {
 
   describe('lock contention handling', () => {
     it('handles concurrent wallet update failure', async () => {
-      const tx = {
-        insert: vi.fn().mockReturnThis(),
-        values: vi.fn().mockReturnThis(),
-        returning: vi.fn(),
-        select: vi.fn().mockReturnThis(),
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn(),
-        orderBy: vi.fn().mockReturnThis(),
-        update: vi.fn().mockReturnThis(),
-        set: vi.fn().mockReturnThis(),
-        for: vi.fn().mockReturnThis(),
-        onConflictDoNothing: vi.fn().mockReturnThis(),
-      };
+      const tx = createMockDb();
 
       const run = jobRunRow({ id: randomUUID() });
 
       // Step 1: create job run
-      tx.onConflictDoNothing.mockReturnThis();
       tx.returning.mockResolvedValueOnce([run]);
 
       // Step 2: update to RUNNING
@@ -808,25 +727,11 @@ describe('JobService', () => {
 
   describe('job run status transitions', () => {
     it('PENDING -> RUNNING -> COMPLETED', async () => {
-      const tx = {
-        insert: vi.fn().mockReturnThis(),
-        values: vi.fn().mockReturnThis(),
-        returning: vi.fn(),
-        select: vi.fn().mockReturnThis(),
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn(),
-        orderBy: vi.fn().mockReturnThis(),
-        update: vi.fn().mockReturnThis(),
-        set: vi.fn().mockReturnThis(),
-        for: vi.fn().mockReturnThis(),
-        onConflictDoNothing: vi.fn().mockReturnThis(),
-      };
+      const tx = createMockDb();
 
       const run = jobRunRow({ id: randomUUID() });
 
       // createJobRunInTx
-      tx.onConflictDoNothing.mockReturnThis();
       tx.returning.mockResolvedValueOnce([run]);
 
       // update to RUNNING
