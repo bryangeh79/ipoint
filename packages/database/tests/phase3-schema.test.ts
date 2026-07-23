@@ -319,7 +319,7 @@ describe('Phase 3 — Migration Pipeline Readiness', () => {
       `${migrationsDirectory}/checksums.json`,
       'utf8',
     );
-    const manifest = JSON.parse(manifestContent);
+    const manifest = JSON.parse(manifestContent) as Record<string, unknown>;
     expect(typeof manifest).toBe('object');
     expect(Object.keys(manifest).length).toBeGreaterThanOrEqual(15);
   });
@@ -352,8 +352,12 @@ describe('Phase 3 — Schema Drift Detection', () => {
     ];
     for (const table of phase12Tables) {
       expect(expectedSchema).toHaveProperty(table);
-      expect(Array.isArray(expectedSchema[table])).toBe(true);
-      expect(expectedSchema[table]).not.toHaveLength(0);
+      expect(
+        Array.isArray((expectedSchema as Record<string, unknown>)[table]),
+      ).toBe(true);
+      expect(
+        (expectedSchema as Record<string, unknown>)[table],
+      ).not.toHaveLength(0);
     }
   });
 
@@ -362,7 +366,7 @@ describe('Phase 3 — Schema Drift Detection', () => {
     const computed = await calculateMigrationChecksums();
     const persisted = JSON.parse(
       await readFile(`${migrationsDirectory}/checksums.json`, 'utf8'),
-    );
+    ) as Record<string, string>;
     expect(computed).toEqual(persisted);
   });
 });

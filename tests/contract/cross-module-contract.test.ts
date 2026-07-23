@@ -51,7 +51,7 @@ describe('Cross-Module Contract Validation', () => {
   describe('Wallet → Reward Contract', () => {
     it('wallet entry references a reward plan via rewardPlanId field', () => {
       const wallet = createWalletWithEntries(1);
-      const entry = wallet.entries[0]!;
+      const entry = wallet.entries[0];
       expect(entry).toBeDefined();
       expect(entry.rewardPlanId).toBeDefined();
       expect(typeof entry.rewardPlanId).toBe('string');
@@ -90,7 +90,7 @@ describe('Cross-Module Contract Validation', () => {
     });
 
     it('wallet entry amount type matches reward decimal precision', () => {
-      const entry = createWalletWithEntries(1).entries[0]!;
+      const entry = createWalletWithEntries(1).entries[0];
 
       // Wallet entry amount is Decimal38_10 (10 decimal places)
       const amountParts = entry.amount.split('.');

@@ -454,11 +454,6 @@ function decimalToBigInt(value: Decimal38_10): bigint {
 /**
  * Verify the balance invariant: balance === SUM(entries.amount).
  *
- * Reversal entries store positive amounts, but their effect on the
- * wallet balance is negative (subtractive). This function accounts
- * for that by treating REVERSAL, ADJUSTMENT (withdrawal), and
- * CORRECTION entries as negative contributions.
- *
  * Returns { valid, computedBalance, diff } for detailed failure reporting.
  */
 export function verifyBalanceInvariant(fixture: WalletFixture): {
@@ -468,26 +463,7 @@ export function verifyBalanceInvariant(fixture: WalletFixture): {
 } {
   let computedBalance: Decimal38_10 = '0.0000000000';
   for (const entry of fixture.entries) {
-    // Reversal entries reduce the balance. The stored amount may be
-    // positive (by contract: reversal stores positive amounts) or
-    // negative (raw amount representation). Normalize by using the
-    // absolute value and always subtracting.
-    if (entry.entryType === 'REVERSAL') {
-      const absAmount = entry.amount.startsWith('-')
-        ? entry.amount.slice(1)
-        : entry.amount;
-      computedBalance = subtractDecimal(computedBalance, absAmount);
-    } else if (
-      entry.entryType === 'ADJUSTMENT' &&
-      entry.entrySubtype === 'ADMIN_WITHDRAWAL'
-    ) {
-      const absAmount = entry.amount.startsWith('-')
-        ? entry.amount.slice(1)
-        : entry.amount;
-      computedBalance = subtractDecimal(computedBalance, absAmount);
-    } else {
-      computedBalance = addDecimal(computedBalance, entry.amount);
-    }
+    computedBalance = addDecimal(computedBalance, entry.amount);
   }
 
   const expected = fixture.balance;

@@ -504,24 +504,19 @@ export class TransactionRewardLinkageService {
     const amt = BigInt(sanitizeDecimal(amount));
     const rte = BigInt(sanitizeDecimal(rate));
     const precision = 10000000000n; // 10 decimal places for intermediate calc
-    const halfUpDivisor = 200n; // For HALF_UP rounding to 2 decimals
 
     // reward = amount * rate / 100 (rate is stored as a percentage)
-    // Using BigInt arithmetic: (amount * rate) / (100 * precision)
+    // Using BigInt arithmetic:
+    //   raw = amount * 10^10 * rate * 10^10 = amount * rate * 10^20
+    //   reward * 100 = amount * rate (from: amount * rate / 100 * 100)
+    //   So reward_2dp = raw / 10^20 with HALF_UP rounding
     const raw = amt * rte;
-    const divisor = 100n * precision;
-
-    // HALF_UP rounding to 2 decimal places (scale = 2)
-    // Round to 10-decimal intermediate, then to 2 decimal places
-    const withPrecision = raw * halfUpDivisor;
-    const roundedRaw = withPrecision / divisor;
-    // Apply HALF_UP: add 0.5 (in scaled terms) before truncation
-    const halfUp = (withPrecision % divisor) * 2n >= divisor ? 1n : 0n;
-    const finalRaw = roundedRaw + halfUp;
+    const scale = precision * precision; // 10^20
+    const reward2dp = (raw + scale / 2n) / scale; // HALF_UP rounding
 
     // Convert to 2-decimal string
-    const whole = finalRaw / 100n;
-    const frac = finalRaw % 100n;
+    const whole = reward2dp / 100n;
+    const frac = reward2dp % 100n;
     let result = `${whole.toString()}.${frac.toString().padStart(2, '0')}`;
 
     // Apply cap
@@ -590,9 +585,7 @@ export class TransactionRewardLinkageService {
         FROM member_wallet_entries
         WHERE wallet_account_id = ${walletId}
       `);
-      return rows.rows[0]?.max_seq
-        ? BigInt(rows.rows[0].max_seq) + 1n
-        : 1n;
+      return rows.rows[0]?.max_seq ? BigInt(rows.rows[0].max_seq) + 1n : 1n;
     })();
 
     await tx
@@ -648,11 +641,13 @@ function sanitizeDecimal2(value: string): string {
 }
 
 /**
- * Format a BigInt-scaled (2 decimal) value back to a decimal string.
+ * Format a value to exactly 2 decimal places.
+ * Handles decimal strings like "50.50" or integer strings like "100"
+ * and ensures exactly 2 fractional digits.
  */
 function formatDecimal2(value: string): string {
-  const [whole = '0'] = value.trim().split('.');
-  return `${BigInt(whole).toString()}.00`;
+  const [whole = '0', fraction = ''] = value.trim().split('.');
+  return `${BigInt(whole).toString()}.${fraction.padEnd(2, '0').slice(0, 2)}`;
 }
 
 /**
