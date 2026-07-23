@@ -210,12 +210,15 @@ describe('DST Boundary Tests', () => {
     expect(key1).toBe(key2);
   });
 
-  it('across DST transition weekend (Sat to Mon), local dates advance normally', () => {
+  it('across DST transition weekend, local dates advance normally', () => {
     const dstTimezone = 'America/New_York';
 
-    // March 7 (Sat) → March 9 (Mon), 2026 — spring forward weekend
+    // Use a local-time starting point (midday UTC so the local date matches)
+    // 2026-03-07 (Sat) midday UTC = 7AM EST in NY → still March 7
+    // 2026-03-08 (Sun) midday UTC = 7AM EST → DST spring forward at 2AM EST
+    // 2026-03-09 (Mon) midday UTC = 8AM EDT
     const dates = generateConsecutiveLocalDates(
-      '2026-03-07T00:00:00.000Z',
+      '2026-03-07T12:00:00.000Z',
       3,
       dstTimezone,
     );
@@ -291,8 +294,11 @@ describe('Midnight Rollover Tests', () => {
 
       // Asia date == UTC date (already ahead)
       expect(sgDate).toBe(`2026-${month}-${String(day).padStart(2, '0')}`);
-      // Americas date is previous day
-      expect(nyDate).toBe(`2026-${month}-${String(day - 1).padStart(2, '0')}`);
+      // Americas date is previous day — use UTC date arithmetic via Date object
+      const prevUtc = new Date(utcMidnight);
+      prevUtc.setUTCDate(prevUtc.getUTCDate() - 1);
+      const expectedNyDate = `2026-${String(prevUtc.getUTCMonth() + 1).padStart(2, '0')}-${String(prevUtc.getUTCDate()).padStart(2, '0')}`;
+      expect(nyDate).toBe(expectedNyDate);
     }
   });
 });
@@ -362,9 +368,10 @@ describe('Leap Day Tests', () => {
     const leapDate = utcToLocalDate('2028-02-29T18:00:00.000Z', dstTimezone);
     expect(leapDate).toBe('2028-02-29');
 
-    // Next date should be March 1
+    // Next date: 2028-03-01T00:00:00Z in NY is still Feb 29 at 7:00 PM EST
+    // because NY is UTC-5 during winter time
     const nextDate = utcToLocalDate('2028-03-01T00:00:00.000Z', dstTimezone);
-    expect(nextDate).toBe('2028-03-01');
+    expect(nextDate).toBe('2028-02-29');
   });
 
   it('century leap year rule: 2000 was a leap year, 2100 is not', () => {
