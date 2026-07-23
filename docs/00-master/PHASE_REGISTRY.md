@@ -14,7 +14,7 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Work** | **NONE — Phase 3 COMPLETE** | Phase 3 accepted/complete/frozen under D-029. P3-S2+ NOT_AUTHORIZED. Phase 4 NOT_AUTHORIZED. Wait for Command Center authorization. |
+| **Current Authorized Work** | **Phase 4 — Batch A (P4-S1 to P4-S4)** | Phase 3 accepted/complete/frozen under D-029. P3-S2+ NOT_AUTHORIZED. Phase 4 Batch A authorized under D-030. P4-S5+ NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
 | **Phase 2** | **COMPLETE** | Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027. P2-S1 through P2-S9 all COMPLETE / APPROVED. Phase 3 NOT_AUTHORIZED. |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
@@ -69,7 +69,7 @@
 | **Phase 1** | Merchant Onboarding + MCP Ledger | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21` under D-013. Pull Request to main AUTHORIZED. Phase branch: phase/1-merchant-onboarding-mcp |
 | **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) | **COMPLETE** | P2-S1 through P2-S9 all COMPLETE / APPROVED. Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027 |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **COMPLETE / ACCEPTED / FROZEN** | Accepted under D-029. Final SHA 2ed57f4e. CI Run 30000394880. P3-S2+ NOT_AUTHORIZED. |
-| **Phase 4** | Transaction Engine | **NOT_AUTHORIZED** | Draft, receipt, QR scan, atomic confirmation, MCP debit |
+| **Phase 4** | Transaction Engine | **BATCH_A_AUTHORIZED** | P4-S0 contract freeze accepted. P4-S1 through P4-S4 authorized under D-030. P4-S5+ NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. Phase branch: phase/4-transaction-engine |
 | **Phase 5** | Agent & Commission Engine | **NOT_AUTHORIZED** | Referral, activation, 3 commission types. Five-level team rewards DEFERRED |
 | **Phase 6** | Redemption Center | **NOT_AUTHORIZED** | Market catalog, rate, order, iPoint debit, refund |
 | **Phase 7** | Admin Operations | **NOT_AUTHORIZED** | Dashboards, rule management, Maker/Checker, risk, audit, reports |
@@ -115,6 +115,19 @@
 |---|---|---|---|
 | **P3-S1** | Architecture, Contract Audit and Engineering Freeze | **COMPLETE / ACCEPTED** | Accepted under D-029. Final SHA 2ed57f4e. |
 
+## Phase 4 sub-phase status
+
+| Sub-phase | Scope | Status | Next gate |
+|---|---|---|---|
+| **P4-S1** | Database Schema & Transaction Domain Model | **AUTHORIZED** | D-030. Execute after Phase 4 branch creation. |
+| **P4-S2** | Merchant Transaction Preview & Validation | **AUTHORIZED_AFTER_S1** | Execute after P4-S1 tests pass. |
+| **P4-S3** | Atomic Transaction Confirmation | **AUTHORIZED_AFTER_S2** | Execute after P4-S2 tests pass. |
+| **P4-S4** | Idempotency, Duplicate Protection & Concurrency | **AUTHORIZED_AFTER_S3** | Execute after P4-S3 tests pass. |
+| **P4-S5** | Transaction History and Receipt List APIs | **NOT_AUTHORIZED** | Batch B. |
+| **P4-S6** | Reversal / Refund | **NOT_AUTHORIZED** | Batch B. |
+| **P4-S7** | Hardening | **NOT_AUTHORIZED** | Post-Batch A. |
+| **P4-S8** | Final Acceptance | **NOT_AUTHORIZED** | Post-Batch A. |
+
 ## Current allowed actions
 
 - Record Phase 2 final acceptance (D-027 — APPROVED)
@@ -129,7 +142,9 @@
 - Deploy production schema or run production migrations during P3-S1
 - Modify Phase 3 accepted/frozen code
 - Create additional Phase 3 commits
-- Begin Phase 4
+- Begin Phase 4 without Batch A authorization — **Batch A now authorized**
+- Execute P4-S5, P4-S6, P4-S7, or P4-S8 before Batch A acceptance
+- Skip P4-S1 tests before starting P4-S2
 - Push or merge Main
 - Open a Main PR
 - Modify Phase 2 LOCKED business rules or production code
@@ -152,4 +167,4 @@
 
 ---
 
-*Last updated: 2026-07-23 | Updated by: OpenClaw | Based on decisions D-001 through D-029*
+*Last updated: 2026-07-23 | Updated by: OpenClaw | Based on decisions D-001 through D-030*

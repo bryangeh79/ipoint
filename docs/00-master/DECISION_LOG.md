@@ -619,4 +619,40 @@
 | **Approver** | ChatGPT Command Center |
 | **Basis** | Phase 3 CI Run 30000394880 â€” SHA 2ed57f4e |
 | **Status** | **ACCEPTED / COMPLETE / FROZEN** |
+---
 
+## D-030: Phase 4 — Transaction Engine Batch A authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-030 |
+| **Date** | 2026-07-23 |
+| **Source** | ChatGPT Command Center — Phase 4 Batch A Authorization |
+| **Old Rule** | Phase 4 NOT_AUTHORIZED; P4-S0 contract freeze pending |
+| **New Decision** | Phase 4 — Transaction Engine Batch A (P4-S1 through P4-S4) authorized with 43 frozen product contracts (P4-D01 through P4-D44). P4-S5 through P4-S8 NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. |
+| **Reason** | Command Center approved Phase 4 contracts (P4-D01 through P4-D44). P4-S0 contract freeze accepted. Batch A engineering execution authorized for schema, preview, confirmation, and idempotency/concurrency. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, docs/06-phase-reports/p4-s0/*, .github/workflows/p4-ci.yml |
+| **Affected Phases** | Phase 4, P4-S1, P4-S2, P4-S3, P4-S4 |
+| **Migration** | Forward migration for transaction schema (P4-S1 scope) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | Phase 4 Batch A Authorization (2026-07-23) — 43 frozen contracts P4-D01 through P4-D44 |
+| **Status** | **AUTHORIZED** |
+
+### Authorized scope
+
+| Sub-phase | Scope |
+|---|---|
+| **P4-S1** | Database Schema & Transaction Domain Model |
+| **P4-S2** | Merchant Transaction Preview & Validation |
+| **P4-S3** | Atomic Transaction Confirmation |
+| **P4-S4** | Idempotency, Duplicate Protection & Concurrency |
+
+### Not authorized
+
+* P4-S5 (History & Receipt List)
+* P4-S6 (Reversal/Refund)
+* P4-S7 (Hardening)
+* P4-S8 (Final Acceptance)
+* Main PR
+* Main merge
+* Production deployment
