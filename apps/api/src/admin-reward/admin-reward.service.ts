@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   adminUsers,
@@ -9,7 +8,7 @@ import {
   rewardRuleVersions,
   type Database,
 } from '@ipoint/database';
-import { and, count, desc, eq, isNull, asc, sql } from 'drizzle-orm';
+import { and, count, desc, eq, isNull, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service.js';
 import { AuditService } from '../platform-access/audit.service.js';
 import type {
@@ -20,16 +19,13 @@ import type {
 } from './admin-reward.dto.js';
 import {
   adminRewardAdjustmentInvalidAmountError,
-  adminRewardAdjustmentNotFoundError,
   adminRewardJobNotFoundError,
   adminRewardMarketAccessDeniedError,
-  adminRewardRuleVersionArchivedError,
   adminRewardRuleVersionNotFoundError,
   adminRewardWalletNotFoundError,
 } from './admin-reward.errors.js';
 import type {
   AdminRewardActor,
-  AdminRewardJobRun,
   AdminRewardJobRunDetailResponse,
   AdminRewardJobRunListResponse,
   AdminRewardRuleVersionDetailResponse,
@@ -363,13 +359,6 @@ export class AdminRewardService {
 
       const nextSeq = BigInt(String(maxSeqResult[0]?.maxSeq ?? 1));
       const amountNum = input.amount;
-      const zero = '0';
-
-      // ADJUSTMENT entry type: affects available balance only
-      const pendingDelta = zero;
-      const availableDelta = amountNum;
-      const reversedDelta = zero;
-
       // Current balances snapshot
       const balanceBefore = wallet.availableBalance;
 

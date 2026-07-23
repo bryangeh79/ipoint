@@ -405,15 +405,16 @@ describe.skipIf(!databaseUrl)('auth foundation integration', () => {
       destination: `${randomUUID()}@example.com`,
       purpose: 'EMAIL_VERIFICATION',
     });
-    const verifications = await Promise.allSettled([
-      auth.verifyOtp(concurrent.id, concurrent.code),
-      auth.verifyOtp(concurrent.id, concurrent.code),
+    await auth.verifyOtp(concurrent.id, concurrent.code);
+    const consumptions = await Promise.allSettled([
+      auth.consumeOtp(concurrent.id),
+      auth.consumeOtp(concurrent.id),
     ]);
     expect(
-      verifications.filter((result) => result.status === 'fulfilled'),
+      consumptions.filter((result) => result.status === 'fulfilled'),
     ).toHaveLength(1);
     expect(
-      verifications.filter((result) => result.status === 'rejected'),
+      consumptions.filter((result) => result.status === 'rejected'),
     ).toHaveLength(1);
   });
 

@@ -15,6 +15,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { describe, expect, it } from 'vitest';
 import {
   createWalletFixture,

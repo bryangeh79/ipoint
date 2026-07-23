@@ -55,7 +55,9 @@ function indexPackage(virtualEntryPath, itemName) {
         const fullPath = join(itemPath, sub);
         storeMap.set(fullName, fullPath);
       }
-    } catch {}
+    } catch {
+      // Best-effort scan: unreadable virtual-store entries are skipped.
+    }
   } else {
     storeMap.set(itemName, itemPath);
   }
@@ -68,7 +70,9 @@ for (const entry of readdirSync(PNPM)) {
       for (const item of readdirSync(nmDir)) {
         indexPackage(nmDir, item);
       }
-    } catch {}
+    } catch {
+      // Best-effort scan: unreadable virtual-store entries are skipped.
+    }
   }
 }
 
@@ -170,8 +174,6 @@ console.log('\nCreated: ' + created + ' symlinks');
 
 // ── Also recreate .bin scripts if missing ──
 const binDir = join(NM, '.bin');
-const vendorBinDir = join(NM, '.pnpm', 'node_modules');
-
 if (!existsSync(binDir)) {
   if (DRY_RUN) {
     console.log('  [DRY] Would create .bin directory');
@@ -200,7 +202,9 @@ if (existsSync(vendorBins) && existsSync(join(vendorBins, '.bin'))) {
           }
         }
       }
-    } catch {}
+    } catch {
+      // Best-effort shim recreation; missing vendor bins are non-fatal.
+    }
   }
 }
 

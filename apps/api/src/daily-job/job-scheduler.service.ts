@@ -73,8 +73,8 @@ export class JobSchedulerService
     await this.startScheduler();
   }
 
-  async onApplicationShutdown(): Promise<void> {
-    await this.stopScheduler();
+  onApplicationShutdown(): void {
+    this.stopScheduler();
   }
 
   // ─── Queue Schema Setup ─────────────────────────────────────
@@ -196,10 +196,13 @@ export class JobSchedulerService
    * for clarity.
    */
   releaseLock(
-    _jobType: string,
-    _marketId: string,
-    _localBusinessDate: string,
+    jobType: string,
+    marketId: string,
+    localBusinessDate: string,
   ): void {
+    void jobType;
+    void marketId;
+    void localBusinessDate;
     // Transaction-level advisory locks auto-release at end of transaction.
     // No explicit release needed.
   }
@@ -232,7 +235,7 @@ export class JobSchedulerService
   /**
    * Stop the recurring scheduler.
    */
-  async stopScheduler(): Promise<void> {
+  stopScheduler(): void {
     if (this.intervalHandle) {
       clearInterval(this.intervalHandle);
       this.intervalHandle = null;
@@ -305,31 +308,24 @@ export class JobSchedulerService
     await this.tryAcquireLock(
       JOB_TYPE_DAILY_REWARD_ACCRUAL,
       marketId,
-      localBusinessDate as string,
+      localBusinessDate,
     );
 
-    try {
-      // Process daily accruals within the same transaction
-      const result = await this.jobService.processDailyAccruals({
-        marketId,
-        localBusinessDate: localBusinessDate as string,
-        marketTimezone: marketTimezone as string,
-      });
+    const result = await this.jobService.processDailyAccruals({
+      marketId,
+      localBusinessDate,
+      marketTimezone,
+    });
 
-      // Mark job as completed
-      await this.database.db.execute(sql`
-        UPDATE ipoint_jobs.job_queue
-        SET state = 'completed', completed_at = now()
-        WHERE id = ${jobId}
-      `);
+    await this.database.db.execute(sql`
+      UPDATE ipoint_jobs.job_queue
+      SET state = 'completed', completed_at = now()
+      WHERE id = ${jobId}
+    `);
 
-      console.log(
-        `[JobScheduler] Completed job ${jobId}: processed=${result.processedCount}, failed=${result.failedCount}`,
-      );
-    } catch (err) {
-      // Lock auto-releases on rollback
-      throw err;
-    }
+    console.log(
+      `[JobScheduler] Completed job ${jobId}: processed=${result.processedCount}, failed=${result.failedCount}`,
+    );
   }
 
   /**

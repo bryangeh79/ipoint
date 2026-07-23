@@ -4,7 +4,6 @@ import {
   ConflictException,
   Controller,
   Get,
-  HttpCode,
   HttpException,
   HttpStatus,
   Inject,

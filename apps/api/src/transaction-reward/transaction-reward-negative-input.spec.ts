@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Phase 3 — Negative Input Boundary Tests for Transaction Reward HALF_UP
  *

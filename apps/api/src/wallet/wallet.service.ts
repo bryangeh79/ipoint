@@ -5,8 +5,6 @@ import { DatabaseService } from '../database/database.service.js';
 import { ConfigService } from '../config/config.service.js';
 import {
   walletNotFoundError,
-  walletAlreadyExistsError,
-  duplicateIdempotencyKeyError,
   invalidAmountError,
   walletEntryNotFoundError,
 } from './wallet.errors.js';

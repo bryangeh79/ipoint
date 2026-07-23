@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-function-type, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unused-vars, @typescript-eslint/require-await */
 import { Decimal } from 'decimal.js';
 import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -316,13 +317,13 @@ describe('RewardService', () => {
       insertReturningMock.mockResolvedValue([source]);
 
       const result = await service.createSource({
-        sourceType: source.sourceType as string,
+        sourceType: source.sourceType,
         sourceId: source.sourceId as string,
         memberId: source.memberId as string,
         marketId: source.marketId as string,
         merchantId: source.merchantId as string,
-        transactionAmount: source.transactionAmount as string,
-        currency: source.currency as string,
+        transactionAmount: source.transactionAmount,
+        currency: source.currency,
         merchantPackageSnapshot: source.merchantPackageSnapshot as Record<
           string,
           unknown
@@ -347,13 +348,13 @@ describe('RewardService', () => {
 
       await expect(
         service.createSource({
-          sourceType: source.sourceType as string,
+          sourceType: source.sourceType,
           sourceId: source.sourceId as string,
           memberId: source.memberId as string,
           marketId: source.marketId as string,
           merchantId: source.merchantId as string,
-          transactionAmount: source.transactionAmount as string,
-          currency: source.currency as string,
+          transactionAmount: source.transactionAmount,
+          currency: source.currency,
         }),
       ).rejects.toMatchObject({
         code: 'REWARD_SOURCE_DUPLICATE',

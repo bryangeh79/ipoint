@@ -16,6 +16,7 @@
  *   pnpm vitest run apps/api/src/__tests__/cross-module-integration.spec.ts
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unused-vars, @typescript-eslint/require-await */
 import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -66,7 +67,7 @@ describe('Wallet + Reward Integration', () => {
     const entryId = randomUUID();
 
     const balanceBefore = fixture.balance;
-    let balanceAfter = addDecimal(balanceBefore, accrualAmount);
+    const balanceAfter = addDecimal(balanceBefore, accrualAmount);
 
     fixture.entries.push({
       entryId,

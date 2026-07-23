@@ -13,6 +13,7 @@
  *   pnpm vitest run apps/api/src/__tests__/concurrency.spec.ts
  */
 
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/require-await */
 import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {

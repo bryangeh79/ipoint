@@ -2,14 +2,7 @@
 // validate-environment.mjs — Comprehensive environment validation for Phase 3
 // Reports PASS / FAIL / SKIP for each check with root cause analysis.
 import { execSync } from 'child_process';
-import {
-  existsSync,
-  readlinkSync,
-  readdirSync,
-  lstatSync,
-  statSync,
-  readFileSync,
-} from 'fs';
+import { existsSync, readdirSync, lstatSync, statSync, readFileSync } from 'fs';
 import { resolve, join } from 'path';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -218,12 +211,10 @@ for (const pkg of ['prettier', 'vitest', 'eslint', 'typescript']) {
 
 // Scan all symlinks
 const nm = join(ROOT, 'node_modules');
-const nmEntries = readdirSync(nm);
 let totalSymlinks = 0,
   brokenSymlinks = 0,
   workingSymlinks = 0;
-function scanDir(dir, baseKey) {
-  baseKey = baseKey || '';
+function scanDir(dir) {
   let entries;
   try {
     entries = readdirSync(dir);
