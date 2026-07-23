@@ -1,0 +1,139 @@
+# Phase 4 CI — Transaction Engine
+name: Phase 4 CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'phase/4-**'
+      - 'task/p4-**'
+  pull_request:
+    branches:
+      - 'phase/4-**'
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: p4-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+  DATABASE_URL: postgresql://ipoint:***@127.0.0.1:5432/ipoint_ci
+  REDIS_URL: redis://127.0.0.1:6379
+
+jobs:
+  quality:
+    name: Quality (format + lint + typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+
+  build:
+    name: Build all packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm vitest run --reporter verbose --project node-unit
+
+  database-tests:
+    name: Database tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ipoint_ci
+          POSTGRES_USER: ipoint
+          POSTGRES_PASSWORD: ***
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ipoint -d ipoint_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:checksum
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+      - run: pnpm db:seed
+      - run: pnpm db:drift
+      - run: pnpm test:database
+      - run: pnpm db:checksum
+      - run: pnpm db:drift
+
+  phase3-regression:
+    name: Phase 3 wallet/reward/ledger regression
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ipoint_p3_ci
+          POSTGRES_USER: ipoint
+          POSTGRES_PASSWORD: ***
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ipoint -d ipoint_p3_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://ipoint:***@127.0.0.1:5432/ipoint_p3_ci
+      REDIS_URL: redis://127.0.0.1:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+      - run: cd apps/api && pnpm vitest run src/wallet --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/reward --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/transaction-reward --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/daily-job --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/admin-reward --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/__tests__/ledger-invariants --reporter verbose
