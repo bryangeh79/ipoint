@@ -65,7 +65,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm vitest --config vitest.config.ts run --reporter verbose
+      - run: pnpm test -- --reporter verbose
 
   phase3-tests:
     name: Phase 3 module tests
@@ -78,17 +78,17 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test -- apps/api/src/wallet --reporter verbose
-      - run: pnpm test -- apps/api/src/reward --reporter verbose
-      - run: pnpm test -- apps/api/src/transaction-reward --reporter verbose
-      - run: pnpm test -- apps/api/src/daily-job --reporter verbose
-      - run: pnpm test -- apps/api/src/admin-reward --reporter verbose
-      - run: pnpm test -- apps/api/src/__tests__/ledger-invariants --reporter verbose
-      - run: pnpm test -- apps/api/src/__tests__/concurrency --reporter verbose
-      - run: pnpm test -- apps/api/src/__tests__/timezone --reporter verbose
-      - run: pnpm test -- apps/api/src/__tests__/cross-module --reporter verbose
-      - run: pnpm test -- tests/contract --reporter verbose
-      - run: pnpm test -- tests/security --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/wallet --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/reward --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/transaction-reward --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/daily-job --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/admin-reward --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/__tests__/ledger-invariants --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/__tests__/concurrency --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/__tests__/timezone --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/__tests__/cross-module --reporter verbose
+      - run: pnpm vitest --config vitest.config.ts run tests/contract --reporter verbose
+      - run: pnpm vitest --config vitest.config.ts run tests/security --reporter verbose
 
   database-tests:
     name: Database tests
