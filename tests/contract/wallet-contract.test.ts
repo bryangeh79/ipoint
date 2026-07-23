@@ -190,11 +190,12 @@ describe('Wallet API Endpoint Contract', () => {
   });
 
   it('wallet GET endpoints should not mutate state', () => {
-    // GET /wallets and GET /wallets/:id and GET /wallets/:id/entries
+    // GET /wallets, GET /wallets/:id, GET /wallets/:id/entries,
+    // GET /admin/wallets, GET /admin/wallets/:id
     const getEndpoints = expectedWalletEndpoints.filter(
       (e) => e.method === 'GET',
     );
-    expect(getEndpoints).toHaveLength(3);
+    expect(getEndpoints).toHaveLength(5);
   });
 
   it('admin reversal endpoint should require POST and idempotency key', () => {
@@ -564,7 +565,10 @@ describe('Ledger Invariant: Balance = SUM(entries)', () => {
     const wallet = createWalletWithEntries(100, '1.0000000000');
     const result = verifyBalanceInvariant(wallet);
     expect(result.valid).toBe(true);
-    expect(result.computedBalance).toBe('100.0000000000');
+    // createWalletWithEntries generates amounts = baseAmount * (i+1) for i=0..99
+    // with baseAmount='1.0000000000', amounts are 1,2,3,...,100.
+    // Sum_i=1^100 i = 100 * 101 / 2 = 5050.
+    expect(result.computedBalance).toBe('5050.0000000000');
   });
 });
 
@@ -711,7 +715,12 @@ describe('Decimal Precision Contract', () => {
   });
 
   it('should handle large values', () => {
-    const value = toDecimal(9999999999.9999999999);
+    // Must pass as string to avoid IEEE 754 precision loss:
+    //   toDecimal(9999999999.9999999999)  (number literal)
+    //   → intermediate JS Number rounds to 10000000000
+    //   → produces '10000000000.0000000000'
+    // Passing the value as a string preserves the full precision.
+    const value = toDecimal('9999999999.9999999999');
     expect(value).toBe('9999999999.9999999999');
   });
 

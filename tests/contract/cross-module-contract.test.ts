@@ -373,7 +373,7 @@ describe('API Endpoint Contract — Cross-Module', () => {
   });
 
   it('no duplicate endpoint paths', () => {
-    const paths = allContractEndpoints.map((e) => e.path);
+    const paths = allContractEndpoints.map((e) => `${e.method} ${e.path}`);
     expect(new Set(paths).size).toBe(paths.length);
   });
 });

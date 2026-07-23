@@ -514,9 +514,8 @@ export class TransactionRewardLinkageService {
     const scale = precision * precision; // 10^20
     // Sign-aware HALF_UP rounding: raw >= 0 rounds away from zero (standard HALF_UP)
     // raw < 0 rounds toward negative infinity (correct HALF_UP for negatives)
-    const reward2dp = raw >= 0n
-      ? (raw + scale / 2n) / scale
-      : (raw - scale / 2n) / scale;
+    const reward2dp =
+      raw >= 0n ? (raw + scale / 2n) / scale : (raw - scale / 2n) / scale;
 
     // Negative reward is impossible — guard before formatting to avoid crash
     // in cap/min comparison or string formatting with negative values

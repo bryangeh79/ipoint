@@ -173,9 +173,15 @@ function createMockDb() {
   const terminal = (name: string) => {
     const fn = (...args: unknown[]) => chain;
     Object.assign(fn, {
-      mockResolvedValueOnce: (v: unknown) => { pending.push(v); return fn; },
+      mockResolvedValueOnce: (v: unknown) => {
+        pending.push(v);
+        return fn;
+      },
       mockReturnThis: () => fn,
-      mockReset: () => { pending.length = 0; return fn; },
+      mockReset: () => {
+        pending.length = 0;
+        return fn;
+      },
       getMockName: () => name,
     });
     return fn;
@@ -183,7 +189,8 @@ function createMockDb() {
 
   const chain = new Proxy({} as Record<string, unknown>, {
     get(_t, prop: string | symbol) {
-      if (prop === 'then') return (resolve: (v: unknown) => void) => next().then(resolve);
+      if (prop === 'then')
+        return (resolve: (v: unknown) => void) => next().then(resolve);
       if (typeof prop !== 'string') return undefined;
       // All query builder methods return the chain
       return terminal(prop);
@@ -627,17 +634,15 @@ describe('JobService', () => {
 
       // Set up processDailyAccruals mock values on the outer tx
       // (nested transactions use the same mock)
-      tx.returning.mockResolvedValueOnce([newRun]);  // createJobRunInTx insert
+      tx.returning.mockResolvedValueOnce([newRun]); // createJobRunInTx insert
       tx.returning.mockResolvedValueOnce([
         { ...newRun, status: 'RUNNING', startedAt: new Date() },
-      ]);  // update to RUNNING
-      tx.limit.mockResolvedValueOnce([marketRow()]);  // fetch market
+      ]); // update to RUNNING
+      tx.limit.mockResolvedValueOnce([marketRow()]); // fetch market
       // scan plans — no eligible (already processed)
       tx.limit.mockResolvedValueOnce([]);
       // update to COMPLETED
-      tx.returning.mockResolvedValueOnce([
-        { ...newRun, status: 'COMPLETED' },
-      ]);
+      tx.returning.mockResolvedValueOnce([{ ...newRun, status: 'COMPLETED' }]);
 
       // Both the outer (retryFailedItems) and inner (processDailyAccruals)
       // calls share the same tx mock, since the service uses a single

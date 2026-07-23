@@ -29,14 +29,30 @@ import { randomUUID } from 'node:crypto';
 export type Decimal38_10 = string;
 
 /**
- * Create a decimal string from a number, rounding to 10 decimal places.
+ * Create a decimal string from a number or string, preserving full precision
+ * up to 10 decimal places.
+ *
+ * When given a **string**, the value is parsed with BigInt arithmetic so that
+ * very large or highly-precise values (e.g. 9999999999.9999999999) are not
+ * truncated by JavaScript's IEEE 754 double precision (52-bit mantissa).
+ *
+ * When given a **number**, the usual floating-point representation applies;
+ * values beyond Number.MAX_SAFE_INTEGER (≈9e15) or with >15 significant
+ * decimal digits may lose precision.
  */
 export function toDecimal(value: number | string): Decimal38_10 {
-  const num = typeof value === 'string' ? Number.parseFloat(value) : value;
-  if (!Number.isFinite(num)) {
+  if (typeof value === 'string') {
+    const [whole = '0', fraction = ''] = value.trim().split('.');
+    const fracPadded = fraction.padEnd(10, '0').slice(0, 10);
+    const sign = whole.startsWith('-') ? '-' : '';
+    const absWhole = whole.replace(/^[-+]?0*/, '') || '0';
+    return `${sign}${absWhole}.${fracPadded}`;
+  }
+  // Number path — IEEE 754 limited
+  if (!Number.isFinite(value)) {
     throw new TypeError(`Invalid decimal value: ${value}`);
   }
-  return num.toFixed(10);
+  return value.toFixed(10);
 }
 
 /**
@@ -537,12 +553,14 @@ export function verifyMarketIsolation(
 
 /**
  * Get the local date string (YYYY-MM-DD) for a UTC timestamp in a given IANA timezone.
+ *
+ * Uses 'sv-SE' (Swedish) locale which reliably produces YYYY-MM-DD format
+ * in all ICU configurations, including Node.js builds with minimal ICU data
+ * where 'en-CA' may fall back to MM/DD/YYYY.
  */
 export function getLocalDate(utcIso: string, timezone: string): string {
-  // No external dependency — we use Date + UTC offset approximation.
-  // For production, use date-fns-tz or Luxon.
   const utcDate = new Date(utcIso);
-  const formatter = new Intl.DateTimeFormat('en-CA', {
+  const formatter = new Intl.DateTimeFormat('sv-SE', {
     timeZone: timezone,
     year: 'numeric',
     month: '2-digit',
