@@ -512,7 +512,15 @@ export class TransactionRewardLinkageService {
     //   So reward_2dp = raw / 10^20 with HALF_UP rounding
     const raw = amt * rte;
     const scale = precision * precision; // 10^20
-    const reward2dp = (raw + scale / 2n) / scale; // HALF_UP rounding
+    // Sign-aware HALF_UP rounding: raw >= 0 rounds away from zero (standard HALF_UP)
+    // raw < 0 rounds toward negative infinity (correct HALF_UP for negatives)
+    const reward2dp = raw >= 0n
+      ? (raw + scale / 2n) / scale
+      : (raw - scale / 2n) / scale;
+
+    // Negative reward is impossible — guard before formatting to avoid crash
+    // in cap/min comparison or string formatting with negative values
+    if (reward2dp <= 0n) return null;
 
     // Convert to 2-decimal string
     const whole = reward2dp / 100n;
@@ -535,7 +543,7 @@ export class TransactionRewardLinkageService {
       result = formatDecimal2(minimumReward);
     }
 
-    // Never return negative
+    // Never return zero or negative — rewards must be positive monetary value
     if (resultBig <= 0n) return null;
 
     return result;

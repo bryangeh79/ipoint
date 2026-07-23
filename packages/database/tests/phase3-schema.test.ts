@@ -319,8 +319,11 @@ describe('Phase 3 — Migration Pipeline Readiness', () => {
       `${migrationsDirectory}/checksums.json`,
       'utf8',
     );
-    const manifest = JSON.parse(manifestContent) as Record<string, unknown>;
-    expect(typeof manifest).toBe('object');
+    const parsed = JSON.parse(manifestContent);
+    expect(parsed).not.toBeNull();
+    expect(typeof parsed).toBe('object');
+    expect(Array.isArray(parsed)).toBe(false);
+    const manifest = parsed as Record<string, unknown>;
     expect(Object.keys(manifest).length).toBeGreaterThanOrEqual(15);
   });
 });
@@ -349,24 +352,30 @@ describe('Phase 3 — Schema Drift Detection', () => {
       'mcp_ledger_entries',
       'member_kyc_cases',
       'member_profiles',
-    ];
+    ] as const;
     for (const table of phase12Tables) {
       expect(expectedSchema).toHaveProperty(table);
-      expect(
-        Array.isArray((expectedSchema as Record<string, unknown>)[table]),
-      ).toBe(true);
-      expect(
-        (expectedSchema as Record<string, unknown>)[table],
-      ).not.toHaveLength(0);
+      const cols = expectedSchema[table];
+      expect(cols).toBeDefined();
+      expect(Array.isArray(cols)).toBe(true);
+      expect(cols).not.toHaveLength(0);
     }
   });
 
   it('should have no existing schema drift with checksum-validated migrations', async () => {
     // Verify that the checksum file matches computed checksums
     const computed = await calculateMigrationChecksums();
-    const persisted = JSON.parse(
+    const persistedRaw = JSON.parse(
       await readFile(`${migrationsDirectory}/checksums.json`, 'utf8'),
-    ) as Record<string, string>;
+    );
+    expect(persistedRaw).not.toBeNull();
+    expect(typeof persistedRaw).toBe('object');
+    expect(Array.isArray(persistedRaw)).toBe(false);
+    // Also verify all values are strings
+    for (const [key, value] of Object.entries(persistedRaw as Record<string, unknown>)) {
+      expect(typeof value, `checksums.json key "${key}" must be string`).toBe('string');
+    }
+    const persisted = persistedRaw as Record<string, string>;
     expect(computed).toEqual(persisted);
   });
 });
