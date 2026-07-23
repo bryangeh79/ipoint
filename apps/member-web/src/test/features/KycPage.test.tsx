@@ -518,10 +518,9 @@ describe('KycPage — submit flow', () => {
       data: mockResponse('DRAFT'),
     });
     renderPage();
-    await vi.waitUntil(
-      () => screen.queryByText('Continue') !== null,
-      { timeout: 5000 },
-    );
+    await vi.waitUntil(() => screen.queryByText('Continue') !== null, {
+      timeout: 5000,
+    });
     expect(screen.getByText('Continue')).toBeInTheDocument();
   });
 

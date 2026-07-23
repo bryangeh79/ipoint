@@ -372,8 +372,12 @@ describe('Phase 3 — Schema Drift Detection', () => {
     expect(typeof persistedRaw).toBe('object');
     expect(Array.isArray(persistedRaw)).toBe(false);
     // Also verify all values are strings
-    for (const [key, value] of Object.entries(persistedRaw as Record<string, unknown>)) {
-      expect(typeof value, `checksums.json key "${key}" must be string`).toBe('string');
+    for (const [key, value] of Object.entries(
+      persistedRaw as Record<string, unknown>,
+    )) {
+      expect(typeof value, `checksums.json key "${key}" must be string`).toBe(
+        'string',
+      );
     }
     const persisted = persistedRaw as Record<string, string>;
     expect(computed).toEqual(persisted);
