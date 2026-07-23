@@ -18,6 +18,7 @@ import { AdminRewardModule } from './admin-reward/admin-reward.module.js';
 import { RewardModule } from './reward/reward.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
 import { DailyJobModule } from './daily-job/job.module.js';
+import { TransactionModule } from './transaction/transaction.module.js';
 import {
   RequestIdMiddleware,
   resolveRequestId,
@@ -63,6 +64,7 @@ import {
     RewardModule,
     WalletModule,
     DailyJobModule,
+    TransactionModule,
   ],
 })
 export class AppModule implements NestModule {
