@@ -596,3 +596,27 @@
 | **Basis** | Phase 3 / P3-S1 Formal Authorization (2026-07-22) |
 | **Status** | **APPROVED** |
 
+---
+
+## D-029: Phase 3 Acceptance
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-029 |
+| **Date** | 2026-07-23 |
+| **Source** | ChatGPT Command Center — Phase 3 Final Acceptance |
+| **Old Rule** | Phase 3 NOT_ACCEPTED; P3-S1 ACTIVE |
+| **New Decision** | Phase 3 — Multi-Market Wallet & Reward Ledger ACCEPTED / COMPLETE / FROZEN |
+| **Reason** | All required CI jobs pass: Quality (format, lint, typecheck), Build, Unit tests, Database tests, Phase 3 module tests, API integration tests. Final SHA 2ed57f4e. CI Run 30000394880. |
+| **Final SHA** | 2ed57f4eedb6b99d316a20813b0fffa8e500d5a7 |
+| **CI Run** | 30000394880 |
+| **Phase Branch** | phase/3-multi-market-wallet-reward-ledger |
+| **Main PR/Main Merge** | NOT_AUTHORIZED |
+| **Production Deployment** | NOT_AUTHORIZED |
+| **Phase 4** | NOT_AUTHORIZED |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 3, P3-S1 |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | Phase 3 CI Run 30000394880 — SHA 2ed57f4e |
+| **Status** | **ACCEPTED / COMPLETE / FROZEN** |
+
