@@ -9,6 +9,7 @@ import {
   jsonb,
   numeric,
   pgEnum,
+  pgSequence,
   pgTable,
   point,
   primaryKey,
@@ -218,6 +219,33 @@ export const dailyJobStatus = pgEnum('daily_job_status', [
   'COMPLETED',
   'FAILED',
 ]);
+export const transactionStatus = pgEnum('transaction_status', [
+  'DRAFT',
+  'PREVIEWED',
+  'CONFIRMED',
+  'FAILED',
+  'EXPIRED',
+]);
+export const transactionIdempotencyOperation = pgEnum(
+  'transaction_idempotency_operation',
+  ['PREVIEW', 'CONFIRM'],
+);
+export const transactionIdempotencyStatus = pgEnum(
+  'transaction_idempotency_status',
+  ['IN_PROGRESS', 'COMPLETED', 'FAILED'],
+);
+export const transactionAuditEventType = pgEnum(
+  'transaction_audit_event_type',
+  ['PREVIEW_CREATED', 'CONFIRMED', 'FAILED', 'EXPIRED'],
+);
+export const transactionNumberSequence = pgSequence(
+  'transaction_number_sequence',
+  {
+    startWith: 1,
+    increment: 1,
+    cycle: false,
+  },
+);
 
 export const accounts = pgTable(
   'accounts',
@@ -1764,6 +1792,12 @@ export const mcpAccounts = pgTable(
   },
   (table) => [
     unique('mcp_accounts_branch_unique').on(table.merchantBranchId),
+    unique('mcp_accounts_id_market_unique').on(table.id, table.marketId),
+    foreignKey({
+      columns: [table.merchantBranchId, table.marketId],
+      foreignColumns: [merchantBranches.id, merchantBranches.marketId],
+      name: 'mcp_accounts_branch_market_fk',
+    }).onDelete('restrict'),
     check(
       'mcp_accounts_available_balance_check',
       sql`${table.availableBalance} >= 0`,
@@ -1806,6 +1840,10 @@ export const mcpLedgerEntries = pgTable(
     createdAt: utcTimestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
+    unique('mcp_ledger_entries_id_account_unique').on(
+      table.id,
+      table.mcpAccountId,
+    ),
     unique('mcp_ledger_account_sequence_unique').on(
       table.mcpAccountId,
       table.sequence,
@@ -2325,6 +2363,557 @@ export const rewardDailyAccruals = pgTable(
   ],
 );
 
+export const marketTransactionSettings = pgTable(
+  'market_transaction_settings',
+  {
+    marketId: uuid('market_id')
+      .primaryKey()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    currencyCode: text('currency_code').notNull(),
+    currencyScale: integer('currency_scale').notNull(),
+    minimumTransactionAmount: numeric('minimum_transaction_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    maximumTransactionAmount: numeric('maximum_transaction_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('market_transaction_settings_market_currency_unique').on(
+      table.marketId,
+      table.currencyCode,
+    ),
+    check(
+      'market_transaction_settings_currency_check',
+      sql`${table.currencyCode} = upper(${table.currencyCode}) and char_length(${table.currencyCode}) = 3`,
+    ),
+    check(
+      'market_transaction_settings_currency_scale_check',
+      sql`${table.currencyScale} between 0 and 10`,
+    ),
+    check(
+      'market_transaction_settings_amount_range_check',
+      sql`${table.minimumTransactionAmount} > 0 and ${table.maximumTransactionAmount} >= ${table.minimumTransactionAmount}`,
+    ),
+  ],
+);
+
+export const transactionPreviewSessions = pgTable(
+  'transaction_preview_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    status: transactionStatus('status').notNull().default('DRAFT'),
+    merchantBranchId: uuid('merchant_branch_id').notNull(),
+    merchantAccountId: uuid('merchant_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    createdByStaffAccountId: uuid('created_by_staff_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    protectedMemberReference: text('protected_member_reference').notNull(),
+    marketId: uuid('market_id').notNull(),
+    currency: text('currency').notNull(),
+    purchaseAmount: numeric('purchase_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    transactionNote: text('transaction_note'),
+    merchantPackageAssignmentId: uuid('merchant_package_assignment_id')
+      .notNull()
+      .references(() => merchantPackageAssignments.id, {
+        onDelete: 'restrict',
+      }),
+    merchantPackageVersion: integer('merchant_package_version').notNull(),
+    merchantPackageSnapshot: jsonb('merchant_package_snapshot').notNull(),
+    serviceFeeRate: numeric('service_fee_rate', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    serviceFeeAmount: numeric('service_fee_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    estimatedMcpDebit: numeric('estimated_mcp_debit', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    rewardRuleVersionId: uuid('reward_rule_version_id')
+      .notNull()
+      .references(() => rewardRuleVersions.id, { onDelete: 'restrict' }),
+    rewardRate: numeric('reward_rate', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    rewardPrincipal: numeric('reward_principal', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    rewardCap: numeric('reward_cap', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    dailyRewardAmount: numeric('daily_reward_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    rewardStartBusinessDate: date('reward_start_business_date').notNull(),
+    marketTimezone: text('market_timezone').notNull(),
+    roundingMode: text('rounding_mode').notNull().default('HALF_UP'),
+    previewedAt: utcTimestamp('previewed_at'),
+    confirmedAt: utcTimestamp('confirmed_at'),
+    expiresAt: utcTimestamp('expires_at').default(
+      sql`now() + interval '60 minutes'`,
+    ),
+    failureCode: text('failure_code'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.merchantBranchId, table.marketId],
+      foreignColumns: [merchantBranches.id, merchantBranches.marketId],
+      name: 'transaction_preview_sessions_branch_market_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.marketId, table.currency],
+      foreignColumns: [
+        marketTransactionSettings.marketId,
+        marketTransactionSettings.currencyCode,
+      ],
+      name: 'transaction_preview_sessions_market_currency_fk',
+    }).onDelete('restrict'),
+    index('transaction_preview_sessions_merchant_status_idx').on(
+      table.merchantBranchId,
+      table.status,
+      table.expiresAt,
+    ),
+    index('transaction_preview_sessions_member_idx').on(
+      table.memberId,
+      table.createdAt,
+    ),
+    check(
+      'transaction_preview_sessions_amount_check',
+      sql`${table.purchaseAmount} > 0`,
+    ),
+    check(
+      'transaction_preview_sessions_note_check',
+      sql`${table.transactionNote} is null or char_length(${table.transactionNote}) <= 200`,
+    ),
+    check(
+      'transaction_preview_sessions_member_reference_check',
+      sql`btrim(${table.protectedMemberReference}) <> ''`,
+    ),
+    check(
+      'transaction_preview_sessions_package_version_check',
+      sql`${table.merchantPackageVersion} > 0`,
+    ),
+    check(
+      'transaction_preview_sessions_package_snapshot_check',
+      sql`jsonb_typeof(${table.merchantPackageSnapshot}) = 'object'`,
+    ),
+    check(
+      'transaction_preview_sessions_service_fee_check',
+      sql`${table.serviceFeeRate} > 0 and ${table.serviceFeeRate} <= 100 and ${table.serviceFeeAmount} >= 0`,
+    ),
+    check(
+      'transaction_preview_sessions_mcp_check',
+      sql`${table.estimatedMcpDebit} >= 0`,
+    ),
+    check(
+      'transaction_preview_sessions_reward_check',
+      sql`${table.rewardRate} >= 0 and ${table.rewardPrincipal} = ${table.purchaseAmount} and ${table.rewardCap} >= 0 and ${table.dailyRewardAmount} >= 0 and ${table.dailyRewardAmount} <= ${table.rewardCap}`,
+    ),
+    check(
+      'transaction_preview_sessions_rounding_check',
+      sql`${table.roundingMode} = 'HALF_UP'`,
+    ),
+    check(
+      'transaction_preview_sessions_expiry_check',
+      sql`${table.expiresAt} = ${table.createdAt} + interval '60 minutes' or (${table.status} = 'CONFIRMED' and ${table.expiresAt} is null)`,
+    ),
+    check(
+      'transaction_preview_sessions_state_check',
+      sql`(${table.status} = 'DRAFT' and ${table.previewedAt} is null and ${table.confirmedAt} is null)
+        or (${table.status} = 'PREVIEWED' and ${table.previewedAt} is not null and ${table.confirmedAt} is null)
+        or (${table.status} = 'CONFIRMED' and ${table.previewedAt} is not null and ${table.confirmedAt} is not null)
+        or (${table.status} in ('FAILED', 'EXPIRED') and ${table.confirmedAt} is null)`,
+    ),
+  ],
+);
+
+export const transactions = pgTable(
+  'transactions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    previewSessionId: uuid('preview_session_id')
+      .notNull()
+      .references(() => transactionPreviewSessions.id, {
+        onDelete: 'restrict',
+      }),
+    transactionNumber: bigint('transaction_number', { mode: 'bigint' })
+      .notNull()
+      .default(sql`nextval('transaction_number_sequence')`),
+    merchantReceiptNumber: text('merchant_receipt_number'),
+    status: transactionStatus('status').notNull().default('CONFIRMED'),
+    merchantBranchId: uuid('merchant_branch_id').notNull(),
+    merchantAccountId: uuid('merchant_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    confirmedByStaffAccountId: uuid('confirmed_by_staff_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    protectedMemberReference: text('protected_member_reference').notNull(),
+    marketId: uuid('market_id').notNull(),
+    currency: text('currency').notNull(),
+    purchaseAmount: numeric('purchase_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    transactionNote: text('transaction_note'),
+    merchantPackageAssignmentId: uuid('merchant_package_assignment_id')
+      .notNull()
+      .references(() => merchantPackageAssignments.id, {
+        onDelete: 'restrict',
+      }),
+    merchantPackageVersion: integer('merchant_package_version').notNull(),
+    merchantPackageSnapshot: jsonb('merchant_package_snapshot').notNull(),
+    rewardRuleVersionId: uuid('reward_rule_version_id')
+      .notNull()
+      .references(() => rewardRuleVersions.id, { onDelete: 'restrict' }),
+    rewardRate: numeric('reward_rate', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    rewardPrincipal: numeric('reward_principal', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    rewardCap: numeric('reward_cap', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    dailyRewardAmount: numeric('daily_reward_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    rewardStartBusinessDate: date('reward_start_business_date').notNull(),
+    marketTimezone: text('market_timezone').notNull(),
+    roundingMode: text('rounding_mode').notNull().default('HALF_UP'),
+    confirmedAt: utcTimestamp('confirmed_at').notNull(),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('transactions_preview_session_unique').on(table.previewSessionId),
+    unique('transactions_number_unique').on(table.transactionNumber),
+    unique('transactions_id_market_unique').on(table.id, table.marketId),
+    uniqueIndex('transactions_merchant_receipt_unique')
+      .on(table.merchantBranchId, table.merchantReceiptNumber)
+      .where(sql`${table.merchantReceiptNumber} is not null`),
+    foreignKey({
+      columns: [table.merchantBranchId, table.marketId],
+      foreignColumns: [merchantBranches.id, merchantBranches.marketId],
+      name: 'transactions_branch_market_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.marketId, table.currency],
+      foreignColumns: [
+        marketTransactionSettings.marketId,
+        marketTransactionSettings.currencyCode,
+      ],
+      name: 'transactions_market_currency_fk',
+    }).onDelete('restrict'),
+    index('transactions_merchant_time_idx').on(
+      table.merchantBranchId,
+      table.confirmedAt.desc(),
+    ),
+    index('transactions_member_time_idx').on(
+      table.memberId,
+      table.confirmedAt.desc(),
+    ),
+    check('transactions_status_check', sql`${table.status} = 'CONFIRMED'`),
+    check('transactions_number_check', sql`${table.transactionNumber} > 0`),
+    check(
+      'transactions_receipt_check',
+      sql`${table.merchantReceiptNumber} is null or btrim(${table.merchantReceiptNumber}) <> ''`,
+    ),
+    check('transactions_amount_check', sql`${table.purchaseAmount} > 0`),
+    check(
+      'transactions_note_check',
+      sql`${table.transactionNote} is null or char_length(${table.transactionNote}) <= 200`,
+    ),
+    check(
+      'transactions_member_reference_check',
+      sql`btrim(${table.protectedMemberReference}) <> ''`,
+    ),
+    check(
+      'transactions_package_version_check',
+      sql`${table.merchantPackageVersion} > 0`,
+    ),
+    check(
+      'transactions_package_snapshot_check',
+      sql`jsonb_typeof(${table.merchantPackageSnapshot}) = 'object'`,
+    ),
+    check(
+      'transactions_reward_check',
+      sql`${table.rewardRate} >= 0 and ${table.rewardPrincipal} = ${table.purchaseAmount} and ${table.rewardCap} >= 0 and ${table.dailyRewardAmount} >= 0 and ${table.dailyRewardAmount} <= ${table.rewardCap}`,
+    ),
+    check(
+      'transactions_rounding_check',
+      sql`${table.roundingMode} = 'HALF_UP'`,
+    ),
+  ],
+);
+
+export const transactionServiceFees = pgTable(
+  'transaction_service_fees',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    transactionId: uuid('transaction_id')
+      .notNull()
+      .references(() => transactions.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id').notNull(),
+    currency: text('currency').notNull(),
+    rate: numeric('rate', { precision: 38, scale: 10 }).notNull(),
+    principal: numeric('principal', { precision: 38, scale: 10 }).notNull(),
+    amount: numeric('amount', { precision: 38, scale: 10 }).notNull(),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('transaction_service_fees_transaction_unique').on(
+      table.transactionId,
+    ),
+    foreignKey({
+      columns: [table.transactionId, table.marketId],
+      foreignColumns: [transactions.id, transactions.marketId],
+      name: 'transaction_service_fees_transaction_market_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.marketId, table.currency],
+      foreignColumns: [
+        marketTransactionSettings.marketId,
+        marketTransactionSettings.currencyCode,
+      ],
+      name: 'transaction_service_fees_market_currency_fk',
+    }).onDelete('restrict'),
+    check(
+      'transaction_service_fees_value_check',
+      sql`${table.rate} > 0 and ${table.rate} <= 100 and ${table.principal} > 0 and ${table.amount} >= 0`,
+    ),
+  ],
+);
+
+export const transactionMcpDebits = pgTable(
+  'transaction_mcp_debits',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    transactionId: uuid('transaction_id').notNull(),
+    marketId: uuid('market_id').notNull(),
+    mcpAccountId: uuid('mcp_account_id').notNull(),
+    mcpLedgerEntryId: uuid('mcp_ledger_entry_id').notNull(),
+    amount: numeric('amount', { precision: 38, scale: 10 }).notNull(),
+    balanceAfter: numeric('balance_after', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('transaction_mcp_debits_transaction_unique').on(table.transactionId),
+    unique('transaction_mcp_debits_ledger_unique').on(table.mcpLedgerEntryId),
+    foreignKey({
+      columns: [table.transactionId, table.marketId],
+      foreignColumns: [transactions.id, transactions.marketId],
+      name: 'transaction_mcp_debits_transaction_market_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.mcpAccountId, table.marketId],
+      foreignColumns: [mcpAccounts.id, mcpAccounts.marketId],
+      name: 'transaction_mcp_debits_account_market_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.mcpLedgerEntryId, table.mcpAccountId],
+      foreignColumns: [mcpLedgerEntries.id, mcpLedgerEntries.mcpAccountId],
+      name: 'transaction_mcp_debits_ledger_account_fk',
+    }).onDelete('restrict'),
+    check(
+      'transaction_mcp_debits_value_check',
+      sql`${table.amount} > 0 and ${table.balanceAfter} >= 0`,
+    ),
+  ],
+);
+
+export const transactionRewardLinks = pgTable(
+  'transaction_reward_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    transactionId: uuid('transaction_id')
+      .notNull()
+      .references(() => transactions.id, { onDelete: 'restrict' }),
+    rewardSourceId: uuid('reward_source_id')
+      .notNull()
+      .references(() => rewardSources.id, { onDelete: 'restrict' }),
+    rewardPlanId: uuid('reward_plan_id')
+      .notNull()
+      .references(() => rewardPlans.id, { onDelete: 'restrict' }),
+    rewardRuleVersionId: uuid('reward_rule_version_id')
+      .notNull()
+      .references(() => rewardRuleVersions.id, { onDelete: 'restrict' }),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('transaction_reward_links_transaction_unique').on(
+      table.transactionId,
+    ),
+    unique('transaction_reward_links_source_unique').on(table.rewardSourceId),
+    unique('transaction_reward_links_plan_unique').on(table.rewardPlanId),
+  ],
+);
+
+export const transactionIdempotencyRecords = pgTable(
+  'transaction_idempotency_records',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    merchantBranchId: uuid('merchant_branch_id')
+      .notNull()
+      .references(() => merchantBranches.id, { onDelete: 'restrict' }),
+    operation: transactionIdempotencyOperation('operation').notNull(),
+    keyHash: text('key_hash').notNull(),
+    requestHash: text('request_hash').notNull(),
+    status: transactionIdempotencyStatus('status')
+      .notNull()
+      .default('IN_PROGRESS'),
+    previewSessionId: uuid('preview_session_id').references(
+      () => transactionPreviewSessions.id,
+      { onDelete: 'restrict' },
+    ),
+    transactionId: uuid('transaction_id').references(() => transactions.id, {
+      onDelete: 'restrict',
+    }),
+    response: jsonb('response'),
+    statusCode: integer('status_code'),
+    requestId: text('request_id'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('transaction_idempotency_records_key_unique').on(
+      table.merchantBranchId,
+      table.operation,
+      table.keyHash,
+    ),
+    index('transaction_idempotency_records_preview_idx').on(
+      table.previewSessionId,
+    ),
+    check(
+      'transaction_idempotency_records_hash_check',
+      sql`char_length(${table.keyHash}) = 64 and char_length(${table.requestHash}) = 64`,
+    ),
+    check(
+      'transaction_idempotency_records_target_check',
+      sql`(${table.operation} = 'PREVIEW' and ${table.transactionId} is null)
+        or (${table.operation} = 'CONFIRM' and ${table.previewSessionId} is not null)`,
+    ),
+    check(
+      'transaction_idempotency_records_response_check',
+      sql`(${table.status} = 'IN_PROGRESS' and ${table.response} is null and ${table.statusCode} is null)
+        or (${table.status} in ('COMPLETED', 'FAILED') and ${table.response} is not null and ${table.statusCode} between 200 and 599)`,
+    ),
+  ],
+);
+
+export const transactionAuditReferences = pgTable(
+  'transaction_audit_references',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventType: transactionAuditEventType('event_type').notNull(),
+    auditLogId: uuid('audit_log_id')
+      .notNull()
+      .references(() => auditLogs.id, { onDelete: 'restrict' }),
+    previewSessionId: uuid('preview_session_id')
+      .notNull()
+      .references(() => transactionPreviewSessions.id, {
+        onDelete: 'restrict',
+      }),
+    transactionId: uuid('transaction_id').references(() => transactions.id, {
+      onDelete: 'restrict',
+    }),
+    idempotencyRecordId: uuid('idempotency_record_id')
+      .notNull()
+      .references(() => transactionIdempotencyRecords.id, {
+        onDelete: 'restrict',
+      }),
+    previewCreatorAccountId: uuid('preview_creator_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    confirmerAccountId: uuid('confirmer_account_id').references(
+      () => accounts.id,
+      { onDelete: 'restrict' },
+    ),
+    merchantAccountId: uuid('merchant_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    staffAccountId: uuid('staff_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    protectedMemberReference: text('protected_member_reference').notNull(),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    currency: text('currency').notNull(),
+    purchaseAmount: numeric('purchase_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    merchantPackageAssignmentId: uuid('merchant_package_assignment_id')
+      .notNull()
+      .references(() => merchantPackageAssignments.id, {
+        onDelete: 'restrict',
+      }),
+    merchantPackageVersion: integer('merchant_package_version').notNull(),
+    serviceFeeRate: numeric('service_fee_rate', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    rewardRuleVersionId: uuid('reward_rule_version_id')
+      .notNull()
+      .references(() => rewardRuleVersions.id, { onDelete: 'restrict' }),
+    requestId: text('request_id'),
+    clientChannel: text('client_channel').notNull(),
+    previewedAt: utcTimestamp('previewed_at').notNull(),
+    confirmedAt: utcTimestamp('confirmed_at'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('transaction_audit_references_audit_log_unique').on(
+      table.auditLogId,
+    ),
+    index('transaction_audit_references_preview_idx').on(
+      table.previewSessionId,
+      table.createdAt,
+    ),
+    check(
+      'transaction_audit_references_event_check',
+      sql`(${table.eventType} = 'CONFIRMED' and ${table.transactionId} is not null and ${table.confirmerAccountId} is not null and ${table.confirmedAt} is not null)
+        or (${table.eventType} <> 'CONFIRMED' and ${table.transactionId} is null and ${table.confirmerAccountId} is null and ${table.confirmedAt} is null)`,
+    ),
+    check(
+      'transaction_audit_references_value_check',
+      sql`${table.purchaseAmount} > 0 and ${table.merchantPackageVersion} > 0 and ${table.serviceFeeRate} > 0 and ${table.serviceFeeRate} <= 100
+        and btrim(${table.protectedMemberReference}) <> '' and btrim(${table.clientChannel}) <> ''`,
+    ),
+  ],
+);
+
 export const schema = {
   accounts,
   credentials,
@@ -2390,4 +2979,12 @@ export const schema = {
   rewardSources,
   dailyJobRuns,
   rewardDailyAccruals,
+  marketTransactionSettings,
+  transactionPreviewSessions,
+  transactions,
+  transactionServiceFees,
+  transactionMcpDebits,
+  transactionRewardLinks,
+  transactionIdempotencyRecords,
+  transactionAuditReferences,
 };
