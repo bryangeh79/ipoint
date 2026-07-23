@@ -51,7 +51,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test -- --exclude **/*.integration.* --exclude **/*.performance.*
+      - run: pnpm vitest --config vitest.config.ts run
 
   database-tests:
     name: Database tests

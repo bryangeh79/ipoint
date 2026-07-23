@@ -65,7 +65,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test -- --reporter verbose --exclude **/*.integration.* --exclude **/*.performance.*
+      - run: pnpm vitest --config vitest.config.ts run --reporter verbose
 
   phase3-tests:
     name: Phase 3 module tests

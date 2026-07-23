@@ -7,6 +7,8 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
       '**/tests/e2e/**',
+      '**/*.integration.*',
+      '**/*.performance.*',
       '**/.git/**',
       '**/.acceptance-evidence/**',
       '**/.acceptance/**',
