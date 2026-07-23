@@ -23,7 +23,7 @@ const planId = randomUUID();
 const localBusinessDate = '2026-07-22';
 const marketTimezone = 'Asia/Kuala_Lumpur';
 
-function jobRunRow(overrides: Record<string, unknown> = {}) {
+function jobRunRow(overrides: any = {}) {
   return {
     id: randomUUID(),
     jobType: JOB_TYPE_DAILY_REWARD_ACCRUAL,
@@ -42,7 +42,7 @@ function jobRunRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function rewardPlanRow(overrides: Record<string, unknown> = {}) {
+function rewardPlanRow(overrides: any = {}) {
   return {
     id: planId,
     sourceType: 'PURCHASE_TRANSACTION',
@@ -69,7 +69,7 @@ function rewardPlanRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function ruleVersionRow(overrides: Record<string, unknown> = {}) {
+function ruleVersionRow(overrides: any = {}) {
   return {
     id: ruleVersionId,
     name: 'MY 2026 Q3 Rate',
@@ -88,7 +88,7 @@ function ruleVersionRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function marketRow(overrides: Record<string, unknown> = {}) {
+function marketRow(overrides: any = {}) {
   return {
     id: marketId,
     code: 'MY',
@@ -104,7 +104,7 @@ function marketRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function accrualRow(overrides: Record<string, unknown> = {}) {
+function accrualRow(overrides: any = {}) {
   return {
     id: randomUUID(),
     rewardPlanId: planId,
@@ -123,7 +123,7 @@ function accrualRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function walletRow(overrides: Record<string, unknown> = {}) {
+function walletRow(overrides: any = {}) {
   return {
     id: randomUUID(),
     memberId,
@@ -138,7 +138,7 @@ function walletRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function walletEntryRow(overrides: Record<string, unknown> = {}) {
+function walletEntryRow(overrides: any = {}) {
   return {
     id: randomUUID(),
     walletAccountId: randomUUID(),
@@ -188,7 +188,7 @@ function createMockDb() {
     return fn;
   };
 
-  const chain = new Proxy({} as Record<string, unknown>, {
+  const chain = new Proxy({} as any, {
     get(_t, prop: string | symbol) {
       if (prop === 'then')
         return (resolve: (v: unknown) => void) => next().then(resolve);
