@@ -513,14 +513,16 @@ describe('KycPage — submit flow', () => {
   });
 
   it('Submit failure shows error alert', async () => {
-    // Render DRAFT status
+    // Render DRAFT status — the page should show Continue button
     vi.spyOn(apiClient, 'get').mockResolvedValue({
       data: mockResponse('DRAFT'),
     });
     renderPage();
-    await waitFor(() => {
-      expect(screen.getByText('Continue')).toBeInTheDocument();
-    });
+    await vi.waitUntil(
+      () => screen.queryByText('Continue') !== null,
+      { timeout: 5000 },
+    );
+    expect(screen.getByText('Continue')).toBeInTheDocument();
   });
 
   it('Submit button click opens confirmation dialog', async () => {
