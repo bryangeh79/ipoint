@@ -11,6 +11,8 @@ export default defineConfig({
             '**/node_modules/**',
             '**/dist/**',
             '**/tests/e2e/**',
+            '**/*.integration.*',
+            '**/*.performance.*',
             'apps/member-web/**',
             '**/.git/**',
             '**/.acceptance-evidence/**',
