@@ -64,7 +64,12 @@ export class JobSchedulerService
   }
 
   async onApplicationBootstrap(): Promise<void> {
-    // Wait for database to be ready, then start the scheduler
+    // Skip scheduler startup during integration tests to avoid
+    // interfering with test-specific database state and preventing
+    // bootstrap-side effects that would skip dependent tests.
+    if (process.env['NODE_ENV'] === 'test') {
+      return;
+    }
     await this.startScheduler();
   }
 
@@ -336,7 +341,7 @@ export class JobSchedulerService
       SET
         state = 'failed',
         completed_at = now(),
-        data = jsonb_set(data, '{error}', to_jsonb(${errorMessage}))
+        data = jsonb_set(data, '{error}', to_jsonb(${errorMessage}::text))
       WHERE id = ${jobId}
     `);
   }
