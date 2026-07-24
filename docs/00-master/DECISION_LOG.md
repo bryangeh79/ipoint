@@ -674,7 +674,52 @@
 | **Migration** | NONE (existing indexes sufficient) |
 | **Approver** | ChatGPT Command Center |
 | **Basis** | P4-S5 CI Run 30090049883 — SHA 264ca8c8 (2026-07-24) |
-| **Status** | **AWAITING_COMMAND_CENTER_ACCEPTANCE** |
+| **Status** | **APPROVED** |
+
+### Governance Corrections Applied
+
+1. P4-S5 technical baseline SHA: `264ca8c8` (not governance commit)
+2. D-034 formally accepted by Command Center
+
+---
+
+## D-035: P4-S6 authorization — Reversal and Refund Requests with Compensating Ledgers
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-035 |
+| **Date** | 2026-07-24 |
+| **Source** | ChatGPT Command Center — P4-S5 Acceptance / P4-S6 Start |
+| **Old Rule** | P4-S6 NOT_AUTHORIZED; P4-S5 AWAITING_ACCEPTANCE |
+| **New Decision** | P4-S6 authorized. Reversal and Refund APIs with compensating ledgers. 35 required acceptance tests. P4-S7+ remain NOT_AUTHORIZED. |
+| **Reason** | P4-S5 read models accepted. Proceeding to compensating ledger workflows for transaction corrections. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | P4-S5, P4-S6 |
+| **Migration** | Forward migration for correction request schema |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P4-S5 Acceptance / P4-S6 Start (2026-07-24) |
+| **Status** | **APPROVED** |
+
+### P4-S6 Authorized APIs
+
+| Method | Endpoint |
+|---|---|
+| `POST` | `/api/v1/merchant/transactions/:transactionNumber/reversal-requests` |
+| `POST` | `/api/v1/merchant/transactions/:transactionNumber/refund-requests` |
+| `GET` | `/api/v1/merchant/transactions/:transactionNumber/reversal-request` |
+| `GET` | `/api/v1/merchant/transactions/:transactionNumber/refund-request` |
+
+### Frozen Business Rules
+
+1. No partial refund in MVP
+2. Reversal and Refund are distinct workflows
+3. Confirmed transaction records remain immutable
+4. Financial correction uses compensating ledger entries only
+5. Merchant Owner/Admin may submit requests; Cashier may not
+6. Platform Admin execution is future scope
+7. No Maker/Checker required for transaction-linked reversal/refund
+8. MCP, Reward and Wallet corrections must be atomic
+9. Original transaction snapshots never edited or deleted
 
 ---
 
