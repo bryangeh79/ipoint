@@ -7,6 +7,8 @@ import {
 
 export const transactionErrorCodes = {
   idempotencyRequired: 'TRANSACTION_IDEMPOTENCY_KEY_REQUIRED',
+  confirmIdempotencyRequired: 'TRANSACTION_CONFIRM_IDEMPOTENCY_KEY_REQUIRED',
+  idempotencyMismatch: 'TRANSACTION_IDEMPOTENCY_MISMATCH',
   merchantAccessDenied: 'TRANSACTION_MERCHANT_ACCESS_DENIED',
   merchantContextAmbiguous: 'TRANSACTION_MERCHANT_CONTEXT_AMBIGUOUS',
   merchantInactive: 'TRANSACTION_MERCHANT_INACTIVE',

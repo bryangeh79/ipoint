@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   transactionAuditReferences,
+  transactionIdempotencyRecords,
   transactionMcpDebits,
   transactionPreviewSessions,
   transactionRewardLinks,
@@ -9,7 +10,7 @@ import {
   transactionServiceFees,
 } from '@ipoint/database';
 import { Decimal } from 'decimal.js';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service.js';
 import { AuditService } from '../platform-access/audit.service.js';
 import type {
@@ -127,6 +128,11 @@ interface McpPostingRow {
   projectedAvailableBalance: string;
 }
 
+interface AdvisoryLockRow {
+  [key: string]: unknown;
+  acquired: boolean;
+}
+
 export interface TransactionRequestContext {
   ipAddress?: string;
   userAgent?: string;
@@ -145,17 +151,46 @@ export class TransactionService {
   async createPreview(
     staffAccountId: string,
     input: TransactionPreviewDto,
-    _idempotencyKey: string,
+    idempotencyKey: string,
     marketContext: string | undefined,
     requestContext: TransactionRequestContext = {},
   ): Promise<TransactionPreviewResponse> {
     const now = new Date();
+    const keyHash = sha256(idempotencyKey);
+    const requestHash = sha256(canonicalJson(input));
     const merchant = await this.resolveMerchantContext(
       staffAccountId,
       marketContext,
     );
     this.assertMerchantActive(merchant);
     this.assertMarketNotTampered(input.marketId, merchant.marketId);
+
+    const priorRecords = await this.database.db
+      .select({
+        requestHash: transactionIdempotencyRecords.requestHash,
+        status: transactionIdempotencyRecords.status,
+        response: transactionIdempotencyRecords.response,
+      })
+      .from(transactionIdempotencyRecords)
+      .where(
+        and(
+          eq(transactionIdempotencyRecords.merchantBranchId, merchant.branchId),
+          eq(transactionIdempotencyRecords.operation, 'PREVIEW'),
+          eq(transactionIdempotencyRecords.keyHash, keyHash),
+        ),
+      )
+      .limit(1);
+    const priorRecord = priorRecords[0];
+    if (priorRecord) {
+      this.assertIdempotencyMatch(priorRecord.requestHash, requestHash);
+      if (priorRecord.status === 'COMPLETED' && priorRecord.response) {
+        return priorRecord.response as TransactionPreviewResponse;
+      }
+      transactionConflict(
+        transactionErrorCodes.confirmationFailed,
+        'The transaction preview idempotency record is not replayable.',
+      );
+    }
 
     const settings = await this.resolveMarketSettings(merchant.marketId);
     if (settings.currencyCode !== merchant.currencyCode) {
@@ -224,6 +259,64 @@ export class TransactionService {
     };
 
     return this.database.runTransaction(async (tx) => {
+      const idempotencyRows = await tx
+        .insert(transactionIdempotencyRecords)
+        .values({
+          merchantBranchId: merchant.branchId,
+          operation: 'PREVIEW',
+          keyHash,
+          requestHash,
+          status: 'IN_PROGRESS',
+          requestId: requestContext.requestId,
+          createdAt,
+          updatedAt: createdAt,
+        })
+        .onConflictDoNothing({
+          target: [
+            transactionIdempotencyRecords.merchantBranchId,
+            transactionIdempotencyRecords.operation,
+            transactionIdempotencyRecords.keyHash,
+          ],
+        })
+        .returning({ id: transactionIdempotencyRecords.id });
+      const idempotencyRecordId = idempotencyRows[0]?.id;
+      if (!idempotencyRecordId) {
+        const existingRows = await tx
+          .select({
+            id: transactionIdempotencyRecords.id,
+            requestHash: transactionIdempotencyRecords.requestHash,
+            status: transactionIdempotencyRecords.status,
+            response: transactionIdempotencyRecords.response,
+          })
+          .from(transactionIdempotencyRecords)
+          .where(
+            and(
+              eq(
+                transactionIdempotencyRecords.merchantBranchId,
+                merchant.branchId,
+              ),
+              eq(transactionIdempotencyRecords.operation, 'PREVIEW'),
+              eq(transactionIdempotencyRecords.keyHash, keyHash),
+            ),
+          )
+          .limit(1);
+        const existing = existingRows[0];
+        if (!existing) {
+          transactionConflict(
+            transactionErrorCodes.confirmationFailed,
+            'The transaction preview idempotency record could not be resolved.',
+          );
+        }
+        this.assertIdempotencyMatch(existing.requestHash, requestHash);
+        if (existing.status === 'COMPLETED' && existing.response) {
+          return existing.response as TransactionPreviewResponse;
+        }
+        transactionConflict(
+          transactionErrorCodes.confirmationFailed,
+          'The transaction preview idempotency record is not replayable.',
+        );
+      }
+
       const inserted = await tx
         .insert(transactionPreviewSessions)
         .values({
@@ -265,47 +358,7 @@ export class TransactionService {
         );
       }
 
-      const auditLogId = await this.audit.appendWithinTransactionWithId(tx, {
-        actor: { type: 'ACCOUNT', id: staffAccountId },
-        action: 'TRANSACTION_PREVIEW_CREATED',
-        entity: { type: 'transaction_preview', id: previewSessionId },
-        marketId: merchant.marketId,
-        after: {
-          previewSessionId,
-          merchantBranchId: merchant.branchId,
-          protectedMemberReference,
-          amount: normalizedAmount,
-          currency: settings.currencyCode,
-          packageAssignmentId: selectedPackage.assignmentId,
-          expiresAt: expiresAt.toISOString(),
-        },
-        result: 'SUCCESS',
-        requestId: requestContext.requestId,
-        ipAddress: requestContext.ipAddress,
-        summary: 'Merchant transaction preview created.',
-      });
-      await tx.insert(transactionAuditReferences).values({
-        eventType: 'PREVIEW_CREATED',
-        auditLogId,
-        previewSessionId,
-        previewCreatorAccountId: staffAccountId,
-        merchantAccountId: merchant.merchantAccountId,
-        staffAccountId,
-        protectedMemberReference,
-        marketId: merchant.marketId,
-        currency: settings.currencyCode,
-        purchaseAmount: normalizedAmount,
-        merchantPackageAssignmentId: selectedPackage.assignmentId,
-        merchantPackageVersion: selectedPackage.assignmentVersion,
-        serviceFeeRate: selectedPackage.rate,
-        rewardRuleVersionId: rewardRule.id,
-        requestId: requestContext.requestId,
-        clientChannel: 'MERCHANT_API',
-        previewedAt: createdAt,
-        createdAt,
-      });
-
-      return {
+      const response: TransactionPreviewResponse = {
         previewSessionId,
         protectedMemberReference,
         amount: normalizedAmount,
@@ -333,6 +386,60 @@ export class TransactionService {
         },
         previewExpiresAt: expiresAt.toISOString(),
       };
+
+      const auditLogId = await this.audit.appendWithinTransactionWithId(tx, {
+        actor: { type: 'ACCOUNT', id: staffAccountId },
+        action: 'TRANSACTION_PREVIEW_CREATED',
+        entity: { type: 'transaction_preview', id: previewSessionId },
+        marketId: merchant.marketId,
+        after: {
+          previewSessionId,
+          merchantBranchId: merchant.branchId,
+          protectedMemberReference,
+          amount: normalizedAmount,
+          currency: settings.currencyCode,
+          packageAssignmentId: selectedPackage.assignmentId,
+          expiresAt: expiresAt.toISOString(),
+        },
+        result: 'SUCCESS',
+        requestId: requestContext.requestId,
+        ipAddress: requestContext.ipAddress,
+        summary: 'Merchant transaction preview created.',
+      });
+      await tx.insert(transactionAuditReferences).values({
+        eventType: 'PREVIEW_CREATED',
+        auditLogId,
+        previewSessionId,
+        idempotencyRecordId,
+        previewCreatorAccountId: staffAccountId,
+        merchantAccountId: merchant.merchantAccountId,
+        staffAccountId,
+        protectedMemberReference,
+        marketId: merchant.marketId,
+        currency: settings.currencyCode,
+        purchaseAmount: normalizedAmount,
+        merchantPackageAssignmentId: selectedPackage.assignmentId,
+        merchantPackageVersion: selectedPackage.assignmentVersion,
+        serviceFeeRate: selectedPackage.rate,
+        rewardRuleVersionId: rewardRule.id,
+        requestId: requestContext.requestId,
+        clientChannel: 'MERCHANT_API',
+        previewedAt: createdAt,
+        createdAt,
+      });
+
+      await tx
+        .update(transactionIdempotencyRecords)
+        .set({
+          status: 'COMPLETED',
+          previewSessionId,
+          response,
+          statusCode: 201,
+          updatedAt: createdAt,
+        })
+        .where(eq(transactionIdempotencyRecords.id, idempotencyRecordId));
+
+      return response;
     });
   }
 
@@ -340,10 +447,24 @@ export class TransactionService {
     staffAccountId: string,
     previewSessionId: string,
     input: TransactionConfirmDto,
+    idempotencyKey: string,
     requestContext: TransactionRequestContext = {},
   ): Promise<TransactionConfirmResponse> {
+    const keyHash = sha256(idempotencyKey);
+    const requestHash = sha256(canonicalJson(input));
     return this.database.runTransaction(async (tx) => {
       const now = new Date();
+      const lockResult = await tx.execute<AdvisoryLockRow>(sql`
+        SELECT pg_try_advisory_xact_lock(
+          hashtextextended(${previewSessionId}, 0)
+        ) AS acquired
+      `);
+      const lockWasContended = lockResult.rows[0]?.acquired !== true;
+      if (lockWasContended) {
+        await tx.execute(sql`
+          SELECT pg_advisory_xact_lock(hashtextextended(${previewSessionId}, 0))
+        `);
+      }
       const previewResult = await tx.execute<ConfirmPreviewRow>(sql`
         SELECT
           preview.id,
@@ -407,7 +528,86 @@ export class TransactionService {
           'The transaction preview was not found or is not accessible.',
         );
       }
+
+      const priorRows = await tx
+        .select({
+          id: transactionIdempotencyRecords.id,
+          requestHash: transactionIdempotencyRecords.requestHash,
+          previewSessionId: transactionIdempotencyRecords.previewSessionId,
+          status: transactionIdempotencyRecords.status,
+          response: transactionIdempotencyRecords.response,
+        })
+        .from(transactionIdempotencyRecords)
+        .where(
+          and(
+            eq(
+              transactionIdempotencyRecords.merchantBranchId,
+              preview.merchantBranchId,
+            ),
+            eq(transactionIdempotencyRecords.operation, 'CONFIRM'),
+            eq(transactionIdempotencyRecords.keyHash, keyHash),
+          ),
+        )
+        .limit(1);
+      const prior = priorRows[0];
+      if (prior) {
+        this.assertIdempotencyMatch(
+          prior.requestHash,
+          requestHash,
+          prior.previewSessionId,
+          previewSessionId,
+        );
+        if (prior.status === 'COMPLETED' && prior.response) {
+          return prior.response as TransactionConfirmResponse;
+        }
+        transactionConflict(
+          transactionErrorCodes.confirmationFailed,
+          'The transaction confirmation idempotency record is not replayable.',
+        );
+      }
+
       if (preview.status === 'CONFIRMED') {
+        if (lockWasContended) {
+          const completedRows = await tx
+            .select({
+              transactionId: transactionIdempotencyRecords.transactionId,
+              response: transactionIdempotencyRecords.response,
+            })
+            .from(transactionIdempotencyRecords)
+            .where(
+              and(
+                eq(
+                  transactionIdempotencyRecords.merchantBranchId,
+                  preview.merchantBranchId,
+                ),
+                eq(transactionIdempotencyRecords.operation, 'CONFIRM'),
+                eq(
+                  transactionIdempotencyRecords.previewSessionId,
+                  previewSessionId,
+                ),
+                eq(transactionIdempotencyRecords.status, 'COMPLETED'),
+              ),
+            )
+            .limit(1);
+          const completed = completedRows[0];
+          if (completed?.transactionId && completed.response) {
+            await tx.insert(transactionIdempotencyRecords).values({
+              merchantBranchId: preview.merchantBranchId,
+              operation: 'CONFIRM',
+              keyHash,
+              requestHash,
+              status: 'COMPLETED',
+              previewSessionId,
+              transactionId: completed.transactionId,
+              response: completed.response,
+              statusCode: 201,
+              requestId: requestContext.requestId,
+              createdAt: now,
+              updatedAt: now,
+            });
+            return completed.response as TransactionConfirmResponse;
+          }
+        }
         transactionConflict(
           transactionErrorCodes.previewAlreadyConfirmed,
           'The transaction preview has already been confirmed.',
@@ -439,6 +639,70 @@ export class TransactionService {
         transactionForbidden(
           transactionErrorCodes.memberInactive,
           'Only an active member may participate in a transaction.',
+        );
+      }
+
+      const idempotencyRows = await tx
+        .insert(transactionIdempotencyRecords)
+        .values({
+          merchantBranchId: preview.merchantBranchId,
+          operation: 'CONFIRM',
+          keyHash,
+          requestHash,
+          status: 'IN_PROGRESS',
+          previewSessionId,
+          requestId: requestContext.requestId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoNothing({
+          target: [
+            transactionIdempotencyRecords.merchantBranchId,
+            transactionIdempotencyRecords.operation,
+            transactionIdempotencyRecords.keyHash,
+          ],
+        })
+        .returning({ id: transactionIdempotencyRecords.id });
+      const idempotencyRecordId = idempotencyRows[0]?.id;
+      if (!idempotencyRecordId) {
+        const conflictingRows = await tx
+          .select({
+            requestHash: transactionIdempotencyRecords.requestHash,
+            previewSessionId: transactionIdempotencyRecords.previewSessionId,
+            status: transactionIdempotencyRecords.status,
+            response: transactionIdempotencyRecords.response,
+          })
+          .from(transactionIdempotencyRecords)
+          .where(
+            and(
+              eq(
+                transactionIdempotencyRecords.merchantBranchId,
+                preview.merchantBranchId,
+              ),
+              eq(transactionIdempotencyRecords.operation, 'CONFIRM'),
+              eq(transactionIdempotencyRecords.keyHash, keyHash),
+            ),
+          )
+          .limit(1);
+        const conflicting = conflictingRows[0];
+        if (!conflicting) {
+          transactionConflict(
+            transactionErrorCodes.confirmationFailed,
+            'The transaction confirmation idempotency record could not be resolved.',
+          );
+        }
+        this.assertIdempotencyMatch(
+          conflicting.requestHash,
+          requestHash,
+          conflicting.previewSessionId,
+          previewSessionId,
+        );
+        if (conflicting.status === 'COMPLETED' && conflicting.response) {
+          return conflicting.response as TransactionConfirmResponse;
+        }
+        transactionConflict(
+          transactionErrorCodes.confirmationFailed,
+          'The transaction confirmation idempotency record is not replayable.',
         );
       }
 
@@ -632,6 +896,7 @@ export class TransactionService {
         auditLogId,
         previewSessionId: preview.id,
         transactionId: confirmedTransaction.id,
+        idempotencyRecordId,
         previewCreatorAccountId: preview.createdByStaffAccountId,
         confirmerAccountId: staffAccountId,
         merchantAccountId: preview.merchantAccountId,
@@ -714,7 +979,7 @@ export class TransactionService {
         transactionTime,
       };
 
-      return {
+      const response: TransactionConfirmResponse = {
         transactionNumber,
         status: 'CONFIRMED',
         transactionTime,
@@ -731,7 +996,38 @@ export class TransactionService {
         rewardStartBusinessDate: preview.rewardStartBusinessDate,
         receiptData,
       };
+
+      await tx
+        .update(transactionIdempotencyRecords)
+        .set({
+          status: 'COMPLETED',
+          transactionId: confirmedTransaction.id,
+          response,
+          statusCode: 201,
+          updatedAt: now,
+        })
+        .where(eq(transactionIdempotencyRecords.id, idempotencyRecordId));
+
+      return response;
     });
+  }
+
+  private assertIdempotencyMatch(
+    storedRequestHash: string,
+    requestHash: string,
+    storedPreviewSessionId?: string | null,
+    previewSessionId?: string,
+  ): void {
+    if (
+      storedRequestHash !== requestHash ||
+      (previewSessionId !== undefined &&
+        storedPreviewSessionId !== previewSessionId)
+    ) {
+      transactionConflict(
+        transactionErrorCodes.idempotencyMismatch,
+        'The Idempotency-Key was already used with a different payload.',
+      );
+    }
   }
 
   private async resolveMerchantContext(
@@ -1082,4 +1378,27 @@ function nextBusinessDate(at: Date, timezone: string): string {
   const day = Number(parts.find((part) => part.type === 'day')?.value);
   const next = new Date(Date.UTC(year, month - 1, day + 1));
   return next.toISOString().slice(0, 10);
+}
+
+function sha256(value: string): string {
+  return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(sortJsonValue(value)) ?? 'null';
+}
+
+function sortJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sortJsonValue(item));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, item]) => item !== undefined)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, sortJsonValue(item)]),
+    );
+  }
+  return value;
 }

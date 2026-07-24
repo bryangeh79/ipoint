@@ -86,6 +86,7 @@ export class TransactionController {
     @Param('previewSessionId', new ParseUUIDPipe()) previewSessionId: string,
     @Body(new ZodValidationPipe(transactionConfirmSchema))
     input: TransactionConfirmDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Ip() ipAddress: string,
     @Req() request: Request,
   ) {
@@ -93,6 +94,13 @@ export class TransactionController {
       transactionForbidden(
         transactionErrorCodes.merchantAccessDenied,
         'An authenticated merchant staff account is required.',
+      );
+    }
+    const key = idempotencyKey?.trim();
+    if (!key || key.length > 200) {
+      transactionBadRequest(
+        transactionErrorCodes.confirmIdempotencyRequired,
+        'A valid Idempotency-Key header is required for confirmation.',
       );
     }
     const requestId = (request as unknown as Record<string, unknown>)[
@@ -107,6 +115,7 @@ export class TransactionController {
       actor.accountId,
       previewSessionId,
       input,
+      key,
       context,
     );
   }

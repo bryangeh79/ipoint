@@ -146,6 +146,50 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     expect(audit).toEqual([{ action: 'TRANSACTION_PREVIEW_CREATED' }]);
   });
 
+  it('replays the original Preview for the same key and canonical payload', async () => {
+    const key = `preview-replay-${randomUUID()}`;
+    const first = previewBody(await preview({}, key).expect(201));
+    const replay = previewBody(
+      await preview(
+        {
+          transactionNote: '',
+          marketId: fixture.marketId,
+          memberQrToken: fixture.qrToken,
+          amount: '100.00',
+        },
+        key,
+      ).expect(201),
+    );
+
+    expect(replay).toEqual(first);
+    const state = await database.pool.query<{
+      previews: string;
+      idempotencyRecords: string;
+      audits: string;
+    }>(
+      `SELECT
+         (SELECT count(*) FROM transaction_preview_sessions WHERE id = $1) AS previews,
+         (SELECT count(*) FROM transaction_idempotency_records
+           WHERE operation = 'PREVIEW' AND preview_session_id = $1) AS "idempotencyRecords",
+         (SELECT count(*) FROM transaction_audit_references
+           WHERE event_type = 'PREVIEW_CREATED' AND preview_session_id = $1) AS audits`,
+      [first.previewSessionId],
+    );
+    expect(state.rows[0]).toEqual({
+      previews: '1',
+      idempotencyRecords: '1',
+      audits: '1',
+    });
+  });
+
+  it('rejects Preview key reuse with a different payload', async () => {
+    const key = `preview-mismatch-${randomUUID()}`;
+    await preview({}, key).expect(201);
+
+    const response = await preview({ amount: '101.00' }, key).expect(409);
+    expectErrorCode(response.body, 'TRANSACTION_IDEMPOTENCY_MISMATCH');
+  });
+
   it('creates a valid Preview for a multi-package merchant with selection', async () => {
     const secondAssignmentId = await addSecondPackage();
     const response = await preview({ packageId: secondAssignmentId }).expect(
@@ -456,6 +500,118 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     });
   });
 
+  it('requires a Confirm Idempotency-Key header', async () => {
+    const previewResult = previewBody(await preview().expect(201));
+    const response = await supertest(server)
+      .post(
+        `/api/v1/merchant/transactions/${previewResult.previewSessionId}/confirm`,
+      )
+      .set('authorization', `Bearer ${fixture.merchantToken}`)
+      .send({})
+      .expect(400);
+
+    expectErrorCode(
+      response.body,
+      'TRANSACTION_CONFIRM_IDEMPOTENCY_KEY_REQUIRED',
+    );
+  });
+
+  it('replays Confirm for the same key and payload without duplicate financial writes', async () => {
+    const previewResult = previewBody(await preview().expect(201));
+    const key = `confirm-replay-${randomUUID()}`;
+    const payload = { merchantReceiptNumber: 'REPLAY-001' };
+    const first = confirmBody(
+      await confirm(previewResult.previewSessionId, payload, key).expect(201),
+    );
+    const replay = confirmBody(
+      await confirm(previewResult.previewSessionId, payload, key).expect(201),
+    );
+
+    expect(replay).toEqual(first);
+    const state = await confirmationState(previewResult.previewSessionId);
+    expect(state).toMatchObject({
+      transactions: '1',
+      fees: '1',
+      debits: '1',
+      rewardLinks: '1',
+      rewardSources: '1',
+      rewardPlans: '1',
+      walletEntries: '1',
+      idempotencyRecords: '2',
+      auditReferences: '2',
+      mcpBalance: '490.0000000000',
+    });
+  });
+
+  it('rejects Confirm key reuse with a different payload', async () => {
+    const previewResult = previewBody(await preview().expect(201));
+    const key = `confirm-mismatch-${randomUUID()}`;
+    await confirm(
+      previewResult.previewSessionId,
+      { merchantReceiptNumber: 'ORIGINAL' },
+      key,
+    ).expect(201);
+
+    const response = await confirm(
+      previewResult.previewSessionId,
+      { merchantReceiptNumber: 'CHANGED' },
+      key,
+    ).expect(409);
+    expectErrorCode(response.body, 'TRANSACTION_IDEMPOTENCY_MISMATCH');
+  });
+
+  it('serializes simultaneous Confirm requests and returns one result to both callers', async () => {
+    const previewResult = previewBody(await preview().expect(201));
+    await database.pool.query(`
+      CREATE OR REPLACE FUNCTION p4_s4_test_hold_confirmation()
+      RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN
+        PERFORM pg_sleep(0.25);
+        RETURN NEW;
+      END;
+      $$;
+      CREATE TRIGGER p4_s4_test_hold_confirmation
+      BEFORE INSERT ON transactions
+      FOR EACH ROW EXECUTE FUNCTION p4_s4_test_hold_confirmation();
+    `);
+    try {
+      const [firstResponse, secondResponse] = await Promise.all([
+        confirm(
+          previewResult.previewSessionId,
+          { merchantReceiptNumber: 'CONCURRENT' },
+          `confirm-concurrent-a-${randomUUID()}`,
+        ).expect(201),
+        confirm(
+          previewResult.previewSessionId,
+          { merchantReceiptNumber: 'CONCURRENT' },
+          `confirm-concurrent-b-${randomUUID()}`,
+        ).expect(201),
+      ]);
+      const first = confirmBody(firstResponse);
+      const second = confirmBody(secondResponse);
+      expect(second).toEqual(first);
+    } finally {
+      await database.pool.query(`
+        DROP TRIGGER IF EXISTS p4_s4_test_hold_confirmation ON transactions;
+        DROP FUNCTION IF EXISTS p4_s4_test_hold_confirmation();
+      `);
+    }
+
+    const state = await confirmationState(previewResult.previewSessionId);
+    expect(state).toMatchObject({
+      transactions: '1',
+      fees: '1',
+      debits: '1',
+      rewardLinks: '1',
+      rewardSources: '1',
+      rewardPlans: '1',
+      walletEntries: '1',
+      idempotencyRecords: '3',
+      auditReferences: '2',
+      mcpBalance: '490.0000000000',
+    });
+  });
+
   it('creates globally unique transaction numbers', async () => {
     const firstPreview = previewBody(await preview().expect(201));
     const first = confirmBody(
@@ -565,6 +721,39 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     ).toBe('0');
   });
 
+  it('does not create partial state when concurrent Confirm requests have insufficient MCP', async () => {
+    fixture = await createFixture({ mcpBalance: '5' });
+    const previewResult = previewBody(await preview().expect(201));
+    const [first, second] = await Promise.all([
+      confirm(
+        previewResult.previewSessionId,
+        {},
+        `insufficient-a-${randomUUID()}`,
+      ).expect(409),
+      confirm(
+        previewResult.previewSessionId,
+        {},
+        `insufficient-b-${randomUUID()}`,
+      ).expect(409),
+    ]);
+
+    expectErrorCode(first.body, 'TRANSACTION_INSUFFICIENT_MCP');
+    expectErrorCode(second.body, 'TRANSACTION_INSUFFICIENT_MCP');
+    expect(
+      await confirmationState(previewResult.previewSessionId),
+    ).toMatchObject({
+      previewStatus: 'PREVIEWED',
+      transactions: '0',
+      debits: '0',
+      rewardSources: '0',
+      rewardPlans: '0',
+      walletEntries: '0',
+      idempotencyRecords: '1',
+      auditReferences: '1',
+      mcpBalance: '5.0000000000',
+    });
+  });
+
   it('credits the consumption-market wallet for a cross-market Member', async () => {
     await database.db
       .update(accounts)
@@ -603,9 +792,13 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
   });
 
   it('writes complete redacted audit references without secrets or tokens', async () => {
-    const previewResult = previewBody(await preview().expect(201));
+    const previewKey = `plaintext-preview-${randomUUID()}`;
+    const confirmKey = `plaintext-confirm-${randomUUID()}`;
+    const previewResult = previewBody(
+      await preview({}, previewKey).expect(201),
+    );
     const confirmed = confirmBody(
-      await confirm(previewResult.previewSessionId).expect(201),
+      await confirm(previewResult.previewSessionId, {}, confirmKey).expect(201),
     );
     const audits = await database.pool.query<{
       action: string;
@@ -639,14 +832,46 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
       'TRANSACTION_PREVIEW_CREATED',
       'TRANSACTION_CONFIRMED',
     ]);
-    expect(references).toEqual([
-      { eventType: 'PREVIEW_CREATED', idempotencyRecordId: null },
-      { eventType: 'CONFIRMED', idempotencyRecordId: null },
+    expect(references.map((reference) => reference.eventType)).toEqual([
+      'PREVIEW_CREATED',
+      'CONFIRMED',
     ]);
+    expect(
+      references.every(
+        (reference) =>
+          typeof reference.idempotencyRecordId === 'string' &&
+          reference.idempotencyRecordId.length > 0,
+      ),
+    ).toBe(true);
     expect(serialized).not.toContain(fixture.qrToken);
+    expect(serialized).not.toContain(previewKey);
+    expect(serialized).not.toContain(confirmKey);
     expect(serialized).not.toContain(password);
     expect(serialized.toLowerCase()).not.toContain('authorization');
     expect(serialized.toLowerCase()).not.toContain('bearer');
+
+    const storedIdempotency = await database.pool.query<{
+      keyHash: string;
+      requestHash: string;
+      serialized: string;
+    }>(
+      `SELECT
+         key_hash AS "keyHash",
+         request_hash AS "requestHash",
+         row_to_json(transaction_idempotency_records)::text AS serialized
+       FROM transaction_idempotency_records
+       WHERE preview_session_id = $1
+       ORDER BY operation`,
+      [previewResult.previewSessionId],
+    );
+    expect(storedIdempotency.rows).toHaveLength(2);
+    for (const record of storedIdempotency.rows) {
+      expect(record.keyHash).toMatch(/^[a-f0-9]{64}$/u);
+      expect(record.requestHash).toMatch(/^[a-f0-9]{64}$/u);
+      expect(record.serialized).not.toContain(previewKey);
+      expect(record.serialized).not.toContain(confirmKey);
+      expect(record.serialized).not.toContain(fixture.qrToken);
+    }
   });
 
   it('rejects an expired Preview', async () => {
@@ -658,6 +883,41 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
 
     const response = await confirm(previewResult.previewSessionId).expect(409);
     expectErrorCode(response.body, 'TRANSACTION_PREVIEW_EXPIRED');
+  });
+
+  it('rejects concurrent Confirm requests for an expired Preview without partial state', async () => {
+    const previewResult = previewBody(await preview().expect(201));
+    await database.db
+      .update(transactionPreviewSessions)
+      .set({ status: 'EXPIRED', failureCode: 'PREVIEW_EXPIRED' })
+      .where(eq(transactionPreviewSessions.id, previewResult.previewSessionId));
+
+    const [first, second] = await Promise.all([
+      confirm(
+        previewResult.previewSessionId,
+        {},
+        `expired-a-${randomUUID()}`,
+      ).expect(409),
+      confirm(
+        previewResult.previewSessionId,
+        {},
+        `expired-b-${randomUUID()}`,
+      ).expect(409),
+    ]);
+    expectErrorCode(first.body, 'TRANSACTION_PREVIEW_EXPIRED');
+    expectErrorCode(second.body, 'TRANSACTION_PREVIEW_EXPIRED');
+    expect(
+      await confirmationState(previewResult.previewSessionId),
+    ).toMatchObject({
+      previewStatus: 'EXPIRED',
+      transactions: '0',
+      debits: '0',
+      rewardSources: '0',
+      rewardPlans: '0',
+      walletEntries: '0',
+      idempotencyRecords: '1',
+      auditReferences: '1',
+    });
   });
 
   it('rejects an already-confirmed Preview', async () => {
@@ -677,11 +937,14 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     };
   }
 
-  function preview(overrides: Record<string, unknown> = {}) {
+  function preview(
+    overrides: Record<string, unknown> = {},
+    idempotencyKey: string = randomUUID(),
+  ) {
     return supertest(server)
       .post('/api/v1/merchant/transactions/preview')
       .set('authorization', `Bearer ${fixture.merchantToken}`)
-      .set('idempotency-key', randomUUID())
+      .set('idempotency-key', idempotencyKey)
       .set('x-market-id', fixture.marketId)
       .send({ ...validPayload(), ...overrides });
   }
@@ -936,10 +1199,12 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
   function confirm(
     previewSessionId: string,
     body: Record<string, unknown> = {},
+    idempotencyKey: string = randomUUID(),
   ) {
     return supertest(server)
       .post(`/api/v1/merchant/transactions/${previewSessionId}/confirm`)
       .set('authorization', `Bearer ${fixture.merchantToken}`)
+      .set('idempotency-key', idempotencyKey)
       .send(body);
   }
 
@@ -953,6 +1218,8 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
       rewardSources: string;
       rewardPlans: string;
       walletEntries: string;
+      idempotencyRecords: string;
+      auditReferences: string;
       mcpBalance: string;
     }>(
       `SELECT
@@ -974,8 +1241,12 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
            JOIN transactions transaction ON transaction.id = plan.source_id
           WHERE transaction.preview_session_id = $1) AS "rewardPlans",
          (SELECT count(*) FROM member_wallet_entries wallet_entry
-           JOIN transactions transaction ON transaction.id::text = wallet_entry.reference_id
-          WHERE transaction.preview_session_id = $1) AS "walletEntries",
+            JOIN transactions transaction ON transaction.id::text = wallet_entry.reference_id
+           WHERE transaction.preview_session_id = $1) AS "walletEntries",
+         (SELECT count(*) FROM transaction_idempotency_records
+           WHERE preview_session_id = $1) AS "idempotencyRecords",
+         (SELECT count(*) FROM transaction_audit_references
+           WHERE preview_session_id = $1) AS "auditReferences",
          (SELECT available_balance FROM mcp_accounts
           WHERE merchant_branch_id = (
             SELECT merchant_branch_id FROM transaction_preview_sessions WHERE id = $1
