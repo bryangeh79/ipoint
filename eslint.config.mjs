@@ -54,7 +54,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/api/src/transaction/transaction-read.service.ts'],
+    files: ['**/transaction-read.service.ts'],
     rules: {
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
