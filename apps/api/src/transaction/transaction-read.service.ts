@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { QueryResultRow } from 'pg';
+import type { QueryResult, QueryResultRow } from 'pg';
 import { DatabaseService } from '../database/database.service.js';
 import type {
   MemberTransactionListQuery,
@@ -76,8 +76,9 @@ export class TransactionReadService {
     }
     const branchIds = query.branchId ? [query.branchId] : accessibleBranchIds;
     const cursor = this.decodeCursor(query.cursor);
-    const queryResult = await this.database.pool.query<TransactionReadRow>(
-      `
+    const queryResult: QueryResult<TransactionReadRow> =
+      await this.database.pool.query<TransactionReadRow>(
+        `
         SELECT
           transaction.transaction_number::text AS "transactionNumber",
           transaction.status::text AS status,
@@ -131,20 +132,20 @@ export class TransactionReadService {
         ORDER BY transaction.confirmed_at DESC, transaction.transaction_number DESC
         LIMIT $10
       `,
-      [
-        branchIds,
-        query.status ?? null,
-        query.marketCode ?? null,
-        query.dateFrom ?? null,
-        query.dateTo ?? null,
-        query.merchantReceiptNumber ?? null,
-        query.transactionNumber ?? null,
-        cursor?.transactionTime ?? null,
-        cursor?.transactionNumber ?? null,
-        query.limit + 1,
-      ],
-    );
-    const rows = queryResult.rows;
+        [
+          branchIds,
+          query.status ?? null,
+          query.marketCode ?? null,
+          query.dateFrom ?? null,
+          query.dateTo ?? null,
+          query.merchantReceiptNumber ?? null,
+          query.transactionNumber ?? null,
+          cursor?.transactionTime ?? null,
+          cursor?.transactionNumber ?? null,
+          query.limit + 1,
+        ],
+      );
+    const rows: TransactionReadRow[] = queryResult.rows;
     return this.toMerchantList(rows, query.limit);
   }
 
@@ -159,8 +160,9 @@ export class TransactionReadService {
     if (branchIds.length === 0) {
       this.denyReceiptAccess();
     }
-    const queryResult = await this.database.pool.query<TransactionReadRow>(
-      `
+    const queryResult: QueryResult<TransactionReadRow> =
+      await this.database.pool.query<TransactionReadRow>(
+        `
         SELECT
           transaction.transaction_number::text AS "transactionNumber",
           transaction.status::text AS status,
@@ -200,9 +202,9 @@ export class TransactionReadService {
           AND transaction.merchant_branch_id = ANY($2::uuid[])
         LIMIT 1
       `,
-      [transactionNumber, branchIds],
-    );
-    const queryRows = queryResult.rows;
+        [transactionNumber, branchIds],
+      );
+    const queryRows: TransactionReadRow[] = queryResult.rows;
     const row = queryRows[0];
     if (!row) {
       this.receiptNotFound();
@@ -341,7 +343,7 @@ export class TransactionReadService {
   private async resolveMerchantBranchAccess(
     accountId: string,
   ): Promise<string[]> {
-    const branchResult =
+    const branchResult: QueryResult<MerchantBranchAccessRow> =
       await this.database.pool.query<MerchantBranchAccessRow>(
         `
         SELECT branch.id AS "branchId"
@@ -361,20 +363,23 @@ export class TransactionReadService {
       `,
         [accountId],
       );
-    return branchResult.rows.map((row) => row.branchId);
+    const branchRows: MerchantBranchAccessRow[] = branchResult.rows;
+    return branchRows.map((row) => row.branchId);
   }
 
   private async resolveMemberId(accountId: string): Promise<string> {
-    const memberResult = await this.database.pool.query<MemberIdentityRow>(
-      `
+    const memberResult: QueryResult<MemberIdentityRow> =
+      await this.database.pool.query<MemberIdentityRow>(
+        `
         SELECT member.id AS "memberId"
         FROM members member
         WHERE member.account_id = $1::uuid
         LIMIT 1
       `,
-      [accountId],
-    );
-    const memberId = memberResult.rows[0]?.memberId;
+        [accountId],
+      );
+    const memberRows: MemberIdentityRow[] = memberResult.rows;
+    const memberId = memberRows[0]?.memberId;
     if (!memberId) {
       this.denyReceiptAccess();
     }
