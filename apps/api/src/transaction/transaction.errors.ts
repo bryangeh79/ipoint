@@ -34,6 +34,10 @@ export const transactionErrorCodes = {
   previewAlreadyConfirmed: 'TRANSACTION_PREVIEW_ALREADY_CONFIRMED',
   previewInvalidState: 'TRANSACTION_PREVIEW_INVALID_STATE',
   confirmationFailed: 'TRANSACTION_CONFIRMATION_FAILED',
+  listFilterInvalid: 'TRANSACTION_LIST_FILTER_INVALID',
+  listCursorInvalid: 'TRANSACTION_LIST_CURSOR_INVALID',
+  receiptNotFound: 'TRANSACTION_RECEIPT_NOT_FOUND',
+  receiptAccessDenied: 'TRANSACTION_RECEIPT_ACCESS_DENIED',
 } as const;
 
 export function transactionBadRequest(code: string, message: string): never {

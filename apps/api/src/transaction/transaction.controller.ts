@@ -1,12 +1,14 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   Inject,
   Ip,
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -21,6 +23,8 @@ import {
   transactionPreviewSchema,
   type TransactionPreviewDto,
 } from './transaction.dto.js';
+import { parseMerchantTransactionListQuery } from './transaction-read.dto.js';
+import { TransactionReadService } from './transaction-read.service.js';
 import {
   transactionBadRequest,
   transactionErrorCodes,
@@ -36,7 +40,35 @@ export class TransactionController {
   constructor(
     @Inject(TransactionService)
     private readonly transactions: TransactionService,
+    @Inject(TransactionReadService)
+    private readonly transactionReads: TransactionReadService,
   ) {}
+
+  @Get()
+  @UseGuards(AuthGuard)
+  list(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Query() query: Record<string, unknown>,
+  ) {
+    this.assertMerchantActor(actor);
+    return this.transactionReads.listMerchantTransactions(
+      actor.accountId,
+      parseMerchantTransactionListQuery(query),
+    );
+  }
+
+  @Get(':transactionNumber')
+  @UseGuards(AuthGuard)
+  detail(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('transactionNumber') transactionNumber: string,
+  ) {
+    this.assertMerchantActor(actor);
+    return this.transactionReads.getMerchantTransaction(
+      actor.accountId,
+      transactionNumber,
+    );
+  }
 
   @Post('preview')
   @UseGuards(AuthGuard)
@@ -118,5 +150,16 @@ export class TransactionController {
       key,
       context,
     );
+  }
+
+  private assertMerchantActor(
+    actor: RequestActor | undefined,
+  ): asserts actor is RequestActor & { type: 'ACCOUNT' } {
+    if (!actor || actor.type !== 'ACCOUNT') {
+      transactionForbidden(
+        transactionErrorCodes.receiptAccessDenied,
+        'An authenticated merchant staff account is required.',
+      );
+    }
   }
 }
