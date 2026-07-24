@@ -8,6 +8,7 @@ import { MemberTransactionController } from './member-transaction.controller.js'
 import { TransactionConfirmationRewardWriter } from './transaction-confirmation-reward.writer.js';
 import { TransactionCorrectionService } from './transaction-correction.service.js';
 import { TransactionReadService } from './transaction-read.service.js';
+import { TransactionSecurityInterceptor } from './transaction-security.interceptor.js';
 import { TransactionService } from './transaction.service.js';
 
 @Module({
@@ -18,6 +19,7 @@ import { TransactionService } from './transaction.service.js';
     TransactionReadService,
     TransactionConfirmationRewardWriter,
     TransactionCorrectionService,
+    TransactionSecurityInterceptor,
   ],
   exports: [
     TransactionService,

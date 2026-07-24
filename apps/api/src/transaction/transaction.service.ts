@@ -1,4 +1,9 @@
-import { createHash } from 'node:crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+} from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   transactionAuditReferences,
@@ -12,6 +17,7 @@ import {
 import { Decimal } from 'decimal.js';
 import { and, eq, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service.js';
+import { ConfigService } from '../config/config.service.js';
 import { AuditService } from '../platform-access/audit.service.js';
 import type {
   TransactionConfirmDto,
@@ -27,6 +33,7 @@ import {
   transactionForbidden,
   transactionNotFound,
 } from './transaction.errors.js';
+import { TRANSACTION_EXECUTION_OPTIONS } from './transaction-reliability.js';
 
 interface MerchantContext {
   [key: string]: unknown;
@@ -143,6 +150,7 @@ export interface TransactionRequestContext {
 export class TransactionService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
+    @Inject(ConfigService) private readonly config: ConfigService,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(TransactionConfirmationRewardWriter)
     private readonly rewardWriter: TransactionConfirmationRewardWriter,
@@ -184,7 +192,7 @@ export class TransactionService {
     if (priorRecord) {
       this.assertIdempotencyMatch(priorRecord.requestHash, requestHash);
       if (priorRecord.status === 'COMPLETED' && priorRecord.response) {
-        return priorRecord.response as TransactionPreviewResponse;
+        return this.sanitizePreviewResponse(priorRecord.response);
       }
       transactionConflict(
         transactionErrorCodes.confirmationFailed,
@@ -309,7 +317,7 @@ export class TransactionService {
         }
         this.assertIdempotencyMatch(existing.requestHash, requestHash);
         if (existing.status === 'COMPLETED' && existing.response) {
-          return existing.response as TransactionPreviewResponse;
+          return this.sanitizePreviewResponse(existing.response);
         }
         transactionConflict(
           transactionErrorCodes.confirmationFailed,
@@ -359,12 +367,11 @@ export class TransactionService {
       }
 
       const response: TransactionPreviewResponse = {
-        previewSessionId,
+        previewSessionId: this.encodePreviewReference(previewSessionId),
         protectedMemberReference,
         amount: normalizedAmount,
         currency: settings.currencyCode,
         selectedPackage: {
-          id: selectedPackage.assignmentId,
           name: packageName,
           rate: selectedPackage.rate,
         },
@@ -380,7 +387,6 @@ export class TransactionService {
         rewardCap: normalizedRewardCap,
         rewardStartDate,
         transactionMarket: {
-          id: merchant.marketId,
           code: merchant.marketCode,
           timezone: merchant.timezone,
         },
@@ -440,18 +446,19 @@ export class TransactionService {
         .where(eq(transactionIdempotencyRecords.id, idempotencyRecordId));
 
       return response;
-    });
+    }, TRANSACTION_EXECUTION_OPTIONS);
   }
 
   async confirm(
     staffAccountId: string,
-    previewSessionId: string,
+    previewReference: string,
     input: TransactionConfirmDto,
     idempotencyKey: string,
     requestContext: TransactionRequestContext = {},
   ): Promise<TransactionConfirmResponse> {
     const keyHash = sha256(idempotencyKey);
     const requestHash = sha256(canonicalJson(input));
+    const previewSessionId = this.decodePreviewReference(previewReference);
     return this.database.runTransaction(async (tx) => {
       const now = new Date();
       const lockResult = await tx.execute<AdvisoryLockRow>(sql`
@@ -558,7 +565,7 @@ export class TransactionService {
           previewSessionId,
         );
         if (prior.status === 'COMPLETED' && prior.response) {
-          return prior.response as TransactionConfirmResponse;
+          return sanitizeConfirmResponse(prior.response);
         }
         transactionConflict(
           transactionErrorCodes.confirmationFailed,
@@ -599,13 +606,13 @@ export class TransactionService {
               status: 'COMPLETED',
               previewSessionId,
               transactionId: completed.transactionId,
-              response: completed.response,
+              response: sanitizeConfirmResponse(completed.response),
               statusCode: 201,
               requestId: requestContext.requestId,
               createdAt: now,
               updatedAt: now,
             });
-            return completed.response as TransactionConfirmResponse;
+            return sanitizeConfirmResponse(completed.response);
           }
         }
         transactionConflict(
@@ -698,7 +705,7 @@ export class TransactionService {
           previewSessionId,
         );
         if (conflicting.status === 'COMPLETED' && conflicting.response) {
-          return conflicting.response as TransactionConfirmResponse;
+          return sanitizeConfirmResponse(conflicting.response);
         }
         transactionConflict(
           transactionErrorCodes.confirmationFailed,
@@ -929,7 +936,6 @@ export class TransactionService {
       const merchant = {
         merchantId: preview.publicMerchantId,
         merchantName: preview.merchantName,
-        branchId: null,
         branchName: preview.branchName,
       };
       const market = { marketCode: preview.marketCode };
@@ -962,13 +968,11 @@ export class TransactionService {
         currency: preview.currency,
         purchaseAmount,
         package: {
-          packageId: preview.merchantPackageAssignmentId,
           packageName,
           serviceFeeRate: preview.serviceFeeRate,
         },
         serviceFeeAmount,
         reward: {
-          rewardRuleVersionId: preview.rewardRuleVersionId,
           rewardRate: preview.rewardRate,
           dailyRewardAmount: preview.dailyRewardAmount,
           rewardCap: preview.rewardCap,
@@ -990,7 +994,6 @@ export class TransactionService {
         serviceFee: serviceFeeAmount,
         mcpDeducted,
         mcpBalanceAfter,
-        rewardRuleVersion: preview.rewardRuleVersionId,
         dailyRewardAmount: preview.dailyRewardAmount,
         rewardCap: preview.rewardCap,
         rewardStartBusinessDate: preview.rewardStartBusinessDate,
@@ -1009,7 +1012,7 @@ export class TransactionService {
         .where(eq(transactionIdempotencyRecords.id, idempotencyRecordId));
 
       return response;
-    });
+    }, TRANSACTION_EXECUTION_OPTIONS);
   }
 
   private assertIdempotencyMatch(
@@ -1028,6 +1031,74 @@ export class TransactionService {
         'The Idempotency-Key was already used with a different payload.',
       );
     }
+  }
+
+  private sanitizePreviewResponse(value: unknown): TransactionPreviewResponse {
+    const stored = value as { previewSessionId?: unknown };
+    if (typeof stored.previewSessionId !== 'string') {
+      transactionConflict(
+        transactionErrorCodes.previewCreationFailed,
+        'The stored transaction preview response is invalid.',
+      );
+    }
+    const reference = !isUuid(stored.previewSessionId)
+      ? stored.previewSessionId
+      : this.encodePreviewReference(stored.previewSessionId);
+    return sanitizePreviewResponse(value, reference);
+  }
+
+  private encodePreviewReference(previewSessionId: string): string {
+    const key = this.previewReferenceKey();
+    const iv = createHmac('sha256', key)
+      .update(previewSessionId, 'utf8')
+      .digest()
+      .subarray(0, 12);
+    const cipher = createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([
+      cipher.update(previewSessionId, 'utf8'),
+      cipher.final(),
+    ]);
+    return Buffer.concat([
+      Buffer.from([1]),
+      iv,
+      encrypted,
+      cipher.getAuthTag(),
+    ]).toString('base64url');
+  }
+
+  private decodePreviewReference(reference: string): string {
+    if (isUuid(reference)) return reference;
+    try {
+      const payload = Buffer.from(reference, 'base64url');
+      if (payload.length < 30 || payload[0] !== 1) throw new Error();
+      const iv = payload.subarray(1, 13);
+      const tag = payload.subarray(payload.length - 16);
+      const encrypted = payload.subarray(13, payload.length - 16);
+      const decipher = createDecipheriv(
+        'aes-256-gcm',
+        this.previewReferenceKey(),
+        iv,
+      );
+      decipher.setAuthTag(tag);
+      const previewSessionId = Buffer.concat([
+        decipher.update(encrypted),
+        decipher.final(),
+      ]).toString('utf8');
+      if (!isUuid(previewSessionId)) throw new Error();
+      return previewSessionId;
+    } catch {
+      transactionNotFound(
+        transactionErrorCodes.previewNotFound,
+        'The transaction preview was not found or is not accessible.',
+      );
+    }
+  }
+
+  private previewReferenceKey(): Buffer {
+    return createHash('sha256')
+      .update('ipoint:transaction-preview-reference:v1\0', 'utf8')
+      .update(this.config.authOtpPepper, 'utf8')
+      .digest();
   }
 
   private async resolveMerchantContext(
@@ -1401,4 +1472,57 @@ function sortJsonValue(value: unknown): unknown {
     );
   }
   return value;
+}
+
+function sanitizePreviewResponse(
+  value: unknown,
+  publicReference: string,
+): TransactionPreviewResponse {
+  const response = value as TransactionPreviewResponse & {
+    selectedPackage?: Record<string, unknown>;
+    transactionMarket?: Record<string, unknown>;
+  };
+  const selectedPackage = response.selectedPackage ?? {};
+  const transactionMarket = response.transactionMarket ?? {};
+  return {
+    ...response,
+    previewSessionId: publicReference,
+    selectedPackage: {
+      name: String(selectedPackage['name'] ?? 'Custom package'),
+      rate: String(selectedPackage['rate'] ?? ''),
+    },
+    transactionMarket: {
+      code: String(transactionMarket['code'] ?? ''),
+      timezone: String(transactionMarket['timezone'] ?? ''),
+    },
+  };
+}
+
+function sanitizeConfirmResponse(value: unknown): TransactionConfirmResponse {
+  const stored = value as TransactionConfirmResponse & Record<string, unknown>;
+  const safeResponse = { ...stored };
+  Reflect.deleteProperty(safeResponse, 'rewardRuleVersion');
+  const safeMerchant = { ...stored.merchant };
+  Reflect.deleteProperty(safeMerchant, 'branchId');
+  const safeReceipt = { ...stored.receiptData };
+  const safePackage = { ...stored.receiptData.package };
+  Reflect.deleteProperty(safePackage, 'packageId');
+  const safeReward = { ...stored.receiptData.reward };
+  Reflect.deleteProperty(safeReward, 'rewardRuleVersionId');
+  return {
+    ...safeResponse,
+    merchant: safeMerchant,
+    receiptData: {
+      ...safeReceipt,
+      merchant: safeMerchant,
+      package: safePackage,
+      reward: safeReward,
+    },
+  };
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+    value,
+  );
 }

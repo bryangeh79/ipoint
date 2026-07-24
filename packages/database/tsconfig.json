@@ -4,5 +4,12 @@
     "outDir": "dist",
     "types": ["node"]
   },
-  "include": ["src", "schema", "seeds", "tests", "drizzle.config.ts"]
+  "include": [
+    "src",
+    "schema",
+    "seeds",
+    "tests",
+    "drizzle.config.ts",
+    "vitest.integration.config.ts"
+  ]
 }

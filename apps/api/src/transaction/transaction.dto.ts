@@ -25,7 +25,6 @@ export interface TransactionPreviewResponse {
   amount: string;
   currency: string;
   selectedPackage: {
-    id: string;
     name: string;
     rate: string;
   };
@@ -41,7 +40,6 @@ export interface TransactionPreviewResponse {
   rewardCap: string;
   rewardStartDate: string;
   transactionMarket: {
-    id: string;
     code: string;
     timezone: string;
   };
@@ -54,12 +52,23 @@ export const transactionConfirmSchema = z
   })
   .strict();
 
+export const transactionPreviewReferenceSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .refine(
+    (value) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+        value,
+      ) || /^[A-Za-z0-9_-]+$/u.test(value),
+  );
+
 export type TransactionConfirmDto = z.infer<typeof transactionConfirmSchema>;
 
 export interface TransactionMerchantResponse {
   merchantId: string;
   merchantName: string;
-  branchId: string | null;
   branchName: string | null;
 }
 
@@ -77,13 +86,11 @@ export interface TransactionReceiptData {
   currency: string;
   purchaseAmount: string;
   package: {
-    packageId: string;
     packageName: string;
     serviceFeeRate: string;
   };
   serviceFeeAmount: string;
   reward: {
-    rewardRuleVersionId: string;
     rewardRate: string;
     dailyRewardAmount: string;
     rewardCap: string;
@@ -107,7 +114,6 @@ export interface TransactionConfirmResponse {
   serviceFee: string;
   mcpDeducted: string;
   mcpBalanceAfter: string;
-  rewardRuleVersion: string;
   dailyRewardAmount: string;
   rewardCap: string;
   rewardStartBusinessDate: string;

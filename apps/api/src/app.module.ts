@@ -33,6 +33,18 @@ import {
       useFactory: (configService: ConfigService) => ({
         pinoHttp: {
           level: configService.logLevel,
+          redact: {
+            paths: [
+              'req.headers.authorization',
+              'req.headers.cookie',
+              'req.headers.idempotency-key',
+              'req.body.memberQrToken',
+              'req.body.password',
+              'req.body.refreshToken',
+              'res.headers.set-cookie',
+            ],
+            censor: '[REDACTED]',
+          },
           genReqId: (req, res) => {
             const requestId = resolveRequestId(req.headers['x-request-id']);
             (req as unknown as Record<string, unknown>)['requestId'] =

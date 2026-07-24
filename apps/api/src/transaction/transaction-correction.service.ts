@@ -25,6 +25,7 @@ import {
   transactionForbidden,
   transactionNotFound,
 } from './transaction.errors.js';
+import { TRANSACTION_EXECUTION_OPTIONS } from './transaction-reliability.js';
 
 interface CorrectionTransactionRow {
   [key: string]: unknown;
@@ -288,7 +289,7 @@ export class TransactionCorrectionService {
       });
 
       return response;
-    });
+    }, TRANSACTION_EXECUTION_OPTIONS);
   }
 
   async getCorrection(
@@ -357,6 +358,13 @@ export class TransactionCorrectionService {
     const payloadHash = sha256(canonicalJson({ correctionRequestId }));
     try {
       return await this.database.runTransaction(async (tx) => {
+        // Global transaction-engine lock order:
+        // advisory operation key -> transaction/correction -> MCP -> wallet.
+        await tx.execute(sql`
+          SELECT pg_advisory_xact_lock(
+            hashtextextended(${'transaction-correction:' + correctionRequestId}, 0)
+          )
+        `);
         const executionResult = await tx.execute<ExecutionRow>(sql`
           SELECT
             correction.id AS "requestId",
@@ -549,7 +557,7 @@ export class TransactionCorrectionService {
         });
 
         return response;
-      });
+      }, TRANSACTION_EXECUTION_OPTIONS);
     } catch (error) {
       if (error instanceof HttpException) throw error;
       transactionConflict(
@@ -655,7 +663,10 @@ export class TransactionCorrectionService {
   }
 
   private assertTransactionNumber(transactionNumber: string): void {
-    if (!/^[1-9]\d*$/u.test(transactionNumber)) {
+    if (
+      transactionNumber.length > 30 ||
+      !/^[1-9]\d*$/u.test(transactionNumber)
+    ) {
       transactionNotFound(
         transactionErrorCodes.correctionNotFound,
         'The correction request was not found.',

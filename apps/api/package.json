@@ -11,6 +11,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
+    "test:transaction": "vitest run src/transaction/__tests__/transaction-read.spec.ts src/transaction/__tests__/transaction-hardening.spec.ts && vitest run src/transaction/__tests__/transaction-preview.integration.spec.ts && vitest run src/transaction/__tests__/transaction-correction.acceptance.integration.spec.ts",
     "test:watch": "vitest",
     "openapi:validate": "tsx dist/__scripts__/openapi-validate.js"
   },

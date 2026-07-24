@@ -11,7 +11,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run tests",
-    "test:integration": "vitest run tests/database.integration.test.ts",
+    "test:integration": "vitest --config vitest.integration.config.ts run",
     "db:migrate": "tsx src/migration-runner.ts",
     "db:seed": "tsx seeds/index.ts",
     "db:checksum": "tsx src/migration-checksums.ts",

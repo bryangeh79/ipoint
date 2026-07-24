@@ -7,6 +7,10 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import {
+  safeErrorMetadata,
+  safeRequestRoute,
+} from '../logging/log-redaction.js';
 
 interface ErrorResponseBody {
   error: {
@@ -70,18 +74,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
       errorDetails =
         process.env.NODE_ENV === 'development' ||
         process.env.NODE_ENV === 'test'
-          ? { name: exception.name, message: exception.message }
+          ? safeErrorMetadata(exception)
           : undefined;
 
       this.logger.error(
         {
-          errorName: exception.name,
-          errorMessage: exception.message,
+          ...safeErrorMetadata(exception),
           requestId,
-          url: request.url,
+          route: safeRequestRoute(request),
           method: request.method,
         },
-        exception.stack,
+        'Unhandled request error',
       );
     } else {
       httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
@@ -89,7 +92,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       errorMessage = 'An unexpected error occurred';
 
       this.logger.error(
-        { requestId, url: request.url, method: request.method, exception },
+        {
+          requestId,
+          route: safeRequestRoute(request),
+          method: request.method,
+          errorName: 'UnknownThrownValue',
+        },
         'Unknown exception type',
       );
     }

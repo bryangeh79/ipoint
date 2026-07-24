@@ -6,11 +6,11 @@ import {
   Inject,
   Ip,
   Param,
-  ParseUUIDPipe,
   Post,
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
@@ -25,6 +25,7 @@ import { TransactionCorrectionService } from './transaction-correction.service.j
 import {
   transactionConfirmSchema,
   type TransactionConfirmDto,
+  transactionPreviewReferenceSchema,
   transactionPreviewSchema,
   type TransactionPreviewDto,
 } from './transaction.dto.js';
@@ -39,8 +40,10 @@ import {
   TransactionService,
   type TransactionRequestContext,
 } from './transaction.service.js';
+import { TransactionSecurityInterceptor } from './transaction-security.interceptor.js';
 
 @Controller('merchant/transactions')
+@UseInterceptors(TransactionSecurityInterceptor)
 export class TransactionController {
   constructor(
     @Inject(TransactionService)
@@ -190,7 +193,11 @@ export class TransactionController {
   @UseGuards(AuthGuard)
   confirm(
     @CurrentActor() actor: RequestActor | undefined,
-    @Param('previewSessionId', new ParseUUIDPipe()) previewSessionId: string,
+    @Param(
+      'previewSessionId',
+      new ZodValidationPipe(transactionPreviewReferenceSchema),
+    )
+    previewSessionId: string,
     @Body(new ZodValidationPipe(transactionConfirmSchema))
     input: TransactionConfirmDto,
     @Headers('idempotency-key') idempotencyKey: string | undefined,

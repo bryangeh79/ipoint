@@ -110,7 +110,7 @@ describe('AllExceptionsFilter', () => {
     );
   });
 
-  it('should include error details in development mode', () => {
+  it('should include only safe error metadata in development mode', () => {
     vi.stubEnv('NODE_ENV', 'development');
     const exception = new Error('Developer details');
     filter.catch(exception, mockHost);
@@ -119,8 +119,7 @@ describe('AllExceptionsFilter', () => {
       expect.objectContaining({
         error: expect.objectContaining({
           details: {
-            name: 'Error',
-            message: 'Developer details',
+            errorName: 'Error',
           },
         }) as unknown,
       }),

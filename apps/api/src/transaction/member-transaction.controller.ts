@@ -5,6 +5,7 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentActor } from '../auth/current-actor.decorator.js';
@@ -15,9 +16,11 @@ import {
   transactionErrorCodes,
   transactionForbidden,
 } from './transaction.errors.js';
+import { TransactionSecurityInterceptor } from './transaction-security.interceptor.js';
 
 @Controller('members/me/transactions')
 @UseGuards(AuthGuard)
+@UseInterceptors(TransactionSecurityInterceptor)
 export class MemberTransactionController {
   constructor(
     @Inject(TransactionReadService)

@@ -13,7 +13,7 @@ const transactionNumberSchema = z
 const isoDateTimeSchema = z.string().trim().datetime({ offset: true });
 
 const commonListQuerySchema = z.object({
-  cursor: z.string().trim().min(1).max(1000).optional(),
+  cursor: z.string().trim().min(1).max(512).optional(),
   limit: z
     .string()
     .trim()

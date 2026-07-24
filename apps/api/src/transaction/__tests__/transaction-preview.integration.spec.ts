@@ -26,6 +26,7 @@ import {
 import { seedFoundation } from '@ipoint/database/seeds/foundation';
 import { eq, sql } from 'drizzle-orm';
 import type { Server } from 'node:http';
+import { performance } from 'node:perf_hooks';
 import supertest from 'supertest';
 import {
   afterAll,
@@ -52,6 +53,7 @@ const password = 'Transaction-Preview-Test-123!';
 
 interface Fixture {
   marketId: string;
+  marketCode: string;
   otherMarketId: string;
   branchId: string;
   merchantAccountId: string;
@@ -117,7 +119,6 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
       amount: '100.00',
       currency: 'MYR',
       selectedPackage: {
-        id: fixture.assignmentId,
         name: 'Preview Package',
         rate: '10.000000',
       },
@@ -132,17 +133,24 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
       expectedDailyRewardAmount: '0.0500000000',
       rewardCap: '1000.0000000000',
       transactionMarket: {
-        id: fixture.marketId,
+        code: fixture.marketCode,
         timezone: 'Asia/Kuala_Lumpur',
       },
     });
     expect(body.previewSessionId).toEqual(expect.any(String));
+    expect(body.previewSessionId).not.toMatch(/^[0-9a-f]{8}-[0-9a-f-]{27}$/iu);
+    expect(JSON.stringify(body)).not.toContain(fixture.marketId);
+    expect(JSON.stringify(body)).not.toContain(fixture.assignmentId);
     expect(body.protectedMemberReference).not.toContain(fixture.memberId);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+    expect(response.headers['x-frame-options']).toBe('DENY');
 
+    const previewId = await internalPreviewId(body.previewSessionId);
     const audit = await database.db
       .select({ action: auditLogs.action })
       .from(auditLogs)
-      .where(eq(auditLogs.entityId, body.previewSessionId));
+      .where(eq(auditLogs.entityId, previewId));
     expect(audit).toEqual([{ action: 'TRANSACTION_PREVIEW_CREATED' }]);
   });
 
@@ -173,7 +181,7 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
            WHERE operation = 'PREVIEW' AND preview_session_id = $1) AS "idempotencyRecords",
          (SELECT count(*) FROM transaction_audit_references
            WHERE event_type = 'PREVIEW_CREATED' AND preview_session_id = $1) AS audits`,
-      [first.previewSessionId],
+      [await internalPreviewId(first.previewSessionId)],
     );
     expect(state.rows[0]).toEqual({
       previews: '1',
@@ -190,6 +198,47 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     expectErrorCode(response.body, 'TRANSACTION_IDEMPOTENCY_MISMATCH');
   });
 
+  it('keeps Preview and Confirm exactly-once under a 20-request replay storm', async () => {
+    const previewKey = `preview-storm-${randomUUID()}`;
+    const previews = await Promise.all(
+      Array.from({ length: 20 }, () => preview({}, previewKey)),
+    );
+    expect(previews.every((response) => response.status === 201)).toBe(true);
+    const previewReferences = new Set(
+      previews.map((response) => previewBody(response).previewSessionId),
+    );
+    expect(previewReferences.size).toBe(1);
+    const previewReference = [...previewReferences][0]!;
+
+    const confirmKey = `confirm-storm-${randomUUID()}`;
+    const confirmations = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        confirm(previewReference, {}, confirmKey),
+      ),
+    );
+    expect(confirmations.every((response) => response.status === 201)).toBe(
+      true,
+    );
+    expect(
+      new Set(
+        confirmations.map(
+          (response) => confirmBody(response).transactionNumber,
+        ),
+      ).size,
+    ).toBe(1);
+    expect(await confirmationState(previewReference)).toMatchObject({
+      transactions: '1',
+      fees: '1',
+      debits: '1',
+      rewardLinks: '1',
+      rewardSources: '1',
+      rewardPlans: '1',
+      walletEntries: '1',
+      idempotencyRecords: '2',
+      auditReferences: '2',
+    });
+  });
+
   it('creates a valid Preview for a multi-package merchant with selection', async () => {
     const secondAssignmentId = await addSecondPackage();
     const response = await preview({ packageId: secondAssignmentId }).expect(
@@ -198,7 +247,6 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     const body = previewBody(response);
 
     expect(body.selectedPackage).toMatchObject({
-      id: secondAssignmentId,
       name: 'Second Preview Package',
       rate: '20.000000',
     });
@@ -359,7 +407,12 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
         expiresAt: transactionPreviewSessions.expiresAt,
       })
       .from(transactionPreviewSessions)
-      .where(eq(transactionPreviewSessions.id, body.previewSessionId));
+      .where(
+        eq(
+          transactionPreviewSessions.id,
+          await internalPreviewId(body.previewSessionId),
+        ),
+      );
     const row = rows[0];
     expect(row).toBeDefined();
     expect(row?.expiresAt).not.toBeNull();
@@ -391,11 +444,9 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
       rewardStartBusinessDate: previewResult.rewardStartDate,
       merchant: {
         merchantName: 'Preview Merchant Group',
-        branchId: null,
         branchName: 'Preview Merchant',
       },
     });
-    expect(body.rewardRuleVersion).toEqual(expect.any(String));
     expect(body.merchant.merchantId).toEqual(expect.any(String));
     expect(body.market.marketCode).toEqual(expect.any(String));
     expect(body.transactionNumber).toMatch(/^\d+$/u);
@@ -412,13 +463,11 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
       currency: 'MYR',
       purchaseAmount: '100.00',
       package: {
-        packageId: fixture.assignmentId,
         packageName: 'Preview Package',
         serviceFeeRate: '10.0000000000',
       },
       serviceFeeAmount: '10.00',
       reward: {
-        rewardRuleVersionId: body.rewardRuleVersion,
         rewardRate: '0.0500000000',
         dailyRewardAmount: '0.0500000000',
         rewardCap: '1000.0000000000',
@@ -430,6 +479,10 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     });
     expect(body.receiptData).not.toHaveProperty('mcpBalance');
     expect(body.receiptData).not.toHaveProperty('mcpBalanceAfter');
+    expect(JSON.stringify(body)).not.toContain(fixture.assignmentId);
+    expect(JSON.stringify(body)).not.toMatch(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/iu,
+    );
 
     const persisted = await database.pool.query<{
       purchase_amount: string;
@@ -800,6 +853,7 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     const confirmed = confirmBody(
       await confirm(previewResult.previewSessionId, {}, confirmKey).expect(201),
     );
+    const previewId = await internalPreviewId(previewResult.previewSessionId);
     const audits = await database.pool.query<{
       action: string;
       before: unknown;
@@ -812,7 +866,7 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
          (SELECT id::text FROM transactions WHERE transaction_number = $2)
        )
        ORDER BY occurred_at`,
-      [previewResult.previewSessionId, confirmed.transactionNumber],
+      [previewId, confirmed.transactionNumber],
     );
     const references = await database.db
       .select({
@@ -820,12 +874,7 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
         idempotencyRecordId: transactionAuditReferences.idempotencyRecordId,
       })
       .from(transactionAuditReferences)
-      .where(
-        eq(
-          transactionAuditReferences.previewSessionId,
-          previewResult.previewSessionId,
-        ),
-      );
+      .where(eq(transactionAuditReferences.previewSessionId, previewId));
     const serialized = JSON.stringify(audits.rows);
 
     expect(audits.rows.map((row) => row.action)).toEqual([
@@ -862,7 +911,7 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
        FROM transaction_idempotency_records
        WHERE preview_session_id = $1
        ORDER BY operation`,
-      [previewResult.previewSessionId],
+      [previewId],
     );
     expect(storedIdempotency.rows).toHaveLength(2);
     for (const record of storedIdempotency.rows) {
@@ -876,10 +925,11 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
 
   it('rejects an expired Preview', async () => {
     const previewResult = previewBody(await preview().expect(201));
+    const previewId = await internalPreviewId(previewResult.previewSessionId);
     await database.db
       .update(transactionPreviewSessions)
       .set({ status: 'EXPIRED', failureCode: 'PREVIEW_EXPIRED' })
-      .where(eq(transactionPreviewSessions.id, previewResult.previewSessionId));
+      .where(eq(transactionPreviewSessions.id, previewId));
 
     const response = await confirm(previewResult.previewSessionId).expect(409);
     expectErrorCode(response.body, 'TRANSACTION_PREVIEW_EXPIRED');
@@ -887,10 +937,11 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
 
   it('rejects concurrent Confirm requests for an expired Preview without partial state', async () => {
     const previewResult = previewBody(await preview().expect(201));
+    const previewId = await internalPreviewId(previewResult.previewSessionId);
     await database.db
       .update(transactionPreviewSessions)
       .set({ status: 'EXPIRED', failureCode: 'PREVIEW_EXPIRED' })
-      .where(eq(transactionPreviewSessions.id, previewResult.previewSessionId));
+      .where(eq(transactionPreviewSessions.id, previewId));
 
     const [first, second] = await Promise.all([
       confirm(
@@ -928,6 +979,84 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     expectErrorCode(response.body, 'TRANSACTION_PREVIEW_ALREADY_CONFIRMED');
   });
 
+  it('reports concurrent local endpoint p50/p95/p99 with zero unexpected errors', async () => {
+    const sampleCount = 20;
+    const previewSamples = await Promise.all(
+      Array.from({ length: sampleCount }, async () => {
+        const startedAt = performance.now();
+        const response = await preview({}, `latency-preview-${randomUUID()}`);
+        return {
+          durationMs: performance.now() - startedAt,
+          response,
+          body: previewBody(response),
+        };
+      }),
+    );
+    expect(
+      previewSamples.every(({ response }) => response.status === 201),
+    ).toBe(true);
+
+    const confirmSamples = await Promise.all(
+      previewSamples.map(async ({ body }) => {
+        const startedAt = performance.now();
+        const response = await confirm(
+          body.previewSessionId,
+          {},
+          `latency-confirm-${randomUUID()}`,
+        );
+        return {
+          durationMs: performance.now() - startedAt,
+          response,
+          body: confirmBody(response),
+        };
+      }),
+    );
+    expect(
+      confirmSamples.every(({ response }) => response.status === 201),
+    ).toBe(true);
+
+    const listSamples = await Promise.all(
+      Array.from({ length: sampleCount }, async () => {
+        const startedAt = performance.now();
+        const response = await supertest(server)
+          .get('/api/v1/merchant/transactions?limit=20')
+          .set('authorization', `Bearer ${fixture.merchantToken}`);
+        return { durationMs: performance.now() - startedAt, response };
+      }),
+    );
+    expect(listSamples.every(({ response }) => response.status === 200)).toBe(
+      true,
+    );
+
+    const transactionNumber = confirmSamples[0]?.body.transactionNumber ?? '0';
+    const detailSamples = await Promise.all(
+      Array.from({ length: sampleCount }, async () => {
+        const startedAt = performance.now();
+        const response = await supertest(server)
+          .get(`/api/v1/merchant/transactions/${transactionNumber}`)
+          .set('authorization', `Bearer ${fixture.merchantToken}`);
+        return { durationMs: performance.now() - startedAt, response };
+      }),
+    );
+    expect(detailSamples.every(({ response }) => response.status === 200)).toBe(
+      true,
+    );
+
+    const latency = {
+      sampleCount,
+      unexpectedErrors: 0,
+      preview: percentiles(previewSamples.map(({ durationMs }) => durationMs)),
+      confirm: percentiles(confirmSamples.map(({ durationMs }) => durationMs)),
+      merchantList: percentiles(
+        listSamples.map(({ durationMs }) => durationMs),
+      ),
+      merchantDetail: percentiles(
+        detailSamples.map(({ durationMs }) => durationMs),
+      ),
+    };
+    console.log(`[P4-S7-LATENCY] ${JSON.stringify(latency)}`);
+  });
+
   function validPayload() {
     return {
       amount: '100.00',
@@ -952,8 +1081,10 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
   async function createFixture(
     options: { mcpBalance?: string } = {},
   ): Promise<Fixture> {
-    const marketId = await insertMarket();
-    const otherMarketId = await insertMarket();
+    const market = await insertMarket();
+    const otherMarket = await insertMarket();
+    const marketId = market.id;
+    const otherMarketId = otherMarket.id;
     const adminAccountId = await insertAccount();
     const adminRows = await database.db
       .insert(adminUsers)
@@ -1052,6 +1183,7 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
 
     return {
       marketId,
+      marketCode: market.code,
       otherMarketId,
       branchId,
       merchantAccountId,
@@ -1064,7 +1196,7 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     };
   }
 
-  async function insertMarket(): Promise<string> {
+  async function insertMarket(): Promise<{ id: string; code: string }> {
     const code =
       `T${randomUUID().replaceAll('-', '').slice(0, 7)}`.toUpperCase();
     const rows = await database.db
@@ -1086,7 +1218,7 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
       minimumTransactionAmount: '1',
       maximumTransactionAmount: '10000',
     });
-    return marketId;
+    return { id: marketId, code };
   }
 
   async function insertAccount(): Promise<string> {
@@ -1209,6 +1341,7 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
   }
 
   async function confirmationState(previewSessionId: string) {
+    const resolvedPreviewId = await internalPreviewId(previewSessionId);
     const state = await database.pool.query<{
       previewStatus: string;
       transactions: string;
@@ -1251,9 +1384,27 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
           WHERE merchant_branch_id = (
             SELECT merchant_branch_id FROM transaction_preview_sessions WHERE id = $1
           )) AS "mcpBalance"`,
-      [previewSessionId],
+      [resolvedPreviewId],
     );
     return state.rows[0]!;
+  }
+
+  async function internalPreviewId(
+    publicPreviewReference: string,
+  ): Promise<string> {
+    const result = await database.pool.query<{ previewSessionId: string }>(
+      `SELECT preview_session_id AS "previewSessionId"
+       FROM transaction_idempotency_records
+       WHERE operation = 'PREVIEW'
+         AND response->>'previewSessionId' = $1
+       LIMIT 1`,
+      [publicPreviewReference],
+    );
+    const previewSessionId = result.rows[0]?.previewSessionId;
+    if (!previewSessionId) {
+      throw new Error('The test preview reference could not be resolved.');
+    }
+    return previewSessionId;
   }
 
   function expectErrorCode(body: unknown, code: string): void {
@@ -1272,3 +1423,21 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     return response.body as TransactionConfirmResponse;
   }
 });
+
+function percentiles(samples: number[]): {
+  p50: number;
+  p95: number;
+  p99: number;
+} {
+  const sorted = [...samples].sort((left, right) => left - right);
+  const at = (percentile: number) =>
+    Number(
+      sorted[
+        Math.min(
+          sorted.length - 1,
+          Math.ceil((percentile / 100) * sorted.length) - 1,
+        )
+      ]?.toFixed(2),
+    );
+  return { p50: at(50), p95: at(95), p99: at(99) };
+}

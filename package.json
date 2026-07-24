@@ -18,6 +18,8 @@
     "test": "vitest --config vitest.workspace.ts run",
     "test:api": "pnpm --filter @ipoint/api test",
     "test:database": "pnpm --filter @ipoint/database test",
+    "test:database:integration": "pnpm --filter @ipoint/database test:integration",
+    "test:transaction": "pnpm --filter @ipoint/api test:transaction",
     "test:watch": "vitest --config vitest.workspace.ts",
     "test:web": "pnpm --filter @ipoint/member-web test",
     "test:e2e": "node scripts/run-e2e.mjs",
