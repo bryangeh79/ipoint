@@ -723,6 +723,25 @@
 
 ---
 
+## D-036: P4-S6 acceptance and P4-S7 authorization — Transaction Engine Hardening
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-036 |
+| **Date** | 2026-07-24 |
+| **Source** | ChatGPT Command Center — P4-S6 Acceptance / P4-S7 Start |
+| **Old Rule** | P4-S6 IN_PROGRESS; P4-S7 NOT_AUTHORIZED |
+| **New Decision** | P4-S6 accepted at SHA `cad3bfcc`. CI Run 30092900182 all 5 jobs SUCCESS. P4-S7 authorized. P4-S8 remains NOT_AUTHORIZED. |
+| **Reason** | P4-S6 reversal/refund with compensating ledgers verified. All 35 acceptance tests pass. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | P4-S6, P4-S7 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P4-S6 Acceptance / P4-S7 Start (2026-07-24) |
+| **Status** | **APPROVED** |
+
+---
+
 ## D-033: P4-S5 authorization — Transaction History, Receipt Retrieval and Read Models
 
 | Field | Value |
