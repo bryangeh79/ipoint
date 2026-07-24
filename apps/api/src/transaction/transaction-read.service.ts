@@ -144,7 +144,7 @@ export class TransactionReadService {
         query.limit + 1,
       ],
     );
-    const rows = (queryResult).rows;
+    const rows = queryResult.rows;
     return this.toMerchantList(rows, query.limit);
   }
 
@@ -202,7 +202,7 @@ export class TransactionReadService {
       `,
       [transactionNumber, branchIds],
     );
-    const queryRows = (queryResult).rows;
+    const queryRows = queryResult.rows;
     const row = queryRows[0];
     if (!row) {
       this.receiptNotFound();
@@ -280,7 +280,7 @@ export class TransactionReadService {
         query.limit + 1,
       ],
     );
-    return this.toMemberList((result).rows, query.limit);
+    return this.toMemberList(result.rows, query.limit);
   }
 
   async getMemberTransaction(
@@ -330,7 +330,7 @@ export class TransactionReadService {
       `,
       [transactionNumber, memberId],
     );
-    const detailRows = (detailResult).rows;
+    const detailRows = detailResult.rows;
     const row = detailRows[0];
     if (!row) {
       this.receiptNotFound();
@@ -341,8 +341,9 @@ export class TransactionReadService {
   private async resolveMerchantBranchAccess(
     accountId: string,
   ): Promise<string[]> {
-    const branchResult = await this.database.pool.query<MerchantBranchAccessRow>(
-      `
+    const branchResult =
+      await this.database.pool.query<MerchantBranchAccessRow>(
+        `
         SELECT branch.id AS "branchId"
         FROM merchant_account_access merchant_access
         JOIN merchant_groups merchant_group
@@ -358,9 +359,9 @@ export class TransactionReadService {
           )
         ORDER BY branch.id
       `,
-      [accountId],
-    );
-    return (branchResult).rows.map((row) => row.branchId);
+        [accountId],
+      );
+    return branchResult.rows.map((row) => row.branchId);
   }
 
   private async resolveMemberId(accountId: string): Promise<string> {
@@ -373,7 +374,7 @@ export class TransactionReadService {
       `,
       [accountId],
     );
-    const memberId = (memberResult).rows[0]?.memberId;
+    const memberId = memberResult.rows[0]?.memberId;
     if (!memberId) {
       this.denyReceiptAccess();
     }
