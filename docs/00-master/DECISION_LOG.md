@@ -621,21 +621,21 @@
 | **Status** | **ACCEPTED / COMPLETE / FROZEN** |
 ---
 
-## D-030: Phase 4 — Transaction Engine Batch A authorization
+## D-030: Phase 4 ï¿½ Transaction Engine Batch A authorization
 
 | Field | Value |
 |---|---|
 | **Decision ID** | D-030 |
 | **Date** | 2026-07-23 |
-| **Source** | ChatGPT Command Center — Phase 4 Batch A Authorization |
+| **Source** | ChatGPT Command Center ï¿½ Phase 4 Batch A Authorization |
 | **Old Rule** | Phase 4 NOT_AUTHORIZED; P4-S0 contract freeze pending |
-| **New Decision** | Phase 4 — Transaction Engine Batch A (P4-S1 through P4-S4) authorized with 43 frozen product contracts (P4-D01 through P4-D44). P4-S5 through P4-S8 NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. |
+| **New Decision** | Phase 4 ï¿½ Transaction Engine Batch A (P4-S1 through P4-S4) authorized with 43 frozen product contracts (P4-D01 through P4-D44). P4-S5 through P4-S8 NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. |
 | **Reason** | Command Center approved Phase 4 contracts (P4-D01 through P4-D44). P4-S0 contract freeze accepted. Batch A engineering execution authorized for schema, preview, confirmation, and idempotency/concurrency. |
 | **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, docs/06-phase-reports/p4-s0/*, .github/workflows/p4-ci.yml |
 | **Affected Phases** | Phase 4, P4-S1, P4-S2, P4-S3, P4-S4 |
 | **Migration** | Forward migration for transaction schema (P4-S1 scope) |
 | **Approver** | ChatGPT Command Center |
-| **Basis** | Phase 4 Batch A Authorization (2026-07-23) — 43 frozen contracts P4-D01 through P4-D44 |
+| **Basis** | Phase 4 Batch A Authorization (2026-07-23) ï¿½ 43 frozen contracts P4-D01 through P4-D44 |
 | **Status** | **AUTHORIZED** |
 
 ### Authorized scope
@@ -653,6 +653,78 @@
 * P4-S6 (Reversal/Refund)
 * P4-S7 (Hardening)
 * P4-S8 (Final Acceptance)
+* Main PR
+* Main merge
+* Production deployment
+
+---
+
+## D-031: P4-S3 formal acceptance and P4-S4 authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-031 |
+| **Date** | 2026-07-24 |
+| **Source** | ChatGPT Command Center â€” P4-S3 Acceptance / P4-S4 Start |
+| **Old Rule** | P4-S3 COMMITTED_LOCALLY_NOT_YET_ACCEPTED; P4-S4 NOT_AUTHORIZED |
+| **New Decision** | P4-S3 formally accepted at SHA `eab5cf14e0fceb13492c4a03824b5213355efd4d`. CI Run 30069548709 all 5 jobs SUCCESS. P4-S4 authorized. Idempotency and Concurrency Protection scope defined with 12 feature requirements and 16 acceptance tests. |
+| **Reason** | P4-S3 implementation verified: atomic Confirm boundary, MCP debit, Reward Plan/Source creation, Wallet Ledger pending entry, audit references, full rollback, Phase 3 regression. All CI passed. No P4-S4 functionality present. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | P4-S3, P4-S4 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P4-S3 Acceptance / P4-S4 Start (2026-07-24) |
+| **Status** | **APPROVED** |
+
+### P4-S4 Authorized Scope
+
+1. Operation-specific idempotency for Preview and Confirm
+2. Same key + same payload â†’ original result
+3. Same key + different payload â†’ rejected
+4. Same Preview can be confirmed only once
+5. Repeated Confirm â†’ returns original confirmed transaction
+6. Concurrent Confirm requests must not double-write any financial record
+7. Confirm must recheck Preview validity, merchant/member status, MCP balance, snapshot integrity
+8. No retry loop may hide integrity failures
+9. No partial state survives a losing concurrent request
+10. Idempotency keys not stored/logged in plaintext
+11. P4-S4 populates `transaction_audit_references.idempotency_record_id`
+12. Existing nullable rows remain valid
+
+---
+
+## D-032: P4-S4 acceptance and Phase 4 Batch A closure
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-032 |
+| **Date** | 2026-07-24 |
+| **Source** | ChatGPT Command Center â€” P4-S4 Acceptance / Phase 4 Batch A Closure |
+| **Old Rule** | P4-S4 IN_PROGRESS; P4-S5+ NOT_AUTHORIZED |
+| **New Decision** | P4-S4 accepted at SHA `f80e2b59c3aff8ada1814ad4b329a0d6470f538f`. CI Run 30070245230 all 5 jobs SUCCESS. Phase 4 Batch A (P4-S1 through P4-S4) approved and closed. P4-S1 through P4-S4 frozen as accepted Batch A baseline. P4-S5 through P4-S8 remain NOT_AUTHORIZED. |
+| **Reason** | P4-S4 idempotency and concurrency protection verified: Preview/Confirm idempotency, SHA-256 key hashing, canonical payload comparison, advisory lock concurrency, exactly-once financial writes, no plaintext key storage, no P4-S5 functionality. All CI passed. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | P4-S4, Phase 4 Batch A |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P4-S4 Acceptance / Phase 4 Batch A Closure (2026-07-24) |
+| **Status** | **APPROVED** |
+
+### Phase 4 Batch A â€” Accepted Baseline
+
+| Sub-phase | Scope | Acceptance SHA |
+|---|---|---|
+| **P4-S1** | Database Schema & Transaction Domain Model | Part of Batch A lineage |
+| **P4-S2** | Merchant Transaction Preview & Validation | `dc546d69` (feat) |
+| **P4-S3** | Atomic Transaction Confirmation | `bca25537` (feat) |
+| **P4-S4** | Idempotency & Concurrency Protection | `f80e2b59` (feat) |
+
+### P4-S5 to P4-S8 â€” NOT AUTHORIZED
+
+* P4-S5: Transaction History & Receipt List APIs
+* P4-S6: Reversal / Refund
+* P4-S7: Hardening
+* P4-S8: Final Acceptance
 * Main PR
 * Main merge
 * Production deployment
