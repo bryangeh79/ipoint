@@ -14,13 +14,13 @@ Preview may still be created when MCP is insufficient.
 
 The Preview response must include clear insufficiency indicators:
 
-| Field | Type | Description |
-|---|---|---|
-| `mcpSufficient` | `boolean` | Whether current MCP covers the estimated debit |
-| `confirmAllowed` | `boolean` | Whether confirm would succeed (same as mcpSufficient for Batch A) |
-| `currentMcpBalance` | `string` | Current MCP balance (decimal string) |
-| `estimatedMcpDebit` | `string` | Amount that would be debited at Confirm |
-| `mcpShortfall` | `string` | Additional MCP needed (0 if sufficient) |
+| Field               | Type      | Description                                                       |
+| ------------------- | --------- | ----------------------------------------------------------------- |
+| `mcpSufficient`     | `boolean` | Whether current MCP covers the estimated debit                    |
+| `confirmAllowed`    | `boolean` | Whether confirm would succeed (same as mcpSufficient for Batch A) |
+| `currentMcpBalance` | `string`  | Current MCP balance (decimal string)                              |
+| `estimatedMcpDebit` | `string`  | Amount that would be debited at Confirm                           |
+| `mcpShortfall`      | `string`  | Additional MCP needed (0 if sufficient)                           |
 
 ### Rules
 
