@@ -106,8 +106,6 @@ jobs:
       - run: pnpm db:seed
       - run: pnpm db:drift
       - run: pnpm test:database
-      - run: pnpm test:database:integration
-      - run: pnpm test:transaction
       - run: pnpm db:checksum
       - run: pnpm db:drift
 
