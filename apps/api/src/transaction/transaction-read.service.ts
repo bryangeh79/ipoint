@@ -107,7 +107,7 @@ export class TransactionReadService {
         JOIN merchant_groups merchant_group
           ON merchant_group.id = branch.merchant_group_id
         JOIN markets market ON market.id = transaction.market_id
-        JOIN member_profiles member_profile
+        LEFT JOIN member_profiles member_profile
           ON member_profile.member_id = transaction.member_id
         JOIN transaction_service_fees fee
           ON fee.transaction_id = transaction.id
@@ -189,7 +189,7 @@ export class TransactionReadService {
         JOIN merchant_groups merchant_group
           ON merchant_group.id = branch.merchant_group_id
         JOIN markets market ON market.id = transaction.market_id
-        JOIN member_profiles member_profile
+        LEFT JOIN member_profiles member_profile
           ON member_profile.member_id = transaction.member_id
         JOIN transaction_service_fees fee
           ON fee.transaction_id = transaction.id
@@ -243,7 +243,7 @@ export class TransactionReadService {
         JOIN merchant_groups merchant_group
           ON merchant_group.id = branch.merchant_group_id
         JOIN markets market ON market.id = transaction.market_id
-        JOIN member_profiles member_profile
+        LEFT JOIN member_profiles member_profile
           ON member_profile.member_id = transaction.member_id
         JOIN transaction_service_fees fee
           ON fee.transaction_id = transaction.id
@@ -318,7 +318,7 @@ export class TransactionReadService {
         JOIN merchant_groups merchant_group
           ON merchant_group.id = branch.merchant_group_id
         JOIN markets market ON market.id = transaction.market_id
-        JOIN member_profiles member_profile
+        LEFT JOIN member_profiles member_profile
           ON member_profile.member_id = transaction.member_id
         JOIN transaction_service_fees fee
           ON fee.transaction_id = transaction.id
