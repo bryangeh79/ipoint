@@ -76,7 +76,7 @@ export class TransactionReadService {
     }
     const branchIds = query.branchId ? [query.branchId] : accessibleBranchIds;
     const cursor = this.decodeCursor(query.cursor);
-    const result = await this.database.pool.query<TransactionReadRow>(
+    const queryResult = await this.database.pool.query<TransactionReadRow>(
       `
         SELECT
           transaction.transaction_number::text AS "transactionNumber",
@@ -144,7 +144,8 @@ export class TransactionReadService {
         query.limit + 1,
       ],
     );
-    return this.toMerchantList(result.rows, query.limit);
+    const rows = (queryResult).rows;
+    return this.toMerchantList(rows, query.limit);
   }
 
   async getMerchantTransaction(
@@ -158,7 +159,7 @@ export class TransactionReadService {
     if (branchIds.length === 0) {
       this.denyReceiptAccess();
     }
-    const result = await this.database.pool.query<TransactionReadRow>(
+    const queryResult = await this.database.pool.query<TransactionReadRow>(
       `
         SELECT
           transaction.transaction_number::text AS "transactionNumber",
@@ -201,7 +202,8 @@ export class TransactionReadService {
       `,
       [transactionNumber, branchIds],
     );
-    const row = result.rows[0];
+    const queryRows = (queryResult).rows;
+    const row = queryRows[0];
     if (!row) {
       this.receiptNotFound();
     }
@@ -278,7 +280,7 @@ export class TransactionReadService {
         query.limit + 1,
       ],
     );
-    return this.toMemberList(result.rows, query.limit);
+    return this.toMemberList((result).rows, query.limit);
   }
 
   async getMemberTransaction(
@@ -289,7 +291,7 @@ export class TransactionReadService {
       this.receiptNotFound();
     }
     const memberId = await this.resolveMemberId(accountId);
-    const result = await this.database.pool.query<TransactionReadRow>(
+    const detailResult = await this.database.pool.query<TransactionReadRow>(
       `
         SELECT
           transaction.transaction_number::text AS "transactionNumber",
@@ -328,7 +330,8 @@ export class TransactionReadService {
       `,
       [transactionNumber, memberId],
     );
-    const row = result.rows[0];
+    const detailRows = (detailResult).rows;
+    const row = detailRows[0];
     if (!row) {
       this.receiptNotFound();
     }
@@ -338,7 +341,7 @@ export class TransactionReadService {
   private async resolveMerchantBranchAccess(
     accountId: string,
   ): Promise<string[]> {
-    const result = await this.database.pool.query<MerchantBranchAccessRow>(
+    const branchResult = await this.database.pool.query<MerchantBranchAccessRow>(
       `
         SELECT branch.id AS "branchId"
         FROM merchant_account_access merchant_access
@@ -357,11 +360,11 @@ export class TransactionReadService {
       `,
       [accountId],
     );
-    return result.rows.map((row) => row.branchId);
+    return (branchResult).rows.map((row) => row.branchId);
   }
 
   private async resolveMemberId(accountId: string): Promise<string> {
-    const result = await this.database.pool.query<MemberIdentityRow>(
+    const memberResult = await this.database.pool.query<MemberIdentityRow>(
       `
         SELECT member.id AS "memberId"
         FROM members member
@@ -370,7 +373,7 @@ export class TransactionReadService {
       `,
       [accountId],
     );
-    const memberId = result.rows[0]?.memberId;
+    const memberId = (memberResult).rows[0]?.memberId;
     if (!memberId) {
       this.denyReceiptAccess();
     }
