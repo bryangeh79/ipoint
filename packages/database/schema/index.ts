@@ -138,6 +138,9 @@ export const packageChangeRequestStatus = pgEnum(
 );
 export const authAccountAccessType = pgEnum('auth_account_access_type', [
   'PRIMARY_OWNER',
+  'OWNER',
+  'ADMIN',
+  'CASHIER',
 ]);
 export const rewardPlanStatus = pgEnum('reward_plan_status', [
   'SCHEDULED',
@@ -223,6 +226,11 @@ export const transactionStatus = pgEnum('transaction_status', [
   'DRAFT',
   'PREVIEWED',
   'CONFIRMED',
+  'REVERSAL_REQUESTED',
+  'REFUND_REQUESTED',
+  'REVERSED',
+  'REFUNDED',
+  'REJECTED',
   'FAILED',
   'EXPIRED',
 ]);
@@ -238,6 +246,15 @@ export const transactionAuditEventType = pgEnum(
   'transaction_audit_event_type',
   ['PREVIEW_CREATED', 'CONFIRMED', 'FAILED', 'EXPIRED'],
 );
+export const correctionRequestType = pgEnum('correction_request_type', [
+  'REVERSAL',
+  'REFUND',
+]);
+export const correctionRequestStatus = pgEnum('correction_request_status', [
+  'REQUESTED',
+  'EXECUTED',
+  'REJECTED',
+]);
 export const transactionNumberSequence = pgSequence(
   'transaction_number_sequence',
   {
@@ -2640,7 +2657,10 @@ export const transactions = pgTable(
       table.memberId,
       table.confirmedAt.desc(),
     ),
-    check('transactions_status_check', sql`${table.status} = 'CONFIRMED'`),
+    check(
+      'transactions_status_check',
+      sql`${table.status} in ('CONFIRMED', 'REVERSAL_REQUESTED', 'REFUND_REQUESTED', 'REVERSED', 'REFUNDED', 'REJECTED')`,
+    ),
     check('transactions_number_check', sql`${table.transactionNumber} > 0`),
     check(
       'transactions_receipt_check',
@@ -2915,6 +2935,117 @@ export const transactionAuditReferences = pgTable(
   ],
 );
 
+export const correctionRequests = pgTable(
+  'correction_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    transactionId: uuid('transaction_id')
+      .notNull()
+      .references(() => transactions.id, { onDelete: 'restrict' }),
+    merchantBranchId: uuid('merchant_branch_id')
+      .notNull()
+      .references(() => merchantBranches.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    requestType: correctionRequestType('request_type').notNull(),
+    status: correctionRequestStatus('status').notNull().default('REQUESTED'),
+    reasonCode: text('reason_code').notNull(),
+    reasonNote: text('reason_note'),
+    requestedByAccountId: uuid('requested_by_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    keyHash: text('key_hash').notNull(),
+    payloadHash: text('payload_hash').notNull(),
+    response: jsonb('response').notNull(),
+    executedAt: utcTimestamp('executed_at'),
+    rejectedAt: utcTimestamp('rejected_at'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('correction_requests_transaction_type_unique').on(
+      table.transactionId,
+      table.requestType,
+    ),
+    unique('correction_requests_branch_type_key_unique').on(
+      table.merchantBranchId,
+      table.requestType,
+      table.keyHash,
+    ),
+    uniqueIndex('correction_requests_active_transaction_unique')
+      .on(table.transactionId)
+      .where(sql`${table.status} = 'REQUESTED'`),
+    index('correction_requests_branch_created_idx').on(
+      table.merchantBranchId,
+      table.createdAt,
+    ),
+    check(
+      'correction_requests_reason_code_check',
+      sql`btrim(${table.reasonCode}) <> '' and char_length(${table.reasonCode}) <= 64`,
+    ),
+    check(
+      'correction_requests_reason_note_check',
+      sql`${table.reasonNote} is null or char_length(${table.reasonNote}) <= 500`,
+    ),
+    check(
+      'correction_requests_hash_check',
+      sql`char_length(${table.keyHash}) = 64 and char_length(${table.payloadHash}) = 64`,
+    ),
+    check(
+      'correction_requests_result_check',
+      sql`(${table.status} = 'REQUESTED' and ${table.executedAt} is null and ${table.rejectedAt} is null)
+        or (${table.status} = 'EXECUTED' and ${table.executedAt} is not null and ${table.rejectedAt} is null)
+        or (${table.status} = 'REJECTED' and ${table.executedAt} is null and ${table.rejectedAt} is not null)`,
+    ),
+  ],
+);
+
+export const correctionExecutions = pgTable(
+  'correction_executions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    correctionRequestId: uuid('correction_request_id')
+      .notNull()
+      .references(() => correctionRequests.id, { onDelete: 'restrict' }),
+    transactionId: uuid('transaction_id')
+      .notNull()
+      .references(() => transactions.id, { onDelete: 'restrict' }),
+    executionKeyHash: text('execution_key_hash').notNull(),
+    payloadHash: text('payload_hash').notNull(),
+    mcpLedgerEntryId: uuid('mcp_ledger_entry_id')
+      .notNull()
+      .references(() => mcpLedgerEntries.id, { onDelete: 'restrict' }),
+    walletLedgerEntryId: uuid('wallet_ledger_entry_id').references(
+      () => memberWalletEntries.id,
+      { onDelete: 'restrict' },
+    ),
+    rewardSourceId: uuid('reward_source_id')
+      .notNull()
+      .references(() => rewardSources.id, { onDelete: 'restrict' }),
+    rewardPlanId: uuid('reward_plan_id')
+      .notNull()
+      .references(() => rewardPlans.id, { onDelete: 'restrict' }),
+    response: jsonb('response').notNull(),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('correction_executions_request_unique').on(
+      table.correctionRequestId,
+    ),
+    unique('correction_executions_mcp_ledger_unique').on(
+      table.mcpLedgerEntryId,
+    ),
+    uniqueIndex('correction_executions_wallet_ledger_unique')
+      .on(table.walletLedgerEntryId)
+      .where(sql`${table.walletLedgerEntryId} is not null`),
+    check(
+      'correction_executions_hash_check',
+      sql`char_length(${table.executionKeyHash}) = 64 and char_length(${table.payloadHash}) = 64`,
+    ),
+  ],
+);
+
 export const schema = {
   accounts,
   credentials,
@@ -2988,4 +3119,6 @@ export const schema = {
   transactionRewardLinks,
   transactionIdempotencyRecords,
   transactionAuditReferences,
+  correctionRequests,
+  correctionExecutions,
 };

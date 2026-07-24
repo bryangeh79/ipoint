@@ -407,6 +407,7 @@ describe('database foundation schema', () => {
       '0014_phase_3_reward_and_wallet_schema.sql',
       '0015_phase_4_transaction_schema.sql',
       '0016_phase_4_s3_audit_idempotency_nullable.sql',
+      '0017_phase_4_s6_correction_requests.sql',
     ]);
     const migration = await readFile(
       `${migrationsDirectory}/0000_database_foundation.sql`,

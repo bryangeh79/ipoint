@@ -38,6 +38,15 @@ export const transactionErrorCodes = {
   listCursorInvalid: 'TRANSACTION_LIST_CURSOR_INVALID',
   receiptNotFound: 'TRANSACTION_RECEIPT_NOT_FOUND',
   receiptAccessDenied: 'TRANSACTION_RECEIPT_ACCESS_DENIED',
+  reversalNotAllowed: 'TRANSACTION_REVERSAL_NOT_ALLOWED',
+  refundNotAllowed: 'TRANSACTION_REFUND_NOT_ALLOWED',
+  reversalAlreadyRequested: 'TRANSACTION_REVERSAL_ALREADY_REQUESTED',
+  refundAlreadyRequested: 'TRANSACTION_REFUND_ALREADY_REQUESTED',
+  correctionConflict: 'TRANSACTION_CORRECTION_CONFLICT',
+  correctionReasonInvalid: 'TRANSACTION_CORRECTION_REASON_INVALID',
+  correctionAccessDenied: 'TRANSACTION_CORRECTION_ACCESS_DENIED',
+  correctionNotFound: 'TRANSACTION_CORRECTION_NOT_FOUND',
+  correctionExecutionFailed: 'TRANSACTION_CORRECTION_EXECUTION_FAILED',
 } as const;
 
 export function transactionBadRequest(code: string, message: string): never {

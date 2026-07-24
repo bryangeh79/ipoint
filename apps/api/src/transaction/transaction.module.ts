@@ -6,6 +6,7 @@ import { PlatformAccessModule } from '../platform-access/platform-access.module.
 import { TransactionController } from './transaction.controller.js';
 import { MemberTransactionController } from './member-transaction.controller.js';
 import { TransactionConfirmationRewardWriter } from './transaction-confirmation-reward.writer.js';
+import { TransactionCorrectionService } from './transaction-correction.service.js';
 import { TransactionReadService } from './transaction-read.service.js';
 import { TransactionService } from './transaction.service.js';
 
@@ -16,7 +17,12 @@ import { TransactionService } from './transaction.service.js';
     TransactionService,
     TransactionReadService,
     TransactionConfirmationRewardWriter,
+    TransactionCorrectionService,
   ],
-  exports: [TransactionService, TransactionReadService],
+  exports: [
+    TransactionService,
+    TransactionReadService,
+    TransactionCorrectionService,
+  ],
 })
 export class TransactionModule {}
