@@ -659,6 +659,32 @@
 
 ---
 
+## D-033: P4-S5 authorization — Transaction History, Receipt Retrieval and Read Models
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-033 |
+| **Date** | 2026-07-24 |
+| **Source** | ChatGPT Command Center — Phase 4 Batch B / P4-S5 Authorization |
+| **Old Rule** | P4-S5 NOT_AUTHORIZED; P4-S6+ NOT_AUTHORIZED |
+| **New Decision** | P4-S5 authorized. 4 read APIs defined (Merchant list/detail, Member list/detail). Cursor-based pagination, deterministic ordering, strict privacy isolation. 31 required acceptance tests. P4-S6+ remain NOT_AUTHORIZED. |
+| **Reason** | Phase 4 Batch A accepted and frozen. Transaction read models required before reversal/refund work. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | P4-S5 |
+| **Migration** | Forward migration only if index is demonstrably required |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | Phase 4 Batch B / P4-S5 Authorization (2026-07-24) |
+| **Status** | **APPROVED** |
+
+### Governance Corrections Applied
+
+1. Batch A technical baseline SHA: `f80e2b59` (not governance commit)
+2. `994254ea` is documentation/governance only
+3. P4-S8 is not "Batch A final acceptance"
+4. Future reports use exact CI-reported test counts
+
+---
+
 ## D-031: P4-S3 formal acceptance and P4-S4 authorization
 
 | Field | Value |

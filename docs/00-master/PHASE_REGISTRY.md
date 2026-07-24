@@ -123,16 +123,16 @@
 | **P4-S2** | Merchant Transaction Preview & Validation | **AUTHORIZED_AFTER_S1** | Execute after P4-S1 tests pass. |
 | **P4-S3** | Atomic Transaction Confirmation | **COMPLETE / ACCEPTED** | Accepted at eab5cf14 under D-031. CI Run 30069548709. |
 | **P4-S4** | Idempotency, Duplicate Protection & Concurrency | **COMPLETE / ACCEPTED** | Accepted at f80e2b59 under D-032. CI Run 30070245230. |
-| **P4-S5** | Transaction History and Receipt List APIs | **NOT_AUTHORIZED** | Batch B. |
+| **P4-S5** | Transaction History and Receipt List APIs | **IN_PROGRESS** | Authorized under D-033. |
 | **P4-S6** | Reversal / Refund | **NOT_AUTHORIZED** | Batch B. |
 | **P4-S7** | Hardening | **NOT_AUTHORIZED** | Post-Batch A. |
 | **P4-S8** | Final Acceptance | **NOT_AUTHORIZED** | Post-Batch A. |
 
 ## Current allowed actions
 
-- Record Phase 4 Batch A closure (D-032 — APPROVED)
+- Execute P4-S5 (Transaction History, Receipt Retrieval & Read Models)
+- Record P4-S5 authorization (D-033 — APPROVED)
 - Continue governance file maintenance
-- Wait for Command Center authorization for next Phase 4 batch
 
 ## Current prohibited actions
 
@@ -166,4 +166,4 @@
 
 ---
 
-*Last updated: 2026-07-24 | Updated by: OpenClaw | Based on decisions D-001 through D-032*
+*Last updated: 2026-07-24 | Updated by: OpenClaw | Based on decisions D-001 through D-033*
