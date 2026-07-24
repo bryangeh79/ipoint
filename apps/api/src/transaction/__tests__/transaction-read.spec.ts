@@ -3,8 +3,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import type { Pool } from 'pg';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { DatabaseService } from '../../database/database.service.js';
 import {
   parseMemberTransactionListQuery,
@@ -43,17 +42,30 @@ interface ReadRow {
   mcpBalanceAfter: string;
 }
 
+type MockRow = ReadRow | { branchId: string } | { memberId: string };
+type QueryMock = Mock<
+  (sql: string, params?: readonly unknown[]) => Promise<{ rows: MockRow[] }>
+>;
+
 describe('P4-S5 transaction history and receipt read models', () => {
-  let query: ReturnType<typeof vi.fn>;
+  let query: QueryMock;
   let service: TransactionReadService;
 
   beforeEach(() => {
-    query = vi.fn();
+    query =
+      vi.fn<
+        (
+          sql: string,
+          params?: readonly unknown[],
+        ) => Promise<{ rows: MockRow[] }>
+      >();
     const database = Object.create(
       DatabaseService.prototype,
     ) as DatabaseService;
+    const pool = Object.create(null) as object;
+    Object.defineProperty(pool, 'query', { value: query });
     Object.defineProperty(database, 'pool', {
-      value: { query } as Pick<Pool, 'query'>,
+      value: pool,
     });
     service = new TransactionReadService(database);
   });
@@ -330,29 +342,20 @@ describe('P4-S5 transaction history and receipt read models', () => {
   });
 
   it('26. rejects an invalid date range with the required error code', () => {
-    expect(() =>
-      parseMemberTransactionListQuery({
-        dateFrom: '2026-07-25T00:00:00.000Z',
-        dateTo: '2026-07-24T00:00:00.000Z',
-      }),
-    ).toThrowError(
-      expect.objectContaining({
-        response: expect.objectContaining({
-          code: 'TRANSACTION_LIST_FILTER_INVALID',
+    expectBadRequestCode(
+      () =>
+        parseMemberTransactionListQuery({
+          dateFrom: '2026-07-25T00:00:00.000Z',
+          dateTo: '2026-07-24T00:00:00.000Z',
         }),
-      }),
+      'TRANSACTION_LIST_FILTER_INVALID',
     );
   });
 
   it('27. enforces the maximum list limit', () => {
-    expect(() =>
-      parseMerchantTransactionListQuery({ limit: '101' }),
-    ).toThrowError(
-      expect.objectContaining({
-        response: expect.objectContaining({
-          code: 'TRANSACTION_LIST_FILTER_INVALID',
-        }),
-      }),
+    expectBadRequestCode(
+      () => parseMerchantTransactionListQuery({ limit: '101' }),
+      'TRANSACTION_LIST_FILTER_INVALID',
     );
     expect(parseMerchantTransactionListQuery({ limit: '100' }).limit).toBe(100);
   });
@@ -373,7 +376,12 @@ describe('P4-S5 transaction history and receipt read models', () => {
   });
 
   it('29. performs read-only SQL without mutating transaction or financial records', async () => {
-    merchantQueries([row()]);
+    query
+      .mockResolvedValueOnce({ rows: [{ branchId }] })
+      .mockResolvedValueOnce({ rows: [row()] })
+      .mockResolvedValueOnce({ rows: [{ branchId }] })
+      .mockResolvedValueOnce({ rows: [row()] })
+      .mockResolvedValue({ rows: [] });
     await service.listMerchantTransactions(accountId, merchantQuery());
     await service.getMerchantTransaction(accountId, '101');
     for (const call of query.mock.calls) {
@@ -451,4 +459,14 @@ function errorWithCode(
       response.code === code
     );
   };
+}
+
+function expectBadRequestCode(operation: () => unknown, code: string): void {
+  try {
+    operation();
+  } catch (error) {
+    expect(errorWithCode(BadRequestException, code)(error)).toBe(true);
+    return;
+  }
+  throw new Error(`Expected BadRequestException with code ${code}.`);
 }
