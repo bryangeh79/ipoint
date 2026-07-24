@@ -659,6 +659,25 @@
 
 ---
 
+## D-034: P4-S5 acceptance
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-034 |
+| **Date** | 2026-07-24 |
+| **Source** | OpenClaw — P4-S5 CI verification complete (pending Command Center acceptance) |
+| **Old Rule** | P4-S5 IN_PROGRESS; P4-S6+ NOT_AUTHORIZED |
+| **New Decision** | P4-S5 CI Run 30090049883 all 5 jobs SUCCESS. Read APIs delivered. 29 P4-S5-specific tests + 933 full regression tests passing. P4-S6+ remain NOT_AUTHORIZED. |
+| **Reason** | All 4 read APIs (Merchant list/detail, Member list/detail) implemented with cursor pagination, privacy isolation, and full regression. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | P4-S5 |
+| **Migration** | NONE (existing indexes sufficient) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P4-S5 CI Run 30090049883 — SHA 264ca8c8 (2026-07-24) |
+| **Status** | **AWAITING_COMMAND_CENTER_ACCEPTANCE** |
+
+---
+
 ## D-033: P4-S5 authorization — Transaction History, Receipt Retrieval and Read Models
 
 | Field | Value |
