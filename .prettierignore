@@ -23,3 +23,9 @@ GEMINI.md
 # Tooling caches installed by pnpm or other package managers
 .tools/
 .pnpm-store/
+
+# Untracked workspace files (not authorized to modify)
+docs/06-phase-reports/OPENCLAW_PHASE4_READINESS_HANDOFF_REPORT.md
+git-commit-push.js
+HOST_EXECUTOR_P3_FINAL_REPORT.md
+temp_p4s8_inventories.md
