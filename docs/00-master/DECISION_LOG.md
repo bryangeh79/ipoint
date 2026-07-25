@@ -847,15 +847,70 @@
 | **Decision ID** | D-037 |
 | **Date** | 2026-07-25 |
 | **Source** | ChatGPT Command Center — P4-S7 ACCEPTANCE / P4-S8 FINAL ACCEPTANCE START (2026-07-25) |
-| **Old Rule** | P4-S7 AWS_AITING_INDEPENDENT_ACCEPTANCE; P4-S7 CI reported green but not yet formally accepted; P4-S8 NOT_AUTHORIZED |
+| **Old Rule** | P4-S7 AWAITING_INDEPENDENT_ACCEPTANCE; P4-S7 CI reported green but not yet formally accepted; P4-S8 NOT_AUTHORIZED |
 | **New Decision** | P4-S7 formally accepted at SHA `df637854e4155f8495dc3810b6d8ac66b0e7f8b6`, final HEAD `87ea05aab049828dc660ce1766c019d8cadb119c`, CI Run `30099595759` (all 5 jobs SUCCESS). P4-S8 authorized as non-feature final verification stage. P4-S8 completed: full verification matrix passed (1143 tests, 0 failures, 4 skipped), all 44 contracts (P4-D01 through P4-D44) verified compliant, P4-S8 delivery report filed. Phase 4 declared complete and closed. PHASE_5 remains NOT_AUTHORIZED. Main PR remains NOT_AUTHORIZED. Main merge remains NOT_AUTHORIZED. Production deployment remains NOT_AUTHORIZED. |
 | **Reason** | P4-S7 hardening evidence verified: transaction response privacy, encrypted Preview references, log redaction, security headers, bounded retry (40001/40P01), deadlock protection, concurrency storm testing, EXPLAIN evidence, no duplicate financial writes, no P4-S8 functionality. P4-S8 final verification passed all gates. Phase 4 Transaction Engine fully implemented and verified across all 8 sub-phases. |
-| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, docs/06-phase-reports/p4-s7/P4-S7_HARDENING_EVIDENCE.md, docs/06-phase-reports/p4-s7/P4-S7_DELIVERY_REPORT.md, docs/06-phase-reports/p4-s8/P4-S8_DELIVERY_REPORT.md |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, docs/06-phase-reports/p4-s7/P4-S7_HARDENING_EVIDENCE.md, docs/06-phase-reports/p4-s8/P4-S8_DELIVERY_REPORT.md |
 | **Affected Phases** | P4-S7, P4-S8, Phase 4 |
 | **Migration** | NONE (governance only) |
 | **Approver** | ChatGPT Command Center |
 | **Basis** | P4-S7 ACCEPTANCE / P4-S8 FINAL ACCEPTANCE START (2026-07-25); P4-S8 evidence submitted in P4-S8_DELIVERY_REPORT.md |
 | **Status** | **PHASE 4 CLOSED** |
+
+---
+
+## D-038: P4-S8 final acceptance and Phase 4 formal closure
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-038 |
+| **Date** | 2026-07-25 |
+| **Source** | ChatGPT Command Center — P4-S8 FINAL ACCEPTANCE / PHASE 4 FORMAL CLOSURE (2026-07-25) |
+| **Old Rule** | P4-S8 IMPLEMENTATION_VERIFICATION_COMPLETE but GOVERNANCE_SHA_UNVERIFIED; Phase 4 not formally closed |
+| **New Decision** | P4-S8 formally accepted. Governance closure commit `344efbd92e745b96a83e9fe8ea88081c5fa2940f` independently verified by GitHub. Phase 4 formally CLOSED. Technical baseline: `87ea05aa`. Governance baseline: `344efbd9`. CI Run `30099595759` (5/5 SUCCESS). Phase 4 accepted with documented risks (local-scale performance evidence, single-instance rate limiter, PEPPER rotation impact, production query plan revalidation needed, 4 skipped Phase 3 wallet tests). P5-S0 (Agent & Commission Engine Contract Freeze) AUTHORIZED. P5-S1+ NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. |
+| **Reason** | Independent GitHub verification confirmed governance closure commit exists with correct subject and contains Phase 4 closure documentation. All 8 sub-phases (P4-S1 through P4-S8) accepted. Full verification: 1,143 tests passed, 0 failed, 4 skipped, 44/44 P4 contracts compliant, 10 Phase 4 domain tables, 75 total tables, 10 endpoints, 41 error codes, no Phase 5 functionality. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, docs/06-phase-reports/p4-s8/P4-S8_DELIVERY_REPORT.md |
+| **Affected Phases** | P4-S8, Phase 4, P5-S0 |
+| **Migration** | NONE (governance only) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P4-S8 FINAL ACCEPTANCE / PHASE 4 FORMAL CLOSURE (2026-07-25) |
+| **Status** | **APPROVED** |
+
+### Accepted Phase 4 sub-phases
+
+| Sub-phase | Scope |
+|---|---|
+| P4-S1 | Schema and Domain Model |
+| P4-S2 | Preview and Validation |
+| P4-S3 | Atomic Confirmation |
+| P4-S4 | Idempotency and Concurrency |
+| P4-S5 | Transaction History and Receipts |
+| P4-S6 | Reversal and Refund Compensation |
+| P4-S7 | Security, Reliability and Performance Hardening |
+| P4-S8 | Final Verification and Governance Closure |
+
+### Phase 4 frozen baselines
+
+- **Technical implementation:** `87ea05aab049828dc660ce1766c019d8cadb119c`
+- **Governance closure:** `344efbd92e745b96a83e9fe8ea88081c5fa2940f`
+
+### P5-S0 authorized scope
+
+P5-S0 is documentation, architecture and contract planning only:
+
+- No production-code modification
+- No database migration
+- No API implementation
+- No tracked engineering changes outside approved P5-S0 governance documents
+
+### Active restrictions
+
+- P5_S0_PLANNING_AUTHORIZED
+- P5_S1_NOT_AUTHORIZED
+- PHASE_5_IMPLEMENTATION_NOT_AUTHORIZED
+- MAIN_PR_NOT_AUTHORIZED
+- MAIN_MERGE_NOT_AUTHORIZED
+- PRODUCTION_DEPLOYMENT_NOT_AUTHORIZED
 
 ### P4-S7 accepted scope
 

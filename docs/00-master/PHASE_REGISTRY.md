@@ -119,51 +119,38 @@
 
 | Sub-phase | Scope | Status | Next gate |
 |---|---|---|---|
-| **P4-S1** | Database Schema & Transaction Domain Model | **AUTHORIZED** | D-030. Execute after Phase 4 branch creation. |
-| **P4-S2** | Merchant Transaction Preview & Validation | **AUTHORIZED_AFTER_S1** | Execute after P4-S1 tests pass. |
+| **P4-S1** | Database Schema & Transaction Domain Model | **COMPLETE / ACCEPTED** | Part of Batch A baseline accepted under D-032. |
+| **P4-S2** | Merchant Transaction Preview & Validation | **COMPLETE / ACCEPTED** | Accepted at dc546d69 under Phase 4 Batch A. |
 | **P4-S3** | Atomic Transaction Confirmation | **COMPLETE / ACCEPTED** | Accepted at eab5cf14 under D-031. CI Run 30069548709. |
 | **P4-S4** | Idempotency, Duplicate Protection & Concurrency | **COMPLETE / ACCEPTED** | Accepted at f80e2b59 under D-032. CI Run 30070245230. |
 | **P4-S5** | Transaction History and Receipt List APIs | **COMPLETE / ACCEPTED** | Accepted at 264ca8c8 under D-034. CI Run 30090049883. |
 | **P4-S6** | Reversal / Refund | **COMPLETE / ACCEPTED** | Accepted at cad3bfcc under D-036. CI Run 30092900182. |
 | **P4-S7** | Hardening | **COMPLETE / ACCEPTED** | Accepted at SHA `87ea05aa` under D-037. CI Run 30099595759. |
-| **P4-S8** | Final Verification & Closure | **COMPLETE** | Completed under D-037. Phase 4 closed. No code changes — pure verification stage. |
+| **P4-S8** | Final Verification & Closure | **COMPLETE / ACCEPTED** | Accepted under D-038. Phase 4 closed. |
 
 ## Current allowed actions
 
-- Execute P4-S7 (Transaction Engine Hardening)
-- Record P4-S6 acceptance (D-036 — APPROVED)
+- Begin P5-S0 (Agent & Commission Engine Contract Freeze)
+- Research and document Phase 5 domain model, contracts and architecture
 - Continue governance file maintenance
 
 ## Current prohibited actions
 
-- Start Phase 3 without authorization
-- Execute P3-S2 or later P3 sub-phases
-- Deploy production schema or run production migrations during P3-S1
-- Modify Phase 3 accepted/frozen code
-- Create additional Phase 3 commits
-- Begin Phase 4 without Batch A authorization — **Batch A now authorized**
-- Execute P4-S5, P4-S6, P4-S7, or P4-S8 before Batch A acceptance
-- Skip P4-S1 tests before starting P4-S2
+- Begin Phase 5 implementation (P5-S1+)
+- Modify production code for Phase 5
+- Create database migrations for Phase 5
+- Implement APIs for Phase 5
+- Modify Phase 1-4 accepted/frozen code
+- Change LOCKED business rules
+- Implement DEFERRED modules
+- Claim Codex CLI execution when using OpenClaw sub-agent
 - Push or merge Main
 - Open a Main PR
-- Modify Phase 2 LOCKED business rules or production code
-- Push directly to `main`
-- Merge `main` or create a main PR
-- Bypass required governance sync or branch protection
-- Use OpenClaw sub-agents for engineering execution or accept invalidated sub-agent output as evidence
-- OpenClaw writing production code of any kind
-- Change LOCKED business rules
-- Hard-code CONFIGURABLE values
-- Implement DEFERRED modules
-- Invent behavior for OPEN questions
-- Delete, clean, stash, or batch-add untracked files
+- Production deployment
 - Force push, reset, amend pushed history, or rewrite `main` history
-- Reset, clean, stash, amend, or force push current local changes
 - Delete tests or lower TypeScript strictness
-- Skip failing tests to pass pipeline
-- Re-add allowImportingTsExtensions or emitDeclarationOnly to bypass build type checking
-- Use `as unknown as` to suppress type errors
+- Delete, clean, stash, or batch-add untracked files
 
 ---
 
-*Last updated: 2026-07-25 | Updated by: OpenClaw | Based on decisions D-001 through D-037*
+*Last updated: 2026-07-25 | Updated by: OpenClaw | Based on decisions D-001 through D-038*
