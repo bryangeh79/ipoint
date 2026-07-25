@@ -8,7 +8,6 @@
  */
 
 import type {
-  AgentActivationAction,
   AgentActivationAuditEntry,
   AgentActivationRecord,
   AgentActivationStatus,

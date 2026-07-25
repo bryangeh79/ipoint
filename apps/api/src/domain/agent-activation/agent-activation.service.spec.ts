@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type {
   AgentActivationAuditEntry,
   AgentActivationRecord,

@@ -8,12 +8,10 @@ import {
   HttpCode,
   Inject,
   InternalServerErrorException,
-  Ip,
   NotFoundException,
   Param,
   Post,
   Query,
-  Req,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
@@ -23,7 +21,6 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
 import { and, eq } from 'drizzle-orm';
 import { members } from '@ipoint/database';
 import { AuthGuard } from '../auth/auth.guard.js';
@@ -72,8 +69,6 @@ export class AgentActivationController {
   async apply(
     @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(applySchema)) input: ApplyDto,
-    @Ip() ip: string,
-    @Req() request: Request,
   ) {
     const memberId = await this.resolveMemberId(actor);
     return this.handle(() => this.activation.apply(memberId, input.market));
@@ -148,8 +143,6 @@ export class AgentActivationController {
   async getStatus(
     @CurrentActor() actor: RequestActor | undefined,
     @Query(new ZodValidationPipe(statusQuerySchema)) query: StatusQueryDto,
-    @Ip() ip: string,
-    @Req() request: Request,
   ) {
     const memberId = await this.resolveMemberId(actor);
     return this.handle(() => this.activation.getStatus(memberId, query.market));
