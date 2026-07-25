@@ -16,5 +16,6 @@
   "0014_phase_3_reward_and_wallet_schema.sql": "c3ea9c6aafdbfdad3f4b80143411907fdb85cf6340394badf6bea34242d75a19",
   "0015_phase_4_transaction_schema.sql": "c4edefba45491b9575f580514cb58b27c75df12dd5757aca1d68af9c452eadb4",
   "0016_phase_4_s3_audit_idempotency_nullable.sql": "b6971650bf4cdd41512490428f3942d0f84007c838b3867a5bed458f141d9499",
-  "0017_phase_4_s6_correction_requests.sql": "a684b24b3e31f19d93f5e62492a82eaefb752a8082e0830e1dd5bdbad25bee04"
+  "0017_phase_4_s6_correction_requests.sql": "a684b24b3e31f19d93f5e62492a82eaefb752a8082e0830e1dd5bdbad25bee04",
+  "0018_phase_5_agent_commission_schema.sql": "e4b55576ba46939e5af6ea2da30dea55214565b393df1258e466f138dd7789a5"
 }

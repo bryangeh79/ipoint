@@ -68,6 +68,9 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
     await expect(verifyMigrationChecksums()).resolves.toHaveProperty(
       '0017_phase_4_s6_correction_requests.sql',
     );
+    await expect(verifyMigrationChecksums()).resolves.toHaveProperty(
+      '0018_phase_5_agent_commission_schema.sql',
+    );
     await expect(assertNoSchemaDrift(connection.pool)).resolves.toBeUndefined();
     await expect(migrate(connection.pool)).resolves.toBeUndefined();
     const applied = await connection.pool.query<{ filename: string }>(
@@ -92,6 +95,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0015_phase_4_transaction_schema.sql',
       '0016_phase_4_s3_audit_idempotency_nullable.sql',
       '0017_phase_4_s6_correction_requests.sql',
+      '0018_phase_5_agent_commission_schema.sql',
     ]);
 
     const auditReferenceColumn = await connection.pool.query<{

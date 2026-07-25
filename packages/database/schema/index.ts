@@ -18,6 +18,7 @@ import {
   unique,
   uniqueIndex,
   uuid,
+  varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -255,6 +256,19 @@ export const correctionRequestStatus = pgEnum('correction_request_status', [
   'EXECUTED',
   'REJECTED',
 ]);
+export const agentActivationStatus = pgEnum('agent_activation_status', [
+  'NOT_APPLIED',
+  'PENDING_PAYMENT',
+  'PAYMENT_CONFIRMED',
+  'COURSE_PENDING',
+  'COURSE_COMPLETED',
+  'PENDING_APPROVAL',
+  'ACTIVE',
+  'SUSPENDED',
+  'DEACTIVATED',
+  'REJECTED',
+]);
+
 export const transactionNumberSequence = pgSequence(
   'transaction_number_sequence',
   {
@@ -3046,6 +3060,471 @@ export const correctionExecutions = pgTable(
   ],
 );
 
+// Phase 5: Agent & Commission Engine
+export const agentActivations = pgTable(
+  'agent_activation',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    status: agentActivationStatus('status').notNull().default('NOT_APPLIED'),
+    paymentReference: varchar('payment_reference', { length: 255 }),
+    paymentConfirmedAt: utcTimestamp('payment_confirmed_at'),
+    courseCompletedAt: utcTimestamp('course_completed_at'),
+    courseEnrolledAt: utcTimestamp('course_enrolled_at'),
+    courseReference: varchar('course_reference', { length: 255 }),
+    courseConfirmedBy: uuid('course_confirmed_by'),
+    approvedAt: utcTimestamp('approved_at'),
+    activatedAt: utcTimestamp('activated_at'),
+    activatedBy: uuid('activated_by'),
+    market: varchar('market', { length: 2 }).notNull(),
+    currency: varchar('currency', { length: 3 }).notNull().default('MYR'),
+    rejectionReason: text('rejection_reason'),
+    reactivationCount: integer('reactivation_count').notNull().default(0),
+    revokedAt: utcTimestamp('revoked_at'),
+    revokedBy: uuid('revoked_by'),
+    revocationReason: text('revocation_reason'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('uq_agent_member_market').on(table.memberId, table.market),
+    index('idx_activation_member_status').on(table.memberId, table.status),
+    index('idx_activation_status').on(table.status),
+    index('idx_activation_market').on(table.market),
+    check('chk_agent_market', sql`${table.market} = upper(${table.market})`),
+    check(
+      'chk_agent_currency',
+      sql`${table.currency} = upper(${table.currency})`,
+    ),
+    check('chk_agent_reactivation_count', sql`${table.reactivationCount} >= 0`),
+  ],
+);
+
+export const agentActivationStatusLogs = pgTable(
+  'agent_activation_status_log',
+  {
+    logId: uuid('log_id').primaryKey().defaultRandom(),
+    activationId: uuid('activation_id')
+      .notNull()
+      .references(() => agentActivations.id, { onDelete: 'restrict' }),
+    fromStatus: agentActivationStatus('from_status'),
+    toStatus: agentActivationStatus('to_status').notNull(),
+    changedBy: uuid('changed_by'),
+    changedByType: varchar('changed_by_type', { length: 20 }).notNull(),
+    reason: text('reason'),
+    changedAt: utcTimestamp('changed_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_activation_log_activation').on(table.activationId),
+    check(
+      'chk_activation_log_changed_by_type',
+      sql`${table.changedByType} in ('SYSTEM', 'ADMIN', 'AGENT')`,
+    ),
+  ],
+);
+
+export const referralRelationships = pgTable(
+  'referral_relationship',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    refereeId: uuid('referee_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    referrerId: uuid('referrer_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('uq_referral_referee').on(table.refereeId),
+    index('idx_referral_referrer').on(table.referrerId),
+    check(
+      'chk_no_self_referral',
+      sql`${table.refereeId} <> ${table.referrerId}`,
+    ),
+  ],
+);
+
+export const commissionProcessing = pgTable(
+  'commission_processing',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    canonicalProcessingKey: varchar('canonical_processing_key', {
+      length: 255,
+    }).notNull(),
+    sourceType: varchar('source_type', { length: 30 }).notNull(),
+    sourceReference: varchar('source_reference', { length: 255 }).notNull(),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('IN_FLIGHT'),
+    completionOutcome: varchar('completion_outcome', { length: 30 }),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    completedAt: utcTimestamp('completed_at'),
+  },
+  (table) => [
+    unique('uq_processing_key').on(table.canonicalProcessingKey),
+    index('idx_processing_key').on(table.canonicalProcessingKey),
+    index('idx_processing_source').on(table.sourceType, table.sourceReference),
+    check(
+      'chk_processing_status',
+      sql`${table.status} in ('IN_FLIGHT', 'COMPLETED', 'FAILED')`,
+    ),
+    check(
+      'chk_processing_outcome',
+      sql`${table.completionOutcome} is null or ${table.completionOutcome} in ('CREATED', 'SKIPPED_INELIGIBLE', 'SKIPPED_NO_BENEFICIARY', 'SKIPPED_ZERO_AMOUNT', 'FAILED')`,
+    ),
+    check(
+      'chk_processing_request_hash',
+      sql`char_length(${table.requestHash}) = 64`,
+    ),
+  ],
+);
+
+export const commissionRateVersions = pgTable(
+  'commission_rate_version',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    commissionType: varchar('commission_type', { length: 30 }).notNull(),
+    generation: integer('generation').notNull(),
+    market: varchar('market', { length: 2 }).notNull(),
+    rateValue: numeric('rate_value', { precision: 38, scale: 10 }).notNull(),
+    rateType: varchar('rate_type', { length: 10 })
+      .notNull()
+      .default('PERCENTAGE'),
+    effectiveFrom: utcTimestamp('effective_from').notNull(),
+    effectiveUntil: utcTimestamp('effective_until'),
+    createdBy: uuid('created_by').notNull(),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_rate_effective').on(
+      table.commissionType,
+      table.generation,
+      table.market,
+      table.effectiveFrom,
+    ),
+    check(
+      'chk_commission_type',
+      sql`${table.commissionType} in ('AGENT_UPGRADE', 'MEMBER_CONSUMPTION', 'MERCHANT_RECRUITMENT')`,
+    ),
+    check('chk_rate_type', sql`${table.rateType} in ('PERCENTAGE', 'FIXED')`),
+    check('chk_generation', sql`${table.generation} in (0, 1, 2)`),
+    check('chk_rate_value', sql`${table.rateValue} >= 0`),
+    check('chk_rate_market', sql`${table.market} = upper(${table.market})`),
+    check(
+      'chk_rate_effective_range',
+      sql`${table.effectiveUntil} is null or ${table.effectiveUntil} > ${table.effectiveFrom}`,
+    ),
+    // EXCLUDE constraint using gist to prevent overlapping effective periods
+    // Requires btree_gist extension
+    sql`CONSTRAINT uq_rate_period EXCLUDE USING gist (
+      commission_type WITH =,
+      generation WITH =,
+      market WITH =,
+      tstzrange(effective_from, COALESCE(effective_until, 'infinity'::timestamptz), '[)') WITH &&
+    )`,
+  ],
+);
+
+export const commissionLedger = pgTable(
+  'commission_ledger',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    publicReference: varchar('public_reference', { length: 30 }).notNull(),
+    beneficiaryId: uuid('beneficiary_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    sourceType: varchar('source_type', { length: 30 }).notNull(),
+    sourceReference: varchar('source_reference', { length: 255 }).notNull(),
+    market: varchar('market', { length: 2 }).notNull(),
+    currency: varchar('currency', { length: 3 }).notNull(),
+    amount: numeric('amount', { precision: 38, scale: 10 }).notNull(),
+    rateVersionId: uuid('rate_version_id').references(
+      () => commissionRateVersions.id,
+      { onDelete: 'restrict' },
+    ),
+    rateSnapshot: jsonb('rate_snapshot'),
+    calculationBasis: numeric('calculation_basis', {
+      precision: 38,
+      scale: 10,
+    }),
+    generation: integer('generation').notNull().default(0),
+    entryType: varchar('entry_type', { length: 40 }).notNull(),
+    postingStatus: varchar('posting_status', { length: 20 })
+      .notNull()
+      .default('EARNED'),
+    canonicalEntryKey: varchar('canonical_entry_key', {
+      length: 255,
+    }).notNull(),
+    processingId: uuid('processing_id').references(
+      () => commissionProcessing.id,
+      {
+        onDelete: 'restrict',
+      },
+    ),
+    effectiveTime: utcTimestamp('effective_time').notNull(),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    reversalLinkage: uuid('reversal_linkage'),
+    auditLinkage: varchar('audit_linkage', { length: 255 }),
+    notes: text('notes'),
+  },
+  (table) => [
+    unique('uq_ledger_entry_key').on(table.canonicalEntryKey),
+    unique('uq_ledger_public_ref').on(table.publicReference),
+    index('idx_ledger_beneficiary').on(table.beneficiaryId),
+    index('idx_ledger_beneficiary_entry_type').on(
+      table.beneficiaryId,
+      table.entryType,
+    ),
+    index('idx_ledger_beneficiary_posting').on(
+      table.beneficiaryId,
+      table.postingStatus,
+    ),
+    index('idx_ledger_source').on(table.sourceType, table.sourceReference),
+    index('idx_ledger_effective_time').on(table.effectiveTime),
+    index('idx_ledger_reversal').on(table.reversalLinkage),
+    index('idx_ledger_market').on(table.market),
+    index('idx_ledger_entry_key').on(table.canonicalEntryKey),
+    foreignKey({
+      columns: [table.reversalLinkage],
+      foreignColumns: [table.id],
+      name: 'commission_ledger_reversal_linkage_fkey',
+    }).onDelete('restrict'),
+    check(
+      'chk_entry_type',
+      sql`${table.entryType} in ('AGENT_UPGRADE_G1_EARN', 'AGENT_UPGRADE_G2_EARN', 'MEMBER_CONSUMPTION_G1_EARN', 'MEMBER_CONSUMPTION_G2_EARN', 'MERCHANT_RECRUITMENT_EARN', 'REVERSAL_COMPENSATION', 'REFUND_COMPENSATION', 'ADMIN_ADJUSTMENT')`,
+    ),
+    check('chk_posting_status', sql`${table.postingStatus} = 'EARNED'`),
+    check('chk_ledger_generation', sql`${table.generation} in (0, 1, 2)`),
+  ],
+);
+
+export const commissionStatusEvents = pgTable(
+  'commission_status_event',
+  {
+    eventId: uuid('event_id').primaryKey().defaultRandom(),
+    entryId: uuid('entry_id')
+      .notNull()
+      .references(() => commissionLedger.id, { onDelete: 'restrict' }),
+    fromStatus: varchar('from_status', { length: 20 }),
+    toStatus: varchar('to_status', { length: 20 }).notNull(),
+    changedBy: uuid('changed_by'),
+    changedByType: varchar('changed_by_type', { length: 20 }).notNull(),
+    reason: text('reason'),
+    changedAt: utcTimestamp('changed_at').notNull().defaultNow(),
+    eventSequence: bigint('event_sequence', { mode: 'bigint' }).notNull(),
+  },
+  (table) => [
+    unique('uq_status_event_sequence').on(table.entryId, table.eventSequence),
+    index('idx_status_event_entry_seq').on(
+      table.entryId,
+      table.eventSequence.desc(),
+    ),
+    check('chk_status_to', sql`${table.toStatus} = 'EARNED'`),
+    check(
+      'chk_status_from',
+      sql`${table.fromStatus} is null or ${table.fromStatus} = 'EARNED'`,
+    ),
+    check(
+      'chk_changed_by_type',
+      sql`${table.changedByType} in ('SYSTEM', 'ADMIN', 'AGENT')`,
+    ),
+    check('chk_status_event_sequence', sql`${table.eventSequence} > 0`),
+  ],
+);
+
+export const idempotencyKeys = pgTable(
+  'idempotency_key',
+  {
+    key: varchar('key', { length: 255 }).primaryKey(),
+    processingId: uuid('processing_id')
+      .notNull()
+      .references(() => commissionProcessing.id, { onDelete: 'restrict' }),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('IN_FLIGHT'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    completedAt: utcTimestamp('completed_at'),
+  },
+  (table) => [
+    check(
+      'chk_idempotency_status',
+      sql`${table.status} in ('IN_FLIGHT', 'COMPLETED', 'FAILED')`,
+    ),
+    check(
+      'chk_idempotency_request_hash',
+      sql`char_length(${table.requestHash}) = 64`,
+    ),
+  ],
+);
+
+export const merchantAttributions = pgTable(
+  'merchant_attribution',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    merchantAccountId: uuid('merchant_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    branchId: uuid('branch_id').references(() => merchantBranches.id, {
+      onDelete: 'restrict',
+    }),
+    recruiterMemberId: uuid('recruiter_member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    attributedEntityType: varchar('attributed_entity_type', { length: 20 })
+      .notNull()
+      .default('MERCHANT'),
+    attributionSource: varchar('attribution_source', { length: 30 })
+      .notNull()
+      .default('REGISTRATION'),
+    attributionScope: varchar('attribution_scope', { length: 30 })
+      .notNull()
+      .default('PERMANENT'),
+    effectiveFrom: utcTimestamp('effective_from').notNull().defaultNow(),
+    effectiveUntil: utcTimestamp('effective_until'),
+    supersedesAttributionId: uuid('supersedes_attribution_id'),
+    createdBy: uuid('created_by').notNull(),
+    correctionLinkage: uuid('correction_linkage'),
+    auditReference: varchar('audit_reference', { length: 255 }),
+  },
+  (table) => [
+    uniqueIndex('uq_merchant_attribution_merchant')
+      .on(table.merchantAccountId)
+      .where(
+        sql`${table.attributedEntityType} = 'MERCHANT' and ${table.branchId} is null`,
+      ),
+    uniqueIndex('uq_merchant_attribution_branch')
+      .on(table.branchId)
+      .where(
+        sql`${table.attributedEntityType} = 'BRANCH' and ${table.branchId} is not null`,
+      ),
+    index('idx_attribution_merchant_account').on(table.merchantAccountId),
+    foreignKey({
+      columns: [table.supersedesAttributionId],
+      foreignColumns: [table.id],
+      name: 'merchant_attribution_supersedes_fkey',
+    }).onDelete('restrict'),
+    check(
+      'chk_attribution_entity_type',
+      sql`${table.attributedEntityType} in ('MERCHANT', 'BRANCH')`,
+    ),
+    check(
+      'chk_attribution_source',
+      sql`${table.attributionSource} in ('REGISTRATION', 'ADMIN_ASSIGNMENT')`,
+    ),
+    check(
+      'chk_attribution_scope',
+      sql`${table.attributionScope} = 'PERMANENT'`,
+    ),
+    check(
+      'chk_attribution_entity_target',
+      sql`(${table.attributedEntityType} = 'MERCHANT' and ${table.branchId} is null) or (${table.attributedEntityType} = 'BRANCH' and ${table.branchId} is not null)`,
+    ),
+    check(
+      'chk_permanent_attribution',
+      sql`${table.attributionScope} = 'PERMANENT' and ${table.effectiveUntil} is null`,
+    ),
+    check(
+      'chk_attribution_deferred_fields',
+      sql`${table.supersedesAttributionId} is null and ${table.correctionLinkage} is null`,
+    ),
+  ],
+);
+
+export const commissionProcessingResults = pgTable(
+  'commission_processing_result',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    processingId: uuid('processing_id')
+      .notNull()
+      .references(() => commissionProcessing.id, { onDelete: 'restrict' }),
+    beneficiaryId: uuid('beneficiary_id').references(() => members.id, {
+      onDelete: 'restrict',
+    }),
+    generation: integer('generation').notNull().default(0),
+    entryType: varchar('entry_type', { length: 40 }),
+    unroundedAmount: numeric('unrounded_amount', { precision: 38, scale: 10 }),
+    postedAmount: numeric('posted_amount', { precision: 38, scale: 10 }),
+    residualAmount: numeric('residual_amount', { precision: 38, scale: 10 }),
+    roundingMode: varchar('rounding_mode', { length: 10 })
+      .notNull()
+      .default('HALF_UP'),
+    calculationScale: integer('calculation_scale').notNull().default(10),
+    postingScale: integer('posting_scale').notNull().default(2),
+    outcome: varchar('outcome', { length: 30 }).notNull(),
+    reason: text('reason'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      'chk_processing_result_outcome',
+      sql`${table.outcome} in ('CREATED', 'SKIPPED_INELIGIBLE', 'SKIPPED_NO_BENEFICIARY', 'SKIPPED_ZERO_AMOUNT')`,
+    ),
+    check(
+      'chk_skip_no_beneficiary',
+      sql`(${table.outcome} = 'SKIPPED_NO_BENEFICIARY' and ${table.beneficiaryId} is null) or (${table.outcome} <> 'SKIPPED_NO_BENEFICIARY' and ${table.beneficiaryId} is not null)`,
+    ),
+    check('chk_result_generation', sql`${table.generation} in (0, 1, 2)`),
+    check('chk_rounding_mode', sql`${table.roundingMode} = 'HALF_UP'`),
+    check('chk_calculation_scale', sql`${table.calculationScale} = 10`),
+    check('chk_posting_scale', sql`${table.postingScale} between 0 and 10`),
+  ],
+);
+
+export const commissionAdjustmentRequests = pgTable(
+  'commission_adjustment_request',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    publicReference: varchar('public_reference', { length: 30 }).notNull(),
+    beneficiaryId: uuid('beneficiary_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    amount: numeric('amount', { precision: 38, scale: 10 }).notNull(),
+    market: varchar('market', { length: 2 }).notNull(),
+    currency: varchar('currency', { length: 3 }).notNull(),
+    reason: text('reason').notNull(),
+    auditReference: varchar('audit_reference', { length: 255 }),
+    status: varchar('status', { length: 20 })
+      .notNull()
+      .default('PENDING_CHECKER'),
+    makerId: uuid('maker_id').notNull(),
+    checkerId: uuid('checker_id'),
+    makerNotes: text('maker_notes'),
+    checkerNotes: text('checker_notes'),
+    ledgerEntryId: uuid('ledger_entry_id').references(
+      () => commissionLedger.id,
+      {
+        onDelete: 'restrict',
+      },
+    ),
+    decidedAt: utcTimestamp('decided_at'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('uq_adjustment_public_ref').on(table.publicReference),
+    unique('uq_adjustment_ledger_entry').on(table.ledgerEntryId),
+    index('idx_adjustment_beneficiary').on(table.beneficiaryId),
+    index('idx_adjustment_status').on(table.status),
+    index('idx_adjustment_maker').on(table.makerId),
+    index('idx_adjustment_checker').on(table.checkerId),
+    index('idx_adjustment_created').on(table.createdAt),
+    check(
+      'chk_adjustment_status',
+      sql`${table.status} in ('PENDING_CHECKER', 'APPROVED', 'REJECTED')`,
+    ),
+    check('chk_adjustment_nonzero', sql`${table.amount} <> 0`),
+    check(
+      'chk_maker_checker_different',
+      sql`${table.checkerId} is null or ${table.makerId} <> ${table.checkerId}`,
+    ),
+    check(
+      'chk_decided_fields',
+      sql`(${table.status} = 'PENDING_CHECKER' and ${table.checkerId} is null and ${table.decidedAt} is null and ${table.ledgerEntryId} is null) or (${table.status} = 'APPROVED' and ${table.checkerId} is not null and ${table.decidedAt} is not null and ${table.ledgerEntryId} is not null) or (${table.status} = 'REJECTED' and ${table.checkerId} is not null and ${table.decidedAt} is not null and ${table.ledgerEntryId} is null)`,
+    ),
+  ],
+);
+
 export const schema = {
   accounts,
   credentials,
@@ -3121,4 +3600,15 @@ export const schema = {
   transactionAuditReferences,
   correctionRequests,
   correctionExecutions,
+  agentActivations,
+  agentActivationStatusLogs,
+  referralRelationships,
+  commissionProcessing,
+  commissionRateVersions,
+  commissionLedger,
+  commissionStatusEvents,
+  idempotencyKeys,
+  merchantAttributions,
+  commissionProcessingResults,
+  commissionAdjustmentRequests,
 };
