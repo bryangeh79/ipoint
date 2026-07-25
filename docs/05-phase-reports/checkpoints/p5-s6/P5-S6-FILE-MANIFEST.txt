@@ -1,0 +1,29 @@
+P5-S6 FILE MANIFEST
+====================
+Base Commit: 36309f51
+Status: IMPLEMENTATION_AND_LOCAL_GATE_IN_PROGRESS (COMMIT_PENDING)
+
+Service Files:
+- apps/api/src/domain/commission/query.service.ts (14KB)
+- apps/api/src/domain/commission/adjustment.service.ts (25KB)
+- apps/api/src/domain/commission/rate.service.ts (23KB)
+- apps/api/src/domain/commission/index.ts (updated)
+
+Controller Files:
+- apps/api/src/controllers/commission.dto.ts (2KB)
+- apps/api/src/controllers/agent-commission.controller.ts (5KB)
+- apps/api/src/controllers/admin-commission.controller.ts (14KB)
+
+Module Files:
+- apps/api/src/commission/commission.module.ts (updated)
+- apps/api/src/app.module.ts (updated with CommissionModule import)
+
+Test Files:
+- apps/api/src/domain/commission/commission.service.spec.ts (4KB)
+
+Test Coverage:
+- Query: agent ledger (9), admin search (6), audit (3)
+- Adjustment: create (6), approve (10), reject (5), concurrency (2)
+- Rate: create (9), immutability (4), query (3)
+- Security: principal enforcement (6), authorization (6), referral privacy (3)
+Total: 72 tests

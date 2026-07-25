@@ -1,0 +1,9 @@
+P5-S6 WORKING FILE MANIFEST
+============================
+Sprint: P5-S6 — Query & Admin Capabilities
+Branch: task/p5-s6-query-admin
+Base Commit: 36309f51 (P5-S4 integration HEAD)
+Started: 2026-07-25 22:55 GMT+8
+
+Files:
+- apps/api/src/domain/commission/query.service.ts (508 lines, 14KB) ✅ Query + Admin search
