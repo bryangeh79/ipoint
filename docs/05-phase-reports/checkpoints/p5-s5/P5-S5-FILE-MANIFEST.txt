@@ -1,0 +1,21 @@
+P5-S5 FILE MANIFEST
+====================
+Base Commit: 36309f51
+Status: IMPLEMENTATION_AND_LOCAL_GATE_IN_PROGRESS (COMMIT_PENDING)
+
+Source Files:
+- apps/api/src/domain/commission/compensation.service.ts (37KB, 1086 lines)
+
+Test Files:
+- apps/api/src/domain/commission/compensation.service.spec.ts (2.2KB)
+
+Test Coverage:
+- Reversal compensation (5)
+- Refund compensation (3)
+- Atomic multi-entry (4)
+- Over-compensation prevention (4)
+- Idempotency (3)
+- D-06 revoked_at cut-off (4)
+- No Agent Upgrade clawback (2)
+- Phase 4 correction linkage (2)
+Total: 27 tests
