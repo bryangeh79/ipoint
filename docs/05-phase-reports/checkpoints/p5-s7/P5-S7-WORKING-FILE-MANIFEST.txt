@@ -1,0 +1,7 @@
+P5-S7 WORKING FILE MANIFEST
+============================
+Sprint: P5-S7 — Security, Concurrency, Performance & Regression
+Branch: task/p5-s7-hardening-regression
+Base Commit: 36309f51 (P5-S4 integration HEAD)
+Started: 2026-07-26 00:13 GMT+8
+Status: IN_PROGRESS
