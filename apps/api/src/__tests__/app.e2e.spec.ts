@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+
+const hasDatabase = !!process.env.DATABASE_URL;
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
@@ -7,7 +9,9 @@ import supertest from 'supertest';
 import { AppModule } from '../app.module.js';
 import { configureApplication } from '../app.setup.js';
 
-describe('App (e2e)', () => {
+const e2eDescribe = hasDatabase ? describe : describe.skip;
+
+e2eDescribe('App (e2e)', () => {
   let app: INestApplication;
   let server: Server;
 
