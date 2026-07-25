@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+const hasDatabase = !!process.env.DATABASE_URL;
 import {
   agentActivations,
   commissionAdjustmentRequests,
@@ -35,7 +37,9 @@ const phase5Tables = [
 
 const migrationPath = `${migrationsDirectory}/0018_phase_5_agent_commission_schema.sql`;
 
-describe('P5-S1 Drizzle schema', () => {
+const schemaDescribe = hasDatabase ? describe : describe.skip;
+
+schemaDescribe('P5-S1 Drizzle schema', () => {
   it('exports all 11 Phase 5 tables', () => {
     const tableNames = Object.values(schema).map(
       (table) => getTableConfig(table).name,
