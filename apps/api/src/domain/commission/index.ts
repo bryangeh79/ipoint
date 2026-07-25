@@ -21,3 +21,6 @@ export type {
   AgentUpgradeCommissionsResponse,
   AgentUpgradeLedgerEntry,
 } from './agent-upgrade.types.js';
+
+export { MemberConsumptionCommissionService } from './member-consumption.service.js';
+export { MerchantRecruitmentCommissionService } from './merchant-recruitment.service.js';
