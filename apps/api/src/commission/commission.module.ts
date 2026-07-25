@@ -23,16 +23,16 @@ import { CommissionController } from '../controllers/commission.controller.js';
     MemberConsumptionCommissionService,
     MerchantRecruitmentCommissionService,
     CommissionQueryService,
-    CommissionAdjustmentService,
-    CommissionRateService,
+    AdjustmentService,
+    RateManagementService,
   ],
   exports: [
     AgentUpgradeCommissionService,
     MemberConsumptionCommissionService,
     MerchantRecruitmentCommissionService,
     CommissionQueryService,
-    CommissionAdjustmentService,
-    CommissionRateService,
+    AdjustmentService,
+    RateManagementService,
   ],
 })
 export class CommissionModule {}

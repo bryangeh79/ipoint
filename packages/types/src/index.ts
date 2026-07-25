@@ -51,3 +51,6 @@ export interface WalletBalance {
   available: string;
   reversed: string;
 }
+
+export * from './agent-activation.js';
+export * from './referral.js';
