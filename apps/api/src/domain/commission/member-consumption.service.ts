@@ -535,10 +535,7 @@ export class MemberConsumptionCommissionService {
     // ---------------------------------------------------------------
     // Use a single SQL expression for unrounded + posted amounts
     // to keep calculations inside PG to preserve decimal precision.
-    const calcRows = await tx.execute<{
-      unrounded: string;
-      posted: string;
-    }>(
+    const calcRows = (await tx.execute(
       sql`
         SELECT
           (
@@ -551,7 +548,7 @@ export class MemberConsumptionCommissionService {
             ${POSTING_SCALE}
           )::TEXT AS posted
       `,
-    );
+    )) as { unrounded: string; posted: string }[];
 
     const calcResult = calcRows[0];
     const unroundedVal: string = calcResult?.unrounded ?? '0';

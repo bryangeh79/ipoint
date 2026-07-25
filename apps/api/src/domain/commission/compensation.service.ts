@@ -845,13 +845,13 @@ export class CompensationService {
   ): Promise<string | null> {
     // Per Section 23.6: compensation entries reference the original
     // entry via reversal_linkage.
-    const rows = await tx.execute<{ total: string | null }>(
+    const rows = (await tx.execute(
       sql`
         SELECT SUM(ABS(CAST(${commissionLedger.amount} AS NUMERIC(38,10))))::TEXT AS total
         FROM ${commissionLedger}
         WHERE ${commissionLedger.reversalLinkage} = ${originalEntryId}
       `,
-    );
+    )) as { total: string | null }[];
 
     const total = rows[0]?.total;
     return total ?? null;
@@ -981,7 +981,9 @@ export class CompensationService {
       const ce = entryMap.get(r.entryId as string) ?? null;
       return {
         originalEntryId:
-          ce?.reversalLinkage ?? (r.originalEntryId as string) ?? '',
+          (ce?.reversalLinkage as string) ??
+          (r.originalEntryId as string) ??
+          '',
         beneficiaryId: r.beneficiaryId as string | null,
         generation: r.generation as number,
         originalEntryType: (r.entryType as string) ?? '',

@@ -24,10 +24,7 @@ import type {
   AgentActivationStatus,
   AgentActivationTransitionResult,
 } from '@ipoint/types';
-import {
-  ALLOWED_TRANSITIONS,
-  TRANSITION_TARGETS,
-} from '@ipoint/types';
+import { ALLOWED_TRANSITIONS, TRANSITION_TARGETS } from '@ipoint/types';
 import {
   getExpectedTargetStatus,
   validateTransition,
@@ -69,9 +66,11 @@ import type {
  * and rate_type = 'FIXED'. Only MY (RM388.00) is hardcoded as the
  * contractual default; non-MY markets must be configured at runtime.
  */
-const DEFAULT_ACTIVATION_FEES: Array<{ market: string; fee: string; currency: string }> = [
-  { market: 'MY', fee: '388.00', currency: 'MYR' },
-];
+const DEFAULT_ACTIVATION_FEES: Array<{
+  market: string;
+  fee: string;
+  currency: string;
+}> = [{ market: 'MY', fee: '388.00', currency: 'MYR' }];
 
 /* ------------------------------------------------------------------ */
 /*  Service Class                                                      */

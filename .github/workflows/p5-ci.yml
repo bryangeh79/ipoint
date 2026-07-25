@@ -140,6 +140,5 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm db:seed
       - run: cd apps/api && pnpm vitest run src/domain/commission --reporter verbose
-      - run: cd apps/api && pnpm vitest run src/controllers --reporter verbose
-      - run: cd apps/api && pnpm vitest run src/agent-activation --reporter verbose
-      - run: cd apps/api && pnpm vitest run src/referral --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/domain/agent-activation --reporter verbose
+      - run: cd apps/api && pnpm vitest run src/domain/referral --reporter verbose

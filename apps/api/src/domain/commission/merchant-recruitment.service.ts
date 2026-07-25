@@ -561,10 +561,7 @@ export class MerchantRecruitmentCommissionService {
     // Uses decimal arithmetic via PostgreSQL numeric type cast.
     // All intermediary arithmetic is carried at 10dp precision.
     // ---------------------------------------------------------------
-    const calcRows = await tx.execute<{
-      unrounded: string;
-      posted: string;
-    }>(
+    const calcRows = (await tx.execute(
       sql`
         SELECT
           (
@@ -577,7 +574,7 @@ export class MerchantRecruitmentCommissionService {
             ${POSTING_SCALE}
           )::TEXT AS posted
       `,
-    );
+    )) as { unrounded: string; posted: string }[];
 
     const calcResult = calcRows[0];
     const unroundedVal: string = calcResult?.unrounded ?? '0';
