@@ -17,11 +17,9 @@ import {
   Get,
   HttpCode,
   Inject,
-  Ip,
   NotFoundException,
   Post,
   Query,
-  Req,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
@@ -31,7 +29,6 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
 import { and, eq } from 'drizzle-orm';
 import { members } from '@ipoint/database';
 import type { ReferralTreeResponse } from '@ipoint/types';
@@ -73,10 +70,8 @@ export class ReferralController {
     @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(registerReferralSchema))
     input: RegisterReferralDto,
-    @Ip() ip: string,
-    @Req() request: Request,
   ) {
-    const refereeId = await this.resolveMemberId(actor, request, ip);
+    const refereeId = await this.resolveMemberId(actor);
     return this.handle(() =>
       this.referral.registerReferral(refereeId, input.referralCode),
     );
@@ -99,10 +94,8 @@ export class ReferralController {
     @CurrentActor() actor: RequestActor | undefined,
     @Query(new ZodValidationPipe(referralTreeQuerySchema))
     query: ReferralTreeQueryDto,
-    @Ip() ip: string,
-    @Req() request: Request,
   ): Promise<ReferralTreeResponse> {
-    const memberId = await this.resolveMemberId(actor, request, ip);
+    const memberId = await this.resolveMemberId(actor);
     return this.handle(() =>
       this.referral.getReferralTree(memberId, query.depth),
     );
@@ -115,8 +108,6 @@ export class ReferralController {
    */
   private async resolveMemberId(
     actor: RequestActor | undefined,
-    _request: Request,
-    _ipAddress: string,
   ): Promise<string> {
     if (actor?.type !== 'ACCOUNT' || !actor.accountId) {
       throw new UnauthorizedException({

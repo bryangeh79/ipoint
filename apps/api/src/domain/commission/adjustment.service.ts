@@ -24,7 +24,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service.js';
 import {
@@ -220,14 +220,6 @@ function adjustmentInvalidAmountError(amount: string): AdjustmentError {
     'ADJUSTMENT_INVALID_AMOUNT',
     `Adjustment amount must be non-zero (received: ${amount})`,
     { amount },
-  );
-}
-
-/** Factory: checker approval required. */
-function adjustmentCheckerRequiredError(): AdjustmentError {
-  return new AdjustmentError(
-    'ADJUSTMENT_CHECKER_REQUIRED',
-    'Checker approval required — all adjustments require a Checker (D-14 frozen)',
   );
 }
 

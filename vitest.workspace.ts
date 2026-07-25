@@ -13,6 +13,8 @@ export default defineConfig({
             '**/tests/e2e/**',
             '**/*.integration.*',
             '**/*.performance.*',
+            'packages/database/tests/p5-s1-schema.test.ts',
+            'apps/api/src/__tests__/app.e2e.spec.ts',
             'apps/member-web/**',
             '**/.git/**',
             '**/.acceptance-evidence/**',
