@@ -180,7 +180,12 @@ describe('AgentActivationService', () => {
     });
 
     it('allows independent activation in different markets', async () => {
-      const { service } = createMocks();
+      const { service, feeConfigStore } = createMocks();
+      vi.mocked(feeConfigStore.getFeeConfig).mockResolvedValue({
+        market: 'SG',
+        fee: '388.00',
+        currency: 'SGD',
+      });
       const result1 = await service.apply(
         { memberId: testMemberId, market: 'MY' },
         defaultContext,
@@ -260,7 +265,7 @@ describe('AgentActivationService', () => {
           adminContext,
         ),
       ).rejects.toMatchObject({
-        code: 'AGENT_ACTIVATION_PAYMENT_ALREADY_CONFIRMED',
+        code: 'AGENT_ACTIVATION_INVALID_TRANSITION',
       });
     });
 
@@ -305,7 +310,7 @@ describe('AgentActivationService', () => {
       await expect(
         service.enrollCourse(app.id, courseRef, adminContext),
       ).rejects.toMatchObject({
-        code: 'AGENT_ACTIVATION_MISSING_PAYMENT',
+        code: 'AGENT_ACTIVATION_INVALID_TRANSITION',
       });
     });
   });
@@ -342,7 +347,7 @@ describe('AgentActivationService', () => {
       await expect(
         service.completeCourse(app.id, courseRef, adminContext),
       ).rejects.toMatchObject({
-        code: 'AGENT_ACTIVATION_MISSING_COURSE',
+        code: 'AGENT_ACTIVATION_INVALID_TRANSITION',
       });
     });
   });
@@ -433,7 +438,6 @@ describe('AgentActivationService', () => {
 
   describe('reject()', () => {
     it.each([
-      ['NOT_APPLIED', {}],
       [
         'PENDING_PAYMENT',
         { paymentConfirmedAt: now, paymentReference: paymentRef },

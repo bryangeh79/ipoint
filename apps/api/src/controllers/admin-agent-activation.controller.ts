@@ -82,7 +82,7 @@ export class AdminAgentActivationController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    const adminId = this.resolveAdminId(actor, request, ip);
+    this.resolveAdminId(actor, request, ip);
     return this.handle(() => this.activation.reject(id, input.reason));
   }
 
@@ -135,7 +135,7 @@ export class AdminAgentActivationController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    const adminId = this.resolveAdminId(actor, request, ip);
+    this.resolveAdminId(actor, request, ip);
     return this.handle(() => this.activation.deactivate(id, input.reason));
   }
 
