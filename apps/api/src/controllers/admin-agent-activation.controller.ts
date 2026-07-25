@@ -25,6 +25,7 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
 import { RbacGuard, RequirePermission } from '../platform-access/rbac.guard.js';
 import { AgentActivationService } from '../domain/agent-activation/service.js';
 import { AgentActivationError } from '../domain/agent-activation/agent-activation.errors.js';
+import { AgentUpgradeCommissionService } from '../domain/commission/agent-upgrade.service.js';
 import {
   deactivateSchema,
   rejectSchema,
@@ -46,6 +47,8 @@ export class AdminAgentActivationController {
   constructor(
     @Inject(AgentActivationService)
     private readonly activation: AgentActivationService,
+    @Inject(AgentUpgradeCommissionService)
+    private readonly commission: AgentUpgradeCommissionService,
   ) {}
 
   // ─── Approve and Activate ─────────────────────────────────────
@@ -55,12 +58,18 @@ export class AdminAgentActivationController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Approve and activate agent application' })
   @ApiResponse({ status: 200, description: 'Agent activated.' })
-  approve(
+  async approve(
     @Param('id') id: string,
     @CurrentActor() actor: RequestActor | undefined,
   ) {
     const adminId = this.resolveAdminId(actor);
-    return this.handle(() => this.activation.approveAndActivate(id, adminId));
+    await this.activation.approveAndActivate(id, adminId);
+    // Trigger agent upgrade commission processing (idempotent, retryable)
+    await this.commission.processAgentUpgrade(id).catch(() => {
+      // Commission processing failure does not roll back activation.
+      // Admin can retry via POST /api/v1/admin/commission/reprocess.
+    });
+    return { success: true, activationId: id };
   }
 
   // ─── Reject ───────────────────────────────────────────────────

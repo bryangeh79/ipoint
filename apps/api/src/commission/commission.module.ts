@@ -10,6 +10,7 @@ import { RateManagementService } from '../domain/commission/rate.service.js';
 import { AgentCommissionController } from '../controllers/agent-commission.controller.js';
 import { AdminCommissionController } from '../controllers/admin-commission.controller.js';
 import { CommissionController } from '../controllers/commission.controller.js';
+import { AdminRateController } from '../controllers/admin-rate.controller.js';
 
 @Module({
   imports: [DatabaseModule, AuthModule],
@@ -17,6 +18,7 @@ import { CommissionController } from '../controllers/commission.controller.js';
     CommissionController,
     AgentCommissionController,
     AdminCommissionController,
+    AdminRateController,
   ],
   providers: [
     AgentUpgradeCommissionService,
