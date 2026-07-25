@@ -69,7 +69,7 @@
 | **Phase 1** | Merchant Onboarding + MCP Ledger | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21` under D-013. Pull Request to main AUTHORIZED. Phase branch: phase/1-merchant-onboarding-mcp |
 | **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) | **COMPLETE** | P2-S1 through P2-S9 all COMPLETE / APPROVED. Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027 |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **COMPLETE / ACCEPTED / FROZEN** | Accepted under D-029. Final SHA 2ed57f4e. CI Run 30000394880. P3-S2+ NOT_AUTHORIZED. |
-| **Phase 4** | Transaction Engine | **BATCH_A_AUTHORIZED** | P4-S0 contract freeze accepted. P4-S1 through P4-S4 authorized under D-030. P4-S5+ NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. Phase branch: phase/4-transaction-engine |
+| **Phase 4** | Transaction Engine | **COMPLETE / CLOSED** | All 8 sub-phases (P4-S1 through P4-S8) accepted. Phase 4 closed under D-037. Final HEAD `87ea05aa`. CI Run 30099595759. Phase branch: phase/4-transaction-engine. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. Phase 5 NOT_AUTHORIZED. |
 | **Phase 5** | Agent & Commission Engine | **NOT_AUTHORIZED** | Referral, activation, 3 commission types. Five-level team rewards DEFERRED |
 | **Phase 6** | Redemption Center | **NOT_AUTHORIZED** | Market catalog, rate, order, iPoint debit, refund |
 | **Phase 7** | Admin Operations | **NOT_AUTHORIZED** | Dashboards, rule management, Maker/Checker, risk, audit, reports |
@@ -125,8 +125,8 @@
 | **P4-S4** | Idempotency, Duplicate Protection & Concurrency | **COMPLETE / ACCEPTED** | Accepted at f80e2b59 under D-032. CI Run 30070245230. |
 | **P4-S5** | Transaction History and Receipt List APIs | **COMPLETE / ACCEPTED** | Accepted at 264ca8c8 under D-034. CI Run 30090049883. |
 | **P4-S6** | Reversal / Refund | **COMPLETE / ACCEPTED** | Accepted at cad3bfcc under D-036. CI Run 30092900182. |
-| **P4-S7** | Hardening | **IN_PROGRESS** | Authorized under D-036. |
-| **P4-S8** | Final Acceptance | **NOT_AUTHORIZED** | Post-Batch A. |
+| **P4-S7** | Hardening | **COMPLETE / ACCEPTED** | Accepted at SHA `87ea05aa` under D-037. CI Run 30099595759. |
+| **P4-S8** | Final Verification & Closure | **COMPLETE** | Completed under D-037. Phase 4 closed. No code changes — pure verification stage. |
 
 ## Current allowed actions
 
@@ -166,4 +166,4 @@
 
 ---
 
-*Last updated: 2026-07-24 | Updated by: OpenClaw | Based on decisions D-001 through D-036*
+*Last updated: 2026-07-25 | Updated by: OpenClaw | Based on decisions D-001 through D-037*
