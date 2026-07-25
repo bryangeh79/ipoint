@@ -12,7 +12,12 @@
  * @packageDocumentation
  */
 
-import { Inject, Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { and, eq, sql, gte, lte, count } from 'drizzle-orm';
 import { DatabaseService } from '../../database/database.service.js';
 import {
@@ -171,7 +176,9 @@ export class CommissionQueryService {
     ];
 
     if (options?.market) {
-      conditions.push(eq(commissionLedger.market, options.market.toUpperCase()));
+      conditions.push(
+        eq(commissionLedger.market, options.market.toUpperCase()),
+      );
     }
 
     if (options?.status) {
@@ -341,15 +348,11 @@ export class CommissionQueryService {
     }
 
     if (options?.sourceType) {
-      conditions.push(
-        eq(commissionLedger.sourceType, options.sourceType),
-      );
+      conditions.push(eq(commissionLedger.sourceType, options.sourceType));
     }
 
     if (options?.status) {
-      conditions.push(
-        eq(commissionLedger.postingStatus, options.status),
-      );
+      conditions.push(eq(commissionLedger.postingStatus, options.status));
     }
 
     if (options?.from) {

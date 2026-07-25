@@ -3,7 +3,9 @@ import { z } from 'zod';
 export const MARKET_REGEX = /^[A-Z]{2}$/;
 
 export const agentActivationApplySchema = z.object({
-  market: z.string().regex(MARKET_REGEX, 'Market must be a 2-letter ISO code (e.g. MY, SG)'),
+  market: z
+    .string()
+    .regex(MARKET_REGEX, 'Market must be a 2-letter ISO code (e.g. MY, SG)'),
 });
 
 export const agentActivationPaymentSchema = z.object({

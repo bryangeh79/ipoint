@@ -11,13 +11,9 @@ import type {
   AgentActivationRecord,
   AgentActivationStatus,
 } from '@ipoint/types';
-import {
-  DEFAULT_ACTIVATION_FEES,
-} from '@ipoint/types';
+import { DEFAULT_ACTIVATION_FEES } from '@ipoint/types';
 import { AgentActivationService } from './agent-activation.service.js';
-import {
-  AgentActivationError,
-} from './agent-activation.errors.js';
+import { AgentActivationError } from './agent-activation.errors.js';
 import type {
   ActivationFeeConfigStore,
   AgentActivationRepository,
@@ -86,48 +82,47 @@ function createMocks() {
   const store: Record<string, AgentActivationRecord> = {};
 
   const repository: AgentActivationRepository = {
-    findById: vi.fn().mockImplementation(
-      (id: string) => Promise.resolve(store[id] ?? null),
-    ),
-    findByMemberAndMarket: vi.fn().mockImplementation(
-      (memberId: string, market: string) => {
+    findById: vi
+      .fn()
+      .mockImplementation((id: string) => Promise.resolve(store[id] ?? null)),
+    findByMemberAndMarket: vi
+      .fn()
+      .mockImplementation((memberId: string, market: string) => {
         const found = Object.values(store).find(
           (r) => r.memberId === memberId && r.market === market,
         );
         return Promise.resolve(found ?? null);
-      },
-    ),
-    findMany: vi.fn().mockImplementation(() =>
-      Promise.resolve({ items: Object.values(store), total: Object.keys(store).length }),
-    ),
-    exists: vi.fn().mockImplementation(
-      (memberId: string, market: string) => {
-        const found = Object.values(store).find(
-          (r) => r.memberId === memberId && r.market === market,
-        );
-        return Promise.resolve(!!found);
-      },
-    ),
-    insert: vi.fn().mockImplementation(
-      (record: AgentActivationRecord) => {
-        store[record.id] = { ...record };
-        return Promise.resolve({ ...record });
-      },
-    ),
-    update: vi.fn().mockImplementation(
-      (record: AgentActivationRecord) => {
-        store[record.id] = { ...record };
-        return Promise.resolve({ ...record });
-      },
-    ),
-    insertAuditEntry: vi.fn().mockImplementation(
-      (entry: AgentActivationAuditEntry) => Promise.resolve(entry),
-    ),
-    findAuditEntries: vi.fn().mockImplementation(
-      (activationId: string) => {
-        return Promise.resolve([]);
-      },
-    ),
+      }),
+    findMany: vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve({
+          items: Object.values(store),
+          total: Object.keys(store).length,
+        }),
+      ),
+    exists: vi.fn().mockImplementation((memberId: string, market: string) => {
+      const found = Object.values(store).find(
+        (r) => r.memberId === memberId && r.market === market,
+      );
+      return Promise.resolve(!!found);
+    }),
+    insert: vi.fn().mockImplementation((record: AgentActivationRecord) => {
+      store[record.id] = { ...record };
+      return Promise.resolve({ ...record });
+    }),
+    update: vi.fn().mockImplementation((record: AgentActivationRecord) => {
+      store[record.id] = { ...record };
+      return Promise.resolve({ ...record });
+    }),
+    insertAuditEntry: vi
+      .fn()
+      .mockImplementation((entry: AgentActivationAuditEntry) =>
+        Promise.resolve(entry),
+      ),
+    findAuditEntries: vi.fn().mockImplementation((activationId: string) => {
+      return Promise.resolve([]);
+    }),
   };
 
   const feeConfigStore: ActivationFeeConfigStore = {
@@ -426,7 +421,12 @@ describe('AgentActivationService', () => {
       await service.completeCourse(app.id, courseRef, adminContext);
 
       await expect(
-        service.approveAndActivate(app.id, testAdminUserId, undefined, adminContext),
+        service.approveAndActivate(
+          app.id,
+          testAdminUserId,
+          undefined,
+          adminContext,
+        ),
       ).rejects.toMatchObject({
         code: 'AGENT_ACTIVATION_INVALID_TRANSITION',
       });
@@ -436,10 +436,28 @@ describe('AgentActivationService', () => {
   describe('reject()', () => {
     it.each([
       ['NOT_APPLIED', {}],
-      ['PENDING_PAYMENT', { paymentConfirmedAt: now, paymentReference: paymentRef }],
+      [
+        'PENDING_PAYMENT',
+        { paymentConfirmedAt: now, paymentReference: paymentRef },
+      ],
       ['COURSE_PENDING', { paymentConfirmedAt: now, courseEnrolledAt: now }],
-      ['COURSE_COMPLETED', { paymentConfirmedAt: now, courseEnrolledAt: now, courseCompletedAt: now }],
-      ['PENDING_APPROVAL', { paymentConfirmedAt: now, courseEnrolledAt: now, courseCompletedAt: now, submittedForApprovalAt: now }],
+      [
+        'COURSE_COMPLETED',
+        {
+          paymentConfirmedAt: now,
+          courseEnrolledAt: now,
+          courseCompletedAt: now,
+        },
+      ],
+      [
+        'PENDING_APPROVAL',
+        {
+          paymentConfirmedAt: now,
+          courseEnrolledAt: now,
+          courseCompletedAt: now,
+          submittedForApprovalAt: now,
+        },
+      ],
     ] as [AgentActivationStatus, Partial<AgentActivationRecord>][])(
       'rejects from %s to REJECTED',
       async (status, overrides) => {
@@ -468,7 +486,12 @@ describe('AgentActivationService', () => {
       });
 
       await expect(
-        service.reject(testActivationId, testAdminUserId, 'reason', adminContext),
+        service.reject(
+          testActivationId,
+          testAdminUserId,
+          'reason',
+          adminContext,
+        ),
       ).rejects.toMatchObject({
         code: 'AGENT_ACTIVATION_INVALID_TRANSITION',
       });
@@ -482,7 +505,12 @@ describe('AgentActivationService', () => {
       });
 
       await expect(
-        service.reject(testActivationId, testAdminUserId, 'reason', adminContext),
+        service.reject(
+          testActivationId,
+          testAdminUserId,
+          'reason',
+          adminContext,
+        ),
       ).rejects.toMatchObject({
         code: 'AGENT_ACTIVATION_DEACTIVATED_CANNOT_REACTIVATE',
       });
@@ -496,7 +524,12 @@ describe('AgentActivationService', () => {
       });
 
       await expect(
-        service.reject(testActivationId, testAdminUserId, 'reason', adminContext),
+        service.reject(
+          testActivationId,
+          testAdminUserId,
+          'reason',
+          adminContext,
+        ),
       ).rejects.toMatchObject({
         code: 'AGENT_ACTIVATION_REJECTED_CANNOT_TRANSITION',
       });
@@ -529,7 +562,12 @@ describe('AgentActivationService', () => {
       store[testActivationId] = makeRecord({ status: 'NOT_APPLIED' });
 
       await expect(
-        service.suspend(testActivationId, testAdminUserId, 'reason', adminContext),
+        service.suspend(
+          testActivationId,
+          testAdminUserId,
+          'reason',
+          adminContext,
+        ),
       ).rejects.toMatchObject({
         code: 'AGENT_ACTIVATION_INVALID_TRANSITION',
       });
@@ -544,7 +582,12 @@ describe('AgentActivationService', () => {
       });
 
       await expect(
-        service.suspend(testActivationId, testAdminUserId, 'reason', adminContext),
+        service.suspend(
+          testActivationId,
+          testAdminUserId,
+          'reason',
+          adminContext,
+        ),
       ).rejects.toMatchObject({
         code: 'AGENT_ACTIVATION_INVALID_TRANSITION',
       });
@@ -581,7 +624,12 @@ describe('AgentActivationService', () => {
       });
 
       await expect(
-        service.reactivate(testActivationId, testAdminUserId, 'reason', adminContext),
+        service.reactivate(
+          testActivationId,
+          testAdminUserId,
+          'reason',
+          adminContext,
+        ),
       ).rejects.toMatchObject({
         code: 'AGENT_ACTIVATION_DEACTIVATED_CANNOT_REACTIVATE',
       });
@@ -615,7 +663,12 @@ describe('AgentActivationService', () => {
       store[testActivationId] = makeRecord({ status: 'SUSPENDED' });
 
       await expect(
-        service.deactivate(testActivationId, testAdminUserId, 'reason', adminContext),
+        service.deactivate(
+          testActivationId,
+          testAdminUserId,
+          'reason',
+          adminContext,
+        ),
       ).rejects.toMatchObject({
         code: 'AGENT_ACTIVATION_INVALID_TRANSITION',
       });
@@ -629,7 +682,12 @@ describe('AgentActivationService', () => {
       });
 
       await expect(
-        service.deactivate(testActivationId, testAdminUserId, 'reason', adminContext),
+        service.deactivate(
+          testActivationId,
+          testAdminUserId,
+          'reason',
+          adminContext,
+        ),
       ).rejects.toMatchObject({
         code: 'AGENT_ACTIVATION_DEACTIVATED_CANNOT_REACTIVATE',
       });
@@ -646,7 +704,12 @@ describe('AgentActivationService', () => {
 
       // Any action from DEACTIVATED should throw
       await expect(
-        service.approveAndActivate(testActivationId, testAdminUserId, undefined, adminContext),
+        service.approveAndActivate(
+          testActivationId,
+          testAdminUserId,
+          undefined,
+          adminContext,
+        ),
       ).rejects.toMatchObject({
         code: 'AGENT_ACTIVATION_DEACTIVATED_CANNOT_REACTIVATE',
       });

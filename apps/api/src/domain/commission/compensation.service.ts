@@ -298,12 +298,7 @@ export class CompensationService {
       })
       .from(transactions)
       .innerJoin(markets, eq(markets.id, transactions.marketId))
-      .where(
-        and(
-          eq(transactions.id, transactionId),
-          eq(markets.code, market),
-        ),
-      )
+      .where(and(eq(transactions.id, transactionId), eq(markets.code, market)))
       .limit(1);
 
     if (txnRows.length === 0) {
@@ -333,8 +328,7 @@ export class CompensationService {
     //    This ensures each correction execution is processed at most
     //    once, even if the trigger event is replayed.
     // ---------------------------------------------------------------
-    const canonicalProcessingKey =
-      `${market}:${CORRECTION_SOURCE_TYPE}:${correctionExecutionId}`;
+    const canonicalProcessingKey = `${market}:${CORRECTION_SOURCE_TYPE}:${correctionExecutionId}`;
 
     const existingProcessing = await db
       .select({
@@ -383,8 +377,7 @@ export class CompensationService {
       //  failures, or it is an Agent Upgrade which is excluded).
       const now = new Date();
       const processingId = randomUUID();
-      const requestHash =
-        sql<string>`encode(sha256(${canonicalProcessingKey}::bytea), 'hex')`;
+      const requestHash = sql<string>`encode(sha256(${canonicalProcessingKey}::bytea), 'hex')`;
 
       await db.insert(commissionProcessing).values({
         id: processingId,
@@ -414,8 +407,7 @@ export class CompensationService {
     // ---------------------------------------------------------------
     const now = new Date();
     const processingId = randomUUID();
-    const requestHash =
-      sql<string>`encode(sha256(${canonicalProcessingKey}::bytea), 'hex')`;
+    const requestHash = sql<string>`encode(sha256(${canonicalProcessingKey}::bytea), 'hex')`;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const entries: CompensationGenerationResult[] = [];
@@ -436,20 +428,17 @@ export class CompensationService {
 
       // 5b. Process each original entry
       for (const original of originalEntries) {
-        const result = await this.processCompensationEntry(
-          tx,
-          {
-            original,
-            correctionExecutionId,
-            transactionId,
-            market,
-            entryType,
-            compensationType,
-            processingId,
-            correctionEffectiveTime: params.correctionEffectiveTime,
-            now,
-          },
-        );
+        const result = await this.processCompensationEntry(tx, {
+          original,
+          correctionExecutionId,
+          transactionId,
+          market,
+          entryType,
+          compensationType,
+          processingId,
+          correctionEffectiveTime: params.correctionEffectiveTime,
+          now,
+        });
         entries.push(result);
       }
 
@@ -641,7 +630,9 @@ export class CompensationService {
     );
 
     if (existingCompensationSum !== null) {
-      if (this.compareDecimal(existingCompensationSum, originalAbsAmount) >= 0) {
+      if (
+        this.compareDecimal(existingCompensationSum, originalAbsAmount) >= 0
+      ) {
         return {
           originalEntryId: original.id,
           beneficiaryId: original.beneficiaryId,
@@ -694,8 +685,7 @@ export class CompensationService {
     //      MY:<uuid>:<uuid>:REVERSAL_COMPENSATION
     //      MY:<uuid>:<uuid>:REFUND_COMPENSATION
     // ---------------------------------------------------------------
-    const canonicalEntryKey =
-      `${market}:${correctionExecutionId}:${original.id}:${entryType}`;
+    const canonicalEntryKey = `${market}:${correctionExecutionId}:${original.id}:${entryType}`;
 
     const existingEntry = await tx
       .select({ id: commissionLedger.id })
@@ -930,8 +920,7 @@ export class CompensationService {
   ): Promise<CompensationResult> {
     const db = this.database.db as Queryable;
 
-    const canonicalProcessingKey =
-      `${market}:${CORRECTION_SOURCE_TYPE}:${correctionExecutionId}`;
+    const canonicalProcessingKey = `${market}:${CORRECTION_SOURCE_TYPE}:${correctionExecutionId}`;
 
     const processingRows = await db
       .select({
@@ -988,22 +977,21 @@ export class CompensationService {
     }
 
     // Build entries from processing results
-    const entries: CompensationGenerationResult[] = resultRows.map(
-      (r) => {
-        const ce = entryMap.get(r.entryId as string) ?? null;
-        return {
-          originalEntryId: ce?.reversalLinkage ?? (r.originalEntryId as string) ?? '',
-          beneficiaryId: r.beneficiaryId as string | null,
-          generation: r.generation as number,
-          originalEntryType: r.entryType as string ?? '',
-          originalAmount: '0',
-          compensationAmount: r.postedAmount as string | null,
-          outcome: r.outcome as CompensationGenerationResult['outcome'],
-          compensationEntryId: r.entryId as string ?? null,
-          reason: r.reason as string | null,
-        };
-      },
-    );
+    const entries: CompensationGenerationResult[] = resultRows.map((r) => {
+      const ce = entryMap.get(r.entryId as string) ?? null;
+      return {
+        originalEntryId:
+          ce?.reversalLinkage ?? (r.originalEntryId as string) ?? '',
+        beneficiaryId: r.beneficiaryId as string | null,
+        generation: r.generation as number,
+        originalEntryType: (r.entryType as string) ?? '',
+        originalAmount: '0',
+        compensationAmount: r.postedAmount as string | null,
+        outcome: r.outcome as CompensationGenerationResult['outcome'],
+        compensationEntryId: (r.entryId as string) ?? null,
+        reason: r.reason as string | null,
+      };
+    });
 
     return {
       correctionExecutionId,
@@ -1029,10 +1017,7 @@ export class CompensationService {
     _tx: Queryable,
     entryType: string,
   ): Promise<string> {
-    const datePart = new Date()
-      .toISOString()
-      .slice(2, 10)
-      .replace(/-/g, '');
+    const datePart = new Date().toISOString().slice(2, 10).replace(/-/g, '');
     const suffix = Math.floor(Math.random() * 0xfffff)
       .toString(16)
       .toUpperCase()

@@ -19,10 +19,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, and } from 'drizzle-orm';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service.js';
-import {
-  agentActivations,
-  agentActivationStatusLogs,
-} from '@ipoint/database';
+import { agentActivations, agentActivationStatusLogs } from '@ipoint/database';
 import type { AgentActivationStatus } from '@ipoint/types';
 import {
   AgentActivationError,
@@ -49,7 +46,10 @@ const PRE_ACTIVE_STATUSES: readonly AgentActivationStatus[] = [
 /* ------------------------------------------------------------------ */
 
 /** Allowed transitions: (currentStatus, targetStatus) pairs. */
-const ALLOWED_TRANSITIONS: Record<AgentActivationStatus, AgentActivationStatus[]> = {
+const ALLOWED_TRANSITIONS: Record<
+  AgentActivationStatus,
+  AgentActivationStatus[]
+> = {
   NOT_APPLIED: ['PENDING_PAYMENT'],
   PENDING_PAYMENT: ['PAYMENT_CONFIRMED', 'REJECTED'],
   PAYMENT_CONFIRMED: ['COURSE_PENDING', 'REJECTED'],
@@ -412,10 +412,7 @@ export class AgentActivationService {
    * Any pre-ACTIVE state → REJECTED
    * REJECTED is a terminal state.
    */
-  async reject(
-    activationId: string,
-    reason?: string,
-  ): Promise<void> {
+  async reject(activationId: string, reason?: string): Promise<void> {
     const db = this.database.db;
     type Tx = Parameters<typeof db.transaction>[0] extends (
       tx: infer T,
@@ -469,10 +466,7 @@ export class AgentActivationService {
    * Suspend an active agent.
    * ACTIVE → SUSPENDED
    */
-  async suspend(
-    activationId: string,
-    reason: string,
-  ): Promise<void> {
+  async suspend(activationId: string, reason: string): Promise<void> {
     const db = this.database.db;
     type Tx = Parameters<typeof db.transaction>[0] extends (
       tx: infer T,
@@ -563,10 +557,7 @@ export class AgentActivationService {
    * Deactivate an active agent.
    * ACTIVE → DEACTIVATED (terminal state)
    */
-  async deactivate(
-    activationId: string,
-    reason: string,
-  ): Promise<void> {
+  async deactivate(activationId: string, reason: string): Promise<void> {
     const db = this.database.db;
     type Tx = Parameters<typeof db.transaction>[0] extends (
       tx: infer T,

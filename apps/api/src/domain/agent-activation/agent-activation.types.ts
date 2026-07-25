@@ -70,9 +70,7 @@ export interface AgentActivationRepository {
   /**
    * Find audit log entries for a specific activation record.
    */
-  findAuditEntries(
-    activationId: string,
-  ): Promise<AgentActivationAuditEntry[]>;
+  findAuditEntries(activationId: string): Promise<AgentActivationAuditEntry[]>;
 }
 
 /* ------------------------------------------------------------------ */

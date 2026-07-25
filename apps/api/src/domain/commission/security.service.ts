@@ -84,9 +84,7 @@ function crossMemberAccessError(
 }
 
 /** Factory: admin does not have commission permissions. */
-function adminPermissionDeniedError(
-  adminId: string,
-): CommissionSecurityError {
+function adminPermissionDeniedError(adminId: string): CommissionSecurityError {
   return new CommissionSecurityError(
     'COMMISSION_ADMIN_PERMISSION_DENIED',
     `Admin ${adminId} does not have commission administration permissions`,

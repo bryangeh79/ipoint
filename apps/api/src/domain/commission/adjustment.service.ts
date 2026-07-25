@@ -215,9 +215,7 @@ function adjustmentMakerCheckerSameError(
 }
 
 /** Factory: invalid adjustment amount. */
-function adjustmentInvalidAmountError(
-  amount: string,
-): AdjustmentError {
+function adjustmentInvalidAmountError(amount: string): AdjustmentError {
   return new AdjustmentError(
     'ADJUSTMENT_INVALID_AMOUNT',
     `Adjustment amount must be non-zero (received: ${amount})`,
@@ -369,7 +367,10 @@ export class AdjustmentService {
     // ---------------------------------------------------------------
     // 2. Validate status: must be PENDING_CHECKER
     // ---------------------------------------------------------------
-    if (adjustment.status === STATUS_APPROVED || adjustment.status === STATUS_REJECTED) {
+    if (
+      adjustment.status === STATUS_APPROVED ||
+      adjustment.status === STATUS_REJECTED
+    ) {
       throw adjustmentAlreadyDecidedError(adjustmentId, adjustment.status);
     }
 
@@ -414,7 +415,10 @@ export class AdjustmentService {
       const current = currentRows[0]!;
 
       if (current.status !== STATUS_PENDING_CHECKER) {
-        if (current.status === STATUS_APPROVED || current.status === STATUS_REJECTED) {
+        if (
+          current.status === STATUS_APPROVED ||
+          current.status === STATUS_REJECTED
+        ) {
           throw adjustmentAlreadyDecidedError(adjustmentId, current.status);
         }
         throw adjustmentInvalidStatusError(adjustmentId, current.status);
@@ -530,7 +534,10 @@ export class AdjustmentService {
     // ---------------------------------------------------------------
     // 2. Validate status: must be PENDING_CHECKER
     // ---------------------------------------------------------------
-    if (adjustment.status === STATUS_APPROVED || adjustment.status === STATUS_REJECTED) {
+    if (
+      adjustment.status === STATUS_APPROVED ||
+      adjustment.status === STATUS_REJECTED
+    ) {
       throw adjustmentAlreadyDecidedError(adjustmentId, adjustment.status);
     }
 
@@ -570,7 +577,10 @@ export class AdjustmentService {
       const current = currentRows[0]!;
 
       if (current.status !== STATUS_PENDING_CHECKER) {
-        if (current.status === STATUS_APPROVED || current.status === STATUS_REJECTED) {
+        if (
+          current.status === STATUS_APPROVED ||
+          current.status === STATUS_REJECTED
+        ) {
           throw adjustmentAlreadyDecidedError(adjustmentId, current.status);
         }
         throw adjustmentInvalidStatusError(adjustmentId, current.status);
@@ -636,9 +646,7 @@ export class AdjustmentService {
    * @param id - The adjustment request UUID
    * @returns The adjustment request, or null if not found
    */
-  async getAdjustmentById(
-    id: string,
-  ): Promise<AdjustmentRequestRow | null> {
+  async getAdjustmentById(id: string): Promise<AdjustmentRequestRow | null> {
     const db = this.database.db;
 
     const rows = await db
@@ -674,13 +682,8 @@ export class AdjustmentService {
    *
    * Format: ADJ-YYMMDD-XXXXX where XXXXX is a random hex suffix.
    */
-  private async generatePublicReference(
-    _db: Queryable,
-  ): Promise<string> {
-    const datePart = new Date()
-      .toISOString()
-      .slice(2, 10)
-      .replace(/-/g, '');
+  private async generatePublicReference(_db: Queryable): Promise<string> {
+    const datePart = new Date().toISOString().slice(2, 10).replace(/-/g, '');
     const suffix = Math.floor(Math.random() * 0xfffff)
       .toString(16)
       .toUpperCase()
@@ -691,9 +694,7 @@ export class AdjustmentService {
   /**
    * Map a raw database row to the public AdjustmentRequestRow type.
    */
-  private toRow(
-    r: Record<string, unknown>,
-  ): AdjustmentRequestRow {
+  private toRow(r: Record<string, unknown>): AdjustmentRequestRow {
     return {
       id: r.id as string,
       publicReference: r.publicReference as string,
@@ -709,9 +710,7 @@ export class AdjustmentService {
       makerNotes: (r.makerNotes as string) ?? null,
       checkerNotes: (r.checkerNotes as string) ?? null,
       ledgerEntryId: (r.ledgerEntryId as string) ?? null,
-      decidedAt: r.decidedAt
-        ? (r.decidedAt as Date).toISOString()
-        : null,
+      decidedAt: r.decidedAt ? (r.decidedAt as Date).toISOString() : null,
       createdAt: (r.createdAt as Date).toISOString(),
       updatedAt: (r.updatedAt as Date).toISOString(),
     };

@@ -102,7 +102,9 @@ export class AgentActivationService {
     const activationId = randomUUID();
     const fromStatus: AgentActivationStatus = 'NOT_APPLIED';
     const action: AgentActivationAction = 'APPLY';
-    const toStatus = getExpectedTargetStatus(fromStatus, action) as AgentActivationStatus | undefined;
+    const toStatus = getExpectedTargetStatus(fromStatus, action) as
+      | AgentActivationStatus
+      | undefined;
 
     if (!toStatus) {
       throw activationInvalidTransitionError(fromStatus, action);
@@ -514,8 +516,7 @@ export class AgentActivationService {
       // Clear suspended_at on reactivation to reflect current state
       suspendedAt: null,
       activatedAt: record.activatedAt ?? now,
-      activatedByAdminUserId:
-        record.activatedByAdminUserId ?? adminUserId,
+      activatedByAdminUserId: record.activatedByAdminUserId ?? adminUserId,
       reason: reason ?? record.reason,
       updatedAt: now,
       version: record.version + 1,
@@ -620,10 +621,7 @@ export class AgentActivationService {
   /**
    * Check if a member is an active agent in a market.
    */
-  async isActiveAgent(
-    memberId: string,
-    market: string,
-  ): Promise<boolean> {
+  async isActiveAgent(memberId: string, market: string): Promise<boolean> {
     const record = await this.repository.findByMemberAndMarket(
       memberId,
       market,
@@ -697,10 +695,7 @@ export class AgentActivationService {
     }
 
     // SUSPENDED can only transition via REACTIVATE
-    if (
-      fromStatus === 'SUSPENDED' &&
-      action !== 'REACTIVATE'
-    ) {
+    if (fromStatus === 'SUSPENDED' && action !== 'REACTIVATE') {
       throw activationInvalidTransitionError(
         fromStatus,
         action,
@@ -708,7 +703,9 @@ export class AgentActivationService {
       );
     }
 
-    const toStatus = getExpectedTargetStatus(fromStatus, action) as AgentActivationStatus | undefined;
+    const toStatus = getExpectedTargetStatus(fromStatus, action) as
+      | AgentActivationStatus
+      | undefined;
 
     if (!toStatus) {
       throw activationInvalidTransitionError(

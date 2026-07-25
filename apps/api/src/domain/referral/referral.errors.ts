@@ -35,9 +35,7 @@ export class ReferralError extends Error {
 /*  Factory Functions                                                  */
 /* ------------------------------------------------------------------ */
 
-export function referralCodeNotFoundError(
-  referralCode: string,
-): ReferralError {
+export function referralCodeNotFoundError(referralCode: string): ReferralError {
   return new ReferralError(
     'REFERRAL_CODE_NOT_FOUND',
     `No member found with referral code: ${referralCode}`,
@@ -59,9 +57,7 @@ export function referralCycleDetectedError(): ReferralError {
   );
 }
 
-export function referralAlreadyExistsError(
-  memberId: string,
-): ReferralError {
+export function referralAlreadyExistsError(memberId: string): ReferralError {
   return new ReferralError(
     'REFERRAL_ALREADY_EXISTS',
     `Member ${memberId} already has a referrer.`,

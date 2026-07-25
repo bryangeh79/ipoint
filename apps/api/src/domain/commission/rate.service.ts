@@ -170,9 +170,7 @@ function invalidGenerationError(
 }
 
 /** Factory: invalid rate type. */
-function invalidRateTypeError(
-  rateType: string,
-): RateManagementError {
+function invalidRateTypeError(rateType: string): RateManagementError {
   return new RateManagementError(
     'INVALID_RATE_TYPE',
     `Invalid rate type: ${rateType}. Valid values: ${VALID_RATE_TYPES.join(', ')}`,
@@ -284,15 +282,15 @@ export class RateManagementService {
     const db = this.database.db;
     const now = new Date();
 
-    const conditions: ReturnType<typeof eq | typeof lte | typeof isNull | typeof sql>[] = [
+    const conditions: ReturnType<
+      typeof eq | typeof lte | typeof isNull | typeof sql
+    >[] = [
       lte(commissionRateVersions.effectiveFrom, now),
       sql`(${commissionRateVersions.effectiveUntil} IS NULL OR ${commissionRateVersions.effectiveUntil} > ${now})`,
     ];
 
     if (market) {
-      conditions.push(
-        eq(commissionRateVersions.market, market.toUpperCase()),
-      );
+      conditions.push(eq(commissionRateVersions.market, market.toUpperCase()));
     }
 
     if (commissionType) {
@@ -591,7 +589,10 @@ export class RateManagementService {
    */
   private assertValidRateValue(rateValue: string): void {
     if (typeof rateValue !== 'string' || rateValue.length === 0) {
-      throw invalidRateValueError(rateValue, 'Rate value must be a non-empty string');
+      throw invalidRateValueError(
+        rateValue,
+        'Rate value must be a non-empty string',
+      );
     }
 
     // Validate decimal format: optional leading -, digits, optional decimal with up to 10 digits

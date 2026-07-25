@@ -166,9 +166,7 @@ export class MerchantRecruitmentCommissionService {
       .limit(1);
 
     if (txnRows.length === 0) {
-      throw new Error(
-        `Transaction not found: ${transactionId}`,
-      );
+      throw new Error(`Transaction not found: ${transactionId}`);
     }
 
     const txn = txnRows[0]!;
@@ -202,11 +200,7 @@ export class MerchantRecruitmentCommissionService {
         amount: transactionServiceFees.amount,
       })
       .from(transactionServiceFees)
-      .where(
-        and(
-          eq(transactionServiceFees.transactionId, transactionId),
-        ),
-      )
+      .where(and(eq(transactionServiceFees.transactionId, transactionId)))
       .limit(1);
 
     if (feeRows.length === 0) {
@@ -239,8 +233,7 @@ export class MerchantRecruitmentCommissionService {
     // ---------------------------------------------------------------
     // 4. Build canonical processing key and check idempotency
     // ---------------------------------------------------------------
-    const canonicalProcessingKey =
-      `${marketCode}:${sourceType}:${sourceReference}`;
+    const canonicalProcessingKey = `${marketCode}:${sourceType}:${sourceReference}`;
 
     const existingProcessing = await db
       .select({
@@ -280,8 +273,7 @@ export class MerchantRecruitmentCommissionService {
     // ---------------------------------------------------------------
     const now = new Date();
     const processingId = randomUUID();
-    const requestHash =
-      sql<string>`encode(sha256(${canonicalProcessingKey}::bytea), 'hex')`;
+    const requestHash = sql<string>`encode(sha256(${canonicalProcessingKey}::bytea), 'hex')`;
 
     const generations: MerchantRecruitmentGenerationResult[] = [];
 
@@ -300,34 +292,29 @@ export class MerchantRecruitmentCommissionService {
       });
 
       // 6b. Process the single generation
-      const generationResult = await this.processGeneration(
-        tx,
-        {
-          generation: GENERATION,
-          beneficiaryId: recruiterMemberId,
-          market: marketCode,
-          currency,
-          effectiveTime: effectiveTimeIso,
-          recognizedServiceFee,
-          rateVersion,
-          commissionRate: MERCHANT_RECRUITMENT_RATE,
-          processingId,
-          sourceReference: transactionId,
-          sourceType,
-          merchantAccountId,
-          merchantBranchId,
-          attributionType,
-          now,
-          entryType: 'MERCHANT_RECRUITMENT_EARN' as const,
-        },
-      );
+      const generationResult = await this.processGeneration(tx, {
+        generation: GENERATION,
+        beneficiaryId: recruiterMemberId,
+        market: marketCode,
+        currency,
+        effectiveTime: effectiveTimeIso,
+        recognizedServiceFee,
+        rateVersion,
+        commissionRate: MERCHANT_RECRUITMENT_RATE,
+        processingId,
+        sourceReference: transactionId,
+        sourceType,
+        merchantAccountId,
+        merchantBranchId,
+        attributionType,
+        now,
+        entryType: 'MERCHANT_RECRUITMENT_EARN' as const,
+      });
       generations.push(generationResult);
 
       // 6c. Determine overall outcome
       const hasCreated = generations.some((g) => g.outcome === 'CREATED');
-      const completionOutcome = hasCreated
-        ? 'CREATED'
-        : 'SKIPPED_INELIGIBLE';
+      const completionOutcome = hasCreated ? 'CREATED' : 'SKIPPED_INELIGIBLE';
 
       await tx
         .update(commissionProcessing)
@@ -597,10 +584,7 @@ export class MerchantRecruitmentCommissionService {
     const postedVal: string = calcResult?.posted ?? '0';
 
     // Compute residual = unrounded - posted (decimal string arithmetic)
-    const residualVal = this.subtractDecimalStrings(
-      unroundedVal,
-      postedVal,
-    );
+    const residualVal = this.subtractDecimalStrings(unroundedVal, postedVal);
 
     // ---------------------------------------------------------------
     // Zero-rounded check (D-26 frozen)
@@ -628,8 +612,7 @@ export class MerchantRecruitmentCommissionService {
     // Per Section 16: market + ":" + transaction_id + ":" + beneficiary_id
     //                + ":" + generation(0) + ":" + MERCHANT_RECRUITMENT_EARN
     // ---------------------------------------------------------------
-    const canonicalEntryKey =
-      `${market}:${sourceReference}:${beneficiaryId}:${generation}:${entryType}`;
+    const canonicalEntryKey = `${market}:${sourceReference}:${beneficiaryId}:${generation}:${entryType}`;
 
     const existingEntry = await tx
       .select({ id: commissionLedger.id })
@@ -663,9 +646,10 @@ export class MerchantRecruitmentCommissionService {
       effectiveTime,
     );
 
-    const notesAttribution = attributionType === 'BRANCH'
-      ? `branch ${merchantBranchId}`
-      : 'parent merchant';
+    const notesAttribution =
+      attributionType === 'BRANCH'
+        ? `branch ${merchantBranchId}`
+        : 'parent merchant';
 
     const rateSnapshot = {
       rateVersionId: rateVersion.id,
@@ -793,8 +777,7 @@ export class MerchantRecruitmentCommissionService {
     }
 
     const txn = txnRows[0]!;
-    const canonicalProcessingKey =
-      `${marketCode}:MERCHANT_TRANSACTION:${transactionId}`;
+    const canonicalProcessingKey = `${marketCode}:MERCHANT_TRANSACTION:${transactionId}`;
 
     const processingRows = await db
       .select({
@@ -827,11 +810,7 @@ export class MerchantRecruitmentCommissionService {
     const feeRows = await db
       .select({ amount: transactionServiceFees.amount })
       .from(transactionServiceFees)
-      .where(
-        and(
-          eq(transactionServiceFees.transactionId, transactionId),
-        ),
-      )
+      .where(and(eq(transactionServiceFees.transactionId, transactionId)))
       .limit(1);
 
     const recognizedServiceFee = feeRows[0]?.amount ?? '0';
@@ -853,8 +832,7 @@ export class MerchantRecruitmentCommissionService {
         entryType:
           (r.entryType as MerchantRecruitmentGenerationResult['entryType']) ??
           null,
-        outcome:
-          r.outcome as MerchantRecruitmentGenerationResult['outcome'],
+        outcome: r.outcome as MerchantRecruitmentGenerationResult['outcome'],
         ledgerEntryId: null,
         reason: r.reason,
       }),
@@ -870,10 +848,7 @@ export class MerchantRecruitmentCommissionService {
       recognizedServiceFee,
       processingId: processing.id,
       completionOutcome: (processing.completionOutcome ??
-        'SKIPPED_INELIGIBLE') as
-        | 'CREATED'
-        | 'SKIPPED_INELIGIBLE'
-        | 'FAILED',
+        'SKIPPED_INELIGIBLE') as 'CREATED' | 'SKIPPED_INELIGIBLE' | 'FAILED',
       generations,
     };
   }
@@ -962,13 +937,8 @@ export class MerchantRecruitmentCommissionService {
    *
    * Format: COM-YYMMDD-XXXXX-MR where MR indicates Merchant Recruitment.
    */
-  private async generatePublicReference(
-    _tx: Queryable,
-  ): Promise<string> {
-    const datePart = new Date()
-      .toISOString()
-      .slice(2, 10)
-      .replace(/-/g, '');
+  private async generatePublicReference(_tx: Queryable): Promise<string> {
+    const datePart = new Date().toISOString().slice(2, 10).replace(/-/g, '');
     const suffix = Math.floor(Math.random() * 0xfffff)
       .toString(16)
       .toUpperCase()
@@ -984,22 +954,18 @@ export class MerchantRecruitmentCommissionService {
     const scale = CALCULATION_SCALE;
     const aInt = BigInt(
       a.includes('.')
-        ? a.replace('.', '')
-            .padEnd(
-              a.indexOf('.') + scale + 1,
-              '0',
-            )
+        ? a
+            .replace('.', '')
+            .padEnd(a.indexOf('.') + scale + 1, '0')
             .slice(0, a.indexOf('.') + scale + 1)
             .replace('.', '')
         : a + '0'.repeat(scale),
     );
     const bInt = BigInt(
       b.includes('.')
-        ? b.replace('.', '')
-            .padEnd(
-              b.indexOf('.') + scale + 1,
-              '0',
-            )
+        ? b
+            .replace('.', '')
+            .padEnd(b.indexOf('.') + scale + 1, '0')
             .slice(0, b.indexOf('.') + scale + 1)
             .replace('.', '')
         : b + '0'.repeat(scale),

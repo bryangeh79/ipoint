@@ -144,9 +144,7 @@ export class AgentCommissionController {
     status: 200,
     description: 'Per-market commission totals with grand total',
   })
-  async getSummary(
-    @CurrentActor() actor: RequestActor | undefined,
-  ) {
+  async getSummary(@CurrentActor() actor: RequestActor | undefined) {
     const memberId = await this.resolveMemberId(actor);
 
     return this.query.getSummary(memberId);

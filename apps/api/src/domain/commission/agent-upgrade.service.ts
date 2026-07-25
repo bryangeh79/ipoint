@@ -225,50 +225,42 @@ export class AgentUpgradeCommissionService {
       });
 
       // 6b. Process G1
-      const g1Result = await this.processGeneration(
-        tx,
-        {
-          activationId,
-          generation: 1,
-          beneficiaryId: g1BeneficiaryId,
-          market: marketCode,
-          currency,
-          effectiveTime,
-          rateVersion: g1RateVersion,
-          processingId,
-          sourceReference: activationId,
-          sourceType,
-          memberId,
-          now,
-        },
-      );
+      const g1Result = await this.processGeneration(tx, {
+        activationId,
+        generation: 1,
+        beneficiaryId: g1BeneficiaryId,
+        market: marketCode,
+        currency,
+        effectiveTime,
+        rateVersion: g1RateVersion,
+        processingId,
+        sourceReference: activationId,
+        sourceType,
+        memberId,
+        now,
+      });
       generations.push(g1Result);
 
       // 6c. Process G2
-      const g2Result = await this.processGeneration(
-        tx,
-        {
-          activationId,
-          generation: 2,
-          beneficiaryId: g2BeneficiaryId,
-          market: marketCode,
-          currency,
-          effectiveTime,
-          rateVersion: g2RateVersion,
-          processingId,
-          sourceReference: activationId,
-          sourceType,
-          memberId,
-          now,
-        },
-      );
+      const g2Result = await this.processGeneration(tx, {
+        activationId,
+        generation: 2,
+        beneficiaryId: g2BeneficiaryId,
+        market: marketCode,
+        currency,
+        effectiveTime,
+        rateVersion: g2RateVersion,
+        processingId,
+        sourceReference: activationId,
+        sourceType,
+        memberId,
+        now,
+      });
       generations.push(g2Result);
 
       // 6d. Determine overall outcome
       const hasCreated = generations.some((g) => g.outcome === 'CREATED');
-      const completionOutcome = hasCreated
-        ? 'CREATED'
-        : 'SKIPPED_INELIGIBLE';
+      const completionOutcome = hasCreated ? 'CREATED' : 'SKIPPED_INELIGIBLE';
 
       await tx
         .update(commissionProcessing)
@@ -508,9 +500,7 @@ export class AgentUpgradeCommissionService {
     // ---------------------------------------------------------------
     const fixedAmount = rateVersion.rateValue;
     const entryType =
-      generation === 1
-        ? 'AGENT_UPGRADE_G1_EARN'
-        : 'AGENT_UPGRADE_G2_EARN';
+      generation === 1 ? 'AGENT_UPGRADE_G1_EARN' : 'AGENT_UPGRADE_G2_EARN';
 
     // ---------------------------------------------------------------
     // Check idempotency: canonical entry key
@@ -689,19 +679,17 @@ export class AgentUpgradeCommissionService {
       .where(eq(commissionProcessingResults.processingId, processing.id))
       .orderBy(commissionProcessingResults.generation);
 
-    const generations: AgentUpgradeGenerationResult[] = resultRows.map(
-      (r) => ({
-        generation: r.generation,
-        beneficiaryId: r.beneficiaryId,
-        beneficiaryActiveAtSource: r.outcome === 'CREATED',
-        amount: r.postedAmount,
-        entryType: (r.entryType as AgentUpgradeGenerationResult['entryType']) ??
-          null,
-        outcome: r.outcome as AgentUpgradeGenerationResult['outcome'],
-        ledgerEntryId: null,
-        reason: r.reason,
-      }),
-    );
+    const generations: AgentUpgradeGenerationResult[] = resultRows.map((r) => ({
+      generation: r.generation,
+      beneficiaryId: r.beneficiaryId,
+      beneficiaryActiveAtSource: r.outcome === 'CREATED',
+      amount: r.postedAmount,
+      entryType:
+        (r.entryType as AgentUpgradeGenerationResult['entryType']) ?? null,
+      outcome: r.outcome as AgentUpgradeGenerationResult['outcome'],
+      ledgerEntryId: null,
+      reason: r.reason,
+    }));
 
     return {
       activationId,
@@ -710,10 +698,7 @@ export class AgentUpgradeCommissionService {
       activatedAt: activation.activatedAt?.toISOString() ?? '',
       processingId: processing.id,
       completionOutcome: (processing.completionOutcome ??
-        'SKIPPED_INELIGIBLE') as
-        | 'CREATED'
-        | 'SKIPPED_INELIGIBLE'
-        | 'FAILED',
+        'SKIPPED_INELIGIBLE') as 'CREATED' | 'SKIPPED_INELIGIBLE' | 'FAILED',
       generations,
     };
   }

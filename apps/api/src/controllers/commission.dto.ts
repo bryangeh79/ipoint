@@ -4,8 +4,18 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class LedgerQueryDto {
   @ApiPropertyOptional() @IsOptional() @IsString() market?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() @IsInt() @Min(1) limit?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() @IsInt() @Min(0) offset?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsInt()
+  @Min(1)
+  limit?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsInt()
+  @Min(0)
+  offset?: string;
 }
 
 export class AdminLedgerSearchDto {
@@ -15,8 +25,18 @@ export class AdminLedgerSearchDto {
   @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() from?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() to?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() @IsInt() @Min(1) limit?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() @IsInt() @Min(0) offset?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsInt()
+  @Min(1)
+  limit?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsInt()
+  @Min(0)
+  offset?: string;
 }
 
 export class ReprocessDto {

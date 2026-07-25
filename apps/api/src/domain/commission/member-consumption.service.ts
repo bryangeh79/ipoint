@@ -80,10 +80,7 @@ export interface MemberConsumptionGenerationResult {
   beneficiaryId: string | null;
   beneficiaryActiveAtSource: boolean;
   amount: string | null;
-  entryType:
-    | 'MEMBER_CONSUMPTION_G1_EARN'
-    | 'MEMBER_CONSUMPTION_G2_EARN'
-    | null;
+  entryType: 'MEMBER_CONSUMPTION_G1_EARN' | 'MEMBER_CONSUMPTION_G2_EARN' | null;
   outcome:
     | 'CREATED'
     | 'SKIPPED_INELIGIBLE'
@@ -156,9 +153,7 @@ export class MemberConsumptionCommissionService {
       .limit(1);
 
     if (txnRows.length === 0) {
-      throw new Error(
-        `Transaction not found: ${transactionId}`,
-      );
+      throw new Error(`Transaction not found: ${transactionId}`);
     }
 
     const txn = txnRows[0]!;
@@ -272,8 +267,7 @@ export class MemberConsumptionCommissionService {
     // ---------------------------------------------------------------
     const now = new Date();
     const processingId = randomUUID();
-    const requestHash =
-      sql<string>`encode(sha256(${canonicalProcessingKey}::bytea), 'hex')`;
+    const requestHash = sql<string>`encode(sha256(${canonicalProcessingKey}::bytea), 'hex')`;
 
     const generations: MemberConsumptionGenerationResult[] = [];
 
@@ -292,54 +286,46 @@ export class MemberConsumptionCommissionService {
       });
 
       // 7b. Process G1
-      const g1Result = await this.processGeneration(
-        tx,
-        {
-          generation: 1,
-          beneficiaryId: g1BeneficiaryId,
-          market: marketCode,
-          currency,
-          effectiveTime: effectiveTimeIso,
-          recognizedServiceFee,
-          rateVersion: g1RateVersion,
-          commissionRate: G1_RATE,
-          processingId,
-          sourceReference: transactionId,
-          sourceType,
-          memberId,
-          now,
-          entryType: 'MEMBER_CONSUMPTION_G1_EARN' as const,
-        },
-      );
+      const g1Result = await this.processGeneration(tx, {
+        generation: 1,
+        beneficiaryId: g1BeneficiaryId,
+        market: marketCode,
+        currency,
+        effectiveTime: effectiveTimeIso,
+        recognizedServiceFee,
+        rateVersion: g1RateVersion,
+        commissionRate: G1_RATE,
+        processingId,
+        sourceReference: transactionId,
+        sourceType,
+        memberId,
+        now,
+        entryType: 'MEMBER_CONSUMPTION_G1_EARN' as const,
+      });
       generations.push(g1Result);
 
       // 7c. Process G2
-      const g2Result = await this.processGeneration(
-        tx,
-        {
-          generation: 2,
-          beneficiaryId: g2BeneficiaryId,
-          market: marketCode,
-          currency,
-          effectiveTime: effectiveTimeIso,
-          recognizedServiceFee,
-          rateVersion: g2RateVersion,
-          commissionRate: G2_RATE,
-          processingId,
-          sourceReference: transactionId,
-          sourceType,
-          memberId,
-          now,
-          entryType: 'MEMBER_CONSUMPTION_G2_EARN' as const,
-        },
-      );
+      const g2Result = await this.processGeneration(tx, {
+        generation: 2,
+        beneficiaryId: g2BeneficiaryId,
+        market: marketCode,
+        currency,
+        effectiveTime: effectiveTimeIso,
+        recognizedServiceFee,
+        rateVersion: g2RateVersion,
+        commissionRate: G2_RATE,
+        processingId,
+        sourceReference: transactionId,
+        sourceType,
+        memberId,
+        now,
+        entryType: 'MEMBER_CONSUMPTION_G2_EARN' as const,
+      });
       generations.push(g2Result);
 
       // 7d. Determine overall outcome
       const hasCreated = generations.some((g) => g.outcome === 'CREATED');
-      const completionOutcome = hasCreated
-        ? 'CREATED'
-        : 'SKIPPED_INELIGIBLE';
+      const completionOutcome = hasCreated ? 'CREATED' : 'SKIPPED_INELIGIBLE';
 
       await tx
         .update(commissionProcessing)
@@ -523,8 +509,7 @@ export class MemberConsumptionCommissionService {
     // ---------------------------------------------------------------
     // Check idempotency: canonical entry key
     // ---------------------------------------------------------------
-    const canonicalEntryKey =
-      `${market}:${sourceReference}:${beneficiaryId}:${generation}:${entryType}`;
+    const canonicalEntryKey = `${market}:${sourceReference}:${beneficiaryId}:${generation}:${entryType}`;
 
     const existingEntry = await tx
       .select({ id: commissionLedger.id })
@@ -573,10 +558,7 @@ export class MemberConsumptionCommissionService {
     const postedVal: string = calcResult?.posted ?? '0';
 
     // Compute residual = unrounded - posted (decimal string arithmetic)
-    const residualVal = this.subtractDecimalStrings(
-      unroundedVal,
-      postedVal,
-    );
+    const residualVal = this.subtractDecimalStrings(unroundedVal, postedVal);
 
     // ---------------------------------------------------------------
     // Zero-rounded check (D-26 frozen)
@@ -652,8 +634,7 @@ export class MemberConsumptionCommissionService {
       createdAt: now,
       reversalLinkage: null,
       auditLinkage: null,
-      notes:
-        `Member consumption commission G${generation} for transaction ${sourceReference}`,
+      notes: `Member consumption commission G${generation} for transaction ${sourceReference}`,
     });
 
     // ---------------------------------------------------------------
@@ -729,8 +710,7 @@ export class MemberConsumptionCommissionService {
     }
 
     const txn = txnRows[0]!;
-    const canonicalProcessingKey =
-      `${marketCode}:MEMBER_CONSUMPTION:${transactionId}`;
+    const canonicalProcessingKey = `${marketCode}:MEMBER_CONSUMPTION:${transactionId}`;
 
     const processingRows = await db
       .select({
@@ -761,11 +741,7 @@ export class MemberConsumptionCommissionService {
     const feeRows = await db
       .select({ amount: transactionServiceFees.amount })
       .from(transactionServiceFees)
-      .where(
-        and(
-          eq(transactionServiceFees.transactionId, transactionId),
-        ),
-      )
+      .where(and(eq(transactionServiceFees.transactionId, transactionId)))
       .limit(1);
 
     const recognizedServiceFee = feeRows[0]?.amount ?? '0';
@@ -784,7 +760,8 @@ export class MemberConsumptionCommissionService {
         beneficiaryId: r.beneficiaryId,
         beneficiaryActiveAtSource: r.outcome === 'CREATED',
         amount: r.postedAmount,
-        entryType: (r.entryType as MemberConsumptionGenerationResult['entryType']) ??
+        entryType:
+          (r.entryType as MemberConsumptionGenerationResult['entryType']) ??
           null,
         outcome: r.outcome as MemberConsumptionGenerationResult['outcome'],
         ledgerEntryId: null,
@@ -800,10 +777,7 @@ export class MemberConsumptionCommissionService {
       recognizedServiceFee,
       processingId: processing.id,
       completionOutcome: (processing.completionOutcome ??
-        'SKIPPED_INELIGIBLE') as
-        | 'CREATED'
-        | 'SKIPPED_INELIGIBLE'
-        | 'FAILED',
+        'SKIPPED_INELIGIBLE') as 'CREATED' | 'SKIPPED_INELIGIBLE' | 'FAILED',
       generations,
     };
   }
@@ -899,10 +873,7 @@ export class MemberConsumptionCommissionService {
     _tx: Queryable,
     generation: number,
   ): Promise<string> {
-    const datePart = new Date()
-      .toISOString()
-      .slice(2, 10)
-      .replace(/-/g, '');
+    const datePart = new Date().toISOString().slice(2, 10).replace(/-/g, '');
     const suffix = Math.floor(Math.random() * 0xfffff)
       .toString(16)
       .toUpperCase()
@@ -918,17 +889,27 @@ export class MemberConsumptionCommissionService {
     const scale = CALCULATION_SCALE;
     const aInt = BigInt(
       a.includes('.')
-        ? a.replace('.', '').padEnd(a.indexOf('.') + scale + 1, '0').slice(0, a.indexOf('.') + scale + 1).replace('.', '')
+        ? a
+            .replace('.', '')
+            .padEnd(a.indexOf('.') + scale + 1, '0')
+            .slice(0, a.indexOf('.') + scale + 1)
+            .replace('.', '')
         : a + '0'.repeat(scale),
     );
     const bInt = BigInt(
       b.includes('.')
-        ? b.replace('.', '').padEnd(b.indexOf('.') + scale + 1, '0').slice(0, b.indexOf('.') + scale + 1).replace('.', '')
+        ? b
+            .replace('.', '')
+            .padEnd(b.indexOf('.') + scale + 1, '0')
+            .slice(0, b.indexOf('.') + scale + 1)
+            .replace('.', '')
         : b + '0'.repeat(scale),
     );
     const resultInt = aInt - bInt;
     const sign = resultInt < 0n ? '-' : '';
-    const absStr = (resultInt < 0n ? -resultInt : resultInt).toString().padStart(scale + 1, '0');
+    const absStr = (resultInt < 0n ? -resultInt : resultInt)
+      .toString()
+      .padStart(scale + 1, '0');
     const intPart = absStr.slice(0, absStr.length - scale) || '0';
     const fracPart = absStr.slice(absStr.length - scale);
     return `${sign}${intPart}.${fracPart}`;

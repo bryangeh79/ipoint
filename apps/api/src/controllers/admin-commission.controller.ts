@@ -423,9 +423,7 @@ export class AdminAdjustmentController {
   /**
    * Map domain AdjustmentErrors to appropriate HTTP exceptions.
    */
-  private async handleAdjustment<T>(
-    operation: () => Promise<T>,
-  ): Promise<T> {
+  private async handleAdjustment<T>(operation: () => Promise<T>): Promise<T> {
     try {
       return await operation();
     } catch (error) {

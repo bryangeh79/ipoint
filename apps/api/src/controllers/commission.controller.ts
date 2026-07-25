@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Param, Body, UseGuards, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Body,
+  UseGuards,
+  HttpCode,
+} from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AdminGuard } from '../auth/admin.guard.js';
 import { AuthenticatedMember } from '../auth/authenticated-member.decorator.js';
@@ -18,7 +26,9 @@ export class CommissionController {
   @Post('calculate')
   @UseGuards(AuthGuard)
   @HttpCode(200)
-  async calculate(@Body() body: { sourceType: string; sourceReference: string }) {
+  async calculate(
+    @Body() body: { sourceType: string; sourceReference: string },
+  ) {
     const { sourceType, sourceReference } = body;
     switch (sourceType) {
       case 'AGENT_ACTIVATION':
@@ -26,7 +36,9 @@ export class CommissionController {
       case 'MEMBER_CONSUMPTION':
         return this.memberConsumption.processMemberConsumption(sourceReference);
       case 'MERCHANT_TRANSACTION':
-        return this.merchantRecruitment.processMerchantRecruitment(sourceReference);
+        return this.merchantRecruitment.processMerchantRecruitment(
+          sourceReference,
+        );
       default:
         return { error: `Unknown source type: ${sourceType}` };
     }

@@ -152,9 +152,7 @@ export class AgentActivationController {
     @Req() request: Request,
   ) {
     const memberId = await this.resolveMemberId(actor, request, ip);
-    return this.handle(() =>
-      this.activation.getStatus(memberId, query.market),
-    );
+    return this.handle(() => this.activation.getStatus(memberId, query.market));
   }
 
   // ─── Get Status By ID ─────────────────────────────────────────

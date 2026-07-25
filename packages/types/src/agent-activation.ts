@@ -1,20 +1,37 @@
 export const AGENT_ACTIVATION_STATUS = [
-  'NOT_APPLIED', 'PENDING_PAYMENT', 'PAYMENT_CONFIRMED',
-  'COURSE_PENDING', 'COURSE_COMPLETED', 'PENDING_APPROVAL',
-  'ACTIVE', 'SUSPENDED', 'DEACTIVATED', 'REJECTED',
+  'NOT_APPLIED',
+  'PENDING_PAYMENT',
+  'PAYMENT_CONFIRMED',
+  'COURSE_PENDING',
+  'COURSE_COMPLETED',
+  'PENDING_APPROVAL',
+  'ACTIVE',
+  'SUSPENDED',
+  'DEACTIVATED',
+  'REJECTED',
 ] as const;
 
-export type AgentActivationStatus = typeof AGENT_ACTIVATION_STATUS[number];
+export type AgentActivationStatus = (typeof AGENT_ACTIVATION_STATUS)[number];
 
 export const AGENT_ACTIVATION_ACTIONS = [
-  'APPLY', 'CONFIRM_PAYMENT', 'ENROLL_COURSE', 'COMPLETE_COURSE',
-  'SUBMIT_FOR_APPROVAL', 'APPROVE_AND_ACTIVATE', 'REJECT',
-  'SUSPEND', 'REACTIVATE', 'DEACTIVATE',
+  'APPLY',
+  'CONFIRM_PAYMENT',
+  'ENROLL_COURSE',
+  'COMPLETE_COURSE',
+  'SUBMIT_FOR_APPROVAL',
+  'APPROVE_AND_ACTIVATE',
+  'REJECT',
+  'SUSPEND',
+  'REACTIVATE',
+  'DEACTIVATE',
 ] as const;
 
-export type AgentActivationAction = typeof AGENT_ACTIVATION_ACTIONS[number];
+export type AgentActivationAction = (typeof AGENT_ACTIVATION_ACTIONS)[number];
 
-export const ALLOWED_TRANSITIONS: Record<AgentActivationStatus, AgentActivationStatus[]> = {
+export const ALLOWED_TRANSITIONS: Record<
+  AgentActivationStatus,
+  AgentActivationStatus[]
+> = {
   NOT_APPLIED: ['PENDING_PAYMENT'],
   PENDING_PAYMENT: ['PAYMENT_CONFIRMED', 'REJECTED'],
   PAYMENT_CONFIRMED: ['COURSE_PENDING', 'REJECTED'],
