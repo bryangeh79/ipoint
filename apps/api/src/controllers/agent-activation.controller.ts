@@ -75,7 +75,7 @@ export class AgentActivationController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    const memberId = await this.resolveMemberId(actor, request, ip);
+    const memberId = await this.resolveMemberId(actor);
     return this.handle(() => this.activation.apply(memberId, input.market));
   }
 
@@ -151,7 +151,7 @@ export class AgentActivationController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    const memberId = await this.resolveMemberId(actor, request, ip);
+    const memberId = await this.resolveMemberId(actor);
     return this.handle(() => this.activation.getStatus(memberId, query.market));
   }
 
@@ -172,8 +172,6 @@ export class AgentActivationController {
    */
   private async resolveMemberId(
     actor: RequestActor | undefined,
-    _request: Request,
-    _ipAddress: string,
   ): Promise<string> {
     if (actor?.type !== 'ACCOUNT' || !actor.accountId) {
       throw new UnauthorizedException({

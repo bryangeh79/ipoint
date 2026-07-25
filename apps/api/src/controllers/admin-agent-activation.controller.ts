@@ -7,11 +7,9 @@ import {
   HttpCode,
   Inject,
   InternalServerErrorException,
-  Ip,
   NotFoundException,
   Param,
   Post,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -20,7 +18,6 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentActor } from '../auth/current-actor.decorator.js';
 import type { RequestActor } from '../auth/auth.types.js';
@@ -61,10 +58,8 @@ export class AdminAgentActivationController {
   approve(
     @Param('id') id: string,
     @CurrentActor() actor: RequestActor | undefined,
-    @Ip() ip: string,
-    @Req() request: Request,
   ) {
-    const adminId = this.resolveAdminId(actor, request, ip);
+    const adminId = this.resolveAdminId(actor);
     return this.handle(() => this.activation.approveAndActivate(id, adminId));
   }
 
@@ -79,10 +74,8 @@ export class AdminAgentActivationController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(rejectSchema)) input: RejectDto,
     @CurrentActor() actor: RequestActor | undefined,
-    @Ip() ip: string,
-    @Req() request: Request,
   ) {
-    this.resolveAdminId(actor, request, ip);
+    this.resolveAdminId(actor);
     return this.handle(() => this.activation.reject(id, input.reason));
   }
 
@@ -97,10 +90,8 @@ export class AdminAgentActivationController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(suspendSchema)) input: SuspendDto,
     @CurrentActor() actor: RequestActor | undefined,
-    @Ip() ip: string,
-    @Req() request: Request,
   ) {
-    this.resolveAdminId(actor, request, ip);
+    this.resolveAdminId(actor);
     return this.handle(() => this.activation.suspend(id, input.reason));
   }
 
@@ -114,10 +105,8 @@ export class AdminAgentActivationController {
   reactivate(
     @Param('id') id: string,
     @CurrentActor() actor: RequestActor | undefined,
-    @Ip() ip: string,
-    @Req() request: Request,
   ) {
-    this.resolveAdminId(actor, request, ip);
+    this.resolveAdminId(actor);
     return this.handle(() => this.activation.reactivate(id));
   }
 
@@ -132,10 +121,8 @@ export class AdminAgentActivationController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(deactivateSchema)) input: DeactivateDto,
     @CurrentActor() actor: RequestActor | undefined,
-    @Ip() ip: string,
-    @Req() request: Request,
   ) {
-    this.resolveAdminId(actor, request, ip);
+    this.resolveAdminId(actor);
     return this.handle(() => this.activation.deactivate(id, input.reason));
   }
 
@@ -144,11 +131,7 @@ export class AdminAgentActivationController {
   /**
    * Extract and validate the admin user ID from the auth actor.
    */
-  private resolveAdminId(
-    actor: RequestActor | undefined,
-    _request: Request,
-    _ipAddress: string,
-  ): string {
+  private resolveAdminId(actor: RequestActor | undefined): string {
     if (actor?.type !== 'ADMIN_USER' || !actor.adminUserId) {
       throw new ForbiddenException({
         code: 'AUTH_PERMISSION_DENIED',

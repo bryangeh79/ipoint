@@ -24,7 +24,7 @@ import type {
   AgentActivationStatus,
   AgentActivationTransitionResult,
 } from '@ipoint/types';
-import { ALLOWED_TRANSITIONS, TRANSITION_TARGETS } from '@ipoint/types';
+
 import {
   getExpectedTargetStatus,
   validateTransition,
@@ -33,7 +33,6 @@ import {
   activationAlreadyActiveError,
   activationAlreadyDeactivatedError,
   activationAlreadyExistsError,
-  activationAlreadyRejectedError,
   activationAlreadySuspendedError,
   activationCourseAlreadyCompletedError,
   activationDeactivatedCannotReactivateError,

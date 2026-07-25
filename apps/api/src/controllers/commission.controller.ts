@@ -2,15 +2,12 @@ import {
   Controller,
   Post,
   Get,
-  Param,
   Body,
   UseGuards,
   HttpCode,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
-import { AdminGuard } from '../auth/admin.guard.js';
 import { AuthenticatedMember } from '../auth/authenticated-member.decorator.js';
-import { AuthenticatedAdmin } from '../auth/authenticated-admin.decorator.js';
 import { AgentUpgradeCommissionService } from '../domain/commission/agent-upgrade.service.js';
 import { MemberConsumptionCommissionService } from '../domain/commission/member-consumption.service.js';
 import { MerchantRecruitmentCommissionService } from '../domain/commission/merchant-recruitment.service.js';
@@ -46,7 +43,7 @@ export class CommissionController {
 
   @Get('ledger')
   @UseGuards(AuthGuard)
-  async getLedger(@AuthenticatedMember() memberId: string) {
+  getLedger(@AuthenticatedMember() memberId: string) {
     return { memberId, message: 'Ledger query endpoint' };
   }
 }
