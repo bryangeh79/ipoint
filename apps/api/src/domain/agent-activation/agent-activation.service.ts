@@ -26,7 +26,6 @@ import type {
 } from '@ipoint/types';
 import {
   ALLOWED_TRANSITIONS,
-  DEFAULT_ACTIVATION_FEES,
   TRANSITION_TARGETS,
 } from '@ipoint/types';
 import {
@@ -56,6 +55,23 @@ import type {
   CreateActivationDto,
   TransitionContext,
 } from './agent-activation.types.js';
+
+/* ------------------------------------------------------------------ */
+/*  Activation Fee Default Configuration                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Default activation fee configuration used as fallback when no
+ * market-specific configuration has been stored in the
+ * commission_rate_version table.
+ *
+ * These values match P5-S1 seed data where commission_type = 'AGENT_UPGRADE'
+ * and rate_type = 'FIXED'. Only MY (RM388.00) is hardcoded as the
+ * contractual default; non-MY markets must be configured at runtime.
+ */
+const DEFAULT_ACTIVATION_FEES: Array<{ market: string; fee: string; currency: string }> = [
+  { market: 'MY', fee: '388.00', currency: 'MYR' },
+];
 
 /* ------------------------------------------------------------------ */
 /*  Service Class                                                      */

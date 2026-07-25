@@ -89,8 +89,15 @@ describe('P5-S1 Drizzle schema', () => {
     expect(migration).toContain('referral_relationship_reject_update');
     expect(myDefaultCommissionRates).toHaveLength(5);
     for (const [type, generation, rate, rateType] of myDefaultCommissionRates) {
-      expect(migration).toContain(
-        `('${type}', ${generation}, 'MY', ${Number(rate)}, '${rateType}'`,
+      // Seed values are decimal strings (e.g. '88.0000000000') but the
+      // migration SQL renders them as numeric literals with trailing zeros
+      // trimmed to significant decimals (e.g. 88.00).  Use a regex that
+      // accepts the parsed number with optional decimal fraction.
+      const numPattern = String(parseFloat(rate)).replaceAll('.', '\\.');
+      expect(migration).toMatch(
+        new RegExp(
+          `\\('${type}', ${generation}, 'MY', ${numPattern}(?:\\.\\d+)?, '${rateType}'`,
+        ),
       );
     }
   });

@@ -93,14 +93,12 @@ function createMocks() {
         );
         return Promise.resolve(found ?? null);
       }),
-    findMany: vi
-      .fn()
-      .mockImplementation(() =>
-        Promise.resolve({
-          items: Object.values(store),
-          total: Object.keys(store).length,
-        }),
-      ),
+    findMany: vi.fn().mockImplementation(() =>
+      Promise.resolve({
+        items: Object.values(store),
+        total: Object.keys(store).length,
+      }),
+    ),
     exists: vi.fn().mockImplementation((memberId: string, market: string) => {
       const found = Object.values(store).find(
         (r) => r.memberId === memberId && r.market === market,
