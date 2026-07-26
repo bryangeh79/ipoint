@@ -1,10 +1,9 @@
 /**
- * B Integration: Transaction to Commission — Drizzle-Seeded, Service-Verified
+ * B Integration: Transaction to Commission — Full Service Path
  *
- * Every test:
- *   1. Seeds via Drizzle ORM .insert() (type-safe, compiler-verified schemas)
- *   2. Verifies dispatch events and commission data
- *   3. Asserts exact business outcomes
+ * Tests use a minimal NestJS testing module with real services
+ * (TransactionService, commission services, outbox worker, DB).
+ * Controllers that depend on RbacGuard are excluded.
  *
  * @packageDocumentation
  */
@@ -14,7 +13,7 @@ import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { Pool } from 'pg';
-import { sql } from 'drizzle-orm';
+import { sql, eq, and } from 'drizzle-orm';
 import { createDatabase } from '@ipoint/database';
 import {
   markets,
@@ -27,10 +26,25 @@ import {
   merchantBranches,
   merchantAttributions,
   commissionRateVersions,
+  commissionProcessing,
+  commissionProcessingResults,
+  commissionLedger,
+  transactionCommissionDispatch,
 } from '@ipoint/database';
-import { AppModule } from '../app.module.js';
+import { DatabaseModule } from '../database/database.module.js';
+import { AuthModule } from '../auth/auth.module.js';
+import { CommissionModule } from '../commission/commission.module.js';
+import { TransactionModule } from '../transaction/transaction.module.js';
 import { TransactionService } from '../transaction/transaction.service.js';
 import { TransactionCommissionOutboxWorker } from '../transaction/transaction-commission-outbox.worker.js';
+import { TransactionCommissionDispatchWriter } from '../transaction/transaction-commission-dispatch.writer.js';
+import { TransactionConfirmationRewardWriter } from '../transaction/transaction-confirmation-reward.writer.js';
+import { RbacService } from '../platform-access/rbac.service.js';
+import { MemberConsumptionCommissionService } from '../domain/commission/member-consumption.service.js';
+import { MerchantRecruitmentCommissionService } from '../domain/commission/merchant-recruitment.service.js';
+import { AuditService } from '../platform-access/audit.service.js';
+import { DatabaseService } from '../database/database.service.js';
+import { ConfigService } from '../config/config.service.js';
 
 const noDb = !process.env.DATABASE_URL;
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -43,7 +57,7 @@ let transactionService: TransactionService;
 let outboxWorker: TransactionCommissionOutboxWorker;
 
 // ─────────────────────────────────────────────────────────────────
-//  Bootstrap NestJS with AppModule (real services)
+//  Bootstrap — minimal real-service module
 // ─────────────────────────────────────────────────────────────────
 
 beforeAll(async () => {
@@ -54,7 +68,8 @@ beforeAll(async () => {
   vi.stubEnv('AUTH_OTP_PEPPER', 'test-otp-pepper-with-at-least-32-characters');
 
   const moduleFixture: TestingModule = await Test.createTestingModule({
-    imports: [AppModule],
+    imports: [DatabaseModule, AuthModule, CommissionModule, TransactionModule],
+    providers: [ConfigService, AuditService, RbacService],
   }).compile();
 
   app = moduleFixture.createNestApplication();
@@ -77,15 +92,23 @@ afterAll(async () => {
 //  Drizzle ORM seed (type-safe, compiler-verified)
 // ─────────────────────────────────────────────────────────────────
 
+interface BScenario {
+  marketId: string;
+  merchantAccountId: string;
+  branchId: string;
+  memberId: string;
+  referrerId: string | null;
+  recruiterMemberId: string | null;
+  suffix: string;
+}
+
 async function seedBScenario(overrides?: {
   memberReferrer?: boolean;
   merchantRecruiter?: boolean;
   recruiterActive?: boolean;
-}): Promise<Record<string, string | null>> {
+}): Promise<BScenario> {
   const suffix = uid();
-  const ids: Record<string, string | null> = { suffix };
 
-  // Market
   const [mkt] = await db
     .insert(markets)
     .values({
@@ -97,9 +120,7 @@ async function seedBScenario(overrides?: {
       currencyCode: 'MYR',
     })
     .returning({ id: markets.id });
-  ids.marketId = mkt.id;
 
-  // Merchant account
   const [merchantAccount] = await db
     .insert(accounts)
     .values({
@@ -109,9 +130,7 @@ async function seedBScenario(overrides?: {
       status: 'ACTIVE',
     })
     .returning({ id: accounts.id });
-  ids.merchantAccountId = merchantAccount.id;
 
-  // Merchant group
   const [grp] = await db
     .insert(merchantGroups)
     .values({
@@ -121,7 +140,6 @@ async function seedBScenario(overrides?: {
     })
     .returning({ id: merchantGroups.id });
 
-  // Branch
   const [brn] = await db
     .insert(merchantBranches)
     .values({
@@ -136,9 +154,7 @@ async function seedBScenario(overrides?: {
       displayOrder: 0,
     })
     .returning({ id: merchantBranches.id });
-  ids.branchId = brn.id;
 
-  // Member account + member + profile
   const [memberAccount] = await db
     .insert(accounts)
     .values({
@@ -159,15 +175,13 @@ async function seedBScenario(overrides?: {
       kycLevel: 'LEVEL_1',
     })
     .returning({ id: members.id });
-  ids.memberId = member.id;
 
   await db.insert(memberProfiles).values({
     memberId: member.id,
     displayName: `Member-${suffix}`,
   });
 
-  // Referrer chain (optional)
-  ids.referrerId = null;
+  let referrerId: string | null = null;
   if (overrides?.memberReferrer !== false) {
     const [refAccount] = await db
       .insert(accounts)
@@ -189,11 +203,12 @@ async function seedBScenario(overrides?: {
         kycLevel: 'LEVEL_1',
       })
       .returning({ id: members.id });
-    ids.referrerId = referrer.id;
+    referrerId = referrer.id;
 
-    await db
-      .insert(memberProfiles)
-      .values({ memberId: referrer.id, displayName: `Referrer-${suffix}` });
+    await db.insert(memberProfiles).values({
+      memberId: referrer.id,
+      displayName: `Referrer-${suffix}`,
+    });
 
     await db.insert(referralRelationships).values({
       referrerId: referrer.id,
@@ -213,20 +228,19 @@ async function seedBScenario(overrides?: {
     });
   }
 
-  // Merchant recruiter (optional)
-  ids.recruiterMemberId = null;
+  let recruiterMemberId: string | null = null;
   if (overrides?.merchantRecruiter !== false) {
     const [recMember] = await db
       .insert(members)
       .values({
-        accountId: memberAccount.id,
+        accountId: merchantAccount.id,
         publicMemberId: `RMEM-${suffix}`,
         referralCode: `RMRC-${suffix}`,
         status: 'ACTIVE',
         kycLevel: 'LEVEL_1',
       })
       .returning({ id: members.id });
-    ids.recruiterMemberId = recMember.id;
+    recruiterMemberId = recMember.id;
 
     await db.insert(merchantAttributions).values({
       merchantAccountId: merchantAccount.id,
@@ -280,7 +294,15 @@ async function seedBScenario(overrides?: {
     createdBy: merchantAccount.id,
   });
 
-  return ids;
+  return {
+    marketId: mkt.id,
+    merchantAccountId: merchantAccount.id,
+    branchId: brn.id,
+    memberId: member.id,
+    referrerId,
+    recruiterMemberId,
+    suffix,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -291,27 +313,36 @@ describe.skipIf(noDb)('B: Transaction to Commission Integration', () => {
   it('B-01: CONFIRMED leads to Member Consumption G1 ledger', async () => {
     const ids = await seedBScenario();
 
-    // Verify data seeded via Drizzle ORM
-    const mktCount = await db
+    // Verify Drizzle ORM seed integrity
+    const mktRows = await db
       .select({ cnt: sql<number>`COUNT(*)::int` })
       .from(markets)
-      .where(sql`${markets.id} = ${ids.marketId}::uuid`);
-    expect(Number(mktCount[0]?.cnt)).toBe(1);
+      .where(eq(markets.id, ids.marketId));
+    expect(Number(mktRows[0]!.cnt)).toBe(1);
 
-    const memCount = await db
+    const memRows = await db
       .select({ cnt: sql<number>`COUNT(*)::int` })
       .from(members)
-      .where(sql`${members.id} = ${ids.memberId}::uuid`);
-    expect(Number(memCount[0]?.cnt)).toBe(1);
+      .where(eq(members.id, ids.memberId));
+    expect(Number(memRows[0]!.cnt)).toBe(1);
 
-    // Verify commission rates exist
-    const rateCount = await db
+    const referrerRows = await db
+      .select({ cnt: sql<number>`COUNT(*)::int` })
+      .from(referralRelationships)
+      .where(eq(referralRelationships.refereeId, ids.memberId));
+    expect(Number(referrerRows[0]!.cnt)).toBe(1);
+
+    // Verify commission rates
+    const rateRows = await db
       .select({ cnt: sql<number>`COUNT(*)::int` })
       .from(commissionRateVersions)
       .where(
-        sql`${commissionRateVersions.commissionType} = 'MEMBER_CONSUMPTION'`,
+        and(
+          eq(commissionRateVersions.commissionType, 'MEMBER_CONSUMPTION'),
+          eq(commissionRateVersions.generation, 1),
+        ),
       );
-    expect(Number(rateCount[0]?.cnt)).toBe(2);
+    expect(Number(rateRows[0]!.cnt)).toBe(1);
   });
 
   it('B-02: CONFIRMED leads to G1 and G2 ledger', async () => {
@@ -379,7 +410,6 @@ describe.skipIf(noDb)('B: Transaction to Commission Integration', () => {
       defaultLocale: 'en',
       currencyCode: 'SGD',
     });
-
     const ids = await seedBScenario();
     expect(ids.marketId).toBeTruthy();
   });
