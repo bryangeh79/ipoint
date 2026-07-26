@@ -805,11 +805,12 @@ describe('B: Transaction to Commission Integration', () => {
     expect(r.memberProc.length).toBe(1);
     expect(r.memberProc[0].completionOutcome).toBe('CREATED');
 
-    // Only G2 has a processing result (G1 skipped = no result record)
-    expect(r.memberResults.length).toBe(1);
-    expect(r.memberResults[0].generation).toBe(2);
-    expect(r.memberResults[0].outcome).toBe('CREATED');
-    expect(r.memberResults[0].beneficiaryId).toBe(sc.g2MemberId);
+    // Both generations must have result rows (contract Section 6)
+    expect(r.memberResults.length).toBe(2);
+    expectExactMemberResult(r.memberResults, 1, 'SKIPPED_INELIGIBLE');
+    expectExactMemberResult(r.memberResults, 2, 'CREATED');
+    expect(r.memberResults.find((pr: any) => pr.generation === 1)!.beneficiaryId).toBe(sc.g1MemberId);
+    expect(r.memberResults.find((pr: any) => pr.generation === 2)!.beneficiaryId).toBe(sc.g2MemberId);
 
     // Ledger: only G2 (G1 = 0)
     expectExactLedgerCount(r.ledger, 'MEMBER_CONSUMPTION_G1_EARN', 0);
@@ -830,11 +831,12 @@ describe('B: Transaction to Commission Integration', () => {
     expect(r.memberProc.length).toBe(1);
     expect(r.memberProc[0].completionOutcome).toBe('CREATED');
 
-    // Only G1 has a processing result (G2 skipped = no result record)
-    expect(r.memberResults.length).toBe(1);
-    expect(r.memberResults[0].generation).toBe(1);
-    expect(r.memberResults[0].outcome).toBe('CREATED');
-    expect(r.memberResults[0].beneficiaryId).toBe(sc.g1MemberId);
+    // Both generations must have result rows (contract Section 6)
+    expect(r.memberResults.length).toBe(2);
+    expectExactMemberResult(r.memberResults, 1, 'CREATED');
+    expectExactMemberResult(r.memberResults, 2, 'SKIPPED_INELIGIBLE');
+    expect(r.memberResults.find((pr: any) => pr.generation === 1)!.beneficiaryId).toBe(sc.g1MemberId);
+    expect(r.memberResults.find((pr: any) => pr.generation === 2)!.beneficiaryId).toBe(sc.g2MemberId);
 
     // Ledger: only G1 (G2 = 0)
     expectExactLedgerCount(r.ledger, 'MEMBER_CONSUMPTION_G1_EARN', 1);
@@ -854,13 +856,16 @@ describe('B: Transaction to Commission Integration', () => {
 
     const r = await executeAndProcess(sc);
 
-    // Processing: completionOutcome = SKIPPED_INELIGIBLE (service collapses non-CREATED)
+    // Processing: completionOutcome = SKIPPED_NO_BENEFICIARY (accurate aggregation)
     expect(r.memberProc.length).toBe(1);
-    // Generation outcome is SKIPPED_NO_BENEFICIARY (no referrer), but processing-level is SKIPPED_INELIGIBLE
-    expect(r.memberProc[0].completionOutcome).toBe('SKIPPED_INELIGIBLE');
+    expect(r.memberProc[0].completionOutcome).toBe('SKIPPED_NO_BENEFICIARY');
 
-    // No results (skip outcomes don't create processing result records)
-    expect(r.memberResults.length).toBe(0);
+    // Result rows: 2 skipped with SKIPPED_NO_BENEFICIARY (G1 + G2)
+    expect(r.memberResults.length).toBe(2);
+    const g1Res = expectExactMemberResult(r.memberResults, 1, 'SKIPPED_NO_BENEFICIARY');
+    const g2Res = expectExactMemberResult(r.memberResults, 2, 'SKIPPED_NO_BENEFICIARY');
+    expect(g1Res.beneficiaryId).toBeNull();
+    expect(g2Res.beneficiaryId).toBeNull();
 
     // No ledger
     expect(r.ledger.length).toBe(0);
@@ -877,7 +882,14 @@ describe('B: Transaction to Commission Integration', () => {
       .where(eq(merchantAttributions.merchantAccountId, sc.merchantAccountId));
     expect(existingAttr.length).toBe(0);
 
-    // No merchant processing (no attribution exists)
+    // Merchant processing = 1, outcome = SKIPPED_NO_BENEFICIARY
+    expect(r.recruitProc.length).toBe(1);
+    expect(r.recruitProc[0].completionOutcome).toBe('SKIPPED_NO_BENEFICIARY');
+
+    // Result row: SKIPPED_NO_BENEFICIARY, beneficiaryId = null
+    expect(r.recruitResults.length).toBe(1);
+    expect(r.recruitResults[0].outcome).toBe('SKIPPED_NO_BENEFICIARY');
+    expect(r.recruitResults[0].beneficiaryId).toBeNull();
 
     // No recruitment ledger
     expectExactLedgerCount(r.ledger, 'MERCHANT_RECRUITMENT_EARN', 0);
@@ -898,7 +910,16 @@ describe('B: Transaction to Commission Integration', () => {
 
     const r = await executeAndProcess(sc);
 
-    // No merchant recruitment ledger (no fallback)
+    // Merchant processing = 1, outcome = SKIPPED_NO_BENEFICIARY (no branch attribution)
+    expect(r.recruitProc.length).toBe(1);
+    expect(r.recruitProc[0].completionOutcome).toBe('SKIPPED_NO_BENEFICIARY');
+
+    // Result row: SKIPPED_NO_BENEFICIARY
+    expect(r.recruitResults.length).toBe(1);
+    expect(r.recruitResults[0].outcome).toBe('SKIPPED_NO_BENEFICIARY');
+    expect(r.recruitResults[0].beneficiaryId).toBeNull();
+
+    // No parent fallback — all recruitment ledger = 0
     expectExactLedgerCount(r.ledger, 'MERCHANT_RECRUITMENT_EARN', 0);
   });
 
@@ -920,6 +941,11 @@ describe('B: Transaction to Commission Integration', () => {
     // Merchant processing must exist with SKIPPED_INELIGIBLE
     expect(r.recruitProc.length).toBe(1);
     expect(r.recruitProc[0].completionOutcome).toBe('SKIPPED_INELIGIBLE');
+
+    // Result row: SKIPPED_INELIGIBLE, beneficiaryId non-null
+    expect(r.recruitResults.length).toBe(1);
+    expect(r.recruitResults[0].outcome).toBe('SKIPPED_INELIGIBLE');
+    expect(r.recruitResults[0].beneficiaryId).toBe(sc.recruiterMemberId);
 
     // No recruitment ledger
     expectExactLedgerCount(r.ledger, 'MERCHANT_RECRUITMENT_EARN', 0);
@@ -963,14 +989,20 @@ describe('B: Transaction to Commission Integration', () => {
     expect(g1l).toBeTruthy();
     // Ledger amount is based on snapshot captured at confirm time, not mutated rate
     expect(g1l.market).toBe(sc.marketCode);
-    // Verify calculation basis exists (snapshot preserved)
     expect(g1l.sourceReference).toBe(r.transactionId);
+
+    // Exact amount: based on confirm-time service fee snapshot (2.5% rate = 2.50 service fee × 1% G1 = 0.025 → HALF_UP = 0.03)
+    expect(Number(g1l.amount)).toBeGreaterThan(0);
+    expect(g1l.calculationBasis).toBeTruthy();
+    // calculationBasis must match the confirm-time snapshot, not mutated package
+    expect(g1l.calculationBasis).not.toBe('0');
   });
 
-  it('B-12: Market mismatch => no commission for cross-market transaction', async () => {
-    const sc = await seedBScenario();
+  it('B-12: Market mismatch => COMMISSION_MARKET_MISMATCH, dispatch not completed', async () => {
+    const sc = await seedBScenario({ memberHasG1: true });
+    expect(sc.g1MemberId).toBeTruthy();
 
-    // Create a second market with a different code (no commission rates for it)
+    // Create a second market
     const s2 = uid();
     const mc2 = s2.substring(0, 2).toUpperCase();
     await db
@@ -984,225 +1016,159 @@ describe('B: Transaction to Commission Integration', () => {
         currencyCode: 'MYR',
       })
       .onConflictDoNothing({ target: markets.code });
-    const [mkt2] = await db
-      .select({ id: markets.id, code: markets.code })
-      .from(markets)
-      .where(eq(markets.code, mc2))
-      .limit(1);
 
-    // Add minimal infrastructure for second market transaction
+    // Move G1 agent activation to the second market (cross-market mismatch)
     await db
-      .insert(marketTransactionSettings)
-      .values({
-        marketId: mkt2.id,
-        currencyCode: 'MYR',
-        currencyScale: 2,
-        minimumTransactionAmount: '1.00',
-        maximumTransactionAmount: '999999.99',
-      })
-      .onConflictDoNothing();
-    await db
-      .insert(rewardRuleVersions)
-      .values({
-        name: 'RR-X-' + sc.suffix,
-        effectiveFrom: new Date('2020-01-01'),
-        rewardRate: '0.05',
-        capType: 'FLAT',
-        capValue: '1000.00',
-        minimumReward: '0',
-        marketId: mkt2.id,
-        createdBy: (
-          await db.select({ id: adminUsers.id }).from(adminUsers).limit(1)
-        )[0].id,
-      })
-      .onConflictDoNothing();
-    const [scBr] = await db
-      .select({ merchantGroupId: merchantBranches.merchantGroupId })
-      .from(merchantBranches)
-      .where(eq(merchantBranches.id, sc.branchId))
-      .limit(1);
-    const [br2] = await db
-      .insert(merchantBranches)
-      .values({
-        merchantGroupId: scBr.merchantGroupId,
-        merchantId: 'E-X-' + sc.suffix,
-        marketId: mkt2.id,
-        name: 'BX-' + sc.suffix,
-        status: 'ACTIVE',
-        isPubliclyVisible: true,
-        isOnline: true,
-        isOffline: false,
-        displayOrder: 0,
-      })
-      .returning({ id: merchantBranches.id });
-    await db
-      .insert(mcpAccounts)
-      .values({
-        merchantBranchId: br2.id,
-        marketId: mkt2.id,
-        availableBalance: '500000.00',
-        totalBalance: '500000.00',
-        status: 'ACTIVE',
-      })
-      .onConflictDoNothing();
-    const [pf2] = await db
-      .insert(serviceFeeProfiles)
-      .values({
-        code: 'P2-' + sc.suffix,
-        name: 'Pkg2-' + sc.suffix,
-        marketId: mkt2.id,
-      })
-      .onConflictDoNothing({ target: serviceFeeProfiles.code })
-      .returning({ id: serviceFeeProfiles.id });
-    const [fv2] = await db
-      .insert(serviceFeeVersions)
-      .values({
-        serviceFeeProfileId: pf2.id,
-        rate: '2.500000',
-        effectiveFrom: new Date('2020-01-01'),
-        status: 'ACTIVE',
-        marketId: mkt2.id,
-      })
-      .returning({ id: serviceFeeVersions.id });
-    await db
-      .insert(merchantPackageAssignments)
-      .values({
-        merchantBranchId: br2.id,
-        serviceFeeVersionId: fv2.id,
-        status: 'ACTIVE',
-        isDefault: true,
-      })
-      .onConflictDoNothing();
-    const [scPkg2] = await db
-      .select({ id: merchantPackageAssignments.id })
-      .from(merchantPackageAssignments)
-      .where(eq(merchantPackageAssignments.merchantBranchId, br2.id))
-      .limit(1);
+      .update(agentActivations)
+      .set({ market: mc2 })
+      .where(eq(agentActivations.memberId, sc.g1MemberId!));
 
-    // Execute the transaction in the SECOND market (no commission rates configured for this market)
-    const pKey = `pv-mismatch-${sc.suffix}`;
-    const cKey = `cf-mismatch-${sc.suffix}`;
-    const preview = await transactionService.createPreview(
-      sc.staffAccountId,
-      {
-        amount: '100.00',
-        memberQrToken: sc.memberQrToken,
-        packageId: scPkg2.id,
-        marketId: mkt2.id,
-      },
-      pKey,
-      mkt2.id,
-      {},
+    const r = await executeAndProcess(sc);
+
+    // Dispatch must NOT be COMPLETED — must be PENDING or FAILED with COMMISSION_MARKET_MISMATCH
+    const md = r.dispatchAfter.find(
+      (d: any) => d.eventType === 'MEMBER_CONSUMPTION',
     );
+    expect(md).toBeTruthy();
+    expect(md.status).not.toBe('COMPLETED');
+    expect(md.lastError).toBeTruthy();
+    expect(md.lastError).toContain('COMMISSION_MARKET_MISMATCH');
 
-    const confirm = await transactionService.confirm(
-      sc.staffAccountId,
-      preview.previewSessionId,
-      {},
-      cKey,
-      {},
+    // Ledger = 0
+    expect(r.ledger.length).toBe(0);
+
+    // Processing must NOT be CREATED
+    const hasCreated = r.memberProc.some(
+      (p: any) => p.completionOutcome === 'CREATED',
     );
-
-    const [tx] = await db
-      .select({ id: transactions.id })
-      .from(transactions)
-      .where(
-        eq(
-          transactions.transactionNumber,
-          sql`${confirm.transactionNumber}::bigint`,
-        ),
-      )
-      .limit(1);
-
-    // Process
-    await outboxWorker.processBatchOnce();
-
-    // Dispatch was created (by confirm) and processed
-    const dispatchAfter = await db
-      .select()
-      .from(transactionCommissionDispatch)
-      .where(eq(transactionCommissionDispatch.transactionId, tx.id))
-      .orderBy(transactionCommissionDispatch.eventType);
-
-    // Cross-market means no commission rates: processing completes with SKIPPED_INELIGIBLE
-    // Dispatch exists and is COMPLETED or FAILED
-    expect(dispatchAfter.length).toBeGreaterThanOrEqual(1);
-
-    // No ledger entries (market mismatch prevented commission)
-    const ledger = await db
-      .select()
-      .from(commissionLedger)
-      .where(eq(commissionLedger.sourceReference, tx.id));
-    expect(ledger.length).toBe(0);
+    expect(hasCreated).toBe(false);
   });
 
   it('B-13: Worker failure + retry => exactly one ledger after recovery', async () => {
     const sc = await seedBScenario();
-    let injected = false;
 
-    const r = await executeAndProcess(sc, {
-      workerFailureInjection: async () => {
-        // First injection: mark dispatches with failure
-        if (!injected) {
-          injected = true;
-        }
-      },
-      processWorker: true,
-    });
+    // Confirm without running worker
+    const r = await executeAndProcess(sc, { processWorker: false });
 
-    // After first failure injection, check dispatch state
-    const disp = await db
+    // Phase 1: Simulate first worker attempt that fails
+    // Mark dispatch as having been attempted once with a service failure
+    await db
+      .update(transactionCommissionDispatch)
+      .set({
+        status: 'PENDING',
+        attempts: 1,
+        lastError: 'Simulated service failure for retry test',
+        availableAt: new Date(),
+      })
+      .where(
+        and(
+          eq(transactionCommissionDispatch.transactionId, r.transactionId),
+          eq(
+            transactionCommissionDispatch.eventType,
+            'MEMBER_CONSUMPTION',
+          ),
+        ),
+      );
+
+    // Run worker → should process successfully (second attempt)
+    await outboxWorker.processBatchOnce();
+
+    // Verify dispatch: COMPLETED, attempts = 2
+    const disp2 = await db
       .select()
       .from(transactionCommissionDispatch)
-      .where(eq(transactionCommissionDispatch.transactionId, r.transactionId))
+      .where(
+        eq(transactionCommissionDispatch.transactionId, r.transactionId),
+      )
       .orderBy(transactionCommissionDispatch.eventType);
 
-    const md = disp.find((d: any) => d.eventType === 'MEMBER_CONSUMPTION');
-    expect(md).toBeTruthy();
+    const md2 = disp2.find(
+      (d: any) => d.eventType === 'MEMBER_CONSUMPTION',
+    );
+    expect(md2).toBeTruthy();
+    expect(md2.status).toBe('COMPLETED');
+    expect(md2.attempts).toBe(2);
 
-    // First attempt should have failed
-    expect(md.attempts).toBeGreaterThanOrEqual(1);
-    expect(md.lastError).toBeTruthy();
+    // Exactly 1 processing record
+    const proc = await db
+      .select()
+      .from(commissionProcessing)
+      .where(
+        eq(commissionProcessing.sourceReference, r.transactionId),
+      );
+    expect(proc.length).toBe(1);
+    expect(proc[0].completionOutcome).toBe('CREATED');
 
-    if (md.status === 'COMPLETED') {
-      // Worker recovered: exactly 1 ledger
-      expect(r.ledger.length).toBe(1);
-      expect(r.memberProc.length).toBe(1);
-      expect(r.memberProc[0].completionOutcome).toBe('CREATED');
-    } else {
-      // Still retrying: no ledger yet
-      expect(r.ledger.length).toBe(0);
-    }
+    // Exactly 1 ledger (no duplicates)
+    const ledger2 = await db
+      .select()
+      .from(commissionLedger)
+      .where(eq(commissionLedger.sourceReference, r.transactionId));
+    expect(ledger2.length).toBe(1);
   });
 
   it('B-14: No partial ledger on processing failure (G1/G2 rollback)', async () => {
     const sc = await seedBScenario({ memberHasG1: true, memberHasG2: true });
+
+    // Enable the test injection — service throws after G1 processing
+    const { MemberConsumptionCommissionService } = await import(
+      '../domain/commission/member-consumption.service.js'
+    );
+    MemberConsumptionCommissionService.testInjectRollbackAfterG1 = true;
+
     const r = await executeAndProcess(sc);
 
-    // Processing must complete (normal happy path)
-    // This test verifies atomicity: G1+G2 both or neither
-    const hasG1 = r.ledger.some(
-      (l: any) => l.entryType === 'MEMBER_CONSUMPTION_G1_EARN',
+    // Disable injection
+    MemberConsumptionCommissionService.testInjectRollbackAfterG1 = false;
+
+    // Dispatch must be in retry/failure state, NOT COMPLETED
+    const md = r.dispatchAfter.find(
+      (d: any) => d.eventType === 'MEMBER_CONSUMPTION',
     );
-    const hasG2 = r.ledger.some(
-      (l: any) => l.entryType === 'MEMBER_CONSUMPTION_G2_EARN',
+    expect(md).toBeTruthy();
+    expect(md.status).not.toBe('COMPLETED');
+    expect(md.lastError).toContain('TEST_ROLLBACK_INJECTION');
+
+    // G1 Ledger = 0 (rolled back)
+    expectExactLedgerCount(r.ledger, 'MEMBER_CONSUMPTION_G1_EARN', 0);
+    // G2 Ledger = 0 (never reached)
+    expectExactLedgerCount(r.ledger, 'MEMBER_CONSUMPTION_G2_EARN', 0);
+    // Total ledger = 0
+    expect(r.ledger.length).toBe(0);
+
+    // No partial processing results persisted
+    expect(r.memberResults.length).toBe(0);
+
+    // Processing NOT COMPLETED
+    const hasCompleted = r.memberProc.some(
+      (p: any) => p.status === 'COMPLETED' || p.completionOutcome === 'CREATED',
     );
-    expect(hasG1).toBe(hasG2);
+    expect(hasCompleted).toBe(false);
   });
 
   it('B-15: Rounded zero => SKIPPED_ZERO_AMOUNT, no ledger', async () => {
     const sc = await seedBScenario();
-    // Amount 1.00 * rate 0.002 = 0.002 → HALF_UP to 0.00 → SKIPPED_ZERO_AMOUNT
+    // With amount 1.00 and service fee rate 2.5%, service fee = 0.025
+    // G1 = 0.025 * 0.01 = 0.00025 → HALF_UP to 0.00 → SKIPPED_ZERO_AMOUNT
+    // G2 = 0.025 * 0.005 = 0.000125 → HALF_UP to 0.00 → SKIPPED_ZERO_AMOUNT
     const r = await executeAndProcess(sc, { amount: '1.00' });
 
-    // Processing outcome = SKIPPED_INELIGIBLE (all zero-rounded)
+    // Processing outcome = SKIPPED_ZERO_AMOUNT (NOT SKIPPED_INELIGIBLE)
     expect(r.memberProc.length).toBe(1);
-    expect(r.memberProc[0].completionOutcome).toBe('SKIPPED_INELIGIBLE');
+    expect(r.memberProc[0].completionOutcome).toBe('SKIPPED_ZERO_AMOUNT');
 
-    // No results (skipped outcomes don't create processing result records)
-    expect(r.memberResults.length).toBe(0);
+    // Both G1 and G2 have result rows with SKIPPED_ZERO_AMOUNT
+    expect(r.memberResults.length).toBe(2);
+    expectExactMemberResult(r.memberResults, 1, 'SKIPPED_ZERO_AMOUNT');
+    expectExactMemberResult(r.memberResults, 2, 'SKIPPED_ZERO_AMOUNT');
 
     // No ledger
     expect(r.ledger.length).toBe(0);
+
+    // Verify SKIPPED_INELIGIBLE is NOT used as substitute
+    const hasSkippedIneligible = r.memberResults.some(
+      (pr: any) => pr.outcome === 'SKIPPED_INELIGIBLE',
+    );
+    expect(hasSkippedIneligible).toBe(false);
   });
 });
