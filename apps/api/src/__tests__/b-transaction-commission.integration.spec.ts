@@ -930,7 +930,7 @@ describe('B: Transaction to Commission Integration', () => {
 
     const r = await executeAndProcess(sc, {
       postConfirmMutation: async () => {
-        // Close the existing version before adding a new one
+        // Create a new version with a higher rate (same profile, avoid exclusion by clearing effectiveTo on old)
         await db
           .update(serviceFeeVersions)
           .set({ effectiveTo: new Date() })
@@ -941,19 +941,22 @@ describe('B: Transaction to Commission Integration', () => {
                 await db
                   .select({ id: serviceFeeVersions.id })
                   .from(serviceFeeVersions)
-                  .innerJoin(
-                    serviceFeeProfiles,
+                  .where(
                     eq(
-                      serviceFeeProfiles.id,
                       serviceFeeVersions.serviceFeeProfileId,
+                      (
+                        await db
+                          .select({ id: serviceFeeProfiles.id })
+                          .from(serviceFeeProfiles)
+                          .where(eq(serviceFeeProfiles.code, `P-${sc.suffix}`))
+                          .limit(1)
+                      )[0].id,
                     ),
                   )
-                  .where(eq(serviceFeeProfiles.code, `P-${sc.suffix}`))
                   .limit(1)
               )[0].id,
             ),
           );
-        // Create a new version with a higher rate
         const [nv] = await db
           .insert(serviceFeeVersions)
           .values({
@@ -966,7 +969,6 @@ describe('B: Transaction to Commission Integration', () => {
             )[0].id,
             rate: '10.000000',
             effectiveFrom: new Date(),
-            effectiveTo: new Date('2099-01-01'),
             status: 'ACTIVE',
             marketId: sc.marketId,
           })
@@ -1011,25 +1013,23 @@ describe('B: Transaction to Commission Integration', () => {
       .where(eq(markets.code, mc2))
       .limit(1);
 
-    // Register staff branch with second market so merchant can transact
-    const [gr2] = await db
-      .select({ id: merchantGroups.id })
-      .from(merchantGroups)
+    // Register branch in second market (same merchant group as scenario)
+    const [scBr] = await db
+      .select({ merchantGroupId: merchantBranches.merchantGroupId })
+      .from(merchantBranches)
+      .where(eq(merchantBranches.id, sc.branchId))
       .limit(1);
-    await db
-      .insert(merchantBranches)
-      .values({
-        merchantGroupId: gr2.id,
-        merchantId: 'E-X-' + sc.suffix,
-        marketId: mkt2.id,
-        name: 'BX-' + sc.suffix,
-        status: 'ACTIVE',
-        isPubliclyVisible: true,
-        isOnline: true,
-        isOffline: false,
-        displayOrder: 0,
-      })
-      .onConflictDoNothing();
+    await db.insert(merchantBranches).values({
+      merchantGroupId: scBr.merchantGroupId,
+      merchantId: 'E-X-' + sc.suffix,
+      marketId: mkt2.id,
+      name: 'BX-' + sc.suffix,
+      status: 'ACTIVE',
+      isPubliclyVisible: true,
+      isOnline: true,
+      isOffline: false,
+      displayOrder: 0,
+    });
 
     // Execute the transaction in the SECOND market (cross-market)
     // Create preview/confirm with the cross market
