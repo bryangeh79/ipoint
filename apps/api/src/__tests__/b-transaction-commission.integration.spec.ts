@@ -598,6 +598,23 @@ async function executeAndProcess(
     .where(eq(commissionLedger.sourceReference, tx.id))
     .orderBy(commissionLedger.generation);
 
+  // ── Forensic diagnostics ──
+  const connInfo = await db.execute(
+    sql`SELECT current_database(), current_schema(), current_user`,
+  );
+  const rawProc = await db.execute(sql`
+    SELECT id, source_type, source_reference, pg_typeof(source_reference),
+           canonical_processing_key, status, completion_outcome, created_at
+    FROM commission_processing
+    ORDER BY created_at DESC LIMIT 100
+  `);
+  const rawDispatch = await db.execute(sql`
+    SELECT id, transaction_id, event_type, status, completed_at, last_error, attempts
+    FROM transaction_commission_dispatch
+    WHERE transaction_id = ${tx.id}::uuid
+    ORDER BY event_type
+  `);
+
   return {
     preview,
     confirm,
@@ -609,6 +626,11 @@ async function executeAndProcess(
     memberResults,
     recruitResults,
     ledger,
+    forensics: {
+      connInfo: connInfo.rows,
+      rawProc: rawProc.rows,
+      rawDispatch: rawDispatch.rows,
+    },
   };
 }
 

@@ -391,30 +391,6 @@ export class MerchantRecruitmentCommissionService {
       };
     }
 
-    // Step 2: Fall back to MERCHANT-level attribution
-    const merchantRows = await db
-      .select({
-        recruiterMemberId: merchantAttributions.recruiterMemberId,
-        attributionType: merchantAttributions.attributedEntityType,
-      })
-      .from(merchantAttributions)
-      .where(
-        and(
-          eq(merchantAttributions.merchantAccountId, merchantAccountId),
-          eq(merchantAttributions.attributedEntityType, 'MERCHANT'),
-          eq(merchantAttributions.attributionScope, 'PERMANENT'),
-          sql`${merchantAttributions.effectiveUntil} IS NULL`,
-        ),
-      )
-      .limit(1);
-
-    if (merchantRows.length > 0) {
-      return {
-        recruiterMemberId: merchantRows[0]!.recruiterMemberId,
-        attributionType: 'MERCHANT',
-      };
-    }
-
     return null;
   }
 
