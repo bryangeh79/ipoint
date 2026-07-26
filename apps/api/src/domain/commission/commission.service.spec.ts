@@ -1,5 +1,5 @@
-/**
- * Commission Domain — Comprehensive Unit Tests
+﻿/**
+ * Commission Domain â€” Comprehensive Unit Tests
  *
  * Covers CommissionQueryService, AdjustmentService, RateManagementService,
  * and CommissionSecurityService.
@@ -83,7 +83,7 @@ function createChain() {
       if (this._transactionFn) {
         return this._transactionFn(cb);
       }
-      return cb(createTxProxy());
+      return (cb as any)(createTxProxy());
     }),
 
     setResult(r: unknown) {
@@ -580,13 +580,15 @@ describe('CommissionAdjustmentService', () => {
   /* ---------------------------------------------------------------- */
 
   describe('approve', () => {
-    it('transitions PENDING_CHECKER → APPROVED', async () => {
+    it('transitions PENDING_CHECKER â†’ APPROVED', async () => {
       chain.setSequence([
         // Select for status check
         [makeAdjustmentRow()],
       ]);
-      chain.setTransactionFn(async (cb) =>
-        cb(txWithResult([makeAdjustmentRow()])),
+      chain.setTransactionFn(async (cb: unknown) =>
+        (cb as (tx: unknown) => Promise<unknown>)(
+          txWithResult([makeAdjustmentRow()]),
+        ),
       );
 
       const r = await svc().approveAdjustment(ADMIN_2, 'adj-1');
@@ -610,7 +612,7 @@ describe('CommissionAdjustmentService', () => {
           }
           return this;
         });
-        return cb(tx);
+        return (cb as any)(tx);
       });
 
       await svc().approveAdjustment(ADMIN_2, 'adj-1');
@@ -633,7 +635,7 @@ describe('CommissionAdjustmentService', () => {
           }
           return this;
         });
-        return cb(tx);
+        return (cb as any)(tx);
       });
 
       await svc().approveAdjustment(ADMIN_2, 'adj-1');
@@ -657,7 +659,7 @@ describe('CommissionAdjustmentService', () => {
           }
           return this;
         });
-        return cb(tx);
+        return (cb as any)(tx);
       });
 
       await svc().approveAdjustment(ADMIN_2, 'adj-1');
@@ -715,7 +717,7 @@ describe('CommissionAdjustmentService', () => {
           }
           return this;
         });
-        return cb(tx);
+        return (cb as any)(tx);
       });
 
       await svc().approveAdjustment(ADMIN_2, 'adj-1');
@@ -738,7 +740,7 @@ describe('CommissionAdjustmentService', () => {
           }
           return this;
         });
-        return cb(tx);
+        return (cb as any)(tx);
       });
 
       await svc().approveAdjustment(ADMIN_2, 'adj-1');
@@ -751,10 +753,12 @@ describe('CommissionAdjustmentService', () => {
   /* ---------------------------------------------------------------- */
 
   describe('reject', () => {
-    it('transitions PENDING_CHECKER → REJECTED', async () => {
+    it('transitions PENDING_CHECKER â†’ REJECTED', async () => {
       chain.setSequence([[makeAdjustmentRow()]]);
-      chain.setTransactionFn(async (cb) =>
-        cb(txWithResult([makeAdjustmentRow()])),
+      chain.setTransactionFn(async (cb: unknown) =>
+        (cb as (tx: unknown) => Promise<unknown>)(
+          txWithResult([makeAdjustmentRow()]),
+        ),
       );
 
       const r = await svc().rejectAdjustment(ADMIN_2, 'adj-1');
@@ -782,7 +786,7 @@ describe('CommissionAdjustmentService', () => {
           }
           return this;
         });
-        return cb(tx);
+        return (cb as any)(tx);
       });
 
       await svc().rejectAdjustment(ADMIN_2, 'adj-1');
@@ -807,7 +811,7 @@ describe('CommissionAdjustmentService', () => {
           }
           return this;
         });
-        return cb(tx);
+        return (cb as any)(tx);
       });
 
       await svc().rejectAdjustment(ADMIN_2, 'adj-1');
@@ -842,8 +846,10 @@ describe('CommissionAdjustmentService', () => {
       chain.setSequence([[makeAdjustmentRow()]]);
 
       // First call succeeds
-      chain.setTransactionFn(async (cb) =>
-        cb(txWithResult([makeAdjustmentRow()])),
+      chain.setTransactionFn(async (cb: unknown) =>
+        (cb as (tx: unknown) => Promise<unknown>)(
+          txWithResult([makeAdjustmentRow()]),
+        ),
       );
 
       const r1 = await svc().approveAdjustment(ADMIN_2, 'adj-1');
@@ -862,8 +868,10 @@ describe('CommissionAdjustmentService', () => {
 
     it('no partial state on concurrent access', async () => {
       chain.setSequence([[makeAdjustmentRow()]]);
-      chain.setTransactionFn(async (cb) =>
-        cb(txWithResult([makeAdjustmentRow()])),
+      chain.setTransactionFn(async (cb: unknown) =>
+        (cb as (tx: unknown) => Promise<unknown>)(
+          txWithResult([makeAdjustmentRow()]),
+        ),
       );
 
       const r = await svc().approveAdjustment(ADMIN_2, 'adj-1');
