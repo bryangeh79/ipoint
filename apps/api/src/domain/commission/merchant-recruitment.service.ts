@@ -330,6 +330,7 @@ export class MerchantRecruitmentCommissionService {
         .update(commissionProcessing)
         .set({
           status: 'COMPLETED',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           completionOutcome: completionOutcome as any,
           completedAt: now,
         })
@@ -353,6 +354,7 @@ export class MerchantRecruitmentCommissionService {
           ? 'SKIPPED_ZERO_AMOUNT'
           : generations.some((g) => g.outcome === 'SKIPPED_NO_BENEFICIARY')
             ? 'SKIPPED_NO_BENEFICIARY'
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             : 'SKIPPED_INELIGIBLE') as any,
       generations,
     };
@@ -620,7 +622,6 @@ export class MerchantRecruitmentCommissionService {
           )::TEXT AS posted
       `,
     );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const execResult = calcResult as any;
     const calcRow = Array.isArray(execResult)

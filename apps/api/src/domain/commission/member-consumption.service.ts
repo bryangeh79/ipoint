@@ -378,6 +378,9 @@ export class MemberConsumptionCommissionService {
         .update(commissionProcessing)
         .set({
           status: 'COMPLETED',
+          // Drizzle type inference limitation: schema check constraint allows
+          // SKIPPED_NO_BENEFICIARY and SKIPPED_ZERO_AMOUNT but TS type doesn't reflect it
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           completionOutcome: completionOutcome as any,
           completedAt: now,
         })
@@ -397,6 +400,7 @@ export class MemberConsumptionCommissionService {
           ? 'SKIPPED_ZERO_AMOUNT'
           : generations.some((g) => g.outcome === 'SKIPPED_NO_BENEFICIARY')
             ? 'SKIPPED_NO_BENEFICIARY'
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             : 'SKIPPED_INELIGIBLE') as any,
       generations,
     };
@@ -524,7 +528,7 @@ export class MemberConsumptionCommissionService {
     // Check: rate version must exist
     // ---------------------------------------------------------------
     if (!rateVersion) {
-      const reason = `No rate version found for MEMBER_CONSUMPTION generation ${generation} in market ${market} at ${effectiveTime}.`;
+      const reason = `No rate version found for MEMBER_CONSUMPTION generation ${generation} in market ${market} at ${effectiveTime.toISOString()}.`;
       await tx.insert(commissionProcessingResults).values({
         id: randomUUID(),
         processingId,
@@ -563,7 +567,7 @@ export class MemberConsumptionCommissionService {
     );
 
     if (!referrerActive) {
-      const reason = `Beneficiary was not ACTIVE at source event time (${effectiveTime}).`;
+      const reason = `Beneficiary was not ACTIVE at source event time (${effectiveTime.toISOString()}).`;
       await tx.insert(commissionProcessingResults).values({
         id: randomUUID(),
         processingId,
