@@ -808,8 +808,12 @@ describe('B: Transaction to Commission Integration', () => {
     expect(r.memberResults.length).toBe(2);
     expectExactMemberResult(r.memberResults, 1, 'SKIPPED_INELIGIBLE');
     expectExactMemberResult(r.memberResults, 2, 'CREATED');
-    expect(r.memberResults.find((pr: any) => pr.generation === 1)!.beneficiaryId).toBe(sc.g1MemberId);
-    expect(r.memberResults.find((pr: any) => pr.generation === 2)!.beneficiaryId).toBe(sc.g2MemberId);
+    expect(
+      r.memberResults.find((pr: any) => pr.generation === 1)!.beneficiaryId,
+    ).toBe(sc.g1MemberId);
+    expect(
+      r.memberResults.find((pr: any) => pr.generation === 2)!.beneficiaryId,
+    ).toBe(sc.g2MemberId);
 
     // Ledger: only G2 (G1 = 0)
     expectExactLedgerCount(r.ledger, 'MEMBER_CONSUMPTION_G1_EARN', 0);
@@ -834,8 +838,12 @@ describe('B: Transaction to Commission Integration', () => {
     expect(r.memberResults.length).toBe(2);
     expectExactMemberResult(r.memberResults, 1, 'CREATED');
     expectExactMemberResult(r.memberResults, 2, 'SKIPPED_INELIGIBLE');
-    expect(r.memberResults.find((pr: any) => pr.generation === 1)!.beneficiaryId).toBe(sc.g1MemberId);
-    expect(r.memberResults.find((pr: any) => pr.generation === 2)!.beneficiaryId).toBe(sc.g2MemberId);
+    expect(
+      r.memberResults.find((pr: any) => pr.generation === 1)!.beneficiaryId,
+    ).toBe(sc.g1MemberId);
+    expect(
+      r.memberResults.find((pr: any) => pr.generation === 2)!.beneficiaryId,
+    ).toBe(sc.g2MemberId);
 
     // Ledger: only G1 (G2 = 0)
     expectExactLedgerCount(r.ledger, 'MEMBER_CONSUMPTION_G1_EARN', 1);
@@ -861,8 +869,16 @@ describe('B: Transaction to Commission Integration', () => {
 
     // Result rows: 2 skipped with SKIPPED_NO_BENEFICIARY (G1 + G2)
     expect(r.memberResults.length).toBe(2);
-    const g1Res = expectExactMemberResult(r.memberResults, 1, 'SKIPPED_NO_BENEFICIARY');
-    const g2Res = expectExactMemberResult(r.memberResults, 2, 'SKIPPED_NO_BENEFICIARY');
+    const g1Res = expectExactMemberResult(
+      r.memberResults,
+      1,
+      'SKIPPED_NO_BENEFICIARY',
+    );
+    const g2Res = expectExactMemberResult(
+      r.memberResults,
+      2,
+      'SKIPPED_NO_BENEFICIARY',
+    );
     expect(g1Res.beneficiaryId).toBeNull();
     expect(g2Res.beneficiaryId).toBeNull();
 
@@ -1062,10 +1078,7 @@ describe('B: Transaction to Commission Integration', () => {
       .where(
         and(
           eq(transactionCommissionDispatch.transactionId, r.transactionId),
-          eq(
-            transactionCommissionDispatch.eventType,
-            'MEMBER_CONSUMPTION',
-          ),
+          eq(transactionCommissionDispatch.eventType, 'MEMBER_CONSUMPTION'),
         ),
       );
 
@@ -1076,14 +1089,10 @@ describe('B: Transaction to Commission Integration', () => {
     const disp2 = await db
       .select()
       .from(transactionCommissionDispatch)
-      .where(
-        eq(transactionCommissionDispatch.transactionId, r.transactionId),
-      )
+      .where(eq(transactionCommissionDispatch.transactionId, r.transactionId))
       .orderBy(transactionCommissionDispatch.eventType);
 
-    const md2 = disp2.find(
-      (d: any) => d.eventType === 'MEMBER_CONSUMPTION',
-    );
+    const md2 = disp2.find((d: any) => d.eventType === 'MEMBER_CONSUMPTION');
     expect(md2).toBeTruthy();
     expect(md2.status).toBe('COMPLETED');
     expect(md2.attempts).toBe(2);
@@ -1113,9 +1122,8 @@ describe('B: Transaction to Commission Integration', () => {
     const sc = await seedBScenario({ memberHasG1: true, memberHasG2: true });
 
     // Enable the test injection — service throws after G1 processing
-    const { MemberConsumptionCommissionService } = await import(
-      '../domain/commission/member-consumption.service.js'
-    );
+    const { MemberConsumptionCommissionService } =
+      await import('../domain/commission/member-consumption.service.js');
     MemberConsumptionCommissionService.testInjectRollbackAfterG1 = true;
 
     const r = await executeAndProcess(sc);
