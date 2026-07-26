@@ -797,9 +797,9 @@ export class MemberConsumptionCommissionService {
         and(
           eq(agentActivations.memberId, memberId),
           eq(agentActivations.status, 'ACTIVE'),
-          lte(agentActivations.activatedAt, effectiveTime),
+          sql`${agentActivations.activatedAt} <= ${effectiveTime}`,
           sql`(${agentActivations.revokedAt} IS NULL
-            OR ${gt(agentActivations.revokedAt, effectiveTime)})`,
+            OR ${agentActivations.revokedAt} > ${effectiveTime})`,
         ),
       )
       .limit(1);
@@ -832,8 +832,8 @@ export class MemberConsumptionCommissionService {
         and(
           eq(agentActivations.memberId, memberId),
           eq(agentActivations.status, 'ACTIVE'),
-          lte(agentActivations.activatedAt, effectiveTime),
-          sql`(${agentActivations.revokedAt} IS NULL OR ${gt(agentActivations.revokedAt, effectiveTime)})`,
+          sql`${agentActivations.activatedAt} <= ${effectiveTime}`,
+          sql`(${agentActivations.revokedAt} IS NULL OR ${agentActivations.revokedAt} > ${effectiveTime})`,
         ),
       )
       .orderBy(agentActivations.activatedAt)
