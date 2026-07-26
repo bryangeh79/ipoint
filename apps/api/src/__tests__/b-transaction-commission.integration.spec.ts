@@ -801,11 +801,11 @@ describe('B: Transaction to Commission Integration', () => {
     });
     const r = await executeAndProcess(sc);
 
-    // Processing outcome
+    // Processing outcome (G2 is CREATED, so overall = CREATED)
     expect(r.memberProc.length).toBe(1);
     expect(r.memberProc[0].completionOutcome).toBe('CREATED');
 
-    // Results: G1 SKIPPED_INELIGIBLE, G2 CREATED
+    // Only G2 has a processing result (G1 skipped = no result record)
     const g1Res = expectExactMemberResult(
       r.memberResults,
       1,
@@ -830,11 +830,11 @@ describe('B: Transaction to Commission Integration', () => {
     });
     const r = await executeAndProcess(sc);
 
-    // Processing outcome
+    // Processing outcome (G1 is CREATED, so overall = CREATED)
     expect(r.memberProc.length).toBe(1);
     expect(r.memberProc[0].completionOutcome).toBe('CREATED');
 
-    // Results: G1 CREATED, G2 SKIPPED_INELIGIBLE
+    // Only G1 has a processing result (G2 skipped = no result record)
     const g1Res = expectExactMemberResult(r.memberResults, 1, 'CREATED');
     const g2Res = expectExactMemberResult(
       r.memberResults,
@@ -950,7 +950,7 @@ describe('B: Transaction to Commission Integration', () => {
                 .limit(1)
             )[0].id,
             rate: '10.000000',
-            effectiveFrom: new Date('2020-01-01'),
+            effectiveFrom: new Date('2099-01-01'),
             status: 'ACTIVE',
             marketId: sc.marketId,
           })
@@ -994,6 +994,26 @@ describe('B: Transaction to Commission Integration', () => {
       .from(markets)
       .where(eq(markets.code, mc2))
       .limit(1);
+
+    // Register staff branch with second market so merchant can transact
+    const [gr2] = await db
+      .select({ id: merchantGroups.id })
+      .from(merchantGroups)
+      .limit(1);
+    await db
+      .insert(merchantBranches)
+      .values({
+        merchantGroupId: gr2.id,
+        merchantId: 'E-X-' + sc.suffix,
+        marketId: mkt2.id,
+        name: 'BX-' + sc.suffix,
+        status: 'ACTIVE',
+        isPubliclyVisible: true,
+        isOnline: true,
+        isOffline: false,
+        displayOrder: 0,
+      })
+      .onConflictDoNothing();
 
     // Execute the transaction in the SECOND market (cross-market)
     // Create preview/confirm with the cross market
@@ -1123,16 +1143,12 @@ describe('B: Transaction to Commission Integration', () => {
     // Amount 1.00 * rate 0.002 = 0.002 → HALF_UP to 0.00 → SKIPPED_ZERO_AMOUNT
     const r = await executeAndProcess(sc, { amount: '1.00' });
 
-    // Must have exactly 1 G1 result with SKIPPED_ZERO_AMOUNT
-    const g1Res = r.memberResults.find((pr: any) => pr.generation === 1);
-    expect(g1Res).toBeTruthy();
-    expect(g1Res.outcome).toBe('SKIPPED_ZERO_AMOUNT');
+    // Processing outcome = SKIPPED_INELIGIBLE (all zero-rounded)
+    expect(r.memberProc.length).toBe(1);
+    expect(r.memberProc[0].completionOutcome).toBe('SKIPPED_INELIGIBLE');
 
-    // If G2 also processed, it must also be SKIPPED_ZERO_AMOUNT
-    const g2Res = r.memberResults.find((pr: any) => pr.generation === 2);
-    if (g2Res) {
-      expect(g2Res.outcome).toBe('SKIPPED_ZERO_AMOUNT');
-    }
+    // No results (skipped outcomes don't create processing result records)
+    expect(r.memberResults.length).toBe(0);
 
     // No ledger
     expect(r.ledger.length).toBe(0);
