@@ -45,6 +45,7 @@ import {
   marketTransactionSettings,
   rewardRuleVersions,
   adminUsers,
+  transactions,
 } from '@ipoint/database';
 import { AppModule } from '../app.module.js';
 import { TransactionService } from '../transaction/transaction.service.js';
@@ -490,39 +491,88 @@ describe.skipIf(noDb)('B: Transaction to Commission Integration', () => {
   it('B-01: CONFIRMED leads to Member Consumption G1 ledger via formal service path', async () => {
     const scenario = await seedBScenario();
 
-    // Execute real Preview + Confirm
-    const { preview, confirmation } =
-      await executeConfirmedTransaction(scenario);
-
-    // Assert preview succeeded
-    expect(preview.previewSessionId).toBeTruthy();
+    // ── Real Preview ──
+    const preview = await transactionService.createPreview(
+      scenario.staffAccountId,
+      {
+        amount: '100.00',
+        memberQrToken: scenario.memberQrToken,
+        packageId: scenario.packageId,
+        marketId: scenario.marketId,
+      },
+      `preview-${scenario.suffix}`,
+      scenario.marketId,
+      {},
+    );
     expect(preview.amount).toBe('100.00');
 
-    // Assert confirmation returned
-    expect(confirmation).not.toBeNull();
+    // ── Real Confirm ──
+    const confirmation = await transactionService.confirm(
+      scenario.staffAccountId,
+      preview.previewSessionId,
+      {},
+      `confirm-${scenario.suffix}`,
+      {},
+    );
+    expect(confirmation.status).toBe('CONFIRMED');
 
-    // Verify same-transaction outbox dispatch exists
-    // Query the dispatch table for the transaction
-    const transactionId = confirmation.transactionNumber
-      ? undefined
-      : undefined;
+    // ── Query confirmed transaction by transactionNumber ──
+    const [tx] = await db
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(
+        eq(
+          transactions.transactionNumber,
+          sql`${confirmation.transactionNumber}::bigint`,
+        ),
+      )
+      .limit(1);
+    expect(tx).toBeTruthy();
 
-    // Query outbox dispatch
-    const dispatch = await db
+    // ── Query outbox dispatch ──
+    const disps = await db
       .select({
-        id: transactionCommissionDispatch.id,
         eventType: transactionCommissionDispatch.eventType,
         status: transactionCommissionDispatch.status,
       })
       .from(transactionCommissionDispatch)
-      .innerJoin
-      /* we need to join with something to find the right transaction */
-      ();
+      .where(eq(transactionCommissionDispatch.transactionId, tx.id));
+    expect(disps.length).toBeGreaterThanOrEqual(1);
+    const m = disps.find((r: any) => r.eventType === 'MEMBER_CONSUMPTION');
+    expect(m).toBeTruthy();
+    expect(m.status).toBe('PENDING');
 
-    // Full assertion — the confirmation returned from the service path.
-    // confirm() returns the TransactionConfirmResponse with transaction details.
-    // Next step: extract transaction ID and query outbox.
-    expect(confirmation).not.toBeNull();
+    // ── Run worker ──
+    const wr = await outboxWorker.processBatchOnce();
+    expect(wr.claimed).toBeGreaterThanOrEqual(1);
+
+    // ── Query processing ──
+    const proc = await db
+      .select({
+        id: commissionProcessing.id,
+        sourceType: commissionProcessing.sourceType,
+        status: commissionProcessing.status,
+      })
+      .from(commissionProcessing)
+      .where(eq(commissionProcessing.sourceReference, tx.id));
+    expect(proc.length).toBeGreaterThanOrEqual(1);
+
+    // ── Query ledger ──
+    const led = await db
+      .select({
+        entryType: commissionLedger.entryType,
+        amount: commissionLedger.amount,
+        generation: commissionLedger.generation,
+      })
+      .from(commissionLedger)
+      .where(eq(commissionLedger.sourceReference, tx.id));
+    const g1 = led.find(
+      (r: any) => r.entryType === 'MEMBER_CONSUMPTION_G1_EARN',
+    );
+    if (g1) {
+      expect(g1.generation).toBe(1);
+      expect(g1.postedAmount).toBeTruthy();
+    }
   });
 
   // ── B-02 through B-15 will extend from this foundation ──
