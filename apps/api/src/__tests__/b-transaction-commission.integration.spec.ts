@@ -1158,10 +1158,17 @@ describe('B: Transaction to Commission Integration', () => {
 
   it('B-15: Rounded zero => SKIPPED_ZERO_AMOUNT, no ledger', async () => {
     const sc = await seedBScenario();
-    // With amount 0.10 and service fee rate 2.5%, service fee ≈ 0.0025
-    // G1 = 0.0025 × 0.01 = 0.000025 → HALF_UP to 0.00 → SKIPPED_ZERO_AMOUNT
-    // G2 = 0.0025 × 0.005 = 0.0000125 → HALF_UP to 0.00 → SKIPPED_ZERO_AMOUNT
-    const r = await executeAndProcess(sc, { amount: '0.10' });
+    // Lower the minimum transaction amount to allow micro-transactions for zero-rounding
+    await db
+      .update(marketTransactionSettings)
+      .set({ minimumTransactionAmount: '0.01' })
+      .where(
+        eq(marketTransactionSettings.marketId, sc.marketId),
+      );
+    // With amount 0.01 and service fee rate 2.5%, service fee ≈ 0.00025
+    // G1 = 0.00025 × 0.01 = 0.0000025 → HALF_UP to 0.00 → SKIPPED_ZERO_AMOUNT
+    // G2 = 0.00025 × 0.005 = 0.00000125 → HALF_UP to 0.00 → SKIPPED_ZERO_AMOUNT
+    const r = await executeAndProcess(sc, { amount: '0.01' });
 
     // Processing outcome = SKIPPED_ZERO_AMOUNT (NOT SKIPPED_INELIGIBLE)
     expect(r.memberProc.length).toBe(1);
