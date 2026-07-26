@@ -562,7 +562,7 @@ async function executeAndProcess(
     (p: any) => p.sourceType === 'MEMBER_CONSUMPTION',
   );
   const recruitProc = allProc.filter(
-    (p: any) => p.sourceType === 'MERCHANT_RECRUITMENT',
+    (p: any) => p.sourceType === 'MERCHANT_TRANSACTION',
   );
 
   const mProcIds = memberProc.map((p: any) => p.id);
@@ -640,6 +640,16 @@ describe('B: Transaction to Commission Integration', () => {
   it('B-01: CONFIRMED leads to Member Consumption G1 ledger', async () => {
     const sc = await seedBScenario();
     const r = await executeAndProcess(sc);
+
+    console.error('B01_FORENSICS', JSON.stringify({
+      transactionId: r.transactionId,
+      workerResult: r.workerResult,
+      dispatchAfter: r.dispatchAfter,
+      memberProc: r.memberProc,
+      memberResults: r.memberResults,
+      ledger: r.ledger,
+      forensics: r.forensics,
+    }, null, 2));
 
     const md = r.dispatchAfter.find(
       (d: any) => d.eventType === 'MEMBER_CONSUMPTION',
