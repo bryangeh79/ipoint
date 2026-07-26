@@ -121,7 +121,8 @@ async function seedBScenario(overrides?: {
   recruiterActive?: boolean;
 }): Promise<BScenario> {
   const suffix = uid();
-  const marketCode = suffix.substring(0, 2).toUpperCase();
+  const marketCode = suffix.substring(0, 6).toUpperCase();
+  const rateMarket = suffix.substring(0, 2).toUpperCase();
 
   // ── 1. Market ──
   const [mkt] = await db
@@ -358,7 +359,7 @@ async function seedBScenario(overrides?: {
       .values({
         referrerId: referrer.id,
         refereeId: member.id,
-        market: marketCode,
+        market: rateMarket,
         level: 1,
         status: 'ACTIVE',
         referralCode: `LINK-${suffix}`,
@@ -372,7 +373,7 @@ async function seedBScenario(overrides?: {
       .values({
         memberId: referrer.id,
         status: agentStatus,
-        market: marketCode,
+        market: rateMarket,
         activatedAt: new Date(),
       })
       .onConflictDoNothing();
@@ -402,7 +403,7 @@ async function seedBScenario(overrides?: {
       {
         commissionType: 'MEMBER_CONSUMPTION',
         generation: 1,
-        market: marketCode,
+        market: rateMarket,
         rateValue: '0.002',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
@@ -412,7 +413,7 @@ async function seedBScenario(overrides?: {
       {
         commissionType: 'MEMBER_CONSUMPTION',
         generation: 2,
-        market: marketCode,
+        market: rateMarket,
         rateValue: '0.001',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
@@ -422,7 +423,7 @@ async function seedBScenario(overrides?: {
       {
         commissionType: 'MERCHANT_RECRUITMENT',
         generation: 0,
-        market: marketCode,
+        market: rateMarket,
         rateValue: '0.001',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
