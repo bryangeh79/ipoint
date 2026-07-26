@@ -313,9 +313,18 @@ export class MerchantRecruitmentCommissionService {
       });
       generations.push(generationResult);
 
-      // 6c. Determine overall outcome
-      const hasCreated = generations.some((g) => g.outcome === 'CREATED');
-      const completionOutcome = hasCreated ? 'CREATED' : 'SKIPPED_INELIGIBLE';
+      // 6c. Determine overall outcome with accurate aggregation
+      const outcomes = generations.map((g) => g.outcome);
+      let completionOutcome: 'CREATED' | 'SKIPPED_INELIGIBLE' | 'SKIPPED_NO_BENEFICIARY' | 'SKIPPED_ZERO_AMOUNT';
+      if (outcomes.includes('CREATED')) {
+        completionOutcome = 'CREATED';
+      } else if (outcomes.every((o) => o === 'SKIPPED_ZERO_AMOUNT')) {
+        completionOutcome = 'SKIPPED_ZERO_AMOUNT';
+      } else if (outcomes.some((o) => o === 'SKIPPED_NO_BENEFICIARY')) {
+        completionOutcome = 'SKIPPED_NO_BENEFICIARY';
+      } else {
+        completionOutcome = 'SKIPPED_INELIGIBLE';
+      }
 
       await tx
         .update(commissionProcessing)
@@ -338,7 +347,13 @@ export class MerchantRecruitmentCommissionService {
       confirmedAt: effectiveTimeIso,
       recognizedServiceFee,
       processingId,
-      completionOutcome: hasCreated ? 'CREATED' : 'SKIPPED_INELIGIBLE',
+      completionOutcome: hasCreated
+        ? 'CREATED'
+        : generations.every((g) => g.outcome === 'SKIPPED_ZERO_AMOUNT')
+          ? 'SKIPPED_ZERO_AMOUNT'
+          : generations.some((g) => g.outcome === 'SKIPPED_NO_BENEFICIARY')
+            ? 'SKIPPED_NO_BENEFICIARY'
+            : 'SKIPPED_INELIGIBLE',
       generations,
     };
   }
@@ -469,6 +484,23 @@ export class MerchantRecruitmentCommissionService {
           ? `No merchant attribution found for merchant account ${merchantAccountId}.`
           : `No recruiter found via ${attributionType} attribution for merchant account ${merchantAccountId}, branch ${merchantBranchId}.`;
 
+      await tx.insert(commissionProcessingResults).values({
+        id: randomUUID(),
+        processingId,
+        beneficiaryId: null,
+        generation,
+        entryType: null,
+        unroundedAmount: null,
+        postedAmount: null,
+        residualAmount: null,
+        roundingMode: ROUNDING_MODE,
+        calculationScale: CALCULATION_SCALE,
+        postingScale: POSTING_SCALE,
+        outcome: 'SKIPPED_NO_BENEFICIARY',
+        reason,
+        createdAt: now,
+      });
+
       return {
         generation,
         beneficiaryId: null,
@@ -485,6 +517,23 @@ export class MerchantRecruitmentCommissionService {
     // Check: rate version must exist
     // ---------------------------------------------------------------
     if (!rateVersion) {
+      const reason = `No rate version found for MERCHANT_RECRUITMENT generation ${generation} in market ${market} at ${effectiveTime}.`;
+      await tx.insert(commissionProcessingResults).values({
+        id: randomUUID(),
+        processingId,
+        beneficiaryId,
+        generation,
+        entryType: null,
+        unroundedAmount: null,
+        postedAmount: null,
+        residualAmount: null,
+        roundingMode: ROUNDING_MODE,
+        calculationScale: CALCULATION_SCALE,
+        postingScale: POSTING_SCALE,
+        outcome: 'SKIPPED_INELIGIBLE',
+        reason,
+        createdAt: now,
+      });
       return {
         generation,
         beneficiaryId,
@@ -493,7 +542,7 @@ export class MerchantRecruitmentCommissionService {
         entryType: null,
         outcome: 'SKIPPED_INELIGIBLE',
         ledgerEntryId: null,
-        reason: `No rate version found for MERCHANT_RECRUITMENT generation ${generation} in market ${market} at ${effectiveTime}.`,
+        reason,
       };
     }
 
@@ -515,6 +564,28 @@ export class MerchantRecruitmentCommissionService {
     );
 
     if (!recruiterActive) {
+      const reason =
+        `Merchant recruiter was not ACTIVE at source event time (${effectiveTime}). ` +
+        `Attribution type: ${attributionType ?? 'none'}. ` +
+        `No parent fallback applied per D-19 frozen.`;
+
+      await tx.insert(commissionProcessingResults).values({
+        id: randomUUID(),
+        processingId,
+        beneficiaryId,
+        generation,
+        entryType: null,
+        unroundedAmount: null,
+        postedAmount: null,
+        residualAmount: null,
+        roundingMode: ROUNDING_MODE,
+        calculationScale: CALCULATION_SCALE,
+        postingScale: POSTING_SCALE,
+        outcome: 'SKIPPED_INELIGIBLE',
+        reason,
+        createdAt: now,
+      });
+
       // D-19 frozen: No fallback to parent recruiter if branch
       // recruiter is inactive — independent branch attribution.
       return {
@@ -525,10 +596,7 @@ export class MerchantRecruitmentCommissionService {
         entryType: null,
         outcome: 'SKIPPED_INELIGIBLE',
         ledgerEntryId: null,
-        reason:
-          `Merchant recruiter was not ACTIVE at source event time (${effectiveTime}). ` +
-          `Attribution type: ${attributionType ?? 'none'}. ` +
-          `No parent fallback applied per D-19 frozen.`,
+        reason,
       };
     }
 
@@ -572,6 +640,23 @@ export class MerchantRecruitmentCommissionService {
     // ---------------------------------------------------------------
     const zeroThreshold = Math.pow(10, -POSTING_SCALE);
     if (Math.abs(parseFloat(postedVal)) < zeroThreshold) {
+      const reason = `Commission ${postedVal} rounded to zero at posting scale (${POSTING_SCALE}dp).`;
+      await tx.insert(commissionProcessingResults).values({
+        id: randomUUID(),
+        processingId,
+        beneficiaryId,
+        generation,
+        entryType: null,
+        unroundedAmount: unroundedVal,
+        postedAmount: postedVal,
+        residualAmount: residualVal,
+        roundingMode: ROUNDING_MODE,
+        calculationScale: CALCULATION_SCALE,
+        postingScale: POSTING_SCALE,
+        outcome: 'SKIPPED_ZERO_AMOUNT',
+        reason,
+        createdAt: now,
+      });
       return {
         generation,
         beneficiaryId,
@@ -580,7 +665,7 @@ export class MerchantRecruitmentCommissionService {
         entryType: null,
         outcome: 'SKIPPED_ZERO_AMOUNT',
         ledgerEntryId: null,
-        reason: `Commission ${postedVal} rounded to zero at posting scale (${POSTING_SCALE}dp).`,
+        reason,
       };
     }
 

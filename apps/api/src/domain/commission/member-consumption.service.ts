@@ -111,6 +111,9 @@ export interface MemberConsumptionCommissionResult {
 
 @Injectable()
 export class MemberConsumptionCommissionService {
+  /** Test-only injection: throw after G1 processing to verify transaction rollback (B-14). */
+  static testInjectRollbackAfterG1 = false;
+
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {}
@@ -214,6 +217,37 @@ export class MemberConsumptionCommissionService {
     }
 
     // ---------------------------------------------------------------
+    // 4a. Market mismatch detection: verify referrers are activated
+    //     in the same market as the transaction
+    // ---------------------------------------------------------------
+    if (g1BeneficiaryId) {
+      const g1MarketOk = await this.isReferrerActiveInMarket(
+        db,
+        g1BeneficiaryId,
+        marketCode,
+        effectiveTime,
+      );
+      if (!g1MarketOk) {
+        throw new Error(
+          `COMMISSION_MARKET_MISMATCH: G1 referrer ${g1BeneficiaryId} is not activated in market ${marketCode}.`,
+        );
+      }
+    }
+    if (g2BeneficiaryId) {
+      const g2MarketOk = await this.isReferrerActiveInMarket(
+        db,
+        g2BeneficiaryId,
+        marketCode,
+        effectiveTime,
+      );
+      if (!g2MarketOk) {
+        throw new Error(
+          `COMMISSION_MARKET_MISMATCH: G2 referrer ${g2BeneficiaryId} is not activated in market ${marketCode}.`,
+        );
+      }
+    }
+
+    // ---------------------------------------------------------------
     // 5. Build canonical processing key and check idempotency
     // ---------------------------------------------------------------
     const canonicalProcessingKey = `${marketCode}:${sourceType}:${sourceReference}`;
@@ -300,6 +334,13 @@ export class MemberConsumptionCommissionService {
       });
       generations.push(g1Result);
 
+      // Test injection: rollback after G1 (B-14)
+      if (MemberConsumptionCommissionService.testInjectRollbackAfterG1) {
+        throw new Error(
+          'TEST_ROLLBACK_INJECTION: Simulated failure after G1 processing to verify transaction rollback.',
+        );
+      }
+
       // 7c. Process G2
       const g2Result = await this.processGeneration(tx, {
         generation: 2,
@@ -319,9 +360,19 @@ export class MemberConsumptionCommissionService {
       });
       generations.push(g2Result);
 
-      // 7d. Determine overall outcome
-      const hasCreated = generations.some((g) => g.outcome === 'CREATED');
-      const completionOutcome = hasCreated ? 'CREATED' : 'SKIPPED_INELIGIBLE';
+      // 7d. Determine overall outcome with accurate aggregation
+      // Priority: CREATED > SKIPPED_ZERO_AMOUNT > SKIPPED_NO_BENEFICIARY > SKIPPED_INELIGIBLE
+      const outcomes = generations.map((g) => g.outcome);
+      let completionOutcome: 'CREATED' | 'SKIPPED_INELIGIBLE' | 'SKIPPED_NO_BENEFICIARY' | 'SKIPPED_ZERO_AMOUNT';
+      if (outcomes.includes('CREATED')) {
+        completionOutcome = 'CREATED';
+      } else if (outcomes.every((o) => o === 'SKIPPED_ZERO_AMOUNT')) {
+        completionOutcome = 'SKIPPED_ZERO_AMOUNT';
+      } else if (outcomes.some((o) => o === 'SKIPPED_NO_BENEFICIARY')) {
+        completionOutcome = 'SKIPPED_NO_BENEFICIARY';
+      } else {
+        completionOutcome = 'SKIPPED_INELIGIBLE';
+      }
 
       await tx
         .update(commissionProcessing)
@@ -333,8 +384,6 @@ export class MemberConsumptionCommissionService {
         .where(eq(commissionProcessing.id, processingId));
     });
 
-    const hasCreated = generations.some((g) => g.outcome === 'CREATED');
-
     return {
       transactionId,
       memberId,
@@ -342,7 +391,13 @@ export class MemberConsumptionCommissionService {
       confirmedAt: effectiveTimeIso,
       recognizedServiceFee,
       processingId,
-      completionOutcome: hasCreated ? 'CREATED' : 'SKIPPED_INELIGIBLE',
+      completionOutcome: generations.some((g) => g.outcome === 'CREATED')
+        ? 'CREATED'
+        : generations.every((g) => g.outcome === 'SKIPPED_ZERO_AMOUNT')
+          ? 'SKIPPED_ZERO_AMOUNT'
+          : generations.some((g) => g.outcome === 'SKIPPED_NO_BENEFICIARY')
+            ? 'SKIPPED_NO_BENEFICIARY'
+            : 'SKIPPED_INELIGIBLE',
       generations,
     };
   }
@@ -437,6 +492,22 @@ export class MemberConsumptionCommissionService {
     // Check: no beneficiary
     // ---------------------------------------------------------------
     if (!beneficiaryId) {
+      await tx.insert(commissionProcessingResults).values({
+        id: randomUUID(),
+        processingId,
+        beneficiaryId: null,
+        generation,
+        entryType: null,
+        unroundedAmount: null,
+        postedAmount: null,
+        residualAmount: null,
+        roundingMode: ROUNDING_MODE,
+        calculationScale: CALCULATION_SCALE,
+        postingScale: POSTING_SCALE,
+        outcome: 'SKIPPED_NO_BENEFICIARY',
+        reason: `No referrer found for generation ${generation}.`,
+        createdAt: now,
+      });
       return {
         generation,
         beneficiaryId: null,
@@ -453,6 +524,23 @@ export class MemberConsumptionCommissionService {
     // Check: rate version must exist
     // ---------------------------------------------------------------
     if (!rateVersion) {
+      const reason = `No rate version found for MEMBER_CONSUMPTION generation ${generation} in market ${market} at ${effectiveTime}.`;
+      await tx.insert(commissionProcessingResults).values({
+        id: randomUUID(),
+        processingId,
+        beneficiaryId,
+        generation,
+        entryType: null,
+        unroundedAmount: null,
+        postedAmount: null,
+        residualAmount: null,
+        roundingMode: ROUNDING_MODE,
+        calculationScale: CALCULATION_SCALE,
+        postingScale: POSTING_SCALE,
+        outcome: 'SKIPPED_INELIGIBLE',
+        reason,
+        createdAt: now,
+      });
       return {
         generation,
         beneficiaryId,
@@ -461,8 +549,7 @@ export class MemberConsumptionCommissionService {
         entryType: null,
         outcome: 'SKIPPED_INELIGIBLE',
         ledgerEntryId: null,
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        reason: `No rate version found for MEMBER_CONSUMPTION generation ${generation} in market ${market} at ${effectiveTime}.`,
+        reason,
       };
     }
 
@@ -476,6 +563,23 @@ export class MemberConsumptionCommissionService {
     );
 
     if (!referrerActive) {
+      const reason = `Beneficiary was not ACTIVE at source event time (${effectiveTime}).`;
+      await tx.insert(commissionProcessingResults).values({
+        id: randomUUID(),
+        processingId,
+        beneficiaryId,
+        generation,
+        entryType: null,
+        unroundedAmount: null,
+        postedAmount: null,
+        residualAmount: null,
+        roundingMode: ROUNDING_MODE,
+        calculationScale: CALCULATION_SCALE,
+        postingScale: POSTING_SCALE,
+        outcome: 'SKIPPED_INELIGIBLE',
+        reason,
+        createdAt: now,
+      });
       return {
         generation,
         beneficiaryId,
@@ -484,8 +588,7 @@ export class MemberConsumptionCommissionService {
         entryType: null,
         outcome: 'SKIPPED_INELIGIBLE',
         ledgerEntryId: null,
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        reason: `Beneficiary was not ACTIVE at source event time (${effectiveTime}).`,
+        reason,
       };
     }
 
@@ -565,6 +668,23 @@ export class MemberConsumptionCommissionService {
     // If ABS(posted_amount) < 10^(-posting_scale), skip the entry.
     const zeroThreshold = Math.pow(10, -POSTING_SCALE);
     if (Math.abs(parseFloat(postedVal)) < zeroThreshold) {
+      const reason = `Commission ${postedVal} rounded to zero at posting scale (${POSTING_SCALE}dp).`;
+      await tx.insert(commissionProcessingResults).values({
+        id: randomUUID(),
+        processingId,
+        beneficiaryId,
+        generation,
+        entryType: null,
+        unroundedAmount: unroundedVal,
+        postedAmount: postedVal,
+        residualAmount: residualVal,
+        roundingMode: ROUNDING_MODE,
+        calculationScale: CALCULATION_SCALE,
+        postingScale: POSTING_SCALE,
+        outcome: 'SKIPPED_ZERO_AMOUNT',
+        reason,
+        createdAt: now,
+      });
       return {
         generation,
         beneficiaryId,
@@ -573,7 +693,7 @@ export class MemberConsumptionCommissionService {
         entryType: null,
         outcome: 'SKIPPED_ZERO_AMOUNT',
         ledgerEntryId: null,
-        reason: `Commission ${postedVal} rounded to zero at posting scale (${POSTING_SCALE}dp).`,
+        reason,
       };
     }
 
@@ -806,6 +926,42 @@ export class MemberConsumptionCommissionService {
           lte(agentActivations.activatedAt, effectiveTime),
           sql`(${agentActivations.revokedAt} IS NULL
             OR ${agentActivations.revokedAt} > ${effectiveTime})`,
+        ),
+      )
+      .limit(1);
+
+    return rows.length > 0;
+  }
+
+  /**
+   * Check if a beneficiary has an ACTIVE activation in the specified market.
+   * Used for COMMISSION_MARKET_MISMATCH detection — a referrer who is ACTIVE
+   * globally but in a different market than the transaction.
+   */
+  private async isReferrerActiveInMarket(
+    db: Queryable,
+    memberId: string,
+    marketCode: string,
+    effectiveTime: Date,
+  ): Promise<boolean> {
+    // First, is the referrer ACTIVE at this time?
+    const isActive = await this.isReferrerActiveAtTime(
+      db,
+      memberId,
+      effectiveTime,
+    );
+    if (!isActive) return true; // Not active — eligibility check handles this, not market mismatch
+
+    // Check: does the referrer have an activation in THIS market?
+    const rows = await db
+      .select({ id: agentActivations.id })
+      .from(agentActivations)
+      .where(
+        and(
+          eq(agentActivations.memberId, memberId),
+          eq(agentActivations.status, 'ACTIVE'),
+          eq(agentActivations.market, marketCode),
+          lte(agentActivations.activatedAt, effectiveTime),
         ),
       )
       .limit(1);
