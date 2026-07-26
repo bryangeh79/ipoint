@@ -22,7 +22,22 @@ $prohibitedPatterns = @(
   @{ Pattern = 'information_schema\.columns';               Label = 'info-schema-column-check' }
   @{ Pattern = 'to_regclass';                               Label = 'to-regclass-check' }
   @{ Pattern = 'toBeDefined\(\)';                           Label = 'tobedefined-assertion' }
-  @{ Pattern = 'placeholder';                               Label = 'placeholder-string' }
+    @{ Pattern = 'placeholder';                               Label = 'placeholder-string' }
+
+  # Phase 5 B-strict assertion gate (Command Center 2026-07-26)
+  @{ Pattern = 'if \(outcome';                               Label = 'conditional-outcome' }
+  @{ Pattern = 'if \(.*Ledger';                              Label = 'conditional-ledger' }
+  @{ Pattern = 'if \(.*Result';                              Label = 'conditional-result' }
+  @{ Pattern = 'if \(zeroResult';                            Label = 'conditional-zeroresult' }
+  @{ Pattern = 'if \(anyLedger';                             Label = 'conditional-anyledger' }
+  @{ Pattern = 'toContain\(outcome';                         Label = 'multi-outcome-fallback' }
+  @{ Pattern = 'toBeGreaterThanOrEqual\(0\)';                Label = 'gte0-count' }
+  @{ Pattern = '["'"']SKIPPED_INELIGIBLE["'"'], ["'"']SKIPPED_NO_BENEFICIARY["'"']'; Label = 'b07-dual-outcome' }
+  @{ Pattern = 'writeFileSync';                              Label = 'forensics-write' }
+  @{ Pattern = 'B_FORENSICS_FILE';                           Label = 'forensics-env-var' }
+  @{ Pattern = 'r\.forensics';                               Label = 'forensics-object' }
+  @{ Pattern = '// Note:';                                   Label = 'regex-leftover-comment' }
+  @{ Pattern = 'leftover from regex';                        Label = 'regex-leftover-string' }
 )
 
 Write-Host "[Phase $Phase Integration Gate] Scanning $($MandatoryTestFiles.Count) file(s)"

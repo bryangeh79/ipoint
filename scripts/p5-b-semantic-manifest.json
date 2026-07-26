@@ -1,0 +1,124 @@
+{
+  "description": "B Integration Strict Semantic Manifest — each B test must contain exactly these tokens",
+  "version": "1.0",
+  "rules": {
+    "forbiddenPatterns": [
+      "if (outcome",
+      "if (.*Ledger",
+      "if (.*Result",
+      "toContain(outcome",
+      "toBeGreaterThanOrEqual(0)",
+      "toBeGreaterThanOrEqual(1)",
+      "// Note:",
+      "leftover from regex",
+      "writeFileSync",
+      "B_FORENSICS_FILE",
+      "forensicsPath",
+      "r.forensics"
+    ]
+  },
+  "tests": {
+    "B-01": {
+      "requiredOutcome": "CREATED",
+      "memberProcCount": 1,
+      "memberResultsCount": 1,
+      "g1ResultOutcome": "CREATED",
+      "g1LedgerCount": 1,
+      "totalLedgerCount": 1,
+      "forbiddenOutcomes": ["SKIPPED_INELIGIBLE", "SKIPPED_NO_BENEFICIARY"],
+      "requiredTokens": ["MEMBER_CONSUMPTION_G1_EARN", "sourceReference", "r.transactionId"]
+    },
+    "B-02": {
+      "requiredOutcome": "CREATED",
+      "memberResultsCount": 2,
+      "g1ResultOutcome": "CREATED",
+      "g2ResultOutcome": "CREATED",
+      "g1LedgerCount": 1,
+      "g2LedgerCount": 1,
+      "totalLedgerCount": 2,
+      "forbiddenOutcomes": ["SKIPPED", "if (.*g2Outcome"],
+      "requiredTokens": ["MEMBER_CONSUMPTION_G1_EARN", "MEMBER_CONSUMPTION_G2_EARN"]
+    },
+    "B-03": {
+      "requiredOutcome": "CREATED",
+      "recruitProcCount": 1,
+      "recruitResultsOutcome": "CREATED",
+      "recruitmentLedgerCount": 1,
+      "generation": 0,
+      "requiredTokens": ["MERCHANT_RECRUITMENT_EARN", "MERCHANT_TRANSACTION"]
+    },
+    "B-04": {
+      "transactionCount": "1",
+      "dispatchCount": "unchanged",
+      "processingCount": "unchanged",
+      "resultsCount": "unchanged",
+      "ledgerCount": "unchanged",
+      "canonicalKey": "same",
+      "requiredTokens": ["fixedKey", "replay", "replay-key"]
+    },
+    "B-05": {
+      "processingOutcome": "CREATED",
+      "g1ResultOutcome": "SKIPPED_INELIGIBLE",
+      "g2ResultOutcome": "CREATED",
+      "g1LedgerCount": 0,
+      "g2LedgerCount": 1,
+      "totalLedgerCount": 1,
+      "requiredTokens": ["g1Active: false", "g2Active: true"]
+    },
+    "B-06": {
+      "processingOutcome": "CREATED",
+      "g1ResultOutcome": "CREATED",
+      "g2ResultOutcome": "SKIPPED_INELIGIBLE",
+      "g1LedgerCount": 1,
+      "g2LedgerCount": 0,
+      "totalLedgerCount": 1,
+      "requiredTokens": ["g1Active: true", "g2Active: false"]
+    },
+    "B-07": {
+      "completionOutcome": "SKIPPED_NO_BENEFICIARY",
+      "memberResultsCount": 0,
+      "totalLedgerCount": 0,
+      "forbiddenOutcomes": ["SKIPPED_INELIGIBLE"],
+      "requiredTokens": ["memberHasG1: false", "SKIPPED_NO_BENEFICIARY", "existingRefs.length", "referralRelationships.refereeId"]
+    },
+    "B-08": {
+      "requiredPattern": "recruitProc: SKIPPED_NO_BENEFICIARY or empty",
+      "recruitmentLedgerCount": 0,
+      "requiredTokens": ["merchantAttributionLevel: 'NONE'", "MERCHANT_RECRUITMENT_EARN", "SKIPPED_NO_BENEFICIARY"]
+    },
+    "B-09": {
+      "recruitmentLedgerCount": 0,
+      "branchAttributionCount": 0,
+      "requiredTokens": ["merchantAttributionLevel: 'MERCHANT'", "no fallback", "branchAttrs"]
+    },
+    "B-10": {
+      "recruitProcOutcome": "SKIPPED_INELIGIBLE",
+      "recruitmentLedgerCount": 0,
+      "requiredTokens": ["SUSPENDED", "SUDED"].concat("SKIPPED_INELIGIBLE")
+    },
+    "B-11": {
+      "ledgerSnapshot": "frozen",
+      "requiredTokens": ["postConfirmMutation", "MERCHANT_CONSUMPTION_G1_EARN", "sourceReference"]
+    },
+    "B-12": {
+      "crossMarketLedgerCount": 0,
+      "lastError": "must contain 'mismatch'",
+      "requiredTokens": ["COMMISSION_MARKET_MISMATCH", "cross-market", "marketId: mkt2.id", "mc2"]
+    },
+    "B-13": {
+      "attempts": ">= 1",
+      "lastError": "non-null",
+      "ledgerAfterRecoveryCount": "1 or 0",
+      "requiredTokens": ["workerFailureInjection", "attempts", "lastError", "Injected failure"]
+    },
+    "B-14": {
+      "atomicity": "hasG1 === hasG2",
+      "requiredTokens": ["G1/G2 rollback", "MEMBER_CONSUMPTION_G1_EARN", "MEMBER_CONSUMPTION_G2_EARN", "hasG1", "hasG2"]
+    },
+    "B-15": {
+      "g1ResultOutcome": "SKIPPED_ZERO_AMOUNT",
+      "totalLedgerCount": 0,
+      "requiredTokens": ["SKIPPED_ZERO_AMOUNT", "HALF_UP", "amount: '1.00'"]
+    }
+  }
+}
