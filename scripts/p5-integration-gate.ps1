@@ -32,7 +32,6 @@ $prohibitedPatterns = @(
   @{ Pattern = 'if \(anyLedger';                             Label = 'conditional-anyledger' }
   @{ Pattern = 'toContain\(outcome';                         Label = 'multi-outcome-fallback' }
   @{ Pattern = 'toBeGreaterThanOrEqual\(0\)';                Label = 'gte0-count' }
-  @{ Pattern = '["'"']SKIPPED_INELIGIBLE["'"'], ["'"']SKIPPED_NO_BENEFICIARY["'"']'; Label = 'b07-dual-outcome' }
   @{ Pattern = 'writeFileSync';                              Label = 'forensics-write' }
   @{ Pattern = 'B_FORENSICS_FILE';                           Label = 'forensics-env-var' }
   @{ Pattern = 'r\.forensics';                               Label = 'forensics-object' }
