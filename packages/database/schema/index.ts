@@ -3354,12 +3354,12 @@ export const transactionCommissionDispatch = pgTable(
   },
   (table) => [
     unique('uq_dispatch_event').on(table.transactionId, table.eventType),
-    index('idx_dispatch_pending').on(table.availableAt, table.status).where(
-      sql`${table.status} = 'PENDING'`,
-    ),
-    index('idx_dispatch_stale').on(table.lockedAt, table.status).where(
-      sql`${table.status} = 'PROCESSING'`,
-    ),
+    index('idx_dispatch_pending')
+      .on(table.availableAt, table.status)
+      .where(sql`${table.status} = 'PENDING'`),
+    index('idx_dispatch_stale')
+      .on(table.lockedAt, table.status)
+      .where(sql`${table.status} = 'PROCESSING'`),
     check(
       'chk_dispatch_status',
       sql`${table.status} in ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')`,

@@ -1099,4 +1099,18 @@ export const expectedSchema = {
     'created_at',
     'updated_at',
   ],
+  transaction_commission_dispatch: [
+    'id',
+    'transaction_id',
+    'event_type',
+    'status',
+    'attempts',
+    'max_attempts',
+    'available_at',
+    'locked_at',
+    'locked_by',
+    'last_error',
+    'created_at',
+    'completed_at',
+  ],
 } as const;
