@@ -118,7 +118,7 @@ function createMocks() {
       .mockImplementation((entry: AgentActivationAuditEntry) =>
         Promise.resolve(entry),
       ),
-    findAuditEntries: vi.fn().mockImplementation((activationId: string) => {
+    findAuditEntries: vi.fn().mockImplementation((_activationId: string) => {
       return Promise.resolve([]);
     }),
   };

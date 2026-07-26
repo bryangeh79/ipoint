@@ -65,7 +65,7 @@ const G2_RATE = '0.005';
  * NodePgDatabase and PgTransaction callback types since they share
  * the same query builder interface.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Queryable = any;
 

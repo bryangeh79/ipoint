@@ -74,7 +74,7 @@ const COMPENSATION_ENTRY_TYPES = {
  * NodePgDatabase and PgTransaction callback types since they share
  * the same query builder interface.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Queryable = any;
 
@@ -410,7 +410,6 @@ export class CompensationService {
     const processingId = randomUUID();
     const requestHash = sql<string>`encode(sha256(${canonicalProcessingKey}::bytea), 'hex')`;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const entries: CompensationGenerationResult[] = [];
 
     await db.transaction(async (tx: Queryable) => {
@@ -513,7 +512,7 @@ export class CompensationService {
         and(
           eq(commissionLedger.sourceType, 'MEMBER_CONSUMPTION'),
           eq(commissionLedger.sourceReference, transactionId),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           sql`${commissionLedger.entryType} = ANY(${compensatingEntryTypes}::VARCHAR(40)[])`,
         ),
       )

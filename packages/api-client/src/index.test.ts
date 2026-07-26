@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-/* eslint-disable @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-return,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unused-vars,@typescript-eslint/no-base-to-string,@typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/no-base-to-string */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ApiClient, ApiError } from './index.js';
 

@@ -2,7 +2,7 @@
 
 **Updated:** 2026-07-26 14:56 GMT+8
 **Current Branch:** phase/5-agent-commission-engine
-**Current HEAD:** cf1ca2b2
+**Current HEAD:** bfbd3833
 
 ## Remediation Commits
 
@@ -16,13 +16,13 @@
 | `24b99b7a` | fix(p5): admin-rate any types                        | ✅ Done                  |
 | `7830a459` | fix(p5): offset mock chain                           | ✅ Done                  |
 | `190c46d5` | fix(p5): remove no-explicit-any from domain override | ✅ Done                  |
-| `cf1ca2b2` | fix(p5): fix adminSearch leftJoin row shape          | Pending CI               |
+| `cf1ca2b2` | fix(p5): fix adminSearch leftJoin row shape          | ❌ CI failed (format)    |
+| `bfbd3833` | fix(p5): format eslint-disable comment placements    | Pending CI               |
 
-## CI Status (latest: cf1ca2b2)
+## CI Status (latest: bfbd3833 - waiting for completion)
 
-- Waiting for completion
+## Remaining Issues After CI
 
-## Remaining Issues
-
-1. **Sub-agent fixing**: compensation (2) + concurrency (4) test failures
-2. **After CI green**: B/C/D integrations → Rate API tests → 219 mapping → Performance baseline
+1. ✅ compensation (27) + concurrency (16) tests fixed by GPT sub-agent — all 43 pass
+2. ❌ Changes on disk but exec env lacks git — need git from host
+3. **After CI green**: B/C/D integrations → Rate API tests → 219 mapping → Performance baseline

@@ -15,7 +15,6 @@
  *   pnpm vitest run apps/api/src/__tests__/timezone.integration.spec.ts
  */
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {

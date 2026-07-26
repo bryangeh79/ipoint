@@ -113,7 +113,7 @@ export class AgentActivationService {
     const db = this.database.db;
     type Tx = Parameters<typeof db.transaction>[0] extends (
       tx: infer T,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       ..._args: unknown[]
     ) => unknown
       ? T
@@ -180,7 +180,7 @@ export class AgentActivationService {
     const db = this.database.db;
     type Tx = Parameters<typeof db.transaction>[0] extends (
       tx: infer T,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       ..._args: unknown[]
     ) => unknown
       ? T
@@ -227,7 +227,7 @@ export class AgentActivationService {
     const db = this.database.db;
     type Tx = Parameters<typeof db.transaction>[0] extends (
       tx: infer T,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       ..._args: unknown[]
     ) => unknown
       ? T
@@ -273,7 +273,7 @@ export class AgentActivationService {
     const db = this.database.db;
     type Tx = Parameters<typeof db.transaction>[0] extends (
       tx: infer T,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       ..._args: unknown[]
     ) => unknown
       ? T
@@ -319,7 +319,7 @@ export class AgentActivationService {
     const db = this.database.db;
     type Tx = Parameters<typeof db.transaction>[0] extends (
       tx: infer T,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       ..._args: unknown[]
     ) => unknown
       ? T
@@ -367,7 +367,7 @@ export class AgentActivationService {
     const db = this.database.db;
     type Tx = Parameters<typeof db.transaction>[0] extends (
       tx: infer T,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       ..._args: unknown[]
     ) => unknown
       ? T
@@ -416,7 +416,7 @@ export class AgentActivationService {
     const db = this.database.db;
     type Tx = Parameters<typeof db.transaction>[0] extends (
       tx: infer T,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       ..._args: unknown[]
     ) => unknown
       ? T
@@ -470,7 +470,7 @@ export class AgentActivationService {
     const db = this.database.db;
     type Tx = Parameters<typeof db.transaction>[0] extends (
       tx: infer T,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       ..._args: unknown[]
     ) => unknown
       ? T
@@ -515,7 +515,7 @@ export class AgentActivationService {
     const db = this.database.db;
     type Tx = Parameters<typeof db.transaction>[0] extends (
       tx: infer T,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       ..._args: unknown[]
     ) => unknown
       ? T
@@ -561,7 +561,7 @@ export class AgentActivationService {
     const db = this.database.db;
     type Tx = Parameters<typeof db.transaction>[0] extends (
       tx: infer T,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       ..._args: unknown[]
     ) => unknown
       ? T
@@ -702,7 +702,7 @@ export class AgentActivationService {
   ): AgentActivationStatusResult {
     return {
       activationId: row.id,
-      status: row.status as AgentActivationStatus,
+      status: row.status,
       market: row.market,
       activatedAt: row.activatedAt?.toISOString() ?? null,
       currency: row.currency,
