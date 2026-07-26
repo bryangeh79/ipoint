@@ -44,6 +44,7 @@ import {
   commissionLedger,
   marketTransactionSettings,
   rewardRuleVersions,
+  adminUsers,
 } from '@ipoint/database';
 import { AppModule } from '../app.module.js';
 import { TransactionService } from '../transaction/transaction.service.js';
@@ -148,7 +149,26 @@ async function seedBScenario(overrides?: {
     })
     .onConflictDoNothing();
 
-  // ── 3. Reward rule ──
+  // ── 3. Admin user (for reward_rule_versions FK) ──
+  const [adminAcct] = await db
+    .insert(accounts)
+    .values({
+      publicId: `ADM-${suffix}`,
+      email: `admin-${suffix}@test.com`,
+      accountCountry: 'MY',
+      status: 'ACTIVE',
+    })
+    .returning({ id: accounts.id });
+
+  const [adminUser] = await db
+    .insert(adminUsers)
+    .values({
+      accountId: adminAcct.id,
+      displayName: `Admin-${suffix}`,
+    })
+    .returning({ id: adminUsers.id });
+
+  // ── 4. Reward rule ──
   const [rewardRule] = await db
     .insert(rewardRuleVersions)
     .values({
@@ -158,7 +178,7 @@ async function seedBScenario(overrides?: {
       capType: 'NONE',
       capValue: '0',
       minimumReward: '0',
-      createdBy: '00000000-0000-0000-0000-000000000000',
+      createdBy: adminUser.id,
     })
     .returning({ id: rewardRuleVersions.id });
 
