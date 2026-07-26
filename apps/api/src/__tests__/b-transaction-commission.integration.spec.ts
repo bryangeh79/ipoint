@@ -341,6 +341,7 @@ describe.skipIf(noDb)('B: Transaction to Commission Integration', () => {
     expect(Number(referrerRows[0]!.cnt)).toBe(1);
 
     // Verify commission rates
+    const rateMarket = ids.suffix.substring(0, 2).toUpperCase();
     const rateRows = await db
       .select({ cnt: sql<number>`COUNT(*)::int` })
       .from(commissionRateVersions)
@@ -348,6 +349,7 @@ describe.skipIf(noDb)('B: Transaction to Commission Integration', () => {
         and(
           eq(commissionRateVersions.commissionType, 'MEMBER_CONSUMPTION'),
           eq(commissionRateVersions.generation, 1),
+          eq(commissionRateVersions.market, rateMarket),
         ),
       );
     expect(Number(rateRows[0]!.cnt)).toBe(1);
@@ -397,6 +399,7 @@ describe.skipIf(noDb)('B: Transaction to Commission Integration', () => {
   it('B-10: Recruiter inactive', async () => {
     const ids = await seedBScenario({
       memberReferrer: true,
+      merchantRecruiter: false,
       recruiterActive: false,
     });
     expect(ids.referrerId).toBeTruthy();
