@@ -302,7 +302,7 @@ async function seedBScenario(opts?: {
         memberId: m2.id,
         status: g2Active ? 'ACTIVE' : 'SUSPENDED',
         market: mc,
-        activatedAt: new Date(),
+        activatedAt: new Date('2020-01-01'),
       })
       .onConflictDoNothing();
   }
@@ -364,7 +364,7 @@ async function seedBScenario(opts?: {
         memberId: m1.id,
         status: g1Active ? 'ACTIVE' : 'SUSPENDED',
         market: mc,
-        activatedAt: new Date(),
+        activatedAt: new Date('2020-01-01'),
       })
       .onConflictDoNothing();
   }
@@ -390,7 +390,7 @@ async function seedBScenario(opts?: {
         memberId: rm.id,
         status: 'ACTIVE',
         market: mc,
-        activatedAt: new Date(),
+        activatedAt: new Date('2020-01-01'),
       })
       .onConflictDoNothing();
     await db
@@ -402,7 +402,7 @@ async function seedBScenario(opts?: {
         recruiterMemberId: rm.id,
         attributionSource: 'REGISTRATION',
         attributionScope: 'PERMANENT',
-        effectiveFrom: new Date(),
+        effectiveFrom: new Date('2020-01-01'),
         createdBy: ma.id,
       })
       .onConflictDoNothing();
@@ -418,7 +418,7 @@ async function seedBScenario(opts?: {
         rateValue: '0.002',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
-        effectiveFrom: new Date(),
+        effectiveFrom: new Date('2020-01-01'),
         createdBy: ma.id,
       },
       {
@@ -428,7 +428,7 @@ async function seedBScenario(opts?: {
         rateValue: '0.001',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
-        effectiveFrom: new Date(),
+        effectiveFrom: new Date('2020-01-01'),
         createdBy: ma.id,
       },
       {
@@ -438,7 +438,7 @@ async function seedBScenario(opts?: {
         rateValue: '0.001',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
-        effectiveFrom: new Date(),
+        effectiveFrom: new Date('2020-01-01'),
         createdBy: ma.id,
       },
     ])
