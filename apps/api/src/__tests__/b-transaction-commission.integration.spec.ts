@@ -134,11 +134,11 @@ async function seedBScenario(overrides?: {
   recruiterActive?: boolean;
 }): Promise<BScenario> {
   const suffix = uid();
-  const marketCode = suffix.substring(0, 6).toUpperCase();
-  const rateMarket = suffix.substring(0, 2).toUpperCase();
+  const marketCode = suffix.substring(0, 2).toUpperCase();
 
   // 1. Market
-  const [mkt] = await db
+  // Use onConflictDoNothing to prevent 2-char code collisions
+  await db
     .insert(markets)
     .values({
       code: marketCode,
@@ -148,8 +148,14 @@ async function seedBScenario(overrides?: {
       defaultLocale: 'en',
       currencyCode: 'MYR',
     })
-    .onConflictDoNothing({ target: markets.code })
-    .returning({ id: markets.id, code: markets.code });
+    .onConflictDoNothing({ target: markets.code });
+
+  // Always query the market by code (survives onConflictDoNothing)
+  const [mkt] = await db
+    .select({ id: markets.id, code: markets.code })
+    .from(markets)
+    .where(eq(markets.code, marketCode))
+    .limit(1);
 
   // 2. Market transaction settings
   await db
@@ -357,7 +363,7 @@ async function seedBScenario(overrides?: {
       .values({
         referrerId: referrer.id,
         refereeId: member.id,
-        market: rateMarket,
+        market: marketCode,
         level: 1,
         status: 'ACTIVE',
         referralCode: `LINK-${suffix}`,
@@ -370,7 +376,7 @@ async function seedBScenario(overrides?: {
       .values({
         memberId: referrer.id,
         status: agentStatus,
-        market: rateMarket,
+        market: marketCode,
         activatedAt: new Date(),
       })
       .onConflictDoNothing();
@@ -403,7 +409,7 @@ async function seedBScenario(overrides?: {
       {
         commissionType: 'MEMBER_CONSUMPTION',
         generation: 1,
-        market: rateMarket,
+        market: marketCode,
         rateValue: '0.002',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
@@ -413,7 +419,7 @@ async function seedBScenario(overrides?: {
       {
         commissionType: 'MEMBER_CONSUMPTION',
         generation: 2,
-        market: rateMarket,
+        market: marketCode,
         rateValue: '0.001',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
@@ -423,7 +429,7 @@ async function seedBScenario(overrides?: {
       {
         commissionType: 'MERCHANT_RECRUITMENT',
         generation: 0,
-        market: rateMarket,
+        market: marketCode,
         rateValue: '0.001',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
