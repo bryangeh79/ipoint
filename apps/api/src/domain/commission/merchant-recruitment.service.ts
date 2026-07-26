@@ -553,9 +553,11 @@ export class MerchantRecruitmentCommissionService {
       `,
     );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const calcRow = Array.isArray(calcResult)
-      ? calcResult[0]
-      : (calcResult as Record<string, unknown>)?.rows?.[0];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const execResult = calcResult as any;
+    const calcRow = Array.isArray(execResult)
+      ? execResult[0]
+      : execResult?.rows?.[0];
     const unroundedVal: string = calcRow?.unrounded ?? '0';
     const postedVal: string = calcRow?.posted ?? '0';
 

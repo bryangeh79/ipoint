@@ -547,11 +547,12 @@ export class MemberConsumptionCommissionService {
           )::TEXT AS posted
       `,
     );
-    // tx.execute() returns { rows: [...] }, extract first row
+    // tx.execute() returns { rows: [...] } or array, extract first row
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const calcRow = Array.isArray(calcResult)
-      ? calcResult[0]
-      : (calcResult as Record<string, unknown>)?.rows?.[0];
+    const execResult = calcResult as any;
+    const calcRow = Array.isArray(execResult)
+      ? execResult[0]
+      : execResult?.rows?.[0];
     const unroundedVal: string = calcRow?.unrounded ?? '0';
     const postedVal: string = calcRow?.posted ?? '0';
 
