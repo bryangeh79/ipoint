@@ -268,11 +268,13 @@ async function seedBScenario(overrides?: {
     });
   }
 
-  // Commission rates
+  const rateMarket = suffix.substring(0, 2).toUpperCase();
+
+  // Commission rates (unique market per test to avoid GiST overlap)
   await db.insert(commissionRateVersions).values({
     commissionType: 'MEMBER_CONSUMPTION',
     generation: 1,
-    market: 'MY',
+    market: rateMarket,
     rateType: 'PERCENTAGE',
     rateValue: '0.002',
     currency: 'MYR',
@@ -282,7 +284,7 @@ async function seedBScenario(overrides?: {
   await db.insert(commissionRateVersions).values({
     commissionType: 'MEMBER_CONSUMPTION',
     generation: 2,
-    market: 'MY',
+    market: rateMarket,
     rateType: 'PERCENTAGE',
     rateValue: '0.001',
     currency: 'MYR',
@@ -292,7 +294,7 @@ async function seedBScenario(overrides?: {
   await db.insert(commissionRateVersions).values({
     commissionType: 'MERCHANT_RECRUITMENT',
     generation: 0,
-    market: 'MY',
+    market: rateMarket,
     rateType: 'PERCENTAGE',
     rateValue: '0.001',
     currency: 'MYR',
