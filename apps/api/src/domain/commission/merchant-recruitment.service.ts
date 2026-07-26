@@ -354,8 +354,8 @@ export class MerchantRecruitmentCommissionService {
           ? 'SKIPPED_ZERO_AMOUNT'
           : generations.some((g) => g.outcome === 'SKIPPED_NO_BENEFICIARY')
             ? 'SKIPPED_NO_BENEFICIARY'
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            : 'SKIPPED_INELIGIBLE') as any,
+            : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              'SKIPPED_INELIGIBLE') as any,
       generations,
     };
   }
