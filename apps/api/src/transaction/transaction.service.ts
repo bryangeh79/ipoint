@@ -627,7 +627,7 @@ export class TransactionService {
             });
             await this.dispatchWriter.writeDispatches(
               this.database.db,
-              completed.transactionId!,
+              completed.transactionId,
             );
             return {
               response: sanitizeConfirmResponse(completed.response),

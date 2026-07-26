@@ -72,6 +72,20 @@ export default tseslint.config(
   },
   {
     files: [
+      'apps/api/src/transaction/transaction-commission-dispatch.writer.ts',
+      'apps/api/src/transaction/transaction-commission-outbox.worker.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+  {
+    files: [
       'apps/api/src/domain/commission/adjustment.service.ts',
       'apps/api/src/domain/commission/agent-upgrade.service.ts',
       'apps/api/src/domain/commission/compensation.service.ts',

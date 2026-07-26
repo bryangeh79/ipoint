@@ -174,7 +174,7 @@ describe('B: Transaction → Commission Integration', () => {
   it('B-09: No branch attribution → no parent fallback', async () => {
     if (!process.env.DATABASE_URL) return;
     const result = await db.execute(
-      sql`SELECT 1 AS ok FROM information_schema.tables WHERE table_name = 'merchant_attributions'`,
+      sql`SELECT 1 AS ok FROM information_schema.tables WHERE table_name = 'merchant_attribution'`,
     );
     expect(result.rows.length).toBeGreaterThanOrEqual(1);
   });
