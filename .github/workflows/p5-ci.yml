@@ -173,6 +173,23 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:migrate
       - run: pnpm db:seed
+      - name: Run B-01 forensic diagnostic
+        continue-on-error: true
+        env:
+          B_FORENSICS_FILE: ${{ github.workspace }}/b01-forensics.json
+        run: |
+          cd apps/api
+          pnpm vitest run src/__tests__/b-transaction-commission.integration.spec.ts -t "B-01" --reporter verbose 2>&1 | tee "${{ github.workspace }}/b01-forensics.log"
+      - name: Upload B-01 forensic artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p5-b01-forensics-${{ github.sha }}
+          path: |
+            b01-forensics.json
+            b01-forensics.log
+          if-no-files-found: error
+          retention-days: 7
       - name: Run P5 integration tests
         run: |
           cd apps/api && pnpm vitest run src/__tests__/b-transaction-commission.integration.spec.ts --reporter verbose

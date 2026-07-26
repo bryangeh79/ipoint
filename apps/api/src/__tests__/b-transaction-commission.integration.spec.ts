@@ -9,6 +9,8 @@ import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { sql, eq } from 'drizzle-orm';
 import {
   markets,
@@ -641,15 +643,28 @@ describe('B: Transaction to Commission Integration', () => {
     const sc = await seedBScenario();
     const r = await executeAndProcess(sc);
 
-    console.error('B01_FORENSICS', JSON.stringify({
-      transactionId: r.transactionId,
-      workerResult: r.workerResult,
-      dispatchAfter: r.dispatchAfter,
-      memberProc: r.memberProc,
-      memberResults: r.memberResults,
-      ledger: r.ledger,
-      forensics: r.forensics,
-    }, null, 2));
+    // ── Forensic diagnostic (file-based, controlled by B_FORENSICS_FILE env) ──
+    const forensicsPath = process.env.B_FORENSICS_FILE;
+    if (forensicsPath) {
+      const { connInfo, rawProc, rawDispatch } = r.forensics ?? {};
+      writeFileSync(
+        resolve(forensicsPath),
+        JSON.stringify({
+          transactionId: r.transactionId,
+          workerResult: r.workerResult,
+          dispatchAfter: r.dispatchAfter,
+          memberProc: r.memberProc,
+          recruitProc: r.recruitProc,
+          memberResults: r.memberResults,
+          recruitResults: r.recruitResults,
+          ledger: r.ledger,
+          connInfo,
+          rawProc,
+          rawDispatch,
+        }, null, 2),
+        'utf8',
+      );
+    }
 
     const md = r.dispatchAfter.find(
       (d: any) => d.eventType === 'MEMBER_CONSUMPTION',
