@@ -461,6 +461,7 @@ export class MemberConsumptionCommissionService {
         entryType: null,
         outcome: 'SKIPPED_INELIGIBLE',
         ledgerEntryId: null,
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         reason: `No rate version found for MEMBER_CONSUMPTION generation ${generation} in market ${market} at ${effectiveTime}.`,
       };
     }
@@ -483,6 +484,7 @@ export class MemberConsumptionCommissionService {
         entryType: null,
         outcome: 'SKIPPED_INELIGIBLE',
         ledgerEntryId: null,
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         reason: `Beneficiary was not ACTIVE at source event time (${effectiveTime}).`,
       };
     }
@@ -546,9 +548,10 @@ export class MemberConsumptionCommissionService {
       `,
     );
     // tx.execute() returns { rows: [...] }, extract first row
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const calcRow = Array.isArray(calcResult)
       ? calcResult[0]
-      : (calcResult as any)?.rows?.[0];
+      : (calcResult as Record<string, unknown>)?.rows?.[0];
     const unroundedVal: string = calcRow?.unrounded ?? '0';
     const postedVal: string = calcRow?.posted ?? '0';
 
