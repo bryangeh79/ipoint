@@ -80,6 +80,7 @@ beforeAll(async () => {
   db = app.get(DatabaseService).db;
   transactionService = app.get(TransactionService);
   outboxWorker = app.get(TransactionCommissionOutboxWorker);
+  outboxWorker.stop();
 });
 
 afterAll(async () => {
