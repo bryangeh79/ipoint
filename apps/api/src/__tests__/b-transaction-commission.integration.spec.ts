@@ -134,7 +134,7 @@ async function seedBScenario(overrides?: {
       defaultLocale: 'en',
       currencyCode: 'MYR',
     })
-    .onConflictDoNothing({ target: markets.code })
+    /* Unique code per test ensures no conflict */
     .returning({ id: markets.id, code: markets.code });
 
   // ── 2. Market transaction settings ──
@@ -178,6 +178,7 @@ async function seedBScenario(overrides?: {
       capType: 'NONE',
       capValue: '0',
       minimumReward: '0',
+      marketId: mkt.id,
       createdBy: adminUser.id,
     })
     .returning({ id: rewardRuleVersions.id });
@@ -405,7 +406,7 @@ async function seedBScenario(overrides?: {
         rateValue: '0.002',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
-        effectiveFrom: new Date('2020-01-01'),
+        effectiveFrom: new Date(),
         createdBy: merchantAccount.id,
       },
       {
@@ -415,7 +416,7 @@ async function seedBScenario(overrides?: {
         rateValue: '0.001',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
-        effectiveFrom: new Date('2020-01-01'),
+        effectiveFrom: new Date(),
         createdBy: merchantAccount.id,
       },
       {
@@ -425,7 +426,7 @@ async function seedBScenario(overrides?: {
         rateValue: '0.001',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
-        effectiveFrom: new Date('2020-01-01'),
+        effectiveFrom: new Date(),
         createdBy: merchantAccount.id,
       },
     ])
