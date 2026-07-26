@@ -9,7 +9,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import { sql, eq, and } from 'drizzle-orm';
+import { sql, eq, and, lte, gt } from 'drizzle-orm';
 import {
   markets,
   accounts,
