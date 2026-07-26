@@ -158,6 +158,7 @@ async function seedBScenario(overrides?: {
       capType: 'NONE',
       capValue: '0',
       minimumReward: '0',
+      createdBy: '00000000-0000-0000-0000-000000000000',
     })
     .returning({ id: rewardRuleVersions.id });
 

@@ -2,23 +2,25 @@
 
 ## Current State (20:16 GMT+8)
 
-| Item | Status |
-|---|---|
-| Durable Outbox | ✅ ACCEPTED |
-| Worker connection-safe | ✅ ACCEPTED |
-| Drizzle type-safe seed | ✅ IMPLEMENTED |
-| CI 6/6 green (Run 30200945731) | ✅ SUCCESS |
-| Anti-placeholder gate | ✅ PASSED |
+| Item                               | Status                     |
+| ---------------------------------- | -------------------------- |
+| Durable Outbox                     | ✅ ACCEPTED                |
+| Worker connection-safe             | ✅ ACCEPTED                |
+| Drizzle type-safe seed             | ✅ IMPLEMENTED             |
+| CI 6/6 green (Run 30200945731)     | ✅ SUCCESS                 |
+| Anti-placeholder gate              | ✅ PASSED                  |
 | **B-01 to B-15 real Service Path** | ❌ **NOT YET IMPLEMENTED** |
 
 ## What B Tests Currently Do
 
 Each B test:
+
 1. Creates seed data via Drizzle ORM (markets, accounts, members, profiles, referrals, agent_activations, merchant_groups, branches, attributions, rates)
 2. Verifies seed data exists via Drizzle .select() queries
 3. Asserts basic null/truthy/row-count conditions
 
 **What B Tests MUST Do** (per Command Center):
+
 1. Drizzle ORM seed (keep as-is ✅)
 2. `transactionService.createPreview(...)` with real DTO
 3. `transactionService.confirm(...)` with preview reference
@@ -42,6 +44,7 @@ createPreview(
 ```
 
 **Needed setup:**
+
 - `staffAccountId` must resolve to a merchant account with branch access.
 - `resolveMerchantContext()` (line 1137) queries: branch id, merchant_account_id, market_id, market code, currency code.
 - `memberQrToken` is the member's QR identity token. Need to understand how it's generated/validated.
@@ -62,6 +65,7 @@ confirm(
 ```
 
 **Needed setup:**
+
 - `confirm()` validates idempotency, preview session status
 - Must complete within 24h of preview (TBC)
 - Writes outbox dispatch in same transaction
@@ -69,6 +73,7 @@ confirm(
 ### 3. Service-only test harness (no controllers)
 
 Current NestJS TestingModule works. Need to:
+
 - Import TransactionModule (which imports CommissionModule, AuthModule, DatabaseModule)
 - Override RbacGuard (done ✅)
 - Get TransactionService, OutboxWorker from the module
@@ -86,6 +91,7 @@ Current NestJS TestingModule works. Need to:
 ### Phase 2: Extend seed to cover prerequisites
 
 Based on Phase 1 findings, add to `seedBScenario()`:
+
 - Staff account → merchant_access records
 - Merchant package assignments
 - MCP account with sufficient balance
@@ -94,6 +100,7 @@ Based on Phase 1 findings, add to `seedBScenario()`:
 ### Phase 3: Wire service calls in tests
 
 Each B test will then:
+
 1. `seedBScenario()` → returns all IDs
 2. Build `TransactionPreviewDto` with real amount, member QR, etc.
 3. Call `transactionService.createPreview(...)`
@@ -125,6 +132,7 @@ CI Run 30200945731: ALL 6/6 SUCCESS
 ## Blockers
 
 **None — all infrastructure is ready.** The only remaining work is:
+
 1. Understanding how member QR tokens / merchant context / packages work in the transaction flow
 2. Adding corresponding seed data
 3. Wiring service calls in tests
@@ -132,6 +140,7 @@ CI Run 30200945731: ALL 6/6 SUCCESS
 ## Next Deliverable
 
 Return only when:
+
 - `createPreview()` called in B tests
 - `confirm()` called in B tests
 - `processBatchOnce()` called in B tests
