@@ -9,7 +9,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import { sql, eq, and, lte, gt } from 'drizzle-orm';
+import { sql, eq, and } from 'drizzle-orm';
 import {
   markets,
   accounts,
@@ -402,7 +402,7 @@ async function seedBScenario(opts?: {
         recruiterMemberId: rm.id,
         attributionSource: 'REGISTRATION',
         attributionScope: 'PERMANENT',
-        effectiveFrom: new Date('2020-01-01'),
+        effectiveFrom: new Date(),
         createdBy: ma.id,
       })
       .onConflictDoNothing();
@@ -418,7 +418,7 @@ async function seedBScenario(opts?: {
         rateValue: '0.002',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
-        effectiveFrom: new Date('2020-01-01'),
+        effectiveFrom: new Date(),
         createdBy: ma.id,
       },
       {
@@ -428,7 +428,7 @@ async function seedBScenario(opts?: {
         rateValue: '0.001',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
-        effectiveFrom: new Date('2020-01-01'),
+        effectiveFrom: new Date(),
         createdBy: ma.id,
       },
       {
@@ -438,7 +438,7 @@ async function seedBScenario(opts?: {
         rateValue: '0.001',
         rateType: 'PERCENTAGE',
         currency: 'MYR',
-        effectiveFrom: new Date('2020-01-01'),
+        effectiveFrom: new Date(),
         createdBy: ma.id,
       },
     ])
@@ -647,32 +647,6 @@ describe('B: Transaction to Commission Integration', () => {
   it('B-01: CONFIRMED leads to Member Consumption G1 ledger', async () => {
     const sc = await seedBScenario();
     const r = await executeAndProcess(sc);
-
-    // DIAGNOSTIC
-    process.stderr.write(
-      '[B01-DIAG] outcome=' +
-        r.memberProc[0]?.completionOutcome +
-        ' status=' +
-        r.memberProc[0]?.status +
-        '\n',
-    );
-    process.stderr.write(
-      '[B01-DIAG] results=' +
-        JSON.stringify(
-          r.memberResults.map((x: any) => ({
-            g: x.generation,
-            o: x.outcome,
-            b: x.beneficiaryId,
-          })),
-        ) +
-        '\n',
-    );
-    process.stderr.write('[B01-DIAG] ledger=' + r.ledger.length + '\n');
-    process.stderr.write('[B01-DIAG] g1mid=' + sc.g1MemberId + ' mid=' + sc.memberId + '\\n');
-    const [txr] = await db.select({ c: transactions.confirmedAt }).from(transactions).where(eq(transactions.id, r.transactionId)).limit(1);
-    process.stderr.write('[B01-DIAG] confirmedAt=' + (txr?.c?.toISOString() ?? 'null') + '\n');
-    const [actr] = await db.select({ s: agentActivations.status, a: agentActivations.activatedAt, r: agentActivations.revokedAt }).from(agentActivations).where(eq(agentActivations.memberId, sc.g1MemberId!)).limit(1);
-    process.stderr.write('[B01-DIAG] actStatus=' + (actr?.s ?? 'NOT_FOUND') + ' actAt=' + (actr?.a?.toISOString() ?? 'null') + ' revAt=' + (actr?.r?.toISOString() ?? 'null'));
 
     // Dispatch must be COMPLETED
     const md = r.dispatchAfter.find(

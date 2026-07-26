@@ -21,7 +21,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { and, eq, lte, gt, sql } from 'drizzle-orm';
+import { and, eq, lte, sql } from 'drizzle-orm';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service.js';
 import {
@@ -832,8 +832,6 @@ export class MemberConsumptionCommissionService {
         and(
           eq(agentActivations.memberId, memberId),
           eq(agentActivations.status, 'ACTIVE'),
-          lte(agentActivations.activatedAt, effectiveTime),
-          sql`(${agentActivations.revokedAt} IS NULL OR ${agentActivations.revokedAt} > ${effectiveTime})`,
         ),
       )
       .orderBy(agentActivations.activatedAt)
