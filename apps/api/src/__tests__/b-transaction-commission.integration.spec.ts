@@ -80,9 +80,6 @@ beforeAll(async () => {
   db = app.get(DatabaseService).db;
   transactionService = app.get(TransactionService);
   outboxWorker = app.get(TransactionCommissionOutboxWorker);
-  // Stop background tick immediately after init to prevent races
-  outboxWorker.stop();
-  outboxWorker.stop();
 });
 
 afterAll(async () => {
@@ -519,53 +516,6 @@ async function executeAndProcess(
     )
     .limit(1);
 
-  // Find all processing IDs for this transaction
-  const allProc = await db
-    .select()
-    .from(commissionProcessing)
-    .where(eq(commissionProcessing.sourceReference, tx.id));
-
-  const memberProc = allProc.filter(
-    (p: any) => p.sourceType === 'MEMBER_CONSUMPTION',
-  );
-  const recruitProc = allProc.filter(
-    (p: any) => p.sourceType === 'MERCHANT_RECRUITMENT',
-  );
-
-  // Processing results for all member consumption processing IDs
-  const mProcIds = memberProc.map((p: any) => p.id);
-  const memberResults = mProcIds.length
-    ? await db
-        .select()
-        .from(commissionProcessingResults)
-        .where(
-          sql`${commissionProcessingResults.processingId} = ANY(ARRAY[${sql.join(
-            mProcIds.map((id: string) => sql`${id}::uuid`),
-            sql`, `,
-          )}]::uuid[])`,
-        )
-        .orderBy(commissionProcessingResults.generation)
-    : [];
-
-  const rProcIds = recruitProc.map((p: any) => p.id);
-  const recruitResults = rProcIds.length
-    ? await db
-        .select()
-        .from(commissionProcessingResults)
-        .where(
-          sql`${commissionProcessingResults.processingId} = ANY(ARRAY[${sql.join(
-            rProcIds.map((id: string) => sql`${id}::uuid`),
-            sql`, `,
-          )}]::uuid[])`,
-        )
-    : [];
-
-  const ledger = await db
-    .select()
-    .from(commissionLedger)
-    .where(eq(commissionLedger.sourceReference, tx.id))
-    .orderBy(commissionLedger.generation);
-
   // Post-confirm mutation hook
   if (opts?.postConfirmMutation) await opts.postConfirmMutation();
 
@@ -600,6 +550,52 @@ async function executeAndProcess(
     .from(transactionCommissionDispatch)
     .where(eq(transactionCommissionDispatch.transactionId, tx.id))
     .orderBy(transactionCommissionDispatch.eventType);
+
+  // ── Query processing AFTER worker ──
+  const allProc = await db
+    .select()
+    .from(commissionProcessing)
+    .where(eq(commissionProcessing.sourceReference, tx.id));
+
+  const memberProc = allProc.filter(
+    (p: any) => p.sourceType === 'MEMBER_CONSUMPTION',
+  );
+  const recruitProc = allProc.filter(
+    (p: any) => p.sourceType === 'MERCHANT_RECRUITMENT',
+  );
+
+  const mProcIds = memberProc.map((p: any) => p.id);
+  const memberResults = mProcIds.length
+    ? await db
+        .select()
+        .from(commissionProcessingResults)
+        .where(
+          sql`${commissionProcessingResults.processingId} = ANY(ARRAY[${sql.join(
+            mProcIds.map((id: string) => sql`${id}::uuid`),
+            sql`, `,
+          )}]::uuid[])`,
+        )
+        .orderBy(commissionProcessingResults.generation)
+    : [];
+
+  const rProcIds = recruitProc.map((p: any) => p.id);
+  const recruitResults = rProcIds.length
+    ? await db
+        .select()
+        .from(commissionProcessingResults)
+        .where(
+          sql`${commissionProcessingResults.processingId} = ANY(ARRAY[${sql.join(
+            rProcIds.map((id: string) => sql`${id}::uuid`),
+            sql`, `,
+          )}]::uuid[])`,
+        )
+    : [];
+
+  const ledger = await db
+    .select()
+    .from(commissionLedger)
+    .where(eq(commissionLedger.sourceReference, tx.id))
+    .orderBy(commissionLedger.generation);
 
   return {
     preview,
