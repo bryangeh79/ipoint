@@ -10,10 +10,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { CommissionQueryService } from './query.service.js';
 import { AdjustmentService, AdjustmentError } from './adjustment.service.js';
-import {
-  RateManagementService,
-  RateManagementError,
-} from './rate.service.js';
+import { RateManagementService, RateManagementError } from './rate.service.js';
 import {
   CommissionSecurityService,
   CommissionSecurityError,
@@ -143,9 +140,9 @@ function createTxProxy() {
     set: vi.fn().mockReturnThis(),
     execute: vi.fn().mockReturnThis(),
     returning: vi.fn().mockReturnValue({
-      then: vi.fn().mockImplementation((resolve: (v: unknown) => void) =>
-        resolve([]),
-      ),
+      then: vi
+        .fn()
+        .mockImplementation((resolve: (v: unknown) => void) => resolve([])),
     }),
 
     setResult(r: unknown) {
@@ -324,9 +321,7 @@ describe('CommissionQueryService', () => {
     });
 
     it('searches by source_type', async () => {
-      chain.setResult([
-        makeLedgerRow({ sourceType: 'MEMBER_CONSUMPTION' }),
-      ]);
+      chain.setResult([makeLedgerRow({ sourceType: 'MEMBER_CONSUMPTION' })]);
       const r = await svc().adminSearch({ sourceType: 'MEMBER_CONSUMPTION' });
       expect(r.entries).toHaveLength(1);
       expect(r.entries[0]!.sourceType).toBe('MEMBER_CONSUMPTION');
@@ -585,7 +580,9 @@ describe('CommissionAdjustmentService', () => {
         // Select for status check
         [makeAdjustmentRow()],
       ]);
-      chain.setTransactionFn(async (cb) => cb(txWithResult([makeAdjustmentRow()])));
+      chain.setTransactionFn(async (cb) =>
+        cb(txWithResult([makeAdjustmentRow()])),
+      );
 
       const r = await svc().approveAdjustment(ADMIN_2, 'adj-1');
       expect(r.status).toBe('APPROVED');
@@ -664,27 +661,27 @@ describe('CommissionAdjustmentService', () => {
 
     it('rejects maker = checker', async () => {
       chain.setResult([makeAdjustmentRow({ makerId: ADMIN_2 })]);
-      await expect(
-        svc().approveAdjustment(ADMIN_2, 'adj-1'),
-      ).rejects.toThrow(AdjustmentError);
+      await expect(svc().approveAdjustment(ADMIN_2, 'adj-1')).rejects.toThrow(
+        AdjustmentError,
+      );
     });
 
     it('rejects duplicate approve', async () => {
       chain.setResult([
         makeAdjustmentRow({ status: 'APPROVED', checkerId: ADMIN_2 }),
       ]);
-      await expect(
-        svc().approveAdjustment(ADMIN_2, 'adj-2'),
-      ).rejects.toThrow(AdjustmentError);
+      await expect(svc().approveAdjustment(ADMIN_2, 'adj-2')).rejects.toThrow(
+        AdjustmentError,
+      );
     });
 
     it('rejects approve after reject', async () => {
       chain.setResult([
         makeAdjustmentRow({ status: 'REJECTED', checkerId: ADMIN_2 }),
       ]);
-      await expect(
-        svc().approveAdjustment(ADMIN_2, 'adj-1'),
-      ).rejects.toThrow(AdjustmentError);
+      await expect(svc().approveAdjustment(ADMIN_2, 'adj-1')).rejects.toThrow(
+        AdjustmentError,
+      );
     });
 
     it('atomic rollback on failure', async () => {
@@ -692,9 +689,7 @@ describe('CommissionAdjustmentService', () => {
       chain.setTransactionFn(async () => {
         throw new AdjustmentError('TX_FAILED', 'Transaction failed');
       });
-      await expect(
-        svc().approveAdjustment(ADMIN_2, 'adj-1'),
-      ).rejects.toThrow();
+      await expect(svc().approveAdjustment(ADMIN_2, 'adj-1')).rejects.toThrow();
       // The initial select happens outside the transaction
       expect(chain.select).toHaveBeenCalled();
     });
@@ -818,18 +813,18 @@ describe('CommissionAdjustmentService', () => {
       chain.setResult([
         makeAdjustmentRow({ status: 'APPROVED', checkerId: ADMIN_2 }),
       ]);
-      await expect(
-        svc().rejectAdjustment(ADMIN_2, 'adj-1'),
-      ).rejects.toThrow(AdjustmentError);
+      await expect(svc().rejectAdjustment(ADMIN_2, 'adj-1')).rejects.toThrow(
+        AdjustmentError,
+      );
     });
 
     it('rejects duplicate reject', async () => {
       chain.setResult([
         makeAdjustmentRow({ status: 'REJECTED', checkerId: ADMIN_2 }),
       ]);
-      await expect(
-        svc().rejectAdjustment(ADMIN_2, 'adj-1'),
-      ).rejects.toThrow(AdjustmentError);
+      await expect(svc().rejectAdjustment(ADMIN_2, 'adj-1')).rejects.toThrow(
+        AdjustmentError,
+      );
     });
   });
 
@@ -855,9 +850,9 @@ describe('CommissionAdjustmentService', () => {
       chain.setResult([
         makeAdjustmentRow({ status: 'APPROVED', checkerId: ADMIN_2 }),
       ]);
-      await expect(
-        svc().approveAdjustment(ADMIN_2, 'adj-1'),
-      ).rejects.toThrow(AdjustmentError);
+      await expect(svc().approveAdjustment(ADMIN_2, 'adj-1')).rejects.toThrow(
+        AdjustmentError,
+      );
     });
 
     it('no partial state on concurrent access', async () => {
@@ -1110,9 +1105,7 @@ describe('CommissionRateService', () => {
     });
 
     it('filters active rates by commission_type', async () => {
-      chain.setResult([
-        makeRateRow({ commissionType: 'MEMBER_CONSUMPTION' }),
-      ]);
+      chain.setResult([makeRateRow({ commissionType: 'MEMBER_CONSUMPTION' })]);
       const r = await svc().getActiveRates('MY', 'MEMBER_CONSUMPTION');
       expect(r).toHaveLength(1);
       expect(r[0]!.commissionType).toBe('MEMBER_CONSUMPTION');
