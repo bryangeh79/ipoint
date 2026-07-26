@@ -17,7 +17,6 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { and, eq, sql } from 'drizzle-orm';
 import {
   agentActivations,
   correctionExecutions,
@@ -537,9 +536,14 @@ describe('CommissionCompensationService', () => {
         generation: 2,
       });
 
-      // Make the transaction callback throw
-      chain.transaction = vi.fn().mockImplementation(async () => {
-        throw new Error('DB_CONNECTION_LOST');
+      // Fail on the second compensation insert inside the transaction.
+      let valuesCallCount = 0;
+      chain.values = vi.fn().mockImplementation(() => {
+        valuesCallCount++;
+        if (valuesCallCount === 5) {
+          throw new Error('DB_CONNECTION_LOST');
+        }
+        return chain;
       });
 
       chain.setSequence([
@@ -547,23 +551,34 @@ describe('CommissionCompensationService', () => {
         [makeTxnRow({ status: 'REVERSED' })],
         [],
         [orig1, orig2],
+        [undefined],
+        [{ revokedAt: null }],
+        [{ total: null }],
+        [],
+        [undefined],
+        [undefined],
+        [undefined],
+        [{ revokedAt: null }],
+        [{ total: null }],
+        [],
       ]);
 
       await expect(
         service.processCorrectionCompensation(params),
       ).rejects.toThrow('DB_CONNECTION_LOST');
+      expect(valuesCallCount).toBe(5);
+      expect(chain.transaction).toHaveBeenCalledTimes(1);
     });
 
     it('leaves no partial compensation ledger on failure', async () => {
       const params = makeParams({ compensationType: 'REVERSAL' });
       const orig = makeOriginalEntry();
 
-      // Transaction throws after partial processing
-      let insertCount = 0;
+      // Fail on the first compensation ledger insert inside the transaction.
+      let valuesCallCount = 0;
       chain.values = vi.fn().mockImplementation(() => {
-        insertCount++;
-        if (insertCount === 4) {
-          // Fail on the first compensation ledger insert
+        valuesCallCount++;
+        if (valuesCallCount === 2) {
           throw new Error('CONSTRAINT_VIOLATION');
         }
         return chain;
@@ -574,20 +589,18 @@ describe('CommissionCompensationService', () => {
         [makeTxnRow({ status: 'REVERSED' })],
         [],
         [orig],
+        [undefined],
+        [{ revokedAt: null }],
+        [{ total: null }],
+        [],
       ]);
 
-      // Override transaction to actually run the callback (which will throw)
-      chain.transaction = vi
-        .fn()
-        .mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
-          await expect(cb(chain)).rejects.toThrow('CONSTRAINT_VIOLATION');
-        });
+      // The service should propagate the transaction error
+      await expect(
+        service.processCorrectionCompensation(params),
+      ).rejects.toThrow('CONSTRAINT_VIOLATION');
 
-      await service.processCorrectionCompensation(params);
-
-      // The processing record insert happened before the failure
-      // but the compensation ledger inserts should NOT have completed
-      // Since the transaction threw, rollback should prevent any partial writes
+      expect(valuesCallCount).toBe(2);
       expect(chain.transaction).toHaveBeenCalledTimes(1);
     });
 
@@ -595,25 +608,37 @@ describe('CommissionCompensationService', () => {
       const params = makeParams({ compensationType: 'REVERSAL' });
       const orig = makeOriginalEntry();
 
-      chain.transaction = vi
-        .fn()
-        .mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
-          // execute callback - it will throw because a values call fails
-          const tx = chain;
-          await tx.insert(commissionProcessing).values({});
+      // Fail on the first compensation ledger insert inside the transaction.
+      let valuesCallCount = 0;
+      chain.values = vi.fn().mockImplementation(() => {
+        valuesCallCount++;
+        if (valuesCallCount === 2) {
           throw new Error('WRITE_FAILED');
-        });
+        }
+        return chain;
+      });
 
       chain.setSequence([
         [{ id: params.correctionExecutionId }],
         [makeTxnRow({ status: 'REVERSED' })],
         [],
         [orig],
+        [undefined],
+        [{ revokedAt: null }],
+        [{ total: null }],
+        [],
       ]);
 
       await expect(
         service.processCorrectionCompensation(params),
-      ).rejects.toThrow();
+      ).rejects.toThrow('WRITE_FAILED');
+
+      expect(valuesCallCount).toBe(2);
+      // No update should be made to processing COMPLETED
+      const updateCalls = chain.update.mock.calls.filter(
+        (call: any[]) => call[0] === commissionProcessing,
+      );
+      expect(updateCalls).toHaveLength(0);
     });
   });
 
@@ -991,7 +1016,10 @@ describe('CommissionCompensationService', () => {
       // Should throw CONFLICT error for existing IN_FLIGHT
       await expect(
         service.processCorrectionCompensation(params),
-      ).rejects.toThrow('COMPENSATION_PROCESSING_CONFLICT');
+      ).rejects.toMatchObject({
+        code: 'COMPENSATION_PROCESSING_CONFLICT',
+        message: expect.stringContaining('already in progress'),
+      });
     });
   });
 
