@@ -950,7 +950,8 @@ describe('B: Transaction to Commission Integration', () => {
                 .limit(1)
             )[0].id,
             rate: '10.000000',
-            effectiveFrom: new Date('2099-01-01'),
+            effectiveFrom: new Date(),
+            effectiveTo: new Date('2099-01-01'),
             status: 'ACTIVE',
             marketId: sc.marketId,
           })
