@@ -990,7 +990,96 @@ describe('B: Transaction to Commission Integration', () => {
       .where(eq(markets.code, mc2))
       .limit(1);
 
-    // Execute the transaction in the SECOND market (no rates configured)
+    // Add minimal infrastructure for second market transaction
+    await db
+      .insert(marketTransactionSettings)
+      .values({
+        marketId: mkt2.id,
+        currencyCode: 'MYR',
+        currencyScale: 2,
+        minimumTransactionAmount: '1.00',
+        maximumTransactionAmount: '999999.99',
+      })
+      .onConflictDoNothing();
+    await db
+      .insert(rewardRuleVersions)
+      .values({
+        name: 'RR-X-' + sc.suffix,
+        effectiveFrom: new Date('2020-01-01'),
+        rewardRate: '0.05',
+        capType: 'FLAT',
+        capValue: '1000.00',
+        minimumReward: '0',
+        marketId: mkt2.id,
+        createdBy: (
+          await db.select({ id: adminUsers.id }).from(adminUsers).limit(1)
+        )[0].id,
+      })
+      .onConflictDoNothing();
+    const [scBr] = await db
+      .select({ merchantGroupId: merchantBranches.merchantGroupId })
+      .from(merchantBranches)
+      .where(eq(merchantBranches.id, sc.branchId))
+      .limit(1);
+    const [br2] = await db
+      .insert(merchantBranches)
+      .values({
+        merchantGroupId: scBr.merchantGroupId,
+        merchantId: 'E-X-' + sc.suffix,
+        marketId: mkt2.id,
+        name: 'BX-' + sc.suffix,
+        status: 'ACTIVE',
+        isPubliclyVisible: true,
+        isOnline: true,
+        isOffline: false,
+        displayOrder: 0,
+      })
+      .returning({ id: merchantBranches.id });
+    await db
+      .insert(mcpAccounts)
+      .values({
+        merchantBranchId: br2.id,
+        marketId: mkt2.id,
+        availableBalance: '500000.00',
+        totalBalance: '500000.00',
+        status: 'ACTIVE',
+      })
+      .onConflictDoNothing();
+    const [pf2] = await db
+      .insert(serviceFeeProfiles)
+      .values({
+        code: 'P2-' + sc.suffix,
+        name: 'Pkg2-' + sc.suffix,
+        marketId: mkt2.id,
+      })
+      .onConflictDoNothing({ target: serviceFeeProfiles.code })
+      .returning({ id: serviceFeeProfiles.id });
+    const [fv2] = await db
+      .insert(serviceFeeVersions)
+      .values({
+        serviceFeeProfileId: pf2.id,
+        rate: '2.500000',
+        effectiveFrom: new Date('2020-01-01'),
+        status: 'ACTIVE',
+        marketId: mkt2.id,
+      })
+      .returning({ id: serviceFeeVersions.id });
+    await db
+      .insert(merchantPackageAssignments)
+      .values({
+        merchantBranchId: br2.id,
+        serviceFeeVersionId: fv2.id,
+        status: 'ACTIVE',
+        isDefault: true,
+      })
+      .onConflictDoNothing();
+    const [scPkg2] = await db
+      .select({ id: merchantPackageAssignments.id })
+      .from(merchantPackageAssignments)
+      .where(eq(merchantPackageAssignments.merchantBranchId, br2.id))
+      .limit(1);
+
+    // Execute the transaction in the SECOND market (no commission rates configured for this market)
     const pKey = `pv-mismatch-${sc.suffix}`;
     const cKey = `cf-mismatch-${sc.suffix}`;
     const preview = await transactionService.createPreview(
@@ -998,7 +1087,7 @@ describe('B: Transaction to Commission Integration', () => {
       {
         amount: '100.00',
         memberQrToken: sc.memberQrToken,
-        packageId: sc.packageId,
+        packageId: scPkg2.id,
         marketId: mkt2.id,
       },
       pKey,
