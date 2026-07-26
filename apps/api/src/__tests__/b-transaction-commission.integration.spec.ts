@@ -835,7 +835,9 @@ describe('B: Transaction to Commission Integration', () => {
 
     // Check processing completion outcome (skip outcomes don't create results)
     const noRefOutcome = r.memberProc[0]?.completionOutcome;
-    expect(['SKIPPED_NO_BENEFICIARY', 'SKIPPED_INELIGIBLE']).toContain(noRefOutcome);
+    expect(['SKIPPED_NO_BENEFICIARY', 'SKIPPED_INELIGIBLE']).toContain(
+      noRefOutcome,
+    );
 
     const anyLedger = r.ledger.find((l: any) =>
       l.entryType?.startsWith('MEMBER_CONSUMPTION'),
