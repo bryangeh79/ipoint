@@ -142,3 +142,42 @@ jobs:
       - run: cd apps/api && pnpm vitest run src/domain/commission --reporter verbose
       - run: cd apps/api && pnpm vitest run src/domain/agent-activation --reporter verbose
       - run: cd apps/api && pnpm vitest run src/domain/referral --reporter verbose
+
+  phase5-integration-tests:
+    name: Phase 5 integration tests
+    runs-on: ubuntu-latest
+    needs: [database-tests]
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ipoint_ci
+          POSTGRES_USER: ipoint
+          POSTGRES_PASSWORD: ipoint_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ipoint -d ipoint_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+      - name: Run P5 integration tests
+        run: |
+          cd apps/api && pnpm vitest run src/__tests__/b-transaction-commission.integration.spec.ts --reporter verbose
+      - name: P5 integration gate — reject placeholders
+        run: |
+          pwsh -File scripts/p5-integration-gate.ps1 -Phase 5 -MandatoryTestFiles @(
+            "apps/api/src/__tests__/b-transaction-commission.integration.spec.ts"
+          )

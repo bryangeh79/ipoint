@@ -26,6 +26,7 @@ import type {
   TransactionPreviewResponse,
 } from './transaction.dto.js';
 import { TransactionConfirmationRewardWriter } from './transaction-confirmation-reward.writer.js';
+import { TransactionCommissionDispatchWriter } from './transaction-commission-dispatch.writer.js';
 import { TransactionCommissionIntegrator } from './transaction-commission.integrator.js';
 import {
   transactionBadRequest,
@@ -157,6 +158,8 @@ export class TransactionService {
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(TransactionConfirmationRewardWriter)
     private readonly rewardWriter: TransactionConfirmationRewardWriter,
+    @Inject(TransactionCommissionDispatchWriter)
+    private readonly dispatchWriter: TransactionCommissionDispatchWriter,
     @Inject(TransactionCommissionIntegrator)
     private readonly commissionIntegrator: TransactionCommissionIntegrator,
   ) {}
@@ -571,6 +574,7 @@ export class TransactionService {
           previewSessionId,
         );
         if (prior.status === 'COMPLETED' && prior.response) {
+          await this.dispatchWriter.writeDispatches(tx, prior.transactionId!);
           return {
             response: sanitizeConfirmResponse(prior.response),
             confirmedId: prior.transactionId,
@@ -621,6 +625,10 @@ export class TransactionService {
               createdAt: now,
               updatedAt: now,
             });
+            await this.dispatchWriter.writeDispatches(
+              this.database.db,
+              completed.transactionId!,
+            );
             return {
               response: sanitizeConfirmResponse(completed.response),
               confirmedId: completed.transactionId,
@@ -718,6 +726,10 @@ export class TransactionService {
           previewSessionId,
         );
         if (conflicting.status === 'COMPLETED' && conflicting.response) {
+          await this.dispatchWriter.writeDispatches(
+            tx,
+            conflicting.transactionId!,
+          );
           return {
             response: sanitizeConfirmResponse(conflicting.response),
             confirmedId: conflicting.transactionId,
@@ -1027,40 +1039,13 @@ export class TransactionService {
         })
         .where(eq(transactionIdempotencyRecords.id, idempotencyRecordId));
 
+      // Write durable outbox dispatch events inside the same transaction
+      await this.dispatchWriter.writeDispatches(tx, confirmedTransaction.id);
+
       return { response, confirmedId: confirmedTransaction.id };
     }, TRANSACTION_EXECUTION_OPTIONS);
 
-    // Post-commit: trigger commission processing (idempotent, retryable)
-    setImmediate(() => {
-      this.triggerCommissions(txResult).catch((err) => {
-        this.logger.error(
-          `Commission processing failed: ${(err as Error).message}`,
-        );
-      });
-    });
-
     return txResult.response;
-  }
-
-  private async triggerCommissions(result: {
-    response: TransactionConfirmResponse;
-    confirmedId: string | null;
-  }): Promise<void> {
-    try {
-      if (!result.confirmedId) {
-        this.logger.warn(
-          'Cannot trigger commissions: no transaction ID available from idempotency replay',
-        );
-        return;
-      }
-      await this.commissionIntegrator.processTransactionCommissions(
-        result.confirmedId,
-      );
-    } catch (err) {
-      this.logger.error(
-        `Commission processing failed for transaction ${result.confirmedId}: ${(err as Error).message}`,
-      );
-    }
   }
 
   private assertIdempotencyMatch(

@@ -3334,6 +3334,43 @@ export const commissionStatusEvents = pgTable(
   ],
 );
 
+export const transactionCommissionDispatch = pgTable(
+  'transaction_commission_dispatch',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    transactionId: uuid('transaction_id')
+      .notNull()
+      .references(() => transactions.id, { onDelete: 'restrict' }),
+    eventType: varchar('event_type', { length: 40 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('PENDING'),
+    attempts: integer('attempts').notNull().default(0),
+    maxAttempts: integer('max_attempts').notNull().default(5),
+    availableAt: utcTimestamp('available_at').notNull().defaultNow(),
+    lockedAt: utcTimestamp('locked_at'),
+    lockedBy: varchar('locked_by', { length: 64 }),
+    lastError: text('last_error'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    completedAt: utcTimestamp('completed_at'),
+  },
+  (table) => [
+    unique('uq_dispatch_event').on(table.transactionId, table.eventType),
+    index('idx_dispatch_pending').on(table.availableAt, table.status).where(
+      sql`${table.status} = 'PENDING'`,
+    ),
+    index('idx_dispatch_stale').on(table.lockedAt, table.status).where(
+      sql`${table.status} = 'PROCESSING'`,
+    ),
+    check(
+      'chk_dispatch_status',
+      sql`${table.status} in ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')`,
+    ),
+    check(
+      'chk_dispatch_attempts',
+      sql`${table.attempts} >= 0 and ${table.attempts} <= ${table.maxAttempts}`,
+    ),
+  ],
+);
+
 export const idempotencyKeys = pgTable(
   'idempotency_key',
   {
@@ -3607,6 +3644,7 @@ export const schema = {
   commissionRateVersions,
   commissionLedger,
   commissionStatusEvents,
+  transactionCommissionDispatch,
   idempotencyKeys,
   merchantAttributions,
   commissionProcessingResults,
