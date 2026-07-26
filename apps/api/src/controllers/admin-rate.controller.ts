@@ -305,7 +305,7 @@ export class AdminRateController {
       const body = {
         code: error.code,
         message: error.message,
-        details: (error as any).details,
+        details: error.details,
       };
       switch (error.code) {
         case 'RATE_VERSION_NOT_FOUND':

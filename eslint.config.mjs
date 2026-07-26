@@ -72,9 +72,13 @@ export default tseslint.config(
   },
   {
     files: [
-      'apps/api/src/domain/commission/**/*.ts',
-      'apps/api/src/domain/referral/**/*.ts',
-      'apps/api/src/domain/agent-activation/**/*.ts',
+      'apps/api/src/domain/commission/adjustment.service.ts',
+      'apps/api/src/domain/commission/agent-upgrade.service.ts',
+      'apps/api/src/domain/commission/compensation.service.ts',
+      'apps/api/src/domain/commission/member-consumption.service.ts',
+      'apps/api/src/domain/commission/merchant-recruitment.service.ts',
+      'apps/api/src/domain/commission/rate.service.ts',
+      'apps/api/src/domain/commission/query.service.ts',
     ],
     rules: {
       '@typescript-eslint/no-unsafe-member-access': 'off',
@@ -82,11 +86,25 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-argument': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
-      '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
-      '@typescript-eslint/no-duplicate-type-constituents': 'off',
+    },
+  },
+  {
+    files: [
+      'apps/api/src/domain/referral/**/*.ts',
+      'apps/api/src/domain/agent-activation/service.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
     },
   },
   {
