@@ -832,7 +832,7 @@ export class MemberConsumptionCommissionService {
         and(
           eq(agentActivations.memberId, memberId),
           eq(agentActivations.status, 'ACTIVE'),
-          sql`${agentActivations.activatedAt} <= ${effectiveTime}`,
+          lte(agentActivations.activatedAt, effectiveTime),
           sql`(${agentActivations.revokedAt} IS NULL OR ${agentActivations.revokedAt} > ${effectiveTime})`,
         ),
       )
