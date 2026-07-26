@@ -21,7 +21,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { and, eq, lte, sql } from 'drizzle-orm';
+import { and, eq, lte, gt, sql } from 'drizzle-orm';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service.js';
 import {
@@ -287,7 +287,7 @@ export class MemberConsumptionCommissionService {
         beneficiaryId: g1BeneficiaryId,
         market: marketCode,
         currency,
-        effectiveTime: effectiveTimeIso,
+        effectiveTime: effectiveTime,
         recognizedServiceFee,
         rateVersion: g1RateVersion,
         commissionRate: G1_RATE,
@@ -306,7 +306,7 @@ export class MemberConsumptionCommissionService {
         beneficiaryId: g2BeneficiaryId,
         market: marketCode,
         currency,
-        effectiveTime: effectiveTimeIso,
+        effectiveTime: effectiveTime,
         recognizedServiceFee,
         rateVersion: g2RateVersion,
         commissionRate: G2_RATE,
@@ -785,7 +785,7 @@ export class MemberConsumptionCommissionService {
   private async isReferrerActiveAtTime(
     tx: Queryable,
     memberId: string,
-    effectiveTime: string,
+    effectiveTime: Date,
   ): Promise<boolean> {
     // Per Section 8.5 (D-06 frozen):
     // eligible = (agent_status_at_source = ACTIVE)
@@ -797,9 +797,9 @@ export class MemberConsumptionCommissionService {
         and(
           eq(agentActivations.memberId, memberId),
           eq(agentActivations.status, 'ACTIVE'),
-          sql`${agentActivations.activatedAt} <= ${effectiveTime}::timestamptz`,
+          lte(agentActivations.activatedAt, effectiveTime),
           sql`(${agentActivations.revokedAt} IS NULL
-            OR ${agentActivations.revokedAt} > ${effectiveTime}::timestamptz)`,
+            OR ${gt(agentActivations.revokedAt, effectiveTime)})`,
         ),
       )
       .limit(1);
@@ -814,7 +814,7 @@ export class MemberConsumptionCommissionService {
   private async getAgentStatusSnapshot(
     tx: Queryable,
     memberId: string,
-    effectiveTime: string,
+    effectiveTime: Date,
   ): Promise<{
     activationId: string | null;
     status: string;
@@ -832,8 +832,8 @@ export class MemberConsumptionCommissionService {
         and(
           eq(agentActivations.memberId, memberId),
           eq(agentActivations.status, 'ACTIVE'),
-          sql`${agentActivations.activatedAt} <= ${effectiveTime}::timestamptz`,
-          sql`(${agentActivations.revokedAt} IS NULL OR ${agentActivations.revokedAt} > ${effectiveTime}::timestamptz)`,
+          lte(agentActivations.activatedAt, effectiveTime),
+          sql`(${agentActivations.revokedAt} IS NULL OR ${gt(agentActivations.revokedAt, effectiveTime)})`,
         ),
       )
       .orderBy(agentActivations.activatedAt)
@@ -918,7 +918,7 @@ interface ProcessGenerationParams {
   beneficiaryId: string | null;
   market: string;
   currency: string;
-  effectiveTime: string;
+  effectiveTime: Date;
   recognizedServiceFee: string;
   rateVersion: { id: string; rateValue: string; rateType: string } | null;
   commissionRate: string;
