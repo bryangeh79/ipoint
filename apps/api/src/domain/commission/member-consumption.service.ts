@@ -531,7 +531,7 @@ export class MemberConsumptionCommissionService {
     // ---------------------------------------------------------------
     // Use a single SQL expression for unrounded + posted amounts
     // to keep calculations inside PG to preserve decimal precision.
-    const calcRows = (await tx.execute(
+    const calcResult = await tx.execute(
       sql`
         SELECT
           (
@@ -544,11 +544,11 @@ export class MemberConsumptionCommissionService {
             ${POSTING_SCALE}
           )::TEXT AS posted
       `,
-    )) as { unrounded: string; posted: string }[];
-
-    const calcResult = calcRows[0];
-    const unroundedVal: string = calcResult?.unrounded ?? '0';
-    const postedVal: string = calcResult?.posted ?? '0';
+    );
+    // tx.execute() returns { rows: [...] }, extract first row
+    const calcRow = Array.isArray(calcResult) ? calcResult[0] : (calcResult as any)?.rows?.[0];
+    const unroundedVal: string = calcRow?.unrounded ?? '0';
+    const postedVal: string = calcRow?.posted ?? '0';
 
     // Compute residual = unrounded - posted (decimal string arithmetic)
     const residualVal = this.subtractDecimalStrings(unroundedVal, postedVal);
@@ -797,6 +797,9 @@ export class MemberConsumptionCommissionService {
         and(
           eq(agentActivations.memberId, memberId),
           eq(agentActivations.status, 'ACTIVE'),
+          lte(agentActivations.activatedAt, effectiveTime),
+          sql`(${agentActivations.revokedAt} IS NULL
+            OR ${agentActivations.revokedAt} > ${effectiveTime})`,
         ),
       )
       .limit(1);
@@ -829,6 +832,8 @@ export class MemberConsumptionCommissionService {
         and(
           eq(agentActivations.memberId, memberId),
           eq(agentActivations.status, 'ACTIVE'),
+          lte(agentActivations.activatedAt, effectiveTime),
+          sql`(${agentActivations.revokedAt} IS NULL OR ${agentActivations.revokedAt} > ${effectiveTime})`,
         ),
       )
       .orderBy(agentActivations.activatedAt)
