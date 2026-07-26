@@ -833,10 +833,9 @@ describe('B: Transaction to Commission Integration', () => {
     const sc = await seedBScenario({ memberHasG1: false });
     const r = await executeAndProcess(sc);
 
-    const noRefResult = r.memberResults.find(
-      (pr: any) => pr.outcome === 'SKIPPED_NO_BENEFICIARY',
-    );
-    expect(noRefResult).toBeTruthy();
+    // Check processing completion outcome (skip outcomes don't create results)
+    const noRefOutcome = r.memberProc[0]?.completionOutcome;
+    expect(noRefOutcome).toBe('SKIPPED_NO_BENEFICIARY');
 
     const anyLedger = r.ledger.find((l: any) =>
       l.entryType?.startsWith('MEMBER_CONSUMPTION'),
