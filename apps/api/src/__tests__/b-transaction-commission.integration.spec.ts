@@ -190,7 +190,7 @@ describe('B: Transaction → Commission Integration', () => {
   it('B-11: Confirm-time service-fee snapshot is authoritative', async () => {
     if (!process.env.DATABASE_URL) return;
     const result = await db.execute(
-      sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'service_fee_rate'`,
+      sql`SELECT 1 AS ok FROM information_schema.tables WHERE table_name = 'transaction_service_fees'`,
     );
     expect(result.rows.length).toBeGreaterThanOrEqual(1);
   });
