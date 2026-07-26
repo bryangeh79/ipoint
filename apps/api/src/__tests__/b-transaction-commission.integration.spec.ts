@@ -930,43 +930,20 @@ describe('B: Transaction to Commission Integration', () => {
 
     const r = await executeAndProcess(sc, {
       postConfirmMutation: async () => {
-        // Create a new version with a higher rate (same profile, avoid exclusion by clearing effectiveTo on old)
-        await db
-          .update(serviceFeeVersions)
-          .set({ effectiveTo: new Date() })
-          .where(
-            eq(
-              serviceFeeVersions.id,
-              (
-                await db
-                  .select({ id: serviceFeeVersions.id })
-                  .from(serviceFeeVersions)
-                  .where(
-                    eq(
-                      serviceFeeVersions.serviceFeeProfileId,
-                      (
-                        await db
-                          .select({ id: serviceFeeProfiles.id })
-                          .from(serviceFeeProfiles)
-                          .where(eq(serviceFeeProfiles.code, `P-${sc.suffix}`))
-                          .limit(1)
-                      )[0].id,
-                    ),
-                  )
-                  .limit(1)
-              )[0].id,
-            ),
-          );
+        // Create a new profile+version to avoid DB trigger on existing version updates
+        const [newPf] = await db
+          .insert(serviceFeeProfiles)
+          .values({
+            code: `PM-${sc.suffix}`,
+            name: `PkgM-${sc.suffix}`,
+            marketId: sc.marketId,
+          })
+          .onConflictDoNothing({ target: serviceFeeProfiles.code })
+          .returning({ id: serviceFeeProfiles.id });
         const [nv] = await db
           .insert(serviceFeeVersions)
           .values({
-            serviceFeeProfileId: (
-              await db
-                .select({ id: serviceFeeProfiles.id })
-                .from(serviceFeeProfiles)
-                .where(eq(serviceFeeProfiles.code, `P-${sc.suffix}`))
-                .limit(1)
-            )[0].id,
+            serviceFeeProfileId: newPf.id,
             rate: '10.000000',
             effectiveFrom: new Date(),
             status: 'ACTIVE',
@@ -1014,6 +991,18 @@ describe('B: Transaction to Commission Integration', () => {
       .limit(1);
 
     // Register branch in second market (same merchant group as scenario)
+    // Add transaction settings for second market
+    await db
+      .insert(marketTransactionSettings)
+      .values({
+        marketId: mkt2.id,
+        currencyCode: 'MYR',
+        currencyScale: 2,
+        minimumTransactionAmount: '1.00',
+        maximumTransactionAmount: '999999.99',
+      })
+      .onConflictDoNothing();
+
     const [scBr] = await db
       .select({ merchantGroupId: merchantBranches.merchantGroupId })
       .from(merchantBranches)
