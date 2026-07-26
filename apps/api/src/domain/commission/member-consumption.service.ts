@@ -797,9 +797,6 @@ export class MemberConsumptionCommissionService {
         and(
           eq(agentActivations.memberId, memberId),
           eq(agentActivations.status, 'ACTIVE'),
-          sql`${agentActivations.activatedAt} <= ${effectiveTime}`,
-          sql`(${agentActivations.revokedAt} IS NULL
-            OR ${agentActivations.revokedAt} > ${effectiveTime})`,
         ),
       )
       .limit(1);
