@@ -462,7 +462,7 @@ async function executeAndProcess(
       packageId: scenario.packageId,
       marketId: scenario.marketId,
     },
-    `preview-${scenario.suffix}`,
+    `preview-${Date.now()}-${scenario.suffix}`,
     scenario.marketId,
     {},
   );
@@ -472,7 +472,7 @@ async function executeAndProcess(
       scenario.staffAccountId,
       preview.previewSessionId,
       {},
-      `confirm-${scenario.suffix}`,
+      `confirm-${Date.now()}-${scenario.suffix}`,
       {},
     );
 
