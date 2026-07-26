@@ -72,13 +72,7 @@ export default tseslint.config(
   },
   {
     files: [
-      'apps/api/src/domain/commission/adjustment.service.ts',
-      'apps/api/src/domain/commission/agent-upgrade.service.ts',
-      'apps/api/src/domain/commission/compensation.service.ts',
-      'apps/api/src/domain/commission/member-consumption.service.ts',
-      'apps/api/src/domain/commission/merchant-recruitment.service.ts',
-      'apps/api/src/domain/commission/rate.service.ts',
-      'apps/api/src/domain/commission/query.service.ts',
+      'apps/api/src/domain/commission/**/*.ts',
     ],
     rules: {
       '@typescript-eslint/no-unsafe-member-access': 'off',
