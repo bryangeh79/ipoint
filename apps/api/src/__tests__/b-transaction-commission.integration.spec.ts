@@ -85,6 +85,8 @@ beforeAll(async () => {
   db = databaseService.db;
   transactionService = app.get(TransactionService);
   outboxWorker = app.get(TransactionCommissionOutboxWorker);
+  // Stop background tick to prevent race with processBatchOnce()
+  outboxWorker.stop();
 });
 
 afterAll(async () => {
