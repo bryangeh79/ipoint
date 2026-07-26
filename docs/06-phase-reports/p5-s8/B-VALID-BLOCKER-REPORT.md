@@ -20,8 +20,9 @@ The `processMemberConsumption` function in `member-consumption.service.ts` creat
 ## Recommended Next Step
 
 Add `console.log` or `debug` output to the `executeAndProcess` helper to capture:
+
 1. `tx.id` — the transaction UUID from `transactions` table
-2. `tx.transactionNumber` — the bigint  
+2. `tx.transactionNumber` — the bigint
 3. All `dispatchAfter` entries (IDs, status, eventType, transactionId)
 4. `workerResult.claimed` and `workerResult.completed`
 5. All `allProc` entries (IDs, sourceType, sourceReference, status)
@@ -30,18 +31,18 @@ Then run locally to see exactly what values the processing entries have.
 
 ## All Completed Work
 
-| Component | Status |
-|---|---|
-| Durable outbox | ✅ ACCEPTED |
-| Same-Tx dispatch writer | ✅ ACCEPTED |
-| Connection-safe worker | ✅ ACCEPTED |
-| processBatchOnce() | ✅ ACCEPTED |
-| Drizzle ORM seed | ✅ ACCEPTED |
-| NestJS test harness | ✅ ACCEPTED |
-| CI 6-job pipeline | ✅ ACCEPTED |
-| Service-fee query fix | ✅ FIXED |
-| 2-char market code | ✅ FIXED |
-| Processing query order | ✅ FIXED (after worker) |
-| outboxWorker.stop() | ✅ IMPLEMENTED |
-| B-01 to B-15 structure | ✅ COMPLETE |
-| Remaining bug: processing not found | ❌ OPEN |
+| Component                           | Status                  |
+| ----------------------------------- | ----------------------- |
+| Durable outbox                      | ✅ ACCEPTED             |
+| Same-Tx dispatch writer             | ✅ ACCEPTED             |
+| Connection-safe worker              | ✅ ACCEPTED             |
+| processBatchOnce()                  | ✅ ACCEPTED             |
+| Drizzle ORM seed                    | ✅ ACCEPTED             |
+| NestJS test harness                 | ✅ ACCEPTED             |
+| CI 6-job pipeline                   | ✅ ACCEPTED             |
+| Service-fee query fix               | ✅ FIXED                |
+| 2-char market code                  | ✅ FIXED                |
+| Processing query order              | ✅ FIXED (after worker) |
+| outboxWorker.stop()                 | ✅ IMPLEMENTED          |
+| B-01 to B-15 structure              | ✅ COMPLETE             |
+| Remaining bug: processing not found | ❌ OPEN                 |
