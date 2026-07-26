@@ -1002,6 +1002,22 @@ describe('B: Transaction to Commission Integration', () => {
         maximumTransactionAmount: '999999.99',
       })
       .onConflictDoNothing();
+    // Add reward rule for second market
+    await db
+      .insert(rewardRuleVersions)
+      .values({
+        name: 'RR-' + sc.suffix + '-x',
+        effectiveFrom: new Date('2020-01-01'),
+        rewardRate: '0.05',
+        capType: 'FLAT',
+        capValue: '1000.00',
+        minimumReward: '0',
+        marketId: mkt2.id,
+        createdBy: (
+          await db.select({ id: adminUsers.id }).from(adminUsers).limit(1)
+        )[0].id,
+      })
+      .onConflictDoNothing();
 
     const [scBr] = await db
       .select({ merchantGroupId: merchantBranches.merchantGroupId })
