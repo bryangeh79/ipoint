@@ -1057,12 +1057,18 @@ describe('B: Transaction to Commission Integration', () => {
     const pKey = `pv-mismatch-${sc.suffix}`;
     const cKey = `cf-mismatch-${sc.suffix}`;
 
+    // Use new branch's package for second market
+    const [scPkg2] = await db
+      .select({ id: merchantPackageAssignments.id })
+      .from(merchantPackageAssignments)
+      .where(eq(merchantPackageAssignments.merchantBranchId, br2.id))
+      .limit(1);
     const preview = await transactionService.createPreview(
       sc.staffAccountId,
       {
         amount: '100.00',
         memberQrToken: sc.memberQrToken,
-        packageId: sc.packageId,
+        packageId: scPkg2.id,
         marketId: mkt2.id,
       },
       pKey,
