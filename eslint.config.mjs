@@ -71,9 +71,7 @@ export default tseslint.config(
     },
   },
   {
-    files: [
-      'apps/api/src/domain/commission/**/*.ts',
-    ],
+    files: ['apps/api/src/domain/commission/**/*.ts'],
     rules: {
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
