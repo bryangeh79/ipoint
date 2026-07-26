@@ -93,6 +93,7 @@ async function seedBScenario(opts?: {
   merchantAttributionLevel?: 'NONE' | 'MERCHANT' | 'BRANCH';
   memberHasG1?: boolean;
   memberHasG2?: boolean;
+  serviceFeeRate?: string;
 }): Promise<BScenario> {
   const s = uid();
   const mc = s.substring(0, 2).toUpperCase();
@@ -215,7 +216,7 @@ async function seedBScenario(opts?: {
     .insert(serviceFeeVersions)
     .values({
       serviceFeeProfileId: pf.id,
-      rate: '2.500000',
+      rate: opts?.serviceFeeRate ?? '2.500000',
       effectiveFrom: new Date('2020-01-01'),
       status: 'ACTIVE',
       marketId: mkt.id,
@@ -1157,25 +1158,10 @@ describe('B: Transaction to Commission Integration', () => {
   });
 
   it('B-15: Rounded zero => SKIPPED_ZERO_AMOUNT, no ledger', async () => {
-    const sc = await seedBScenario();
-    // Set service fee rate to near-zero: $1.00 × 0.000001% ≈ 0.00000001 service fee
+    const sc = await seedBScenario({ serviceFeeRate: '0.000001' });
+    // Service fee at near-zero rate: $1.00 × 0.000001% ≈ 0.00000001
     // G1 = 0.00000001 × 0.01 = 0.0000000001 → HALF_UP to 0.00 → SKIPPED_ZERO_AMOUNT
-    const [feeVersion] = await db
-      .select({ id: serviceFeeVersions.id })
-      .from(serviceFeeVersions)
-      .innerJoin(
-        serviceFeeProfiles,
-        eq(serviceFeeProfiles.id, serviceFeeVersions.serviceFeeProfileId),
-      )
-      .where(eq(serviceFeeProfiles.marketId, sc.marketId))
-      .limit(1);
-    if (feeVersion) {
-      await db
-        .update(serviceFeeVersions)
-        .set({ rate: '0.000001' })
-        .where(eq(serviceFeeVersions.id, feeVersion.id));
-    }
-
+    // G2 = 0.00000001 × 0.005 = 0.00000000005 → HALF_UP to 0.00 → SKIPPED_ZERO_AMOUNT
     const r = await executeAndProcess(sc, { amount: '1.00' });
 
     // Processing outcome = SKIPPED_ZERO_AMOUNT (NOT SKIPPED_INELIGIBLE)
