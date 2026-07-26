@@ -228,6 +228,7 @@ async function seedBScenario(overrides?: {
     await db.insert(agentActivations).values({
       memberId: referrer.id,
       status: agentStatus,
+      market: 'MY',
       activatedAt: new Date(),
     });
   }
@@ -262,6 +263,7 @@ async function seedBScenario(overrides?: {
     await db.insert(agentActivations).values({
       memberId: recMember.id,
       status: recStatus,
+      market: 'MY',
       activatedAt: new Date(),
     });
   }
