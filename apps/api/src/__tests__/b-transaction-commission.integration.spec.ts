@@ -1008,17 +1008,49 @@ describe('B: Transaction to Commission Integration', () => {
       .from(merchantBranches)
       .where(eq(merchantBranches.id, sc.branchId))
       .limit(1);
-    await db.insert(merchantBranches).values({
-      merchantGroupId: scBr.merchantGroupId,
-      merchantId: 'E-X-' + sc.suffix,
-      marketId: mkt2.id,
-      name: 'BX-' + sc.suffix,
-      status: 'ACTIVE',
-      isPubliclyVisible: true,
-      isOnline: true,
-      isOffline: false,
-      displayOrder: 0,
-    });
+    const [br2] = await db
+      .insert(merchantBranches)
+      .values({
+        merchantGroupId: scBr.merchantGroupId,
+        merchantId: 'E-X-' + sc.suffix,
+        marketId: mkt2.id,
+        name: 'BX-' + sc.suffix,
+        status: 'ACTIVE',
+        isPubliclyVisible: true,
+        isOnline: true,
+        isOffline: false,
+        displayOrder: 0,
+      })
+      .returning({ id: merchantBranches.id });
+    // Create package for second market's branch
+    const [pf2] = await db
+      .insert(serviceFeeProfiles)
+      .values({
+        code: 'P2-' + sc.suffix,
+        name: 'Pkg2-' + sc.suffix,
+        marketId: mkt2.id,
+      })
+      .onConflictDoNothing({ target: serviceFeeProfiles.code })
+      .returning({ id: serviceFeeProfiles.id });
+    const [fv2] = await db
+      .insert(serviceFeeVersions)
+      .values({
+        serviceFeeProfileId: pf2.id,
+        rate: '2.500000',
+        effectiveFrom: new Date('2020-01-01'),
+        status: 'ACTIVE',
+        marketId: mkt2.id,
+      })
+      .returning({ id: serviceFeeVersions.id });
+    await db
+      .insert(merchantPackageAssignments)
+      .values({
+        merchantBranchId: br2.id,
+        serviceFeeVersionId: fv2.id,
+        status: 'ACTIVE',
+        isDefault: true,
+      })
+      .onConflictDoNothing();
 
     // Execute the transaction in the SECOND market (cross-market)
     // Create preview/confirm with the cross market
