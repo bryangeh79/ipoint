@@ -648,6 +648,27 @@ describe('B: Transaction to Commission Integration', () => {
     const sc = await seedBScenario();
     const r = await executeAndProcess(sc);
 
+    // DIAGNOSTIC
+    process.stderr.write(
+      '[B01-DIAG] outcome=' +
+        r.memberProc[0]?.completionOutcome +
+        ' status=' +
+        r.memberProc[0]?.status +
+        '\n',
+    );
+    process.stderr.write(
+      '[B01-DIAG] results=' +
+        JSON.stringify(
+          r.memberResults.map((x: any) => ({
+            g: x.generation,
+            o: x.outcome,
+            b: x.beneficiaryId,
+          })),
+        ) +
+        '\n',
+    );
+    process.stderr.write('[B01-DIAG] ledger=' + r.ledger.length + '\n');
+
     // Dispatch must be COMPLETED
     const md = r.dispatchAfter.find(
       (d: any) => d.eventType === 'MEMBER_CONSUMPTION',
