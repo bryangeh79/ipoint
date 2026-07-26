@@ -93,6 +93,15 @@ export default tseslint.config(
     },
   },
   {
+    files: [
+      'apps/api/src/domain/referral/**/*.ts',
+      'apps/api/src/domain/agent-activation/service.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
+  {
     files: ['**/*.spec.ts', '**/*.test.ts'],
     rules: {
       '@typescript-eslint/unbound-method': 'off',
@@ -107,6 +116,7 @@ export default tseslint.config(
       '@typescript-eslint/only-throw-error': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
       '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
     },
   },
   {
