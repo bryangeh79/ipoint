@@ -648,6 +648,46 @@ describe('B: Transaction to Commission Integration', () => {
     const sc = await seedBScenario();
     const r = await executeAndProcess(sc);
 
+    // DIAGNOSTIC: dump processing state for CI analysis
+    console.error('\n[B-01 DIAGNOSTIC]');
+    console.error('  transactionId:', r.transactionId);
+    console.error('  marketCode:', sc.marketCode);
+    console.error('  g1MemberId:', sc.g1MemberId);
+    for (const p of r.memberProc) {
+      console.error('  processing:', JSON.stringify({ id: p.id, status: p.status, completionOutcome: p.completionOutcome }));
+    }
+    for (const d of r.dispatchAfter) {
+      console.error('  dispatch:', JSON.stringify({ id: d.id, eventType: d.eventType, status: d.status, completedAt: d.completedAt }));
+    }
+
+    // Check agent activation directly
+    const [act] = await db
+      .select({ id: agentActivations.id, status: agentActivations.status, activatedAt: agentActivations.activatedAt })
+      .from(agentActivations)
+      .where(eq(agentActivations.memberId, sc.g1MemberId))
+      .limit(1);
+    if (act) {
+      console.error('  agentActivation:', JSON.stringify({ id: act.id, status: act.status, activatedAt: act.activatedAt?.toISOString() }));
+    } else {
+      console.error('  agentActivation: NOT FOUND');
+    }
+
+    // Check rate version
+    const [rv] = await db
+      .select({ id: commissionRateVersions.id, type: commissionRateVersions.commissionType, gen: commissionRateVersions.generation, market: commissionRateVersions.market })
+      .from(commissionRateVersions)
+      .where(and(
+        eq(commissionRateVersions.commissionType, 'MEMBER_CONSUMPTION'),
+        eq(commissionRateVersions.generation, 1),
+        eq(commissionRateVersions.market, sc.marketCode),
+      ))
+      .limit(1);
+    if (rv) {
+      console.error('  rateVersion:', JSON.stringify(rv));
+    } else {
+      console.error('  rateVersion: NOT FOUND');
+    }
+
     // Dispatch must be COMPLETED
     const md = r.dispatchAfter.find(
       (d: any) => d.eventType === 'MEMBER_CONSUMPTION',
