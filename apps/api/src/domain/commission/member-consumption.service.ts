@@ -179,12 +179,7 @@ export class MemberConsumptionCommissionService {
         amount: transactionServiceFees.amount,
       })
       .from(transactionServiceFees)
-      .where(
-        and(
-          eq(transactionServiceFees.transactionId, transactionId),
-          eq(transactionServiceFees.marketId, transactions.marketId),
-        ),
-      )
+      .where(eq(transactionServiceFees.transactionId, transactionId))
       .limit(1);
 
     if (feeRows.length === 0) {
