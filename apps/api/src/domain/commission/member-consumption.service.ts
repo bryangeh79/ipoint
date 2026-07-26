@@ -546,7 +546,9 @@ export class MemberConsumptionCommissionService {
       `,
     );
     // tx.execute() returns { rows: [...] }, extract first row
-    const calcRow = Array.isArray(calcResult) ? calcResult[0] : (calcResult as any)?.rows?.[0];
+    const calcRow = Array.isArray(calcResult)
+      ? calcResult[0]
+      : (calcResult as any)?.rows?.[0];
     const unroundedVal: string = calcRow?.unrounded ?? '0';
     const postedVal: string = calcRow?.posted ?? '0';
 

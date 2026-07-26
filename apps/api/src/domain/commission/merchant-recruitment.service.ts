@@ -538,7 +538,7 @@ export class MerchantRecruitmentCommissionService {
     // Uses decimal arithmetic via PostgreSQL numeric type cast.
     // All intermediary arithmetic is carried at 10dp precision.
     // ---------------------------------------------------------------
-    const calcRows = (await tx.execute(
+    const calcResult = await tx.execute(
       sql`
         SELECT
           (
@@ -551,11 +551,12 @@ export class MerchantRecruitmentCommissionService {
             ${POSTING_SCALE}
           )::TEXT AS posted
       `,
-    )) as { unrounded: string; posted: string }[];
-
-    const calcResult = calcRows[0];
-    const unroundedVal: string = calcResult?.unrounded ?? '0';
-    const postedVal: string = calcResult?.posted ?? '0';
+    );
+    const calcRow = Array.isArray(calcResult)
+      ? calcResult[0]
+      : (calcResult as any)?.rows?.[0];
+    const unroundedVal: string = calcRow?.unrounded ?? '0';
+    const postedVal: string = calcRow?.posted ?? '0';
 
     // Compute residual = unrounded - posted (decimal string arithmetic)
     const residualVal = this.subtractDecimalStrings(unroundedVal, postedVal);

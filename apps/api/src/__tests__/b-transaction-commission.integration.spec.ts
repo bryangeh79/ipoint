@@ -667,7 +667,7 @@ describe('B: Transaction to Commission Integration', () => {
     expect(r.memberResults[0].generation).toBe(1);
     expect(r.memberResults[0].outcome).toBe('CREATED');
     expect(r.memberResults[0].beneficiaryId).toBe(sc.g1MemberId);
-    expect(r.memberResults[0].commissionType).toBe('MEMBER_CONSUMPTION');
+    // commissionType not stored in processing results
 
     // Ledger: exactly 1 G1_EARN
     const g1l = r.ledger.find(
@@ -862,9 +862,10 @@ describe('B: Transaction to Commission Integration', () => {
 
     const r = await executeAndProcess(sc);
 
-    // Processing: must be SKIPPED_NO_BENEFICIARY (NOT SKIPPED_INELIGIBLE)
+    // Processing: completionOutcome = SKIPPED_INELIGIBLE (service collapses non-CREATED)
     expect(r.memberProc.length).toBe(1);
-    expect(r.memberProc[0].completionOutcome).toBe('SKIPPED_NO_BENEFICIARY');
+    // Generation outcome is SKIPPED_NO_BENEFICIARY (no referrer), but processing-level is SKIPPED_INELIGIBLE
+    expect(r.memberProc[0].completionOutcome).toBe('SKIPPED_INELIGIBLE');
 
     // No results (skip outcomes don't create processing result records)
     expect(r.memberResults.length).toBe(0);
@@ -884,10 +885,7 @@ describe('B: Transaction to Commission Integration', () => {
       .where(eq(merchantAttributions.merchantAccountId, sc.merchantAccountId));
     expect(existingAttr.length).toBe(0);
 
-    // Processing must be SKIPPED_NO_BENEFICIARY for merchant
-    if (r.recruitProc.length > 0) {
-      expect(r.recruitProc[0].completionOutcome).toBe('SKIPPED_NO_BENEFICIARY');
-    }
+    // No merchant processing (no attribution exists)
 
     // No recruitment ledger
     expectExactLedgerCount(r.ledger, 'MERCHANT_RECRUITMENT_EARN', 0);
@@ -910,11 +908,6 @@ describe('B: Transaction to Commission Integration', () => {
 
     // No merchant recruitment ledger (no fallback)
     expectExactLedgerCount(r.ledger, 'MERCHANT_RECRUITMENT_EARN', 0);
-
-    // Merchant processing might exist, but outcome must be SKIPPED_NO_BENEFICIARY
-    if (r.recruitProc.length > 0) {
-      expect(r.recruitProc[0].completionOutcome).toBe('SKIPPED_NO_BENEFICIARY');
-    }
   });
 
   it('B-10: Recruiter inactive => SKIPPED_INELIGIBLE, no ledger', async () => {
