@@ -22,6 +22,7 @@ The current file has the processing queries at line ~530 and the worker at line 
 ### File to Fix
 
 `apps/api/src/__tests__/b-transaction-commission.integration.spec.ts`
+
 - Lines 530-565: Move after the worker call
 - Lines 585-600: Keep failure injection and post-confirm mutation before worker
 
