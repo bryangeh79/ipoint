@@ -668,6 +668,11 @@ describe('B: Transaction to Commission Integration', () => {
         '\n',
     );
     process.stderr.write('[B01-DIAG] ledger=' + r.ledger.length + '\n');
+    process.stderr.write('[B01-DIAG] g1mid=' + sc.g1MemberId + ' mid=' + sc.memberId + '\\n');
+    const [txr] = await db.select({ c: transactions.confirmedAt }).from(transactions).where(eq(transactions.id, r.transactionId)).limit(1);
+    process.stderr.write('[B01-DIAG] confirmedAt=' + (txr?.c?.toISOString() ?? 'null') + '\n');
+    const [actr] = await db.select({ s: agentActivations.status, a: agentActivations.activatedAt, r: agentActivations.revokedAt }).from(agentActivations).where(eq(agentActivations.memberId, sc.g1MemberId!)).limit(1);
+    process.stderr.write('[B01-DIAG] actStatus=' + (actr?.s ?? 'NOT_FOUND') + ' actAt=' + (actr?.a?.toISOString() ?? 'null') + ' revAt=' + (actr?.r?.toISOString() ?? 'null'));
 
     // Dispatch must be COMPLETED
     const md = r.dispatchAfter.find(
