@@ -80,6 +80,8 @@ beforeAll(async () => {
   db = app.get(DatabaseService).db;
   transactionService = app.get(TransactionService);
   outboxWorker = app.get(TransactionCommissionOutboxWorker);
+  // Stop background tick immediately after init to prevent races
+  outboxWorker.stop();
   outboxWorker.stop();
 });
 
