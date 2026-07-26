@@ -307,35 +307,40 @@ describe('CommissionQueryService', () => {
   /* ---------------------------------------------------------------- */
 
   describe('admin search', () => {
+    /** adminSearch uses .leftJoin which returns { entry: {...}, beneficiaryPublicId } shape */
+    function adminRow(overrides: Record<string, unknown> = {}) {
+      return { entry: makeLedgerRow(overrides), beneficiaryPublicId: null };
+    }
+
     it('searches by beneficiary_id', async () => {
-      chain.setResult([makeLedgerRow({ beneficiaryId: MEMBER_A })]);
+      chain.setResult([adminRow({ beneficiaryId: MEMBER_A })]);
       const r = await svc().adminSearch({ beneficiaryId: MEMBER_A });
       expect(r.entries).toHaveLength(1);
     });
 
     it('searches by market', async () => {
-      chain.setResult([makeLedgerRow({ market: 'SG' })]);
+      chain.setResult([adminRow({ market: 'SG' })]);
       const r = await svc().adminSearch({ market: 'sg' });
       expect(r.entries).toHaveLength(1);
       expect(r.entries[0]!.market).toBe('SG');
     });
 
     it('searches by source_type', async () => {
-      chain.setResult([makeLedgerRow({ sourceType: 'MEMBER_CONSUMPTION' })]);
+      chain.setResult([adminRow({ sourceType: 'MEMBER_CONSUMPTION' })]);
       const r = await svc().adminSearch({ sourceType: 'MEMBER_CONSUMPTION' });
       expect(r.entries).toHaveLength(1);
       expect(r.entries[0]!.sourceType).toBe('MEMBER_CONSUMPTION');
     });
 
     it('searches by status', async () => {
-      chain.setResult([makeLedgerRow({ postingStatus: 'EARNED' })]);
+      chain.setResult([adminRow({ postingStatus: 'EARNED' })]);
       const r = await svc().adminSearch({ status: 'EARNED' });
       expect(r.entries).toHaveLength(1);
       expect(r.entries[0]!.postingStatus).toBe('EARNED');
     });
 
     it('searches by date range', async () => {
-      chain.setResult([makeLedgerRow()]);
+      chain.setResult([adminRow()]);
       const r = await svc().adminSearch({
         from: '2026-07-01T00:00:00Z',
         to: '2026-07-31T00:00:00Z',
