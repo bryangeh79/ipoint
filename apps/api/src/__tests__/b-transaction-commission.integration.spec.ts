@@ -116,7 +116,7 @@ async function seedBScenario(overrides?: {
   const [mkt] = await db
     .insert(markets)
     .values({
-      code: 'BT',
+      code: `${suffix.substring(0, 6).toUpperCase()}`,
       name: `BTest-${suffix}`,
       timezone: 'Asia/Kuala_Lumpur',
       status: 'ACTIVE',
@@ -251,7 +251,7 @@ async function seedBScenario(overrides?: {
       merchantAccountId: merchantAccount.id,
       attributedEntityType: 'MERCHANT',
       branchId: null,
-      recruiterId: recMember.id,
+      recruiterMemberId: recMember.id,
       attributionSource: 'REGISTRATION',
       attributionScope: 'PERMANENT',
       effectiveFrom: new Date(),
@@ -409,7 +409,7 @@ describe.skipIf(noDb)('B: Transaction to Commission Integration', () => {
   it('B-12: Market mismatch', async () => {
     const suffix = uid();
     await db.insert(markets).values({
-      code: 'SG',
+      code: `SG${suffix.substring(0, 4).toUpperCase()}`,
       name: `BTest-SG-${suffix}`,
       timezone: 'Asia/Singapore',
       status: 'ACTIVE',
