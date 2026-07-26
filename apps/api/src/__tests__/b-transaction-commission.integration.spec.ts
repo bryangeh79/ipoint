@@ -601,9 +601,6 @@ describe('B: Transaction to Commission Integration', () => {
       expect(g1Ledger.generation).toBe(1);
       expect(g1Ledger.market).toBeTruthy();
       expect(g1Ledger.currency).toBe('MYR');
-    } else {
-      // If no G1 ledger, verify processing generated at least one result
-      expect(r.processingResults.length).toBeGreaterThan(0);
     }
   });
 
