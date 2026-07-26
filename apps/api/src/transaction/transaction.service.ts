@@ -4,7 +4,7 @@ import {
   createHash,
   createHmac,
 } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   transactionAuditReferences,
   transactionIdempotencyRecords,
@@ -26,6 +26,7 @@ import type {
   TransactionPreviewResponse,
 } from './transaction.dto.js';
 import { TransactionConfirmationRewardWriter } from './transaction-confirmation-reward.writer.js';
+import { TransactionCommissionIntegrator } from './transaction-commission.integrator.js';
 import {
   transactionBadRequest,
   transactionConflict,
@@ -148,12 +149,16 @@ export interface TransactionRequestContext {
 
 @Injectable()
 export class TransactionService {
+  private readonly logger = new Logger(TransactionService.name);
+
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(ConfigService) private readonly config: ConfigService,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(TransactionConfirmationRewardWriter)
     private readonly rewardWriter: TransactionConfirmationRewardWriter,
+    @Inject(TransactionCommissionIntegrator)
+    private readonly commissionIntegrator: TransactionCommissionIntegrator,
   ) {}
 
   async createPreview(
@@ -459,7 +464,7 @@ export class TransactionService {
     const keyHash = sha256(idempotencyKey);
     const requestHash = sha256(canonicalJson(input));
     const previewSessionId = this.decodePreviewReference(previewReference);
-    return this.database.runTransaction(async (tx) => {
+    const txResult = await this.database.runTransaction(async (tx) => {
       const now = new Date();
       const lockResult = await tx.execute<AdvisoryLockRow>(sql`
         SELECT pg_try_advisory_xact_lock(
@@ -543,6 +548,7 @@ export class TransactionService {
           previewSessionId: transactionIdempotencyRecords.previewSessionId,
           status: transactionIdempotencyRecords.status,
           response: transactionIdempotencyRecords.response,
+          transactionId: transactionIdempotencyRecords.transactionId,
         })
         .from(transactionIdempotencyRecords)
         .where(
@@ -565,7 +571,10 @@ export class TransactionService {
           previewSessionId,
         );
         if (prior.status === 'COMPLETED' && prior.response) {
-          return sanitizeConfirmResponse(prior.response);
+          return {
+            response: sanitizeConfirmResponse(prior.response),
+            confirmedId: prior.transactionId,
+          };
         }
         transactionConflict(
           transactionErrorCodes.confirmationFailed,
@@ -612,7 +621,10 @@ export class TransactionService {
               createdAt: now,
               updatedAt: now,
             });
-            return sanitizeConfirmResponse(completed.response);
+            return {
+              response: sanitizeConfirmResponse(completed.response),
+              confirmedId: completed.transactionId,
+            };
           }
         }
         transactionConflict(
@@ -678,6 +690,7 @@ export class TransactionService {
             previewSessionId: transactionIdempotencyRecords.previewSessionId,
             status: transactionIdempotencyRecords.status,
             response: transactionIdempotencyRecords.response,
+            transactionId: transactionIdempotencyRecords.transactionId,
           })
           .from(transactionIdempotencyRecords)
           .where(
@@ -705,7 +718,10 @@ export class TransactionService {
           previewSessionId,
         );
         if (conflicting.status === 'COMPLETED' && conflicting.response) {
-          return sanitizeConfirmResponse(conflicting.response);
+          return {
+            response: sanitizeConfirmResponse(conflicting.response),
+            confirmedId: conflicting.transactionId,
+          };
         }
         transactionConflict(
           transactionErrorCodes.confirmationFailed,
@@ -1011,8 +1027,40 @@ export class TransactionService {
         })
         .where(eq(transactionIdempotencyRecords.id, idempotencyRecordId));
 
-      return response;
+      return { response, confirmedId: confirmedTransaction.id };
     }, TRANSACTION_EXECUTION_OPTIONS);
+
+    // Post-commit: trigger commission processing (idempotent, retryable)
+    setImmediate(() => {
+      this.triggerCommissions(txResult).catch((err) => {
+        this.logger.error(
+          `Commission processing failed: ${(err as Error).message}`,
+        );
+      });
+    });
+
+    return txResult.response;
+  }
+
+  private async triggerCommissions(result: {
+    response: TransactionConfirmResponse;
+    confirmedId: string | null;
+  }): Promise<void> {
+    try {
+      if (!result.confirmedId) {
+        this.logger.warn(
+          'Cannot trigger commissions: no transaction ID available from idempotency replay',
+        );
+        return;
+      }
+      await this.commissionIntegrator.processTransactionCommissions(
+        result.confirmedId,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Commission processing failed for transaction ${result.confirmedId}: ${(err as Error).message}`,
+      );
+    }
   }
 
   private assertIdempotencyMatch(
