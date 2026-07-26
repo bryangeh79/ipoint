@@ -581,7 +581,9 @@ describe('B: Transaction to Commission Integration', () => {
 
     // Processing results (may be empty if no generation was eligible)
     if (r.processingResults.length > 0) {
-      const g1Result = r.processingResults.find((pr: any) => pr.generation === 1);
+      const g1Result = r.processingResults.find(
+        (pr: any) => pr.generation === 1,
+      );
       if (g1Result) {
         expect([
           'CREATED',
