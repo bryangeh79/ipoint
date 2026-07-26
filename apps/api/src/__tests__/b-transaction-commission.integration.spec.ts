@@ -806,14 +806,10 @@ describe('B: Transaction to Commission Integration', () => {
     expect(r.memberProc[0].completionOutcome).toBe('CREATED');
 
     // Only G2 has a processing result (G1 skipped = no result record)
-    const g1Res = expectExactMemberResult(
-      r.memberResults,
-      1,
-      'SKIPPED_INELIGIBLE',
-    );
-    const g2Res = expectExactMemberResult(r.memberResults, 2, 'CREATED');
-    expect(g1Res.beneficiaryId).toBe(sc.g1MemberId);
-    expect(g2Res.beneficiaryId).toBe(sc.g2MemberId);
+    expect(r.memberResults.length).toBe(1);
+    expect(r.memberResults[0].generation).toBe(2);
+    expect(r.memberResults[0].outcome).toBe('CREATED');
+    expect(r.memberResults[0].beneficiaryId).toBe(sc.g2MemberId);
 
     // Ledger: only G2 (G1 = 0)
     expectExactLedgerCount(r.ledger, 'MEMBER_CONSUMPTION_G1_EARN', 0);
@@ -835,14 +831,10 @@ describe('B: Transaction to Commission Integration', () => {
     expect(r.memberProc[0].completionOutcome).toBe('CREATED');
 
     // Only G1 has a processing result (G2 skipped = no result record)
-    const g1Res = expectExactMemberResult(r.memberResults, 1, 'CREATED');
-    const g2Res = expectExactMemberResult(
-      r.memberResults,
-      2,
-      'SKIPPED_INELIGIBLE',
-    );
-    expect(g1Res.beneficiaryId).toBe(sc.g1MemberId);
-    expect(g2Res.beneficiaryId).toBe(sc.g2MemberId);
+    expect(r.memberResults.length).toBe(1);
+    expect(r.memberResults[0].generation).toBe(1);
+    expect(r.memberResults[0].outcome).toBe('CREATED');
+    expect(r.memberResults[0].beneficiaryId).toBe(sc.g1MemberId);
 
     // Ledger: only G1 (G2 = 0)
     expectExactLedgerCount(r.ledger, 'MEMBER_CONSUMPTION_G1_EARN', 1);
@@ -938,6 +930,29 @@ describe('B: Transaction to Commission Integration', () => {
 
     const r = await executeAndProcess(sc, {
       postConfirmMutation: async () => {
+        // Close the existing version before adding a new one
+        await db
+          .update(serviceFeeVersions)
+          .set({ effectiveTo: new Date() })
+          .where(
+            eq(
+              serviceFeeVersions.id,
+              (
+                await db
+                  .select({ id: serviceFeeVersions.id })
+                  .from(serviceFeeVersions)
+                  .innerJoin(
+                    serviceFeeProfiles,
+                    eq(
+                      serviceFeeProfiles.id,
+                      serviceFeeVersions.serviceFeeProfileId,
+                    ),
+                  )
+                  .where(eq(serviceFeeProfiles.code, `P-${sc.suffix}`))
+                  .limit(1)
+              )[0].id,
+            ),
+          );
         // Create a new version with a higher rate
         const [nv] = await db
           .insert(serviceFeeVersions)
