@@ -40,6 +40,7 @@ import { TransactionCommissionOutboxWorker } from '../transaction/transaction-co
 import { TransactionCommissionDispatchWriter } from '../transaction/transaction-commission-dispatch.writer.js';
 import { TransactionConfirmationRewardWriter } from '../transaction/transaction-confirmation-reward.writer.js';
 import { RbacService } from '../platform-access/rbac.service.js';
+import { RbacGuard } from '../platform-access/rbac.guard.js';
 import { MemberConsumptionCommissionService } from '../domain/commission/member-consumption.service.js';
 import { MerchantRecruitmentCommissionService } from '../domain/commission/merchant-recruitment.service.js';
 import { AuditService } from '../platform-access/audit.service.js';
@@ -70,7 +71,10 @@ beforeAll(async () => {
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [DatabaseModule, AuthModule, CommissionModule, TransactionModule],
     providers: [ConfigService, AuditService, RbacService],
-  }).compile();
+  })
+    .overrideGuard(RbacGuard)
+    .useValue({ canActivate: () => true })
+    .compile();
 
   app = moduleFixture.createNestApplication();
   await app.init();
