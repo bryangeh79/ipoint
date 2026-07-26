@@ -2,14 +2,14 @@
 
 ## Confirmed Fixes Applied
 
-| Fix | Status |
-|---|---|
+| Fix                                                   | Status   |
+| ----------------------------------------------------- | -------- |
 | Processing query order (moved after processBatchOnce) | ✅ FIXED |
-| outboxWorker.stop() to prevent background race | ✅ FIXED |
-| Merchant parent attribution fallback removed | ✅ FIXED |
-| Forensic diagnostics added to executeAndProcess | ✅ FIXED |
-| 2-char market code for rate compatibility | ✅ FIXED |
-| Service fee query fix (transactions.market_id) | ✅ FIXED |
+| outboxWorker.stop() to prevent background race        | ✅ FIXED |
+| Merchant parent attribution fallback removed          | ✅ FIXED |
+| Forensic diagnostics added to executeAndProcess       | ✅ FIXED |
+| 2-char market code for rate compatibility             | ✅ FIXED |
+| Service fee query fix (transactions.market_id)        | ✅ FIXED |
 
 ## Current CI: 5/6 Jobs Pass (Run 30205523431)
 
