@@ -315,10 +315,10 @@ export class MerchantRecruitmentCommissionService {
 
       // 6c. Determine overall outcome with accurate aggregation
       const outcomes = generations.map((g) => g.outcome);
-      let completionOutcome: 'CREATED' | 'SKIPPED_INELIGIBLE' | 'SKIPPED_NO_BENEFICIARY' | 'SKIPPED_ZERO_AMOUNT';
+      let completionOutcome: string;
       if (outcomes.includes('CREATED')) {
         completionOutcome = 'CREATED';
-      } else if (outcomes.every((o) => o === 'SKIPPED_ZERO_AMOUNT')) {
+      } else if (outcomes.some((o) => o === 'SKIPPED_ZERO_AMOUNT')) {
         completionOutcome = 'SKIPPED_ZERO_AMOUNT';
       } else if (outcomes.some((o) => o === 'SKIPPED_NO_BENEFICIARY')) {
         completionOutcome = 'SKIPPED_NO_BENEFICIARY';
@@ -330,7 +330,7 @@ export class MerchantRecruitmentCommissionService {
         .update(commissionProcessing)
         .set({
           status: 'COMPLETED',
-          completionOutcome,
+          completionOutcome: completionOutcome as any,
           completedAt: now,
         })
         .where(eq(commissionProcessing.id, processingId));
@@ -347,13 +347,13 @@ export class MerchantRecruitmentCommissionService {
       confirmedAt: effectiveTimeIso,
       recognizedServiceFee,
       processingId,
-      completionOutcome: hasCreated
+      completionOutcome: (hasCreated
         ? 'CREATED'
-        : generations.every((g) => g.outcome === 'SKIPPED_ZERO_AMOUNT')
+        : generations.some((g) => g.outcome === 'SKIPPED_ZERO_AMOUNT')
           ? 'SKIPPED_ZERO_AMOUNT'
           : generations.some((g) => g.outcome === 'SKIPPED_NO_BENEFICIARY')
             ? 'SKIPPED_NO_BENEFICIARY'
-            : 'SKIPPED_INELIGIBLE',
+            : 'SKIPPED_INELIGIBLE') as any,
       generations,
     };
   }

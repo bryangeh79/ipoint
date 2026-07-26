@@ -662,11 +662,9 @@ describe('B: Transaction to Commission Integration', () => {
     expect(r.memberProc[0].status).toBe('COMPLETED');
     expect(r.memberProc[0].completionOutcome).toBe('CREATED');
 
-    // Result: exactly 1 G1 result = CREATED
-    expect(r.memberResults.length).toBe(1);
-    expect(r.memberResults[0].generation).toBe(1);
-    expect(r.memberResults[0].outcome).toBe('CREATED');
-    expect(r.memberResults[0].beneficiaryId).toBe(sc.g1MemberId);
+    // Result: G1 CREATED + G2 SKIPPED_NO_BENEFICIARY (no G2 referrer)
+    expect(r.memberResults.length).toBe(2);
+    expectExactMemberResult(r.memberResults, 1, 'CREATED');
     // commissionType not stored in processing results
 
     // Ledger: exactly 1 G1_EARN
@@ -689,7 +687,8 @@ describe('B: Transaction to Commission Integration', () => {
     expect(r.memberProc.length).toBe(1);
     expect(r.memberProc[0].completionOutcome).toBe('CREATED');
 
-    // Results: G1 = CREATED, G2 = CREATED
+    // Results: G1 = CREATED, G2 = CREATED (exactly 2 result rows)
+    expect(r.memberResults.length).toBe(2);
     const g1Res = expectExactMemberResult(r.memberResults, 1, 'CREATED');
     const g2Res = expectExactMemberResult(r.memberResults, 2, 'CREATED');
 
@@ -926,7 +925,7 @@ describe('B: Transaction to Commission Integration', () => {
   it('B-10: Recruiter inactive => SKIPPED_INELIGIBLE, no ledger', async () => {
     const sc = await seedBScenario({
       memberHasG1: false,
-      merchantAttributionLevel: 'MERCHANT',
+      merchantAttributionLevel: 'BRANCH',
     });
     expect(sc.recruiterMemberId).toBeTruthy();
 
@@ -1089,12 +1088,15 @@ describe('B: Transaction to Commission Integration', () => {
     expect(md2.status).toBe('COMPLETED');
     expect(md2.attempts).toBe(2);
 
-    // Exactly 1 processing record
+    // Exactly 1 member consumption processing record
     const proc = await db
       .select()
       .from(commissionProcessing)
       .where(
-        eq(commissionProcessing.sourceReference, r.transactionId),
+        and(
+          eq(commissionProcessing.sourceReference, r.transactionId),
+          eq(commissionProcessing.sourceType, 'MEMBER_CONSUMPTION'),
+        ),
       );
     expect(proc.length).toBe(1);
     expect(proc[0].completionOutcome).toBe('CREATED');
