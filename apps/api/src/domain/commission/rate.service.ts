@@ -73,6 +73,7 @@ const COMMISSION_GENERATIONS: Record<string, number[]> = {
  * the same query builder interface.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Queryable = any;
 
 /* ------------------------------------------------------------------ */
