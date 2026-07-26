@@ -70,7 +70,7 @@ const ADMIN_ADJUSTMENT_SOURCE_TYPE = 'ADMIN_ADJUSTMENT';
  * NodePgDatabase and PgTransaction callback types since they share
  * the same query builder interface.
  */
- 
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Queryable = any;
 
@@ -703,7 +703,9 @@ export class AdjustmentService {
       makerNotes: (r.makerNotes as string) ?? null,
       checkerNotes: (r.checkerNotes as string) ?? null,
       ledgerEntryId: (r.ledgerEntryId as string) ?? null,
-      decidedAt: r.decidedAt ? r.decidedAt.toISOString() : null,
+      decidedAt: r.decidedAt
+        ? new Date(r.decidedAt as string).toISOString()
+        : null,
       createdAt: (r.createdAt as Date).toISOString(),
       updatedAt: (r.updatedAt as Date).toISOString(),
     };
