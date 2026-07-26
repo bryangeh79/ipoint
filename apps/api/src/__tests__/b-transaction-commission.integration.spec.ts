@@ -1032,6 +1032,16 @@ describe('B: Transaction to Commission Integration', () => {
       })
       .onConflictDoNothing({ target: serviceFeeProfiles.code })
       .returning({ id: serviceFeeProfiles.id });
+    await db
+      .insert(mcpAccounts)
+      .values({
+        merchantBranchId: br2.id,
+        marketId: mkt2.id,
+        availableBalance: '500000.00',
+        totalBalance: '500000.00',
+        status: 'ACTIVE',
+      })
+      .onConflictDoNothing();
     const [fv2] = await db
       .insert(serviceFeeVersions)
       .values({
