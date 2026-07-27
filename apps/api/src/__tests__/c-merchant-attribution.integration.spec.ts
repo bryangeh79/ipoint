@@ -149,6 +149,13 @@ describe('C: Merchant Attribution Integration', () => {
           VALUES (${marketId}::uuid, 'MYR', 2, '1.00', '999999.99')
           ON CONFLICT DO NOTHING`,
     );
+
+    // Seed reward rule version for the test market (needed for transaction preview)
+    await database.db.execute(
+      sql`INSERT INTO reward_rule_versions (market_id, reward_rate, reward_cap_type, reward_cap_value, effective_from, status)
+          VALUES (${marketId}::uuid, '0.000500', 'NONE', '0', now() - interval '1 day', 'ACTIVE')
+          ON CONFLICT DO NOTHING`,
+    );
   });
 
   afterAll(async () => {
@@ -774,6 +781,12 @@ describe('C: Merchant Attribution Integration', () => {
       channel: 'ct',
     });
 
+    // Deactivate parent branch so merchant context resolves to the child branch only
+    await database.db
+      .update(merchantBranches)
+      .set({ status: 'SUSPENDED' })
+      .where(eq(merchantBranches.id, merch.branchId));
+
     await activateMerchant(branch.branchId);
     await setMcpBalance(branch.branchId);
     const pkgId = await ensurePackage(branch.branchId, marketId);
@@ -798,6 +811,12 @@ describe('C: Merchant Attribution Integration', () => {
     expect(r1.results[0]!.generation).toBe(0);
     expect(r1.ledger.length).toBe(1);
     expect(r1.ledger[0]!.beneficiaryId).toBe(branchRecruiter.memberId);
+
+    // Deactivate first child branch so merchant context resolves to the no-attr branch only
+    await database.db
+      .update(merchantBranches)
+      .set({ status: 'SUSPENDED' })
+      .where(eq(merchantBranches.id, branch.branchId));
 
     // Part 2: Branch WITHOUT attribution → SKIPPED_NO_BENEFICIARY
     const noAttrBranch = await merchants.addBranch(merch.accountId, {
