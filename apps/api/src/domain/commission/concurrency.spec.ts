@@ -115,7 +115,11 @@ function mockDb(chain: any) {
   return {
     db: chain,
     pool: null as never,
-    runTransaction: null as never,
+    runTransaction: vi
+      .fn()
+      .mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) =>
+        chain.transaction(cb),
+      ),
     onApplicationShutdown: null as never,
   } as unknown as DatabaseService;
 }
@@ -301,14 +305,12 @@ describe('CommissionConcurrency', () => {
       chain.setSequence([
         [undefined], // insert processing
         // G1 entry
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
         [undefined],
         [undefined],
         // G2 entry
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
@@ -590,7 +592,6 @@ describe('CommissionConcurrency', () => {
         [],
         [origEntry],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],

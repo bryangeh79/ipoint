@@ -9,7 +9,7 @@
  * - Atomic multi-entry rollback
  * - Over-compensation prevention
  * - Idempotency / replay safety
- * - D-06 revoked_at cut-off
+ * - D-10 post-source revocation preservation
  * - Agent Upgrade clawback exclusion
  * - Phase 4 correction_execution_id linkage
  *
@@ -119,7 +119,11 @@ function mockDb(chain: any) {
   return {
     db: chain,
     pool: null as never,
-    runTransaction: null as never,
+    runTransaction: vi
+      .fn()
+      .mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) =>
+        chain.transaction(cb),
+      ),
     onApplicationShutdown: null as never,
   } as unknown as DatabaseService;
 }
@@ -205,7 +209,6 @@ describe('CommissionCompensationService', () => {
         [orig], // [3] original entries found
         // Inside transaction:
         [undefined], // [4] insert processing record
-        [{ revokedAt: null as Date | null }], // [5] check revoked_at
         [{ total: null }], // [6] existing compensation sum
         [], // [7] idempotency check
         [undefined], // [8] insert ledger entry
@@ -234,7 +237,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
@@ -276,7 +278,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
@@ -310,7 +311,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
@@ -353,7 +353,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
@@ -378,12 +377,7 @@ describe('CommissionCompensationService', () => {
       expect(ledgerValues).toBeTruthy();
       expect(ledgerValues![0].rateVersionId).toBe('rv-001');
       expect(ledgerValues![0].calculationBasis).toBe('8800.0000000000');
-      // rateSnapshot should include original fields plus compensation metadata
-      expect(ledgerValues![0].rateSnapshot).toMatchObject({
-        ...rateSnapshot,
-        compensationType: 'REVERSAL_COMPENSATION',
-        originalEntryId: orig.id,
-      });
+      expect(ledgerValues![0].rateSnapshot).toEqual(rateSnapshot);
     });
   });
 
@@ -401,7 +395,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
@@ -425,7 +418,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
@@ -453,7 +445,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
@@ -497,14 +488,12 @@ describe('CommissionCompensationService', () => {
         // Transaction starts:
         [undefined], // insert processing record
         // Entry 1:
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
         [undefined],
         [undefined],
         // Entry 2:
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
@@ -552,13 +541,11 @@ describe('CommissionCompensationService', () => {
         [],
         [orig1, orig2],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
         [undefined],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
       ]);
@@ -590,7 +577,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
       ]);
@@ -624,7 +610,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
       ]);
@@ -656,7 +641,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: '88.0000000000' }], // already fully compensated
         // Should be SKIPPED_OVER_COMPENSATED, skipping the rest
         [undefined],
@@ -679,7 +663,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
@@ -731,7 +714,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: '30.0000000000' }], // partially compensated (30 < 100)
         [],
         [undefined],
@@ -833,7 +815,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
@@ -1024,10 +1005,10 @@ describe('CommissionCompensationService', () => {
   });
 
   // ===================================================================
-  //  D-06 revoked_at cut-off
+  //  D-10 post-source revocation preservation
   // ===================================================================
-  describe('D-06 revoked_at cut-off', () => {
-    it('source_event_time before revoked_at → eligible if ACTIVE', async () => {
+  describe('D-10 post-source revocation preservation', () => {
+    it('source_event_time before later revocation remains compensable', async () => {
       const params = makeParams({ compensationType: 'REVERSAL' });
       const orig = makeOriginalEntry({
         effectiveTime: new Date('2026-06-15T00:00:00.000Z'), // before revocation
@@ -1039,7 +1020,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: new Date('2026-07-01T00:00:00.000Z') }], // revoked after source time
         [{ total: null }],
         [],
         [undefined],
@@ -1052,11 +1032,9 @@ describe('CommissionCompensationService', () => {
       expect(result.entries[0]!.outcome).toBe('CREATED');
     });
 
-    it('source_event_time at revoked_at → ineligible', async () => {
+    it('source_event_time at later revocation boundary still uses original ledger', async () => {
       const params = makeParams({ compensationType: 'REVERSAL' });
       const sourceTime = new Date('2026-07-01T00:00:00.000Z');
-      const revokedAt = new Date('2026-07-01T00:00:00.000Z');
-
       const orig = makeOriginalEntry({ effectiveTime: sourceTime });
 
       chain.setSequence([
@@ -1065,20 +1043,23 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt }],
+        [{ total: null }],
+        [],
+        [undefined],
+        [undefined],
+        [undefined],
+        [undefined],
       ]);
 
       const result = await service.processCorrectionCompensation(params);
       const entry = result.entries[0]!;
-      expect(entry.outcome).toBe('SKIPPED_INELIGIBLE');
-      expect(entry.reason).toContain('D-06 revoked_at cut-off');
+      expect(entry.outcome).toBe('CREATED');
+      expect(entry.compensationAmount).toBe('-88.0000000000');
     });
 
-    it('source_event_time after revoked_at → ineligible', async () => {
+    it('source_event_time after later revocation still uses original ledger', async () => {
       const params = makeParams({ compensationType: 'REVERSAL' });
       const sourceTime = new Date('2026-07-15T00:00:00.000Z');
-      const revokedAt = new Date('2026-07-01T00:00:00.000Z');
-
       const orig = makeOriginalEntry({ effectiveTime: sourceTime });
 
       chain.setSequence([
@@ -1087,13 +1068,18 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt }],
+        [{ total: null }],
+        [],
+        [undefined],
+        [undefined],
+        [undefined],
+        [undefined],
       ]);
 
       const result = await service.processCorrectionCompensation(params);
       const entry = result.entries[0]!;
-      expect(entry.outcome).toBe('SKIPPED_INELIGIBLE');
-      expect(entry.reason).toContain('D-06 revoked_at cut-off');
+      expect(entry.outcome).toBe('CREATED');
+      expect(entry.compensationAmount).toBe('-88.0000000000');
     });
 
     it('pre-revocation commissions are preserved unchanged', async () => {
@@ -1108,7 +1094,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: new Date('2026-07-01T00:00:00.000Z') }],
         [{ total: null }],
         [],
         [undefined],
@@ -1134,37 +1119,35 @@ describe('CommissionCompensationService', () => {
   describe('no Agent Upgrade clawback', () => {
     it('historic upgrade commissions remain unchanged after revocation', async () => {
       const params = makeParams({ compensationType: 'REVERSAL' });
-      // findOriginalCommissionEntries should exclude Agent Upgrade entries
-      // Only MEMBER_CONSUMPTION source_type entries are returned
+      // findOriginalCommissionEntries should exclude Agent Upgrade entries.
 
       chain.setSequence([
         [{ id: params.correctionExecutionId }],
         [makeTxnRow({ status: 'REVERSED' })],
         [],
-        // No Member Consumption entries found (only Agent Upgrade exists)
+        // No transaction-derived entries found (only Agent Upgrade exists).
         [],
       ]);
 
       const result = await service.processCorrectionCompensation(params);
-      expect(result.completionOutcome).toBe('SKIPPED_INELIGIBLE');
+      expect(result.completionOutcome).toBe('SKIPPED_NO_BENEFICIARY');
       expect(result.entries).toHaveLength(0);
     });
 
     it('no compensation entry created for Agent Upgrade on revocation', async () => {
       const params = makeParams({ compensationType: 'REVERSAL' });
       // Only agent upgrade entries exist (filtered out by service)
-      // Agent upgrade entries have source_type != 'MEMBER_CONSUMPTION'
-      // or entry_type not in compensatingEntryTypes
+      // Agent upgrade entry types are not in compensatingEntryTypes.
 
       chain.setSequence([
         [{ id: params.correctionExecutionId }],
         [makeTxnRow({ status: 'REVERSED' })],
         [],
-        [], // No member consumption entries returned
+        [], // No transaction-derived entries returned.
       ]);
 
       const result = await service.processCorrectionCompensation(params);
-      expect(result.completionOutcome).toBe('SKIPPED_INELIGIBLE');
+      expect(result.completionOutcome).toBe('SKIPPED_NO_BENEFICIARY');
       expect(result.entries).toHaveLength(0);
 
       // Verify no compensation ledger entry was created
@@ -1192,7 +1175,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
@@ -1213,10 +1195,7 @@ describe('CommissionCompensationService', () => {
       );
       expect(ledgerValues).toBeTruthy();
 
-      // Verify rateSnapshot has correctionExecutionId
-      expect(ledgerValues![0].rateSnapshot).toMatchObject({
-        correctionExecutionId: 'corr-exec-001',
-      });
+      expect(ledgerValues![0].rateSnapshot).toEqual(orig.rateSnapshot);
     });
 
     it('different correction_execution_ids are tracked separately', async () => {
@@ -1238,7 +1217,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
@@ -1262,7 +1240,6 @@ describe('CommissionCompensationService', () => {
         [],
         [orig],
         [undefined],
-        [{ revokedAt: null }],
         [{ total: null }],
         [],
         [undefined],
