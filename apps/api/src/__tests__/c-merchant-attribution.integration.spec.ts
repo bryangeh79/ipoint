@@ -152,8 +152,8 @@ describe('C: Merchant Attribution Integration', () => {
 
     // Seed reward rule version for the test market (needed for transaction preview)
     await database.db.execute(
-      sql`INSERT INTO reward_rule_versions (market_id, name, reward_rate, cap_type, cap_value, effective_from, status)
-          VALUES (${marketId}::uuid, 'C test reward', '0.000500', 'NONE', '0', now() - interval '1 day', 'ACTIVE')
+      sql`INSERT INTO reward_rule_versions (market_id, name, reward_rate, cap_type, cap_value, minimum_reward, effective_from, created_by)
+          VALUES (${marketId}::uuid, 'C test reward', '0.000500', 'NONE', '0', '0', now() - interval '1 day', ${auRow!.id}::uuid)
           ON CONFLICT DO NOTHING`,
     );
   });
