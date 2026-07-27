@@ -142,6 +142,13 @@ describe('C: Merchant Attribution Integration', () => {
       adminUserId: auRow!.id,
       reason: 'C test setup',
     });
+
+    // Seed market transaction settings for the test market
+    await database.db.execute(
+      sql`INSERT INTO market_transaction_settings (market_id, currency_code, currency_scale, minimum_transaction_amount, maximum_transaction_amount)
+          VALUES (${marketId}::uuid, 'MYR', 2, '1.00', '999999.99')
+          ON CONFLICT DO NOTHING`,
+    );
   });
 
   afterAll(async () => {
