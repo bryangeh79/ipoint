@@ -201,15 +201,16 @@ describe('C: Merchant Attribution Integration', () => {
   }
 
   async function seedAgentActivation(db: any, memberId: string) {
+    const past = new Date(Date.now() - 86400000);
     await db
       .insert(agentActivations)
       .values({
         memberId,
         market: 'MY',
         status: 'ACTIVE',
-        activatedAt: new Date(),
-        paymentConfirmedAt: new Date(),
-        courseCompletedAt: new Date(),
+        activatedAt: past,
+        paymentConfirmedAt: past,
+        courseCompletedAt: past,
       })
       .onConflictDoNothing();
   }
