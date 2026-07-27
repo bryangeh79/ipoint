@@ -14,7 +14,7 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Work** | **Phase 5 — Agent & Commission Engine** | Phase 4 COMPLETE/CLOSED. Phase 5 sub-phases: P5-S0 contract freeze, B/C/D Integration, Commission Engine. B Integration frozen at D-039. C Integration frozen at D-040. D Integration frozen at D-041. Phase 5 NOT_YET_CLOSED. Main PR/Main Merge NOT_AUTHORIZED. |
+| **Current Authorized Work** | **NONE (Phase 5 Closed)** | Phase 5 ACCEPTED/COMPLETE/CLOSED/FROZEN at D-042. Final SHA `93ad0850`. B/C/D all frozen. Main PR/Main Merge NOT_AUTHORIZED. Phase 6 NOT_AUTHORIZED. Next phase requires new Command Center authorization. |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
 | **Phase 2** | **COMPLETE** | Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027. P2-S1 through P2-S9 all COMPLETE / APPROVED. Phase 3 NOT_AUTHORIZED. |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
@@ -70,7 +70,7 @@
 | **Phase 2** | Member Core (Profile, KYC, QR, merchant discovery, current market, referral) | **COMPLETE** | P2-S1 through P2-S9 all COMPLETE / APPROVED. Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027 |
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **COMPLETE / ACCEPTED / FROZEN** | Accepted under D-029. Final SHA 2ed57f4e. CI Run 30000394880. P3-S2+ NOT_AUTHORIZED. |
 | **Phase 4** | Transaction Engine | **COMPLETE / CLOSED** | All 8 sub-phases (P4-S1 through P4-S8) accepted. Phase 4 closed under D-037. Final HEAD `87ea05aa`. CI Run 30099595759. Phase branch: phase/4-transaction-engine. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. Phase 5 NOT_AUTHORIZED. |
-| **Phase 5** | Agent & Commission Engine | **B_INTEGRATION_FROZEN / C_INTEGRATION_FROZEN / D_INTEGRATION_ACCEPTED** | B Integration accepted at D-039. C Integration accepted at D-040. D Integration accepted at D-041. Technical implementation complete. Phase 5 NOT_YET_CLOSED. Main PR/Main Merge NOT_AUTHORIZED. Five-level team rewards DEFERRED. |
+| **Phase 5** | Agent & Commission Engine | **ACCEPTED / COMPLETE / CLOSED / FROZEN** | Final Technical Baseline `93ad0850`. Accepted CI Run 30260182865. B 15/15, C 10/10, D 10/10, Total 35/35, Semantic Gate SUCCESS. Phase 5 formally closed at D-042. Main PR/Main Merge NOT_AUTHORIZED. Five-level team rewards DEFERRED. |
 | **Phase 6** | Redemption Center | **NOT_AUTHORIZED** | Market catalog, rate, order, iPoint debit, refund |
 | **Phase 7** | Admin Operations | **NOT_AUTHORIZED** | Dashboards, rule management, Maker/Checker, risk, audit, reports |
 | **Phase 8** | Advertising & Content | **NOT_AUTHORIZED** | Merchant ad submission, admin review, MCP debit, member banners |
@@ -132,16 +132,22 @@
 
 | Sub-phase | Scope | Status | Next gate |
 |---|---|---|---|
-| **P5-S0** | Contract Freeze & Architecture | **COMPLETE** | Phase 5 contract freeze completed before B integration |
-| **B Integration** | Transaction-level commission (Referral, Activation, G1/G2 Member Consumption, Merchant Recruitment, Rate Admin) | **ACCEPTED / FROZEN** | Accepted at D-039. SHA `ac7c2ec4`. CI Run 30238150798. B 15/15. |
+| **P5-S0** | Contract Freeze & Architecture | **COMPLETE** | `729cd950`. docs(p5-s0): freeze agent and commission engine contract |
+| **P5-S1** | Agent Commission Schema & Migration | **COMPLETE** | `fca8f6cc`. feat(p5-s1): add agent commission domain schema and migration |
+| **P5-S2** | Agent Activation Lifecycle | **COMPLETE** | `9d73aa31` (shared commit with P5-S3). Agent activation lifecycle service, controllers, types |
+| **P5-S3** | Referral Engine | **COMPLETE** | `9d73aa31` (shared commit with P5-S2). Referral engine with cycle detection and anonymized tree |
+| **P5-S4** | Commission Module Controller | **COMPLETE** | `36309f51`. Commission module controller and barrel exports |
+| **P5-S5** | Correction Compensation | **COMPLETE** | `476f0fd4`. Correction compensation and idempotency |
+| **P5-S6** | Commission Query/Admin | **COMPLETE** | `8f808b3b`. Commission query and admin capabilities |
+| **P5-S7** | Security, Concurrency & Regression Hardening | **COMPLETE** | `b1a7b256`. Security, concurrency and regression hardening |
+| **B Integration** | Transaction-level commission (Referral relationship, Agent upgrade, G1/G2 Member Consumption, Merchant Recruitment, Rate management) | **ACCEPTED / FROZEN** | Accepted at D-039. SHA `ac7c2ec4`. CI Run 30238150798. B 15/15. |
 | **C Integration** | Merchant Attribution (Parent/Branch merchant attribution, Referral validation, Market consistency) | **ACCEPTED / FROZEN** | Accepted at D-040. SHA `c615463a`. CI Run 30256953239. C 10/10. |
 | **D Integration** | Correction Compensation (Reversal/Refund compensation, Commission ledger immutability, Atomic boundary) | **ACCEPTED / FROZEN** | Accepted at D-041. SHA `93ad0850`. CI Run 30260182865. D 10/10. |
 
 ## Current allowed actions
 
+- Prepare Main PR when authorized by Command Center
 - Continue governance file maintenance
-- Prepare Phase 5 final closure audit for Command Center review
-- Prepare Main PR when authorized
 
 ## Current prohibited actions
 
@@ -153,8 +159,10 @@
 - Modify atomic transaction boundary
 - Change LOCKED business rules
 - Implement DEFERRED modules (Five-level team rewards, Payout/Withdrawal, Wallet cash-out)
+- Implement Agent Reapplication Policy (OPEN, not implemented)
+- Implement Merchant/Branch Attribution Change Policy (OPEN, not implemented)
 - Push or merge Main
-- Open a Main PR
+- Open a Main PR (not yet authorized)
 - Production deployment
 - Force push, reset, amend pushed history, or rewrite `main` history
 - Delete tests or lower TypeScript strictness
@@ -163,4 +171,4 @@
 
 ---
 
-*Last updated: 2026-07-27 | Updated by: OpenClaw | Based on decisions D-001 through D-041*
+*Last updated: 2026-07-27 | Updated by: OpenClaw | Based on decisions D-001 through D-042*

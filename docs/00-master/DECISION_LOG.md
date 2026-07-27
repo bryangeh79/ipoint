@@ -1140,4 +1140,216 @@ P5-S0 is documentation, architecture and contract planning only:
 
 ---
 
-*— End of current entries. New decisions must be appended below —*
+## D-042: Phase 5 Final Acceptance and Closure — Governance Correction and Formal Closure
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-042 |
+| **Date** | 2026-07-27 |
+| **Source** | ChatGPT Command Center — PHASE 5 GOVERNANCE CORRECTION AND CLOSURE AUTHORIZATION |
+| **Old Rule** | D-041 recorded D integration acceptance with description errors in compensation semantics; Phase 5 NOT_YET_CLOSED |
+| **New Decision** | **Phase 5 ACCEPTED, COMPLETE, CLOSED, and FROZEN.** D-041 remains on record but its compensation-semantics descriptions are superseded by the corrected wording in this entry. Technical Baseline: `93ad0850ea8d766854edee7b0e3a374e81b587d5`. Accepted CI Run `30260182865`. Governance Parent: `d3a6c4e2f95bfe9b8d2d544084d2a10a0ae43677`. |
+| **Reason** | Command Center reviewed D-041 and the Final Acceptance Package. All 35/35 tests pass, CI all green, Semantic Gate SUCCESS. D-041 contained description errors that are corrected here. Phase 5 is formally closed. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 5, D Integration |
+| **Migration** | NONE |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | Accepted SHA `93ad0850ea8d766854edee7b0e3a374e81b587d5`; Accepted CI `30260182865`; B 15/15; C 10/10; D 10/10; Total 35/35; Semantic Gate SUCCESS; Six CI Jobs SUCCESS |
+| **Status** | **PHASE_5_ACCEPTED / PHASE_5_COMPLETE / PHASE_5_CLOSED / PHASE_5_FROZEN** |
+
+---
+
+### D-042-A: Correction of D-041 Compensation Description Errors
+
+D-041 contained inaccurate descriptions of the compensation ledger semantics. These entries are corrected as follows:
+
+#### 1. Correction: Compensation Ledger entry_type
+
+**❌ D-041 stated (incorrect):**
+- `source_type = REVERSAL`
+- `source_type = REFUND`
+
+**✅ Corrected semantics:**
+
+| Compensation field | REVERSAL | REFUND |
+|---|---|---|
+| `entry_type` | `REVERSAL_COMPENSATION` | `REFUND_COMPENSATION` |
+| `source_type` | Copied from original Commission Ledger | Copied from original Commission Ledger |
+| `source_reference` | Original Transaction ID | Original Transaction ID |
+| `audit_linkage` | Correction Execution ID | Correction Execution ID |
+| `reversal_linkage` | Original Commission Entry ID | Original Commission Entry ID |
+| `amount` | Original Posted Amount × -1 | Original Posted Amount × -1 |
+
+> D-041's claim that `source_type` becomes `REVERSAL` or `REFUND` is incorrect. The actual implementation preserves the original `source_type` and differentiates compensation via `entry_type`.
+
+#### 2. Correction: Original Commission Ledger Immutability
+
+**❌ D-041 stated (incorrect):**
+> Original commission `current_status` updated to `REVERSED` or `REFUNDED`
+
+**✅ Corrected semantics:**
+- Original Commission Ledger entry is **fully immutable**
+- Original `posting_status` remains `EARNED`
+- Original `amount`, `entry_type`, `snapshot`, `source`, and `effective_time` are **all unmodified**
+- REVERSAL / REFUND is expressed through a **new independent negative Compensation Ledger entry**
+- Compensation Ledger `posting_status` = `EARNED`
+- Status Event belongs to the **new Compensation Entry**, not the original
+- The **Transaction itself** enters `REVERSED` or `REFUNDED` status — not the Commission Ledger
+
+> D-041 confused Transaction status with Commission Ledger status. They are distinct states.
+
+#### 3. Correction: Compensation Wording
+
+**❌ D-041 stated (incorrect):**
+> G1/G2 member consumption commissions are reversed proportional to original
+
+**✅ Corrected wording:**
+> Each eligible transaction-derived commission entry is compensated by the exact opposite of its original posted amount.
+
+**❌ D-041 stated (incorrect):**
+> Commission remains if only the source transaction is reversed/refunded
+
+**✅ Corrected wording:**
+> A later suspension, deactivation, or revocation does not prevent exact compensation of an original commission that was validly posted at source-event time.
+
+#### 4. Correction: Commission Type Classification
+
+**❌ D-041 used (incorrect):**
+- Referral Commission
+- Agent Activation Commission
+
+**✅ Corrected classification:**
+
+| Classification | Nature |
+|---|---|
+| 1. Referral Relationship / Ownership | **Not a commission type.** Establishes G1/G2 fixed relationship for commission eligibility. |
+| 2. Agent Activation Lifecycle | **Not a commission type.** ACTIVE transition is the triggering event for Agent Upgrade Commission. |
+| 3. Agent Upgrade Commission (`AGENT_UPGRADE`) | Formal commission source |
+| 4. Member Consumption Commission (`MEMBER_CONSUMPTION`) | Formal commission source |
+| 5. Merchant Recruitment Commission (`MERCHANT_RECRUITMENT`) | Formal commission source |
+
+> D-041's coverage matrix erroneously listed "Referral Commission" and "Agent Activation Commission" as separate commission types. They are not commission types — they are relationship lifecycle events. The frozen contract defines exactly three official commission sources: `AGENT_UPGRADE`, `MEMBER_CONSUMPTION`, and `MERCHANT_RECRUITMENT`.
+
+---
+
+### D-042-B: Corrected Phase 5 Milestone Ledger
+
+| Milestone | SHA | Message |
+|---|---|---|
+| **Phase 4 dependency/base** | `87ea05aab049828dc660ce1766c019d8cadb119c` | Phase 4 final technical HEAD (Phase 5 base, not P5-S0) |
+| **P5-S0** | `729cd950b8ee5acfaad25bde8aba581ef2b24b7b` | docs(p5-s0): freeze agent and commission engine contract |
+| **P5-S1** | `fca8f6cc4049c969582a4bf60e1d41fbb72446a9` | feat(p5-s1): add agent commission domain schema and migration |
+| **P5-S2 / P5-S3** | `9d73aa31790bc26ddea3ac231a47ec9a931cecdf` | feat(p5-s2): agent activation lifecycle + feat(p5-s3): referral engine (shared commit) |
+| **P5-S4** | `36309f519637f9e279cd422a898fbf58ccac6afd` | feat(p5-s4): add commission module controller and barrel exports |
+| **P5-S5** | `476f0fd4da38ef1ebcdc139a8dfa9761cf4842dd` | feat(p5-s5): implement correction compensation and idempotency |
+| **P5-S6** | `8f808b3be6c0b2616b332359d61652cff4e9ba38` | feat(p5-s6): implement commission query and admin capabilities |
+| **P5-S7** | `b1a7b256236c4d415b264d650fd6f195cb437f94` | test(p5-s7): harden security concurrency and regression |
+| **B Frozen** | `ac7c2ec49ffaa7e06bc9421da2705657e759b435` | B Integration accepted baseline (D-039) |
+| **C Frozen** | `c615463af0ff41bc5b33a02426904e4dbbc7c5f9` | C Integration accepted baseline (D-040) |
+| **D Frozen** | `93ad0850ea8d766854edee7b0e3a374e81b587d5` | D Integration accepted baseline — **Phase 5 Technical Baseline** |
+
+#### Governance Commits
+
+| Decision | SHA | Message |
+|---|---|---|
+| D-039 | `e4afb4bfd402ad8259996ddd9da5428111428f10` | docs(governance): record B integration acceptance |
+| D-040 | `ebe370f50d6adc057f067d4c8c1e07b696f44741` | docs(governance): record C integration acceptance |
+| D-041 | `d3a6c4e2f95bfe9b8d2d544084d2a10a0ae43677` | docs(governance): record D integration acceptance |
+| D-042 | *(this commit)* | docs(governance): correct and close Phase 5 acceptance |
+
+#### Remediation Chronology (C/D fix commits — not milestones)
+
+Between C and D milestones, the following remediation commits corrected integration issues without creating new sub-phase milestones:
+
+- `e5f40c6f` — fix(p5): create BRANCH attribution alongside MERCHANT for recruitment
+- `099dcdcd` — fix(p5): C-01 count 2 attributions, C-10 remove addBranch ambiguity
+- `8a71f581` — fix(p5): use past timestamp for agent activation to avoid clock skew
+- `de80678f` — fix(p5): seed commission_rate_version for MERCHANT_RECRUITMENT
+- `5c7ff207` — fix(p5): align merchant attribution with frozen market rules
+- `b50e01c6` — fix(p5): FLAT reward cap, separate merchants for C-10 no-fallback
+- `acf17ddb` — fix(p5): reward_rule_versions has no status, add created_by
+- `137e5168` — fix(p5): correct reward_rule_versions column names
+- `ff0c0f76` — fix(p5): add reward rule, resolve multi-branch ambiguity
+- `5432db43` — fix(p5): seed market transaction settings for C test market
+- `d5db85e7` — fix(p5): C-08 use error.code path, agent market varchar2
+- `de1abb3b` — fix(p5): enforce merchant referral attribution contract
+- `40a79875` — fix(p5): use Drizzle schema tables for ensurePackage helper
+- `4323bb21` — fix(p5): use transaction for mcp posting set_config
+- `d4f93b70` — fix(p5): inline mcp posting set_config in tx, remove DI spec
+- `7875ce76` — fix(p5): enable mcp posting for test setup, add DI test env vars
+- `bb9b5815` — fix(p5): resolve exact C integration failures
+- `c478e98c` — fix(p5): validate referral account, fix attribution column, seed agent market
+- `d88697da` — fix(p5): wire platform access into commission module
+- `2e332315` — fix(p5): use MerchantService class token for DI resolution
+- `2677dafd` — fix(p5): override RbacGuard in C test module setup
+- `231161fd` — fix(p5): format C test, fix CI gate args, avoid DI conflict
+- `9d49861d` — test(p5): add correction compensation integration coverage
+
+---
+
+### D-042-C: Phase 5 Formal Acceptance Record
+
+#### Acceptance Summary
+
+| Metric | Result |
+|---|---|
+| **Technical Baseline** | `93ad0850ea8d766854edee7b0e3a374e81b587d5` |
+| **Accepted CI Run** | `30260182865` |
+| **Governance Parent** | `d3a6c4e2f95bfe9b8d2d544084d2a10a0ae43677` |
+| **Quality** | SUCCESS |
+| **Build** | SUCCESS |
+| **Unit tests** | SUCCESS |
+| **Database tests** | SUCCESS |
+| **Commission tests** | SUCCESS |
+| **Integration tests** | SUCCESS |
+| **B Integration** | **15/15** (0 failed, 0 skipped, 0 todo) |
+| **C Integration** | **10/10** (0 failed, 0 skipped, 0 todo) |
+| **D Integration** | **10/10** (0 failed, 0 skipped, 0 todo) |
+| **Total** | **35/35** (0 failed, 0 skipped, 0 todo) |
+| **Semantic Gate** | **SUCCESS** |
+
+#### Frozen Baselines
+
+- B Integration: `ac7c2ec49ffaa7e06bc9421da2705657e759b435`
+- C Integration: `c615463af0ff41bc5b33a02426904e4dbbc7c5f9`
+- D Integration: `93ad0850ea8d766854edee7b0e3a374e81b587d5`
+
+#### Official Status
+
+- PHASE_5_ACCEPTED
+- PHASE_5_COMPLETE
+- PHASE_5_CLOSED
+- PHASE_5_FROZEN
+
+#### Integration Sub-status
+
+- B_INTEGRATION_FROZEN
+- C_INTEGRATION_FROZEN
+- D_INTEGRATION_FROZEN
+
+#### Corrected Compensation Semantics
+
+- Reversal compensation uses `entry_type = REVERSAL_COMPENSATION`
+- Refund compensation uses `entry_type = REFUND_COMPENSATION`
+- `source_type` is copied from original Commission Ledger (not changed to REVERSAL/REFUND)
+- `source_reference` = Original Transaction ID
+- `audit_linkage` = Correction Execution ID
+- `reversal_linkage` = Original Commission Entry ID
+- `amount` = Original Posted Amount × -1
+- Original Commission Ledger is **fully immutable** (posting_status stays EARNED)
+- Each eligible commission entry is compensated by exact opposite of original posted amount
+- A later suspension/deactivation/revocation does not prevent exact compensation
+- Status events belong to the new Compensation Entry, not the original
+- Compensation entry + status update + status event in single DB transaction (atomic)
+
+#### Active Restrictions
+
+- AGENT_REAPPLICATION_POLICY_OPEN
+- MERCHANT_BRANCH_ATTRIBUTION_CHANGE_POLICY_OPEN
+- FIVE_LEVEL_TEAM_REWARD_DEFERRED
+- PAYOUT_WITHDRAWAL_NOT_INCLUDED
+- WALLET_CASH_OUT_NOT_INCLUDED
+- MAIN_PR: NOT_AUTHORIZED
+- MAIN_MERGE: NOT_AUTHORIZED
+- PRODUCTION_DEPLOYMENT: NOT_AUTHORIZED
+- PHASE_6: NOT_AUTHORIZED
