@@ -1062,9 +1062,82 @@ P5-S0 is documentation, architecture and contract planning only:
 
 - B_INTEGRATION_FROZEN
 - C_INTEGRATION_FROZEN
-- D_INTEGRATION_IN_PROGRESS
-- PHASE_5_NOT_YET_ACCEPTED
+- D_INTEGRATION_ACCEPTED
+- D_IMPLEMENTATION_FROZEN
+- PHASE_5_TECHNICAL_IMPLEMENTATION_COMPLETE
 - PHASE_5_NOT_YET_CLOSED
 - MAIN_PR: NOT_AUTHORIZED
 - MAIN_MERGE: NOT_AUTHORIZED
 - PRODUCTION_DEPLOYMENT: NOT_AUTHORIZED
+- PHASE_6: NOT_AUTHORIZED
+
+---
+
+## D-041: D Integration Accepted and Frozen — Phase 5 Technical Implementation Complete
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-041 |
+| **Date** | 2026-07-27 |
+| **Source** | ChatGPT Command Center — D ACCEPTED, SWITCH TO DEEPSEEK V4 FLASH |
+| **Old Rule** | D Integration IN_PROGRESS; B and C frozen; Phase 5 NOT_YET_ACCEPTED |
+| **New Decision** | D Integration accepted and frozen at SHA `93ad0850ea8d766854edee7b0e3a374e81b587d5`. Accepted CI Run `30260182865` all 6 jobs SUCCESS. D_INTEGRATION_ACCEPTED and D_IMPLEMENTATION_FROZEN. PHASE_5_TECHNICAL_IMPLEMENTATION_COMPLETE, PHASE_5_NOT_YET_CLOSED. Main PR, main merge, and production deployment remain NOT_AUTHORIZED. |
+| **Reason** | D Integration passed all gates: B 15/15, C 10/10, D 10/10, Total 35/35, 0 failed, 0 skipped, 0 todo, Semantic Gate SUCCESS. All compensation semantics verified. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md |
+| **Affected Phases** | Phase 5, D Integration |
+| **Migration** | NONE |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | Accepted SHA `93ad0850ea8d766854edee7b0e3a374e81b587d5`; Accepted CI `30260182865`; B 15/15; C 10/10; D 10/10; Total 35/35; Semantic Gate SUCCESS |
+| **Status** | **D_INTEGRATION_ACCEPTED / D_IMPLEMENTATION_FROZEN** |
+
+### D Frozen Baseline
+
+- **Commit:** `93ad0850ea8d766854edee7b0e3a374e81b587d5`
+- **CI Run:** `30260182865`
+- **B Integration:** 15 passed, 0 failed, 0 skipped, 0 todo
+- **C Integration:** 10 passed, 0 failed, 0 skipped, 0 todo
+- **D Integration:** 10 passed, 0 failed, 0 skipped, 0 todo
+- **Total:** 35 passed, 0 failed, 0 skipped, 0 todo
+- **Semantic Gate:** SUCCESS
+
+### Verified Compensation Semantics
+
+- ✅ **Reversal Compensation** — Correct compensating ledger entries for reversed transactions
+- ✅ **Refund Compensation** — Correct compensating ledger entries for refunded transactions
+- ✅ **Member Consumption G1/G2 compensated** — Agent commissions correctly reversed/refunded
+- ✅ **Merchant Recruitment compensated** — Recruitment commissions correctly reversed/refunded
+- ✅ **Agent Upgrade no clawback** — Agent upgrade commissions are not clawed back on reversal/refund
+- ✅ **Original Ledger immutable** — Original commission ledger entries remain unchanged; compensation uses separate entries with exact opposite amounts
+- ✅ **Exact opposite amount** — Compensation entries use exact opposite signed amount of original
+- ✅ **Idempotency verified** — Repeated compensation requests return existing result
+- ✅ **Concurrent execution verified** — Concurrent compensation requests produce deterministic single result
+- ✅ **Atomic rollback verified** — Any failure within compensation boundary fully rolls back
+- ✅ **Post-source revocation verified** — Commission remains if only the source transaction is reversed/refunded
+
+### Frozen Contract Outcomes
+
+- Reversal compensation creates ledger entry with `source_type = REVERSAL` and `amount = -original_amount`
+- Refund compensation creates ledger entry with `source_type = REFUND` and `amount = -original_amount`
+- G1/G2 member consumption commissions are reversed proportional to original
+- Merchant recruitment commission is reversed on merchant-level reversal/refund
+- Agent upgrade commission is not clawed back (frozen contract)
+- Original commission `current_status` updated to `REVERSED` or `REFUNDED`
+- Commission status event chain preserves full audit history
+- Atomic transaction boundary: compensation ledger entry + status update + status event in single DB transaction
+
+### Active restrictions
+
+- B_INTEGRATION_FROZEN
+- C_INTEGRATION_FROZEN
+- D_INTEGRATION_ACCEPTED
+- D_IMPLEMENTATION_FROZEN
+- PHASE_5_TECHNICAL_IMPLEMENTATION_COMPLETE
+- PHASE_5_NOT_YET_CLOSED
+- MAIN_PR: NOT_AUTHORIZED
+- MAIN_MERGE: NOT_AUTHORIZED
+- PRODUCTION_DEPLOYMENT: NOT_AUTHORIZED
+- PHASE_6: NOT_AUTHORIZED
+
+---
+
+*— End of current entries. New decisions must be appended below —*
