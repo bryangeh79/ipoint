@@ -1353,3 +1353,80 @@ Between C and D milestones, the following remediation commits corrected integrat
 - MAIN_MERGE: NOT_AUTHORIZED
 - PRODUCTION_DEPLOYMENT: NOT_AUTHORIZED
 - PHASE_6: NOT_AUTHORIZED
+
+---
+
+## D-043: Phase 6 Full Execution Authorization — Redemption Center
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-043 |
+| **Date** | 2026-07-27 |
+| **Source** | ChatGPT Command Center — Phase 6 Full Execution Authorization |
+| **Old Rule** | Phase 6 P6-S0 IN_PROGRESS; P6-S1+ NOT_AUTHORIZED |
+| **New Decision** | Phase 6 fully authorized. P6-S0 through P6-S9 all AUTHORIZED. 30 Bryan Decisions (OD-01 through OD-30) all APPROVED. P6-S0 contract frozen. Continuous execution authorized. |
+| **Reason** | P6-S0 contract reconciled and all 30 Bryan decisions received. Continuous full-phase execution authorized with 6 Codex CLI subagents. |
+| **Affected Files** | docs/06-phase-contracts/P6-S0-REDEMPTION-CENTER-CONTRACT.md, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 6 (P6-S0 through P6-S9) |
+| **Migration** | Forward-only migration for Redemption Center tables (P6-S1 scope) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | Phase 6 Full Execution Authorization (2026-07-27 20:58 GMT+8) |
+| **Status** | **AUTHORIZED** |
+
+### Authorized Sub-phases
+
+| Sub-phase | Scope |
+|---|---|
+| **P6-S0** | Contract Freeze & Architecture |
+| **P6-S1** | Schema, Migration & Domain Model |
+| **P6-S2** | Catalog, Rate & Pickup Configuration |
+| **P6-S3** | Quote, Rate Lock & Shipping Payment |
+| **P6-S4** | Atomic Confirm, Wallet Debit & Inventory |
+| **P6-S5** | Fulfilment, Voucher, Pickup, Backorder, Waitlist & Suspension |
+| **P6-S6** | Refund, Maker / Checker & Recovery |
+| **P6-S7** | Admin Operations |
+| **P6-S8** | Hardening, Security, Concurrency & Performance |
+| **P6-S9** | Final Verification, Regression & Delivery |
+
+### Bryan Frozen Decisions (30 items)
+
+| Decision | Value |
+|---|---|
+| OD-01 | PLATFORM_OWNED_CATALOG_ONLY |
+| OD-02 | MERCHANT_OWNED_ITEMS_NOT_INCLUDED_IN_MVP |
+| OD-03 | NO_CROSS_MARKET_REDEMPTION |
+| OD-04 | CURRENT_MARKET_UNIFIED |
+| OD-05 | DIRECT_ATOMIC_DEBIT |
+| OD-06 | NOT_APPLICABLE_FOR_MVP |
+| OD-07 | MEMBER_PAYS_ONLINE_FIAT_SHIPPING |
+| OD-08 | STORE_PICKUP_SUPPORTED |
+| OD-09 | VOUCHER_EXPIRY_CONFIGURABLE_3M_DEFAULT |
+| OD-10 | EXPIRED_VOUCHER_NO_REFUND |
+| OD-11 | NO_MEMBER_CANCELLATION_AFTER_CONFIRM |
+| OD-12 | NO_PARTIAL_REFUND |
+| OD-13 | NO_POST_CONFIRM_AUTO_REFUND |
+| OD-14 | NO_FORMAL_FULFILMENT_SLA |
+| OD-15 | KYC_LEVEL_2_REQUIRED_AT_CONFIRM |
+| OD-16 | NO_HIGH_VALUE_MANUAL_REVIEW |
+| OD-17 | REFUND_MAKER_CHECKER_REQUIRED |
+| OD-18 | INVENTORY_ADJUSTMENT_NO_MAKER_CHECKER |
+| OD-19 | NO_DAILY_MONTHLY_LIMITS |
+| OD-20 | TAX_INVOICE_DEFERRED |
+| OD-21 | RATE_CONVERSION_PRICING |
+| OD-22 | RATE_LOCKED_AT_QUOTE_TIME |
+| OD-23 | NO_PROMOTIONAL_RATE |
+| OD-24 | SYSTEM_GENERATED_VOUCHER_CODE |
+| OD-25 | NOT_APPLICABLE_FOR_MVP |
+| OD-26 | RETRY_THEN_ADMIN_REVIEW |
+| OD-27 | BACKORDER_AND_WAITLIST_SUPPORTED |
+| OD-28 | SUSPEND_EXISTING_UNFULFILLED_ORDERS |
+| OD-29 | NO_REDEMPTION_COMMISSION |
+| OD-30 | TERMS_ACCEPTANCE_SUPPORT_TICKET |
+
+### Active Restrictions
+
+- MAIN_PR: NOT_AUTHORIZED
+- MAIN_MERGE: NOT_AUTHORIZED
+- PRODUCTION_DEPLOYMENT: NOT_AUTHORIZED
+- PHASE_6_FULL_EXECUTION_AUTHORIZED
+- P6-S0 THROUGH P6-S9 ALL AUTHORIZED

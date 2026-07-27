@@ -14,7 +14,7 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Work** | **P6-S0 Contract Planning** | Phase 6 P6-S0 IN_PROGRESS. Draft contract created at docs/06-phase-contracts/P6-S0-REDEMPTION-CENTER-CONTRACT.md. P6-S1+ NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. |
+| **Current Authorized Work** | **Phase 6 Full Execution** | Phase 6 P6-S0 through P6-S9 all AUTHORIZED under D-043. 30 Bryan Decisions approved. P6-S0 FROZEN. P6-S1 ongoing. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
 | **Phase 2** | **COMPLETE** | Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027. P2-S1 through P2-S9 all COMPLETE / APPROVED. Phase 3 NOT_AUTHORIZED. |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
@@ -71,7 +71,7 @@
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **COMPLETE / ACCEPTED / FROZEN** | Accepted under D-029. Final SHA 2ed57f4e. CI Run 30000394880. P3-S2+ NOT_AUTHORIZED. |
 | **Phase 4** | Transaction Engine | **COMPLETE / CLOSED** | All 8 sub-phases (P4-S1 through P4-S8) accepted. Phase 4 closed under D-037. Final HEAD `87ea05aa`. CI Run 30099595759. Phase branch: phase/4-transaction-engine. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. Phase 5 NOT_AUTHORIZED. |
 | **Phase 5** | Agent & Commission Engine | **ACCEPTED / COMPLETE / CLOSED / FROZEN** | Final Technical Baseline `93ad0850`. Accepted CI Run 30260182865. B 15/15, C 10/10, D 10/10, Total 35/35, Semantic Gate SUCCESS. Phase 5 formally closed at D-042. Main PR/Main Merge NOT_AUTHORIZED. Five-level team rewards DEFERRED. |
-| **Phase 6** | Redemption Center | **P6-S0_IN_PROGRESS** | P6-S0 Contract Planning authorized. P6-S1+ NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. OD-01 through OD-30 PENDING. |
+| **Phase 6** | Redemption Center | **FULL_EXECUTION_AUTHORIZED** | P6-S0 through P6-S9 all authorized under D-043. P6-S0 FROZEN. 30 Bryan Decisions all APPROVED. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. |
 | **Phase 7** | Admin Operations | **NOT_AUTHORIZED** | Dashboards, rule management, Maker/Checker, risk, audit, reports |
 | **Phase 8** | Advertising & Content | **NOT_AUTHORIZED** | Merchant ad submission, admin review, MCP debit, member banners |
 | **Phase 9** | Reporting, Risk & Audit | **NOT_AUTHORIZED** | Reconciliation reports, risk flags, case workflow |
@@ -148,7 +148,7 @@
 
 | Sub-phase | Scope | Status | Next gate |
 |---|---|---|---|
-| **P6-S0** | Contract Freeze & Architecture Draft | **IN_PROGRESS** | Contract draft completed. Awaiting Bryan decisions on OD-01 through OD-30. P6-S1+ NOT_AUTHORIZED. |
+| **P6-S0** | Contract Freeze & Architecture Draft | **COMPLETE / FROZEN** | All 30 Bryan decisions applied and frozen under D-043. P6-S0 contract locked. P6-S1 through P6-S9 all authorized. |
 
 ## Current allowed actions
 
@@ -173,11 +173,16 @@
 - Force push, reset, amend pushed history, or rewrite `main` history
 - Delete tests or lower TypeScript strictness
 - Delete, clean, stash, or batch-add untracked files
-- Start P6-S1+ without P6-S0 freeze and Phase authorization
-- Implement production code for Phase 6 (P6-S0 is documentation/contract only)
 - Modify Phase 3, 4, or 5 frozen code
 - Modify B, C, or D integration test code
+- Create Main PR before Phase 6 delivery complete
+- Merge to Main
+- Deploy production
+- Force push, rebase, or amend pushed history
+- Clean, stash, or batch-add untracked artifacts
+- Reduce TypeScript strictness
+- Skip CI gates
 
 ---
 
-*Last updated: 2026-07-27 | Updated by: OpenClaw | Based on decisions D-001 through D-042 and Phase 6 P6-S0 Handoff*
+*Last updated: 2026-07-27 | Updated by: OpenClaw | Based on decisions D-001 through D-043*
