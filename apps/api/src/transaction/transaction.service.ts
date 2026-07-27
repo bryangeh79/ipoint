@@ -177,6 +177,7 @@ export class TransactionService {
     const merchant = await this.resolveMerchantContext(
       staffAccountId,
       marketContext,
+      input.packageId,
     );
     this.assertMerchantActive(merchant);
     this.assertMarketNotTampered(input.marketId, merchant.marketId);
@@ -1137,6 +1138,7 @@ export class TransactionService {
   private async resolveMerchantContext(
     staffAccountId: string,
     marketContext?: string,
+    packageId?: string,
   ): Promise<MerchantContext> {
     const result = await this.database.db.execute<MerchantContext>(sql`
       SELECT
@@ -1167,7 +1169,7 @@ export class TransactionService {
         'The authenticated account is not authorized for a merchant branch.',
       );
     }
-    const scoped = marketContext
+    let scoped = marketContext
       ? accessible.filter((row) => row.marketId === marketContext)
       : accessible;
     if (marketContext && scoped.length === 0) {
@@ -1175,6 +1177,21 @@ export class TransactionService {
         transactionErrorCodes.marketMismatch,
         'The requested market does not match an authorized merchant branch.',
       );
+    }
+    if (packageId && scoped.length > 1) {
+      const packageRows = await this.database.db.execute<{
+        branchId: string;
+      }>(sql`
+        SELECT merchant_branch_id AS "branchId"
+        FROM merchant_package_assignments
+        WHERE id = ${packageId}
+          AND status::text = 'ACTIVE'
+        LIMIT 1
+      `);
+      const packageBranchId = packageRows.rows[0]?.branchId;
+      if (packageBranchId) {
+        scoped = scoped.filter((row) => row.branchId === packageBranchId);
+      }
     }
     if (scoped.length !== 1) {
       transactionConflict(

@@ -22,7 +22,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { and, eq, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, lte, sql } from 'drizzle-orm';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service.js';
 import {
@@ -37,6 +37,7 @@ import {
   markets,
   merchantAttributions,
   merchantBranches,
+  merchantReferrals,
 } from '@ipoint/database';
 
 /* ------------------------------------------------------------------ */
@@ -105,7 +106,12 @@ export interface MerchantRecruitmentCommissionResult {
   confirmedAt: string;
   recognizedServiceFee: string;
   processingId: string;
-  completionOutcome: 'CREATED' | 'SKIPPED_INELIGIBLE' | 'FAILED';
+  completionOutcome:
+    | 'CREATED'
+    | 'SKIPPED_INELIGIBLE'
+    | 'SKIPPED_NO_BENEFICIARY'
+    | 'SKIPPED_ZERO_AMOUNT'
+    | 'FAILED';
   generations: MerchantRecruitmentGenerationResult[];
 }
 
@@ -131,12 +137,12 @@ export class MerchantRecruitmentCommissionService {
    * for the merchant recruiter.
    *
    * Attribution logic (D-19 frozen):
-   *   - Look up merchant_attribution for the transaction's branch.
-   *     If a BRANCH-level attribution exists → use branch recruiter.
-   *     If no BRANCH-level attribution exists → use MERCHANT-level
-   *     (parent) attribution.
-   *   - If no attribution exists at all → no commission.
-   *   - No fallback from inactive branch recruiter to parent recruiter.
+   *   - Exact BRANCH attribution wins for branch transactions.
+   *   - The production registration/default branch may use MERCHANT
+   *     attribution only when backed by its registration referral row.
+   *   - Additional branches use only their own BRANCH attribution.
+   *   - No BRANCH attribution means SKIPPED_NO_BENEFICIARY.
+   *   - No fallback from branch to parent is allowed.
    *
    * @param transactionId - The Phase 4 transaction ID
    * @returns Commission processing result
@@ -368,9 +374,8 @@ export class MerchantRecruitmentCommissionService {
    * Find merchant attribution for the given merchant account and branch.
    *
    * Attribution lookup order (D-19 frozen):
-   *   1. BRANCH-level attribution for this specific branch
-   *   2. If no BRANCH attribution exists, MERCHANT-level attribution
-   *      for this merchant account
+   *   1. BRANCH attribution for the exact branch
+   *   2. Registration/default branch with referral row: MERCHANT attribution
    *   3. If no attribution exists at all → null
    *
    * @returns The recruiter member ID and attribution type, or null
@@ -383,7 +388,6 @@ export class MerchantRecruitmentCommissionService {
     recruiterMemberId: string;
     attributionType: 'MERCHANT' | 'BRANCH';
   } | null> {
-    // Step 1: Look for BRANCH-level attribution for this specific branch
     const branchRows = await db
       .select({
         recruiterMemberId: merchantAttributions.recruiterMemberId,
@@ -405,6 +409,59 @@ export class MerchantRecruitmentCommissionService {
       return {
         recruiterMemberId: branchRows[0]!.recruiterMemberId,
         attributionType: 'BRANCH',
+      };
+    }
+
+    const branchRowsForRole = await db
+      .select({
+        id: merchantBranches.id,
+        merchantGroupId: merchantBranches.merchantGroupId,
+      })
+      .from(merchantBranches)
+      .where(eq(merchantBranches.id, merchantBranchId))
+      .limit(1);
+    const branchForRole = branchRowsForRole[0];
+    if (!branchForRole) return null;
+
+    const firstBranchRows = await db
+      .select({ id: merchantBranches.id })
+      .from(merchantBranches)
+      .where(
+        eq(merchantBranches.merchantGroupId, branchForRole.merchantGroupId),
+      )
+      .orderBy(asc(merchantBranches.createdAt), asc(merchantBranches.id))
+      .limit(1);
+    const isRegistrationBranch = firstBranchRows[0]?.id === merchantBranchId;
+    if (!isRegistrationBranch) return null;
+
+    const referralRows = await db
+      .select({ id: merchantReferrals.id })
+      .from(merchantReferrals)
+      .where(eq(merchantReferrals.merchantBranchId, merchantBranchId))
+      .limit(1);
+    if (referralRows.length === 0) return null;
+
+    const merchantRows = await db
+      .select({
+        recruiterMemberId: merchantAttributions.recruiterMemberId,
+        attributionType: merchantAttributions.attributedEntityType,
+      })
+      .from(merchantAttributions)
+      .where(
+        and(
+          eq(merchantAttributions.merchantAccountId, merchantAccountId),
+          eq(merchantAttributions.attributedEntityType, 'MERCHANT'),
+          sql`${merchantAttributions.branchId} IS NULL`,
+          eq(merchantAttributions.attributionScope, 'PERMANENT'),
+          sql`${merchantAttributions.effectiveUntil} IS NULL`,
+        ),
+      )
+      .limit(1);
+
+    if (merchantRows.length > 0) {
+      return {
+        recruiterMemberId: merchantRows[0]!.recruiterMemberId,
+        attributionType: 'MERCHANT',
       };
     }
 
@@ -562,6 +619,7 @@ export class MerchantRecruitmentCommissionService {
     const recruiterActive = await this.isBeneficiaryActiveAtTime(
       tx,
       beneficiaryId,
+      market,
       effectiveTime,
     );
 
@@ -707,6 +765,7 @@ export class MerchantRecruitmentCommissionService {
     const agentStatusSnapshot = await this.getAgentStatusSnapshot(
       tx,
       beneficiaryId,
+      market,
       effectiveTime,
     );
 
@@ -912,7 +971,7 @@ export class MerchantRecruitmentCommissionService {
       recognizedServiceFee,
       processingId: processing.id,
       completionOutcome: (processing.completionOutcome ??
-        'SKIPPED_INELIGIBLE') as 'CREATED' | 'SKIPPED_INELIGIBLE' | 'FAILED',
+        'SKIPPED_INELIGIBLE') as MerchantRecruitmentCommissionResult['completionOutcome'],
       generations,
     };
   }
@@ -927,6 +986,7 @@ export class MerchantRecruitmentCommissionService {
   private async isBeneficiaryActiveAtTime(
     tx: Queryable,
     memberId: string,
+    market: string,
     effectiveTime: string,
   ): Promise<boolean> {
     const rows = await tx
@@ -935,6 +995,7 @@ export class MerchantRecruitmentCommissionService {
       .where(
         and(
           eq(agentActivations.memberId, memberId),
+          eq(agentActivations.market, market),
           eq(agentActivations.status, 'ACTIVE'),
           sql`${agentActivations.activatedAt} <= ${effectiveTime}::timestamptz`,
           sql`(${agentActivations.revokedAt} IS NULL
@@ -953,6 +1014,7 @@ export class MerchantRecruitmentCommissionService {
   private async getAgentStatusSnapshot(
     tx: Queryable,
     memberId: string,
+    market: string,
     effectiveTime: string,
   ): Promise<{
     activationId: string | null;
@@ -970,6 +1032,7 @@ export class MerchantRecruitmentCommissionService {
       .where(
         and(
           eq(agentActivations.memberId, memberId),
+          eq(agentActivations.market, market),
           eq(agentActivations.status, 'ACTIVE'),
           sql`${agentActivations.activatedAt} <= ${effectiveTime}::timestamptz`,
           sql`(${agentActivations.revokedAt} IS NULL OR ${agentActivations.revokedAt} > ${effectiveTime}::timestamptz)`,

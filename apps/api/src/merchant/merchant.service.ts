@@ -264,15 +264,6 @@ export class MerchantService {
               attributionScope: 'PERMANENT',
               createdBy: accountId,
             });
-            await tx.insert(merchantAttributions).values({
-              merchantAccountId: accountId,
-              branchId,
-              recruiterMemberId: recruiter.id,
-              attributedEntityType: 'BRANCH',
-              attributionSource: 'REGISTRATION',
-              attributionScope: 'PERMANENT',
-              createdBy: accountId,
-            });
           }
           await tx.insert(merchantStatusHistory).values({
             merchantBranchId: branchId,
