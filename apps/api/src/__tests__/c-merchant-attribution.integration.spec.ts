@@ -41,18 +41,13 @@ import { AuthService } from '../auth/auth.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { MarketService } from '../platform-access/market.service.js';
 import { AccessAdministrationService } from '../platform-access/access-administration.service.js';
-import { MerchantService } from '../merchant/merchant.service.js';
 import { TransactionService } from '../transaction/transaction.service.js';
 import { TransactionCommissionOutboxWorker } from '../transaction/transaction-commission-outbox.worker.js';
-
 
 const databaseUrl = process.env['DATABASE_URL'];
 
 // Seed agent activation directly
-async function seedAgentActivation(
-  db: any,
-  memberId: string,
-) {
+async function seedAgentActivation(db: any, memberId: string) {
   await db
     .insert(agentActivations)
     .values({
@@ -70,7 +65,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
   let server: Server;
   let database: DatabaseService;
   let auth: AuthService;
-  let merchants: MerchantService;
+  let merchants: any;
   let transactions: TransactionService;
   let outboxWorker: TransactionCommissionOutboxWorker;
   let marketId: string;
@@ -80,10 +75,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
   beforeAll(async () => {
     vi.stubEnv('DATABASE_URL', databaseUrl ?? '');
     vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
-    vi.stubEnv(
-      'AUTH_OTP_PEPPER',
-      'c-attribution-test-otp-pepper-32ch',
-    );
+    vi.stubEnv('AUTH_OTP_PEPPER', 'c-attribution-test-otp-pepper-32ch');
     vi.stubEnv('NODE_ENV', 'test');
     vi.stubEnv('LOG_LEVEL', 'silent');
 
@@ -99,7 +91,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     server = app.getHttpServer() as Server;
     database = app.get(DatabaseService);
     auth = app.get(AuthService);
-    merchants = app.get(MerchantService);
+    merchants = app.get('MerchantService') as any;
     transactions = app.get(TransactionService);
     outboxWorker = app.get(TransactionCommissionOutboxWorker);
     await migrate(database.pool);
@@ -147,7 +139,12 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     const administration = app.get(AccessAdministrationService);
     await administration.assignRole(
       auRow!.id,
-      (await database.db.select({ id: sql<string>`id` }).from(sql`roles`).where(sql`code = 'SUPER_ADMIN'`).limit(1).then(r => r[0]!.id)),
+      await database.db
+        .select({ id: sql<string>`id` })
+        .from(sql`roles`)
+        .where(sql`code = 'SUPER_ADMIN'`)
+        .limit(1)
+        .then((r) => r[0]!.id),
       { adminUserId: auRow!.id, reason: 'C test setup' },
     );
     await administration.grantMarketAccess(auRow!.id, marketId, {
@@ -278,9 +275,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
   }
 
   // ── Helper: create agent-activated member (for transaction referral chain) ──
-  async function createAgentMember(opts?: {
-    referrerId?: string;
-  }): Promise<{
+  async function createAgentMember(opts?: { referrerId?: string }): Promise<{
     memberId: string;
     accountId: string;
     qrToken: string;
@@ -311,7 +306,11 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
           ON CONFLICT DO NOTHING`,
     );
 
-    return { memberId: member.memberId, accountId: member.accountId, qrToken: qrRaw };
+    return {
+      memberId: member.memberId,
+      accountId: member.accountId,
+      qrToken: qrRaw,
+    };
   }
 
   // ── Helper: set up merchant package assignment ──
@@ -373,16 +372,13 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     });
 
     // Register additional branch with recruiter B
-    const branch = await merchants.addBranch(
-      merch.accountId,
-      {
-        merchantGroupId: merch.groupId,
-        marketId,
-        name: `C Branch ${randomUUID().slice(0, 6)}`,
-        referralAccountId: branchRecruiter.accountId,
-        channel: 'ct',
-      },
-    );
+    const branch = await merchants.addBranch(merch.accountId, {
+      merchantGroupId: merch.groupId,
+      marketId,
+      name: `C Branch ${randomUUID().slice(0, 6)}`,
+      referralAccountId: branchRecruiter.accountId,
+      channel: 'ct',
+    });
 
     // Exactly 1 BRANCH attribution
     const attributions = await database.db
@@ -422,16 +418,13 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
       referralAccountId: recruiterA.accountId,
     });
 
-    const branch = await merchants.addBranch(
-      merch.accountId,
-      {
-        merchantGroupId: merch.groupId,
-        marketId,
-        name: `C Indep ${randomUUID().slice(0, 6)}`,
-        referralAccountId: recruiterB.accountId,
-        channel: 'ct',
-      },
-    );
+    const branch = await merchants.addBranch(merch.accountId, {
+      merchantGroupId: merch.groupId,
+      marketId,
+      name: `C Indep ${randomUUID().slice(0, 6)}`,
+      referralAccountId: recruiterB.accountId,
+      channel: 'ct',
+    });
 
     // Parent attribution → recruiter A
     const parentAttrs = await database.db
@@ -459,9 +452,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     const allAttrs = await database.db
       .select()
       .from(merchantAttributions)
-      .where(
-        eq(merchantAttributions.merchantAccountId, merch.accountId),
-      );
+      .where(eq(merchantAttributions.merchantAccountId, merch.accountId));
     expect(allAttrs.length).toBe(2);
   });
 
@@ -477,15 +468,12 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     });
 
     // Branch WITHOUT referral
-    const branch = await merchants.addBranch(
-      merch.accountId,
-      {
-        merchantGroupId: merch.groupId,
-        marketId,
-        name: `C NoRef ${randomUUID().slice(0, 6)}`,
-        channel: 'ct',
-      },
-    );
+    const branch = await merchants.addBranch(merch.accountId, {
+      merchantGroupId: merch.groupId,
+      marketId,
+      name: `C NoRef ${randomUUID().slice(0, 6)}`,
+      channel: 'ct',
+    });
 
     // No BRANCH attribution
     const branchAttrs = await database.db
@@ -510,9 +498,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     const allBranchRows = await database.db
       .select()
       .from(merchantAttributions)
-      .where(
-        eq(merchantAttributions.merchantAccountId, merch.accountId),
-      );
+      .where(eq(merchantAttributions.merchantAccountId, merch.accountId));
     // Should only have the parent MERCHANT attribution
     const branchTypeRows = allBranchRows.filter(
       (r) => r.attributedEntityType === 'BRANCH',
@@ -600,17 +586,13 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     const attributions = await database.db
       .select()
       .from(merchantAttributions)
-      .where(
-        eq(merchantAttributions.attributedEntityType, 'MERCHANT'),
-      )
+      .where(eq(merchantAttributions.attributedEntityType, 'MERCHANT'))
       .orderBy(sql`created_at DESC`);
     const matchingAttributions = await database.db
       .select()
       .from(merchantAttributions)
       .where(
-        and(
-          eq(merchantAttributions.recruiterMemberId, recruiter.memberId),
-        ),
+        and(eq(merchantAttributions.recruiterMemberId, recruiter.memberId)),
       );
     // The replay should not create a second attribution
     const recruiterAttributions = matchingAttributions.filter(
@@ -665,9 +647,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     const attributions = await database.db
       .select()
       .from(merchantAttributions)
-      .where(
-        eq(merchantAttributions.recruiterMemberId, recruiterA.memberId),
-      );
+      .where(eq(merchantAttributions.recruiterMemberId, recruiterA.memberId));
     const merchantAttrs = attributions.filter(
       (a) => a.attributedEntityType === 'MERCHANT',
     );
@@ -677,9 +657,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     const bAttrs = await database.db
       .select()
       .from(merchantAttributions)
-      .where(
-        eq(merchantAttributions.recruiterMemberId, recruiterB.memberId),
-      );
+      .where(eq(merchantAttributions.recruiterMemberId, recruiterB.memberId));
     expect(bAttrs.length).toBe(0);
   });
 
@@ -720,9 +698,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     const attributions = await database.db
       .select()
       .from(merchantAttributions)
-      .where(
-        sql`${merchantAttributions.attributedEntityType} = 'MERCHANT'`,
-      )
+      .where(sql`${merchantAttributions.attributedEntityType} = 'MERCHANT'`)
       .orderBy(sql`created_at DESC`)
       .limit(10);
 
@@ -801,9 +777,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     const proc = await database.db
       .select()
       .from(commissionProcessing)
-      .where(
-        sql`${commissionProcessing.sourceType} = 'MERCHANT_TRANSACTION'`,
-      )
+      .where(sql`${commissionProcessing.sourceType} = 'MERCHANT_TRANSACTION'`)
       .orderBy(sql`created_at DESC`)
       .limit(5);
 
@@ -840,9 +814,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     const recruitmentLedger = await database.db
       .select()
       .from(commissionLedger)
-      .where(
-        sql`${commissionLedger.entryType} LIKE 'MERCHANT_RECRUITMENT%'`,
-      )
+      .where(sql`${commissionLedger.entryType} LIKE 'MERCHANT_RECRUITMENT%'`)
       .orderBy(sql`created_at DESC`)
       .limit(5);
 
@@ -867,16 +839,13 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     // Create branch with recruiter B
     const branchRecruiter = await createAgentMember();
     await seedAgentActivation(database.db, branchRecruiter.memberId);
-    const branch = await merchants.addBranch(
-      merch.accountId,
-      {
-        merchantGroupId: merch.groupId,
-        marketId,
-        name: `C NoFall ${randomUUID().slice(0, 6)}`,
-        referralAccountId: branchRecruiter.accountId,
-        channel: 'ct',
-      },
-    );
+    const branch = await merchants.addBranch(merch.accountId, {
+      merchantGroupId: merch.groupId,
+      marketId,
+      name: `C NoFall ${randomUUID().slice(0, 6)}`,
+      referralAccountId: branchRecruiter.accountId,
+      channel: 'ct',
+    });
 
     // Verify branch has its own attribution
     const branchAttrs = await database.db
@@ -949,15 +918,12 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     expect(branchAttrs[0]!.recruiterMemberId).toBe(branchRecruiter.memberId);
 
     // Verify no-fallback scenario: create a branch WITHOUT attribution
-    const noAttrBranch = await merchants.addBranch(
-      merch.accountId,
-      {
-        merchantGroupId: merch.groupId,
-        marketId,
-        name: `C NoAttr ${randomUUID().slice(0, 6)}`,
-        channel: 'ct',
-      },
-    );
+    const noAttrBranch = await merchants.addBranch(merch.accountId, {
+      merchantGroupId: merch.groupId,
+      marketId,
+      name: `C NoAttr ${randomUUID().slice(0, 6)}`,
+      channel: 'ct',
+    });
     const noAttrBranchAttrs = await database.db
       .select()
       .from(merchantAttributions)
