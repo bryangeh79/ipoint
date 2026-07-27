@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { PlatformAccessModule } from '../platform-access/platform-access.module.js';
 import { AgentUpgradeCommissionService } from '../domain/commission/agent-upgrade.service.js';
 import { MemberConsumptionCommissionService } from '../domain/commission/member-consumption.service.js';
 import { MerchantRecruitmentCommissionService } from '../domain/commission/merchant-recruitment.service.js';
@@ -13,7 +14,7 @@ import { CommissionController } from '../controllers/commission.controller.js';
 import { AdminRateController } from '../controllers/admin-rate.controller.js';
 
 @Module({
-  imports: [DatabaseModule, AuthModule],
+  imports: [DatabaseModule, AuthModule, PlatformAccessModule],
   controllers: [
     CommissionController,
     AgentCommissionController,
