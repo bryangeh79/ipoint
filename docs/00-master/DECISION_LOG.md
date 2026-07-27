@@ -1019,3 +1019,52 @@ P5-S0 is documentation, architecture and contract planning only:
 - MAIN_PR: NOT_AUTHORIZED
 - MAIN_MERGE: NOT_AUTHORIZED
 - PRODUCTION_DEPLOYMENT: NOT_AUTHORIZED
+
+---
+
+## D-040: C Integration Accepted and Frozen
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-040 |
+| **Date** | 2026-07-27 |
+| **Source** | ChatGPT Command Center - C ACCEPTED, D INTEGRATION AUTHORIZED |
+| **Old Rule** | C Integration CHANGES_REQUIRED; D Integration NOT_AUTHORIZED |
+| **New Decision** | C Integration is accepted and frozen at SHA `c615463af0ff41bc5b33a02426904e4dbbc7c5f9`. Accepted CI Run `30256953239` passed Quality, Build, Unit, Database, Commission, Integration, and Semantic Gate. D Integration is authorized to begin for Phase 4 Correction Execution to Phase 5 Commission Compensation only. Main PR, main merge, and production deployment remain NOT_AUTHORIZED. |
+| **Reason** | Command Center accepted C evidence: B 15/15, C 10/10, 0 failed, 0 skipped, 0 todo, Semantic Gate SUCCESS. Parent and branch attribution contracts, invalid referral atomic rollback, market consistency, no branch-to-parent fallback, registration ledger zero, and confirm-time merchant recruitment commission were verified. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md |
+| **Affected Phases** | Phase 5, C Integration, D Integration |
+| **Migration** | NONE |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | Accepted SHA `c615463af0ff41bc5b33a02426904e4dbbc7c5f9`; Accepted CI `30256953239`; B 15/15; C 10/10; Semantic Gate SUCCESS |
+| **Status** | **ACCEPTED / FROZEN** |
+
+### C Frozen Baseline
+
+- **Commit:** `c615463af0ff41bc5b33a02426904e4dbbc7c5f9`
+- **CI Run:** `30256953239`
+- **B Regression:** 15 passed, 0 failed, 0 skipped, 0 todo
+- **C Integration:** 10 passed, 0 failed, 0 skipped, 0 todo
+- **Semantic Gate:** SUCCESS
+
+### Frozen Contract Outcomes
+
+- Parent attribution is independent and creates exactly one `MERCHANT` attribution.
+- Parent registration does not create a fake `BRANCH` attribution.
+- Branch attribution is independent and uses exact branch attribution only.
+- Invalid referral returns `MERCHANT_REFERRAL_INVALID` and rolls back atomically.
+- Market, agent activation, rate version, transaction, ledger, and `MYR` currency are consistent.
+- Branch without attribution does not fallback to parent.
+- Registration creates no commission ledger.
+- Confirmed transaction creates exact merchant recruitment commission.
+
+### Active restrictions
+
+- B_INTEGRATION_FROZEN
+- C_INTEGRATION_FROZEN
+- D_INTEGRATION_IN_PROGRESS
+- PHASE_5_NOT_YET_ACCEPTED
+- PHASE_5_NOT_YET_CLOSED
+- MAIN_PR: NOT_AUTHORIZED
+- MAIN_MERGE: NOT_AUTHORIZED
+- PRODUCTION_DEPLOYMENT: NOT_AUTHORIZED
