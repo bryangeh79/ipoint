@@ -5,11 +5,13 @@ import {
   credentials,
   markets,
   mcpAccounts,
+  members,
   merchantAccountAccess,
   merchantApiIdempotencyKeys,
   merchantApplicationReviews,
   merchantApplications,
   merchantApplicationSubmissions,
+  merchantAttributions,
   merchantBranches,
   merchantDocuments,
   merchantGroups,
@@ -232,6 +234,21 @@ export class MerchantService {
               merchantBranchId: branchId,
               referrerAccountId: input.referral_account_id,
             });
+            const [recruiter] = await tx
+              .select({ id: members.id })
+              .from(members)
+              .where(eq(members.accountId, input.referral_account_id))
+              .limit(1);
+            if (recruiter) {
+              await tx.insert(merchantAttributions).values({
+                merchantAccountId: accountId,
+                recruiterMemberId: recruiter.id,
+                attributedEntityType: 'MERCHANT',
+                attributionSource: 'REGISTRATION',
+                attributionScope: 'PERMANENT',
+                createdBy: accountId,
+              });
+            }
           }
           await tx.insert(merchantStatusHistory).values({
             merchantBranchId: branchId,
@@ -270,6 +287,98 @@ export class MerchantService {
         }
       },
     );
+  }
+
+  /**
+   * Register an additional branch under an existing merchant group,
+   * with optional referrer attribution.
+   */
+  async addBranch(
+    accountId: string,
+    input: {
+      merchantGroupId: string;
+      marketId: string;
+      name: string;
+      referralAccountId?: string;
+      channel: string;
+    },
+    context: MerchantRequestContext = {},
+  ): Promise<{ branchId: string; merchantId: string }> {
+    return this.database.runTransaction(async (tx) => {
+      const merchantId = await this.nextMerchantId(
+        tx,
+        input.marketId,
+        input.channel,
+      );
+      const branchRows = await tx
+        .insert(merchantBranches)
+        .values({
+          merchantGroupId: input.merchantGroupId,
+          merchantId,
+          marketId: input.marketId,
+          name: input.name,
+          status: 'PENDING_APPLICATION',
+        })
+        .returning({ id: merchantBranches.id });
+      const branchId = branchRows[0]?.id;
+      if (!branchId) throw new Error('Branch insert returned no id.');
+
+      await tx.insert(merchantProfiles).values({
+        merchantBranchId: branchId,
+      });
+      await tx.insert(merchantApplications).values({
+        merchantBranchId: branchId,
+      });
+      await tx.insert(mcpAccounts).values({
+        merchantBranchId: branchId,
+        marketId: input.marketId,
+      });
+
+      if (input.referralAccountId) {
+        await tx.insert(merchantReferrals).values({
+          merchantBranchId: branchId,
+          referrerAccountId: input.referralAccountId,
+        });
+        const [recruiter] = await tx
+          .select({ id: members.id })
+          .from(members)
+          .where(eq(members.accountId, input.referralAccountId))
+          .limit(1);
+        if (recruiter) {
+          await tx.insert(merchantAttributions).values({
+            merchantAccountId: accountId,
+            branchId,
+            recruiterMemberId: recruiter.id,
+            attributedEntityType: 'BRANCH',
+            attributionSource: 'REGISTRATION',
+            attributionScope: 'PERMANENT',
+            createdBy: accountId,
+          });
+        }
+      }
+
+      await tx.insert(merchantStatusHistory).values({
+        merchantBranchId: branchId,
+        newStatus: 'PENDING_APPLICATION',
+        changedByActorType: 'ACCOUNT',
+        changedByActorId: accountId,
+        reason: 'Additional branch registered.',
+      });
+
+      await this.audit.appendWithinTransaction(tx, {
+        actor: { type: 'ACCOUNT', id: accountId },
+        action: 'merchant.branch.add',
+        entity: { type: 'merchant_branch', id: branchId },
+        marketId: input.marketId,
+        after: { branchId, merchantId },
+        result: 'SUCCESS',
+        requestId: context.requestId,
+        ipAddress: context.ipAddress,
+        summary: 'Additional merchant branch created.',
+      });
+
+      return { branchId, merchantId };
+    });
   }
 
   async assertOwnership(
