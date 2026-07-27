@@ -11,11 +11,15 @@ import { CommissionModule } from './commission.module.js';
 
 describe('CommissionModule DI Wiring', () => {
   beforeAll(() => {
-    vi.stubEnv('DATABASE_URL', 'postgresql://test:test@localhost:5432/test');
-    vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
     vi.stubEnv('NODE_ENV', 'test');
     vi.stubEnv('LOG_LEVEL', 'silent');
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:test@localhost:5432/test');
+    vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
     vi.stubEnv('AUTH_OTP_PEPPER', 'commission-di-test-otp-pepper-32chars');
+    vi.stubEnv('AUTH_OTP_TTL_SECONDS', '600');
+    vi.stubEnv('AUTH_ACCESS_TTL_SECONDS', '900');
+    vi.stubEnv('AUTH_REFRESH_TTL_SECONDS', '2592000');
+    vi.stubEnv('AUTH_IDEMPOTENCY_TTL_SECONDS', '86400');
   });
 
   it('compiles without UnknownDependenciesException', async () => {

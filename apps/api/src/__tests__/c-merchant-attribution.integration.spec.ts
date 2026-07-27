@@ -273,7 +273,10 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
       .update(merchantBranches)
       .set({ status: 'ACTIVE', isPubliclyVisible: true, isOffline: true })
       .where(eq(merchantBranches.id, branchId));
-    // Create MCP balance
+    // Enable MCP posting session variable, then update balance
+    await database.db.execute(
+      sql`SELECT set_config('ipoint.mcp_posting', 'enabled', true)`,
+    );
     await database.db
       .update(mcpAccounts)
       .set({ availableBalance: '999999.99', totalBalance: '999999.99' })
