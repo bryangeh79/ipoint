@@ -195,7 +195,7 @@ describe('C: Merchant Attribution Integration', () => {
       .insert(agentActivations)
       .values({
         memberId,
-        market: mktCode,
+        market: mktCode.slice(0, 2),
         status: 'ACTIVE',
         activatedAt: new Date(),
         paymentConfirmedAt: new Date(),
@@ -683,7 +683,7 @@ describe('C: Merchant Attribution Integration', () => {
         locale: 'en-MY',
       })
       .expect(400);
-    expect(res.body.code).toBe('MERCHANT_REFERRAL_INVALID');
+    expect(res.body.error.code).toBe('MERCHANT_REFERRAL_INVALID');
 
     const [acct] = await database.db
       .select()
