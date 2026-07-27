@@ -94,6 +94,7 @@ async function seedBScenario(opts?: {
   memberHasG1?: boolean;
   memberHasG2?: boolean;
   serviceFeeRate?: string;
+  minimumTransactionAmount?: string;
 }): Promise<BScenario> {
   const s = uid();
   const mc = s.substring(0, 2).toUpperCase();
@@ -120,7 +121,7 @@ async function seedBScenario(opts?: {
       marketId: mkt.id,
       currencyCode: 'MYR',
       currencyScale: 2,
-      minimumTransactionAmount: '1.00',
+      minimumTransactionAmount: opts?.minimumTransactionAmount ?? '1.00',
       maximumTransactionAmount: '999999.99',
     })
     .onConflictDoNothing();
@@ -1157,12 +1158,29 @@ describe('B: Transaction to Commission Integration', () => {
     expect(hasCompleted).toBe(false);
   });
 
-  it('B-15: Rounded zero => SKIPPED_ZERO_AMOUNT, no ledger', async () => {
-    const sc = await seedBScenario({ serviceFeeRate: '0.000001' });
-    // Service fee at near-zero rate: $1.00 × 0.000001% ≈ 0.00000001
-    // G1 = 0.00000001 × 0.01 = 0.0000000001 → HALF_UP to 0.00 → SKIPPED_ZERO_AMOUNT
-    // G2 = 0.00000001 × 0.005 = 0.00000000005 → HALF_UP to 0.00 → SKIPPED_ZERO_AMOUNT
-    const r = await executeAndProcess(sc, { amount: '1.00' });
+  it('B-15: Rounded zero commission => SKIPPED_ZERO_AMOUNT, no ledger, fee deducted', async () => {
+    // Malaysia minimum: MYR 5.00
+    // Service fee rate: 2.500000%
+    // Service fee = 5.00 × 2.5% = 0.125 → HALF_UP to 0.13 (> 0, valid)
+    // G1 commission = 0.13 × 1% = 0.0013 → HALF_UP 2dp to 0.00 → SKIPPED_ZERO_AMOUNT
+    // G2 commission = 0.13 × 0.5% = 0.00065 → HALF_UP 2dp to 0.00 → SKIPPED_ZERO_AMOUNT
+    const sc = await seedBScenario({
+      memberHasG1: true,
+      memberHasG2: true,
+      g1Active: true,
+      g2Active: true,
+      minimumTransactionAmount: '5.00',
+      serviceFeeRate: '2.500000',
+    });
+
+    const r = await executeAndProcess(sc, { amount: '5.00' });
+
+    // Preview: estimated MCP debit = 0.13
+    expect(r.preview.estimatedMcpDebit).toBe('0.13');
+
+    // Confirm: service fee = 0.13, MCP deducted = 0.13
+    expect(r.confirm.serviceFee).toBe('0.13');
+    expect(r.confirm.mcpDeducted).toBe('0.13');
 
     // Processing outcome = SKIPPED_ZERO_AMOUNT (NOT SKIPPED_INELIGIBLE)
     expect(r.memberProc.length).toBe(1);
@@ -1170,10 +1188,22 @@ describe('B: Transaction to Commission Integration', () => {
 
     // Both G1 and G2 have result rows with SKIPPED_ZERO_AMOUNT
     expect(r.memberResults.length).toBe(2);
-    expectExactMemberResult(r.memberResults, 1, 'SKIPPED_ZERO_AMOUNT');
-    expectExactMemberResult(r.memberResults, 2, 'SKIPPED_ZERO_AMOUNT');
+    const g1Res = expectExactMemberResult(
+      r.memberResults,
+      1,
+      'SKIPPED_ZERO_AMOUNT',
+    );
+    const g2Res = expectExactMemberResult(
+      r.memberResults,
+      2,
+      'SKIPPED_ZERO_AMOUNT',
+    );
 
-    // No ledger
+    // Beneficiary IDs must match the referral chain
+    expect(g1Res.beneficiaryId).toBe(sc.g1MemberId);
+    expect(g2Res.beneficiaryId).toBe(sc.g2MemberId);
+
+    // No commission ledger entries (both rounded to zero)
     expect(r.ledger.length).toBe(0);
 
     // Verify SKIPPED_INELIGIBLE is NOT used as substitute
