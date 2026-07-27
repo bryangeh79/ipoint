@@ -180,6 +180,9 @@ jobs:
       - name: Run P5 integration tests (C)
         run: |
           cd apps/api && pnpm vitest run src/__tests__/c-merchant-attribution.integration.spec.ts --reporter verbose
+      - name: Run P5 integration tests (D)
+        run: |
+          cd apps/api && pnpm vitest run src/__tests__/d-correction-compensation.integration.spec.ts --reporter verbose
       - name: P5 integration gate — reject placeholders
         if: always()
-        run: pwsh -File scripts/p5-integration-gate.ps1 -Phase 5 -MandatoryTestFiles 'apps/api/src/__tests__/b-transaction-commission.integration.spec.ts' 'apps/api/src/__tests__/c-merchant-attribution.integration.spec.ts'
+        run: pwsh -File scripts/p5-integration-gate.ps1 -Phase 5 -MandatoryTestFiles 'apps/api/src/__tests__/b-transaction-commission.integration.spec.ts' 'apps/api/src/__tests__/c-merchant-attribution.integration.spec.ts' 'apps/api/src/__tests__/d-correction-compensation.integration.spec.ts'

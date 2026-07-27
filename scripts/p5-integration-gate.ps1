@@ -47,6 +47,7 @@ $globalViolations = $false
 $minimumTestsByFile = @{
   'apps/api/src/__tests__/b-transaction-commission.integration.spec.ts' = 15
   'apps/api/src/__tests__/c-merchant-attribution.integration.spec.ts' = 10
+  'apps/api/src/__tests__/d-correction-compensation.integration.spec.ts' = 10
 }
 foreach ($file in $MandatoryTestFiles) {
   $fullPath = Join-Path $workspaceRoot $file
