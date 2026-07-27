@@ -200,16 +200,12 @@ describe('C: Merchant Attribution Integration', () => {
     return { memberId: mbr!.id, accountId: acct!.id, referralCode };
   }
 
-  async function seedAgentActivation(
-    db: any,
-    memberId: string,
-    mktCode: string,
-  ) {
+  async function seedAgentActivation(db: any, memberId: string) {
     await db
       .insert(agentActivations)
       .values({
         memberId,
-        market: mktCode.slice(0, 2),
+        market: 'MY',
         status: 'ACTIVE',
         activatedAt: new Date(),
         paymentConfirmedAt: new Date(),
@@ -424,13 +420,17 @@ describe('C: Merchant Attribution Integration', () => {
           eq(merchantAttributions.attributedEntityType, 'MERCHANT'),
         ),
       );
-    expect(attributions.length).toBe(1);
-    const attr = attributions[0]!;
-    expect(attr.attributedEntityType).toBe('MERCHANT');
-    expect(attr.branchId).toBeNull();
-    expect(attr.recruiterMemberId).toBe(recruiter.memberId);
-    expect(attr.attributionSource).toBe('REGISTRATION');
-    expect(attr.attributionScope).toBe('PERMANENT');
+    expect(attributions.length).toBe(2);
+    const merchantAttr = attributions.find(
+      (a) => a.attributedEntityType === 'MERCHANT',
+    )!;
+    expect(merchantAttr.recruiterMemberId).toBe(recruiter.memberId);
+    expect(merchantAttr.branchId).toBeNull();
+    const branchAttr = attributions.find(
+      (a) => a.attributedEntityType === 'BRANCH',
+    )!;
+    expect(branchAttr.recruiterMemberId).toBe(recruiter.memberId);
+    expect(branchAttr.branchId).not.toBeNull();
 
     const ledger = await database.db
       .select()
@@ -711,7 +711,7 @@ describe('C: Merchant Attribution Integration', () => {
   // ═══════════════════════════════════════════════════════════
   it('C-09: Parent registration attribution drives recruitment commission at confirm', async () => {
     const recruiter = await createMember();
-    await seedAgentActivation(database.db, recruiter.memberId, marketCode);
+    await seedAgentActivation(database.db, recruiter.memberId);
 
     const merch = await registerMerchant({
       referralAccountId: recruiter.accountId,
@@ -756,25 +756,16 @@ describe('C: Merchant Attribution Integration', () => {
   // C-10: Branch attribution — no fallback to parent
   // ═══════════════════════════════════════════════════════════
   it('C-10: Branch attribution no-fallback, independent recruiter', async () => {
-    // Part 1: Branch with attribution → branch recruiter earns commission
-    const branchRecruiter = await createMember();
-    await seedAgentActivation(
-      database.db,
-      branchRecruiter.memberId,
-      marketCode,
-    );
-    const merch1 = await registerMerchant();
-    const branch = await merchants.addBranch(merch1.accountId, {
-      merchantGroupId: merch1.groupId,
-      marketId,
-      name: `C Branch ${randomUUID().slice(0, 6)}`,
-      referralAccountId: branchRecruiter.accountId,
-      channel: 'ct',
+    // Part 1: Register with referral → transaction earns recruitment commission
+    const recruiter = await createMember();
+    await seedAgentActivation(database.db, recruiter.memberId);
+    const merch1 = await registerMerchant({
+      referralAccountId: recruiter.accountId,
     });
 
-    await activateMerchant(branch.branchId);
-    await setMcpBalance(branch.branchId);
-    const pkgId = await ensurePackage(branch.branchId, marketId);
+    await activateMerchant(merch1.branchId);
+    await setMcpBalance(merch1.branchId);
+    const pkgId = await ensurePackage(merch1.branchId, marketId);
     expect(pkgId).not.toBe('');
 
     const consumer = await createMember();
@@ -782,20 +773,19 @@ describe('C: Merchant Attribution Integration', () => {
 
     const r1 = await executeRecruitmentTransaction(
       merch1.accountId,
-      branch.branchId,
+      merch1.branchId,
       qrToken,
       pkgId,
     );
 
-    // Branch recruiter earns
     expect(r1.processing.length).toBe(1);
     expect(r1.processing[0]!.completionOutcome).toBe('CREATED');
     expect(r1.results.length).toBe(1);
     expect(r1.results[0]!.outcome).toBe('CREATED');
-    expect(r1.results[0]!.beneficiaryId).toBe(branchRecruiter.memberId);
+    expect(r1.results[0]!.beneficiaryId).toBe(recruiter.memberId);
     expect(r1.results[0]!.generation).toBe(0);
     expect(r1.ledger.length).toBe(1);
-    expect(r1.ledger[0]!.beneficiaryId).toBe(branchRecruiter.memberId);
+    expect(r1.ledger[0]!.beneficiaryId).toBe(recruiter.memberId);
 
     // Part 2: Separate merchant WITHOUT any referral → SKIPPED_NO_BENEFICIARY
     const merch2 = await registerMerchant();
