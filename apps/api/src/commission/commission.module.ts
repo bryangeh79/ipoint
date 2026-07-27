@@ -5,6 +5,7 @@ import { PlatformAccessModule } from '../platform-access/platform-access.module.
 import { AgentUpgradeCommissionService } from '../domain/commission/agent-upgrade.service.js';
 import { MemberConsumptionCommissionService } from '../domain/commission/member-consumption.service.js';
 import { MerchantRecruitmentCommissionService } from '../domain/commission/merchant-recruitment.service.js';
+import { CompensationService } from '../domain/commission/compensation.service.js';
 import { CommissionQueryService } from '../domain/commission/query.service.js';
 import { AdjustmentService } from '../domain/commission/adjustment.service.js';
 import { RateManagementService } from '../domain/commission/rate.service.js';
@@ -25,6 +26,7 @@ import { AdminRateController } from '../controllers/admin-rate.controller.js';
     AgentUpgradeCommissionService,
     MemberConsumptionCommissionService,
     MerchantRecruitmentCommissionService,
+    CompensationService,
     CommissionQueryService,
     AdjustmentService,
     RateManagementService,
@@ -33,6 +35,7 @@ import { AdminRateController } from '../controllers/admin-rate.controller.js';
     AgentUpgradeCommissionService,
     MemberConsumptionCommissionService,
     MerchantRecruitmentCommissionService,
+    CompensationService,
     CommissionQueryService,
     AdjustmentService,
     RateManagementService,

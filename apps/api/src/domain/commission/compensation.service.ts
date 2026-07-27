@@ -8,15 +8,16 @@
  * - REVERSAL_COMPENSATION/REFUND_COMPENSATION entry types find ALL original
  *   commission entries for the source event (transaction)
  * - Original entries are NEVER modified or deleted (immutable ledger)
- * - Compensation creates exact opposite amount: amount = original.amount × -1
+ * - Compensation creates exact opposite amount: amount = original.amount * -1
  * - Uses original posted amount (never recalculated at current rates)
  * - reversal_linkage = original_entry_id
  * - All compensations for one source event in single atomic transaction
  * - Over-compensation prevention: cumulative compensated amount <= original
  *   absolute amount
- * - D-06 revoked_at cut-off: source_event_time >= revoked_at → ineligible
- * - No Agent Upgrade clawback (D-06 frozen) — only member consumption
- *   entries are compensated
+ * - Compensates transaction-derived Member Consumption G1/G2 and Merchant
+ *   Recruitment entries
+ * - No Agent Upgrade clawback; post-source status changes do not rejudge
+ *   already-posted transaction commissions
  * - Canonical key: correction_execution_id + ':' + original_entry_id
  *   + ':' + compensation_type
  * - commission_processing tracks each compensation run
@@ -26,11 +27,10 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service.js';
 import {
-  agentActivations,
   correctionExecutions,
   commissionProcessing,
   commissionLedger,
@@ -119,7 +119,7 @@ export interface CompensationGenerationResult {
   originalEntryType: string;
   /** Original posted amount (positive). */
   originalAmount: string;
-  /** Compensation amount (original_amount × -1). */
+  /** Compensation amount (original_amount * -1). */
   compensationAmount: string | null;
   /** Outcome of this compensation generation. */
   outcome:
@@ -148,7 +148,11 @@ export interface CompensationResult {
   /** The processing record ID. */
   processingId: string;
   /** Overall completion outcome. */
-  completionOutcome: 'CREATED' | 'SKIPPED_INELIGIBLE' | 'FAILED';
+  completionOutcome:
+    | 'CREATED'
+    | 'SKIPPED_INELIGIBLE'
+    | 'SKIPPED_NO_BENEFICIARY'
+    | 'FAILED';
   /** Results per original commission entry. */
   entries: CompensationGenerationResult[];
 }
@@ -223,6 +227,9 @@ function compensationProcessingConflictError(
 
 @Injectable()
 export class CompensationService {
+  /** Test-only rollback hook for D-07; no production request can set this. */
+  static testInjectRollbackAfterFirstCompensation = false;
+
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {}
@@ -232,24 +239,20 @@ export class CompensationService {
   /* ================================================================ */
 
   /**
-   * Process correction compensation for a reversed or refunded
-   * Member Consumption transaction.
+   * Process correction compensation for a reversed or refunded transaction.
    *
    * Called when a Phase 4 Correction Execution completes and the
    * target transaction enters REVERSED or REFUNDED final state.
    *
-   * **Agent Upgrade clawback rule (D-06 frozen):**
-   *   Agent Upgrade commissions are permanently earned at activation
-   *   time. NO compensation entries are generated for Agent Upgrade
-   *   revocations. Only Member Consumption entries (MEMBER_CONSUMPTION
-   *   source_type) are eligible for compensation.
+   * **Transaction-derived commission rule (D integration):**
+   *   Member Consumption G1/G2 and Merchant Recruitment entries linked by
+   *   sourceReference = transactionId are compensated from the original
+   *   posted ledger amounts and snapshots.
    *
-   * **D-06 revoked_at cut-off:**
-   *   If the original commission entry's effective_time >= the
-   *   beneficiary's revoked_at (and revoked_at IS NOT NULL), the
-   *   beneficiary was NOT eligible at source time. The original entry
-   *   should not have been created. Compensation is skipped for that
-   *   entry and recorded as SKIPPED_INELIGIBLE.
+   * **Agent Upgrade clawback rule:**
+   *   Agent Upgrade commissions are permanently earned at activation time.
+   *   NO compensation entries are generated for Agent Upgrade revocations,
+   *   and beneficiary status is not re-checked after the source transaction.
    *
    * **Over-compensation prevention:**
    *   The cumulative absolute compensation amount for any single
@@ -264,6 +267,19 @@ export class CompensationService {
   async processCorrectionCompensation(
     params: CorrectionCompensationParams,
   ): Promise<CompensationResult> {
+    return this.database.runTransaction((tx) =>
+      this.processWithinTransaction(tx, params),
+    );
+  }
+
+  /**
+   * Transaction-aware internal API used by TransactionCorrectionService.
+   * The caller owns the atomic commit/rollback boundary.
+   */
+  async processWithinTransaction(
+    tx: Queryable,
+    params: CorrectionCompensationParams,
+  ): Promise<CompensationResult> {
     const { correctionExecutionId, transactionId, market, compensationType } =
       params;
 
@@ -272,12 +288,10 @@ export class CompensationService {
         ? COMPENSATION_ENTRY_TYPES.REVERSAL
         : COMPENSATION_ENTRY_TYPES.REFUND;
 
-    const db = this.database.db;
-
     // ---------------------------------------------------------------
     // 1. Validate correction execution exists (Phase 4 link)
     // ---------------------------------------------------------------
-    const executionRows = await db
+    const executionRows = await tx
       .select({ id: correctionExecutions.id })
       .from(correctionExecutions)
       .where(eq(correctionExecutions.id, correctionExecutionId))
@@ -290,7 +304,7 @@ export class CompensationService {
     // ---------------------------------------------------------------
     // 2. Look up the transaction and validate status
     // ---------------------------------------------------------------
-    const txnRows = await db
+    const txnRows = await tx
       .select({
         id: transactions.id,
         memberId: transactions.memberId,
@@ -331,7 +345,7 @@ export class CompensationService {
     // ---------------------------------------------------------------
     const canonicalProcessingKey = `${market}:${CORRECTION_SOURCE_TYPE}:${correctionExecutionId}`;
 
-    const existingProcessing = await db
+    const existingProcessing = await tx
       .select({
         id: commissionProcessing.id,
         status: commissionProcessing.status,
@@ -346,6 +360,7 @@ export class CompensationService {
     if (existingProcessing.length > 0) {
       if (existingProcessing[0]!.status === 'COMPLETED') {
         return this.loadExistingCompensationResult(
+          tx,
           correctionExecutionId,
           transactionId,
           market,
@@ -363,11 +378,11 @@ export class CompensationService {
     //    Per Section 18.2 Rule 1: find all original commission entries
     //    linked to the source event.
     //
-    //    ONLY Member Consumption entries are eligible for compensation.
-    //    Agent Upgrade entries are excluded per D-06 frozen (no clawback).
+    //    Transaction-derived Member Consumption G1/G2 and Merchant
+    //    Recruitment entries are eligible. Agent Upgrade entries are excluded.
     // ---------------------------------------------------------------
     const originalEntries = await this.findOriginalCommissionEntries(
-      db,
+      tx,
       transactionId,
       market,
     );
@@ -380,14 +395,14 @@ export class CompensationService {
       const processingId = randomUUID();
       const requestHash = sql<string>`encode(sha256(${canonicalProcessingKey}::bytea), 'hex')`;
 
-      await db.insert(commissionProcessing).values({
+      await tx.insert(commissionProcessing).values({
         id: processingId,
         canonicalProcessingKey,
         sourceType: CORRECTION_SOURCE_TYPE,
         sourceReference: correctionExecutionId,
         requestHash,
         status: 'COMPLETED',
-        completionOutcome: 'SKIPPED_INELIGIBLE',
+        completionOutcome: 'SKIPPED_NO_BENEFICIARY',
         createdAt: now,
         completedAt: now,
       });
@@ -398,7 +413,7 @@ export class CompensationService {
         market,
         compensationType,
         processingId,
-        completionOutcome: 'SKIPPED_INELIGIBLE',
+        completionOutcome: 'SKIPPED_NO_BENEFICIARY',
         entries: [],
       };
     }
@@ -412,51 +427,54 @@ export class CompensationService {
 
     const entries: CompensationGenerationResult[] = [];
 
-    await db.transaction(async (tx: Queryable) => {
-      // 5a. Create commission_processing record (IN_FLIGHT)
-      await tx.insert(commissionProcessing).values({
-        id: processingId,
-        canonicalProcessingKey,
-        sourceType: CORRECTION_SOURCE_TYPE,
-        sourceReference: correctionExecutionId,
-        requestHash,
-        status: 'IN_FLIGHT',
-        completionOutcome: null,
-        createdAt: now,
-        completedAt: null,
-      });
-
-      // 5b. Process each original entry
-      for (const original of originalEntries) {
-        const result = await this.processCompensationEntry(tx, {
-          original,
-          correctionExecutionId,
-          transactionId,
-          market,
-          entryType,
-          compensationType,
-          processingId,
-          correctionEffectiveTime: params.correctionEffectiveTime,
-          now,
-        });
-        entries.push(result);
-      }
-
-      // 5c. Determine overall outcome
-      const hasCreated = entries.some((e) => e.outcome === 'CREATED');
-      const completionOutcome = hasCreated ? 'CREATED' : 'SKIPPED_INELIGIBLE';
-
-      await tx
-        .update(commissionProcessing)
-        .set({
-          status: 'COMPLETED',
-          completionOutcome,
-          completedAt: now,
-        })
-        .where(eq(commissionProcessing.id, processingId));
+    // 5a. Create commission_processing record (IN_FLIGHT)
+    await tx.insert(commissionProcessing).values({
+      id: processingId,
+      canonicalProcessingKey,
+      sourceType: CORRECTION_SOURCE_TYPE,
+      sourceReference: correctionExecutionId,
+      requestHash,
+      status: 'IN_FLIGHT',
+      completionOutcome: null,
+      createdAt: now,
+      completedAt: null,
     });
 
+    // 5b. Process each original entry inside the caller-owned transaction.
+    for (const original of originalEntries) {
+      const result = await this.processCompensationEntry(tx, {
+        original,
+        correctionExecutionId,
+        transactionId,
+        market,
+        entryType,
+        compensationType,
+        processingId,
+        now,
+      });
+      entries.push(result);
+      if (
+        CompensationService.testInjectRollbackAfterFirstCompensation &&
+        result.outcome === 'CREATED'
+      ) {
+        throw new Error(
+          'TEST_ROLLBACK_INJECTION: simulated failure after first commission compensation.',
+        );
+      }
+    }
+
+    // 5c. Determine overall outcome
     const hasCreated = entries.some((e) => e.outcome === 'CREATED');
+    const completionOutcome = hasCreated ? 'CREATED' : 'SKIPPED_INELIGIBLE';
+
+    await tx
+      .update(commissionProcessing)
+      .set({
+        status: 'COMPLETED',
+        completionOutcome,
+        completedAt: now,
+      })
+      .where(eq(commissionProcessing.id, processingId));
 
     return {
       correctionExecutionId,
@@ -479,30 +497,25 @@ export class CompensationService {
    * Per Section 18.2 Rule 1:
    *   "Find all original commission entries linked to the source event."
    *
-   * All entry types that match the transaction's source_reference are
-   * returned. The caller filters by eligibility rules (D-06 no clawback
-   * for Agent Upgrade, etc.).
+   * Only the transaction-derived entry types in the D contract are returned.
    *
    * Excludes:
    *   - ADMIN_ADJUSTMENT entries (admin corrections are separate)
    *   - REVERSAL_COMPENSATION / REFUND_COMPENSATION entries (these
    *     are compensation entries themselves, never compensated again)
-   *   - AGENT_UPGRADE_G1_EARN / AGENT_UPGRADE_G2_EARN (D-06 frozen:
-   *     no Agent Upgrade clawback)
+   *   - AGENT_UPGRADE_G1_EARN / AGENT_UPGRADE_G2_EARN (no clawback)
    *
    * @returns Array of original ledger entry rows
    */
   private async findOriginalCommissionEntries(
     db: Queryable,
     transactionId: string,
-    _market: string,
+    market: string,
   ): Promise<OriginalEntryRow[]> {
-    // Per D-06 frozen: Agent Upgrade commissions are permanently earned
-    // and are NOT clawed back. Only Member Consumption entries are
-    // eligible for compensation.
     const compensatingEntryTypes = [
       'MEMBER_CONSUMPTION_G1_EARN',
       'MEMBER_CONSUMPTION_G2_EARN',
+      'MERCHANT_RECRUITMENT_EARN',
     ];
 
     const rows = await db
@@ -510,13 +523,12 @@ export class CompensationService {
       .from(commissionLedger)
       .where(
         and(
-          eq(commissionLedger.sourceType, 'MEMBER_CONSUMPTION'),
           eq(commissionLedger.sourceReference, transactionId),
-
-          sql`${commissionLedger.entryType} = ANY(${compensatingEntryTypes}::VARCHAR(40)[])`,
+          eq(commissionLedger.market, market),
+          inArray(commissionLedger.entryType, compensatingEntryTypes),
         ),
       )
-      .orderBy(commissionLedger.generation);
+      .orderBy(commissionLedger.sourceType, commissionLedger.generation);
 
     return rows.map((r: Record<string, unknown>) => ({
       id: r.id as string,
@@ -543,12 +555,10 @@ export class CompensationService {
    * Process compensation for a single original commission entry.
    *
    * Implements the following checks (in order):
-   * 1. D-06 revoked_at cut-off: skip if beneficiary was revoked at
-   *    source event time
-   * 2. Over-compensation prevention: skip if cumulative compensated
+   * 1. Over-compensation prevention: skip if cumulative compensated
    *    amount already covers the original posted amount
-   * 3. Zero-amount check: skip if the negated amount rounds to zero
-   * 4. Idempotency: skip if canonical entry key already exists
+   * 2. Zero-amount check: skip if the negated amount rounds to zero
+   * 3. Idempotency: skip if canonical entry key already exists
    *
    * If all checks pass, creates:
    * - One commission_ledger entry (REVERSAL_COMPENSATION or
@@ -568,7 +578,6 @@ export class CompensationService {
       entryType,
       compensationType,
       processingId,
-      correctionEffectiveTime,
       now,
     } = params;
 
@@ -578,44 +587,7 @@ export class CompensationService {
       : originalAmount;
 
     // ---------------------------------------------------------------
-    // Check 1: D-06 revoked_at cut-off
-    //
-    //    If the beneficiary's activation was revoked at a timestamp
-    //    <= the source event effective_time, the beneficiary was NOT
-    //    eligible at source time. The original entry should not have
-    //    been created. Skip compensation for this entry.
-    //
-    //    Agent Upgrade entries are already filtered out in
-    //    findOriginalCommissionEntries, so this check only applies
-    //    to Member Consumption entries.
-    // ---------------------------------------------------------------
-    const beneficiaryRevokedAt = await this.getBeneficiaryRevokedAt(
-      tx,
-      original.beneficiaryId,
-    );
-
-    if (beneficiaryRevokedAt !== null) {
-      const effectiveTimeIso = original.effectiveTime.toISOString();
-      if (effectiveTimeIso >= beneficiaryRevokedAt) {
-        return {
-          originalEntryId: original.id,
-          beneficiaryId: original.beneficiaryId,
-          generation: original.generation,
-          originalEntryType: original.entryType,
-          originalAmount,
-          compensationAmount: null,
-          outcome: 'SKIPPED_INELIGIBLE',
-          compensationEntryId: null,
-          reason:
-            `D-06 revoked_at cut-off: beneficiary was revoked at ` +
-            `${beneficiaryRevokedAt}, source event time ${effectiveTimeIso}. ` +
-            `Original entry should not have been created. Compensation skipped.`,
-        };
-      }
-    }
-
-    // ---------------------------------------------------------------
-    // Check 2: Over-compensation prevention
+    // Check 1: Over-compensation prevention
     //
     //    The cumulative absolute compensation amount for a single
     //    original entry MUST NOT exceed the original posted amount.
@@ -650,7 +622,7 @@ export class CompensationService {
     }
 
     // ---------------------------------------------------------------
-    // Check 3: Zero-amount check (D-26 frozen pattern)
+    // Check 2: Zero-amount check (D-26 frozen pattern)
     //
     //    Compute compensation amount = original_amount × -1.
     //    If |compensation_amount| < 10^(-posting_scale), skip.
@@ -675,7 +647,7 @@ export class CompensationService {
     }
 
     // ---------------------------------------------------------------
-    // Check 4: Idempotency — canonical entry key
+    // Check 3: Idempotency — canonical entry key
     //
     //    Canonical Entry Key for compensation entries (Section 16.1):
     //      market + ":" + correction_execution_id + ":"
@@ -722,18 +694,6 @@ export class CompensationService {
       entryType,
     );
 
-    // Copy the rate_snapshot from the original entry, add compensation
-    // metadata for audit trail reference.
-    const compensationRateSnapshot = {
-      ...(original.rateSnapshot ?? {}),
-      compensationType: entryType,
-      correctionExecutionId,
-      originalEntryId: original.id,
-      originalAmount,
-      compensationAmount,
-      compensationEffectiveTime: correctionEffectiveTime,
-    };
-
     const notesContext =
       compensationType === 'REVERSAL'
         ? `Reversal compensation for ${original.entryType} entry ${original.id}`
@@ -744,13 +704,13 @@ export class CompensationService {
       id: ledgerId,
       publicReference,
       beneficiaryId: original.beneficiaryId,
-      sourceType: 'MEMBER_CONSUMPTION',
+      sourceType: original.sourceType,
       sourceReference: transactionId,
       market: original.market,
       currency: original.currency,
       amount: compensationAmount,
       rateVersionId: original.rateVersionId,
-      rateSnapshot: compensationRateSnapshot,
+      rateSnapshot: original.rateSnapshot,
       calculationBasis: original.calculationBasis,
       generation: original.generation,
       entryType,
@@ -811,28 +771,6 @@ export class CompensationService {
   }
 
   /**
-   * Check whether the beneficiary's agent activation had a revoked_at
-   * timestamp. Returns the ISO string of revoked_at, or null if never
-   * revoked.
-   */
-  private async getBeneficiaryRevokedAt(
-    tx: Queryable,
-    beneficiaryId: string,
-  ): Promise<string | null> {
-    const rows = await tx
-      .select({ revokedAt: agentActivations.revokedAt })
-      .from(agentActivations)
-      .where(eq(agentActivations.memberId, beneficiaryId))
-      .orderBy(agentActivations.activatedAt)
-      .limit(1);
-
-    if (rows.length === 0) return null;
-
-    const revokedAt = rows[0]!.revokedAt as Date | null;
-    return revokedAt ? revokedAt.toISOString() : null;
-  }
-
-  /**
    * Query the sum of existing compensation amounts linked to an
    * original entry via reversal_linkage.
    *
@@ -845,14 +783,17 @@ export class CompensationService {
   ): Promise<string | null> {
     // Per Section 23.6: compensation entries reference the original
     // entry via reversal_linkage.
-    const rows = (await tx.execute(
+    const result = await tx.execute(
       sql`
         SELECT SUM(ABS(CAST(${commissionLedger.amount} AS NUMERIC(38,10))))::TEXT AS total
         FROM ${commissionLedger}
         WHERE ${commissionLedger.reversalLinkage} = ${originalEntryId}
       `,
-    )) as { total: string | null }[];
+    );
 
+    const rows = Array.isArray(result)
+      ? (result as { total: string | null }[])
+      : ((result as { rows?: { total: string | null }[] }).rows ?? []);
     const total = rows[0]?.total;
     return total ?? null;
   }
@@ -913,13 +854,12 @@ export class CompensationService {
    * and processing_result records.
    */
   private async loadExistingCompensationResult(
+    db: Queryable,
     correctionExecutionId: string,
     transactionId: string,
     market: string,
     compensationType: CompensationType,
   ): Promise<CompensationResult> {
-    const db = this.database.db as Queryable;
-
     const canonicalProcessingKey = `${market}:${CORRECTION_SOURCE_TYPE}:${correctionExecutionId}`;
 
     const processingRows = await db
@@ -1002,7 +942,11 @@ export class CompensationService {
       compensationType,
       processingId: processing.id,
       completionOutcome: (processing.completionOutcome ??
-        'SKIPPED_INELIGIBLE') as 'CREATED' | 'SKIPPED_INELIGIBLE' | 'FAILED',
+        'SKIPPED_INELIGIBLE') as
+        | 'CREATED'
+        | 'SKIPPED_INELIGIBLE'
+        | 'SKIPPED_NO_BENEFICIARY'
+        | 'FAILED',
       entries,
     };
   }
@@ -1068,6 +1012,5 @@ interface ProcessCompensationParams {
   entryType: string;
   compensationType: 'REVERSAL' | 'REFUND';
   processingId: string;
-  correctionEffectiveTime: string;
   now: Date;
 }

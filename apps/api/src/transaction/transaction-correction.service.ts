@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { HttpException, Inject, Injectable } from '@nestjs/common';
 import {
   correctionExecutions,
@@ -12,6 +12,7 @@ import {
 import { Decimal } from 'decimal.js';
 import { and, eq, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service.js';
+import { CompensationService } from '../domain/commission/compensation.service.js';
 import { AuditService } from '../platform-access/audit.service.js';
 import type {
   TransactionCorrectionExecutionResponse,
@@ -59,6 +60,7 @@ interface ExecutionRow {
   transactionStatus: string;
   merchantBranchId: string;
   marketId: string;
+  marketCode: string;
   memberId: string;
   marketTimezone: string;
   mcpAccountId: string;
@@ -91,6 +93,8 @@ export class TransactionCorrectionService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(CompensationService)
+    private readonly compensation: CompensationService,
   ) {}
 
   async requestCorrection(
@@ -375,6 +379,7 @@ export class TransactionCorrectionService {
             confirmed_transaction.status::text AS "transactionStatus",
             confirmed_transaction.merchant_branch_id AS "merchantBranchId",
             confirmed_transaction.market_id AS "marketId",
+            market.code::text AS "marketCode",
             confirmed_transaction.member_id AS "memberId",
             confirmed_transaction.market_timezone AS "marketTimezone",
             mcp_debit.mcp_account_id AS "mcpAccountId",
@@ -387,6 +392,8 @@ export class TransactionCorrectionService {
           FROM correction_requests correction
           JOIN transactions confirmed_transaction
             ON confirmed_transaction.id = correction.transaction_id
+          JOIN markets market
+            ON market.id = confirmed_transaction.market_id
           JOIN transaction_mcp_debits mcp_debit
             ON mcp_debit.transaction_id = confirmed_transaction.id
           JOIN transaction_reward_links reward_link
@@ -515,7 +522,9 @@ export class TransactionCorrectionService {
           executedAt: now.toISOString(),
         };
 
+        const correctionExecutionId = randomUUID();
         await tx.insert(correctionExecutions).values({
+          id: correctionExecutionId,
           correctionRequestId,
           transactionId: correction.transactionId,
           executionKeyHash,
@@ -536,6 +545,15 @@ export class TransactionCorrectionService {
           .set({ status: finalStatus })
           .where(eq(transactions.id, correction.transactionId));
 
+        const compensationResult =
+          await this.compensation.processWithinTransaction(tx, {
+            correctionExecutionId,
+            transactionId: correction.transactionId,
+            market: correction.marketCode,
+            compensationType: correction.requestType,
+            correctionEffectiveTime: now.toISOString(),
+          });
+
         await this.audit.appendWithinTransaction(tx, {
           actor: { type: 'SYSTEM' },
           action:
@@ -551,6 +569,8 @@ export class TransactionCorrectionService {
             mcpCompensated: true,
             rewardCompensated: true,
             walletCompensated: walletLedgerEntryId !== null,
+            commissionCompensationOutcome: compensationResult.completionOutcome,
+            commissionCompensationEntries: compensationResult.entries.length,
           },
           result: 'SUCCESS',
           summary: `${correction.requestType} executed for transaction ${correction.transactionNumber}.`,
