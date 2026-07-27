@@ -15,6 +15,7 @@ describe('CommissionModule DI Wiring', () => {
     vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
     vi.stubEnv('NODE_ENV', 'test');
     vi.stubEnv('LOG_LEVEL', 'silent');
+    vi.stubEnv('AUTH_OTP_PEPPER', 'commission-di-test-otp-pepper-32chars');
   });
 
   it('compiles without UnknownDependenciesException', async () => {

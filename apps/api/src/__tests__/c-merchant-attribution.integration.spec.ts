@@ -782,13 +782,22 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     // 9. Verify MERCHANT_TRANSACTION processing exists
     const proc = await database.db
       .select()
-       $args[0] -replace 'created_at DESC', 'created_at DESC' `)
+      .from(commissionProcessing)
+      .where(sql`${commissionProcessing.sourceType} = 'MERCHANT_TRANSACTION'`)
+      .orderBy(sql`created_at DESC`)
       .limit(5);
 
     // 10. Verify merchant recruitment commission
     const recruitmentProc = await database.db
       .select()
-       $args[0] -replace 'created_at DESC', 'created_at DESC' `)
+      .from(commissionProcessing)
+      .where(
+        and(
+          sql`${commissionProcessing.sourceType} = 'MERCHANT_TRANSACTION'`,
+          sql`${commissionProcessing.completionOutcome} IS NOT NULL`,
+        ),
+      )
+      .orderBy(sql`created_at DESC`)
       .limit(5);
 
     // 11. Verify recruitment result with correct beneficiary
