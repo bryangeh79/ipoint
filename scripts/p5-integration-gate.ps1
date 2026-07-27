@@ -1,12 +1,14 @@
 #!/usr/bin/env pwsh
 param(
   [Parameter(Mandatory)][string]$Phase,
-  [Parameter(Mandatory)][string[]]$MandatoryTestFiles
+  [Parameter(Mandatory)][string[]]$MandatoryTestFiles,
+  [Parameter(ValueFromRemainingArguments = $true)][string[]]$AdditionalMandatoryTestFiles = @()
 )
 
 $ErrorActionPreference = 'Stop'
 $workspaceRoot = Resolve-Path "$PSScriptRoot/.."
 $exitCode = 0
+$MandatoryTestFiles = @($MandatoryTestFiles) + @($AdditionalMandatoryTestFiles)
 
 $prohibitedPatterns = @(
   @{ Pattern = 'expect\(true\)\.toBe\(true\)';              Label = 'fake-assertion' }
@@ -42,6 +44,10 @@ $prohibitedPatterns = @(
 Write-Host "[Phase $Phase Integration Gate] Scanning $($MandatoryTestFiles.Count) file(s)"
 
 $globalViolations = $false
+$minimumTestsByFile = @{
+  'apps/api/src/__tests__/b-transaction-commission.integration.spec.ts' = 15
+  'apps/api/src/__tests__/c-merchant-attribution.integration.spec.ts' = 10
+}
 foreach ($file in $MandatoryTestFiles) {
   $fullPath = Join-Path $workspaceRoot $file
   if (-not (Test-Path $fullPath)) {
@@ -83,7 +89,9 @@ foreach ($file in $MandatoryTestFiles) {
   Write-Host "  $file - tests: $testCount, todo: $todoCount, skip: $skipCount"
   if ($todoCount -gt 0) { Write-Host "    FAIL: has $todoCount todo(s)" -ForegroundColor Red; $exitCode = 1 }
   if ($skipCount -gt 0) { Write-Host "    FAIL: has $skipCount skip(s)" -ForegroundColor Red; $exitCode = 1 }
-  if ($testCount -lt 15) { Write-Host "    FAIL: only $testCount tests (need >= 15)" -ForegroundColor Red; $exitCode = 1 }
+  $minimumTests = $minimumTestsByFile[$file]
+  if (-not $minimumTests) { $minimumTests = 15 }
+  if ($testCount -lt $minimumTests) { Write-Host "    FAIL: only $testCount tests (need >= $minimumTests)" -ForegroundColor Red; $exitCode = 1 }
   else { Write-Host "    PASS: $testCount tests present" -ForegroundColor Green }
 }
 

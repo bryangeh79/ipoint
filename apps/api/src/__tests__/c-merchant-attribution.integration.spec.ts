@@ -16,10 +16,10 @@ import {
   commissionLedger,
   commissionProcessing,
   commissionProcessingResults,
+  commissionRateVersions,
   markets,
   members,
   memberProfiles,
-  memberReferrals,
   merchantAttributions,
   merchantBranches,
   merchantPackageAssignments,
@@ -28,6 +28,7 @@ import {
   serviceFeeProfiles,
   serviceFeeVersions,
   transactions,
+  transactionServiceFees,
 } from '@ipoint/database';
 import { seedFoundation } from '@ipoint/database/seeds/foundation';
 import { and, eq, sql } from 'drizzle-orm';
@@ -85,11 +86,12 @@ describe('C: Merchant Attribution Integration', () => {
     merchants = app.get(MerchantService);
     txService = app.get(TransactionService);
     outboxWorker = app.get(TransactionCommissionOutboxWorker);
+    outboxWorker.stop();
     await migrate(database.pool);
     await seedFoundation(database.db);
 
     const marketService = app.get(MarketService);
-    const code = `CT${randomUUID().replaceAll('-', '').slice(0, 5)}`;
+    const code = await nextTestMarketCode();
     const market = await marketService.create(
       {
         code,
@@ -160,7 +162,7 @@ describe('C: Merchant Attribution Integration', () => {
     // Seed commission rate version for MERCHANT_RECRUITMENT
     await database.db.execute(
       sql`INSERT INTO commission_rate_version (commission_type, generation, market, rate_type, rate_value, effective_from, created_by)
-          VALUES ('MERCHANT_RECRUITMENT', 0, 'MY', 'PERCENTAGE', '0.500000', now() - interval '1 day', ${auRow!.id}::uuid)
+          VALUES ('MERCHANT_RECRUITMENT', 0, ${marketCode}, 'PERCENTAGE', '0.500000', now() - interval '1 day', ${auRow!.id}::uuid)
           ON CONFLICT DO NOTHING`,
     );
   });
@@ -172,6 +174,158 @@ describe('C: Merchant Attribution Integration', () => {
   // ═══════════════════════════════════════════════════════════
   // Helpers
   // ═══════════════════════════════════════════════════════════
+
+  async function nextTestMarketCode(): Promise<string> {
+    const existing = await database.db
+      .select({ code: markets.code })
+      .from(markets);
+    const used = new Set(existing.map((row) => row.code));
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+    for (const second of letters) {
+      const code = `C${second}`;
+      if (!used.has(code)) return code;
+    }
+    for (const first of letters) {
+      for (const second of letters) {
+        const code = `${first}${second}`;
+        if (!used.has(code)) return code;
+      }
+    }
+    throw new Error('No available two-letter market code for C tests');
+  }
+
+  async function expectedRecruitmentAmount(transactionId: string): Promise<{
+    recognizedServiceFee: string;
+    postedAmount: string;
+  }> {
+    const [fee] = await database.db
+      .select({ amount: transactionServiceFees.amount })
+      .from(transactionServiceFees)
+      .where(eq(transactionServiceFees.transactionId, transactionId))
+      .limit(1);
+    const recognizedServiceFee = fee?.amount ?? null;
+    expect(recognizedServiceFee).not.toBeNull();
+
+    const calculated = await database.db.execute<{
+      posted_amount: string;
+    }>(
+      sql`SELECT ROUND(CAST(${recognizedServiceFee} AS NUMERIC(38,10)) * CAST('0.005' AS NUMERIC(38,10)), 2)::numeric(38,10)::text AS posted_amount`,
+    );
+    return {
+      recognizedServiceFee: recognizedServiceFee!,
+      postedAmount: calculated.rows[0]!.posted_amount,
+    };
+  }
+
+  async function expectNoLedgerForSourceReferences(sourceReferences: string[]) {
+    const ledgers = await database.db
+      .select({ id: commissionLedger.id })
+      .from(commissionLedger)
+      .where(
+        sql`${commissionLedger.sourceReference} IN (${sql.join(
+          sourceReferences.map((sourceReference) => sql`${sourceReference}`),
+          sql`, `,
+        )})`,
+      );
+    expect(ledgers.length).toBe(0);
+  }
+
+  async function expectNoRegistrationLeakForEmail(email: string) {
+    const leaks = await database.db.execute<{
+      accounts: number;
+      groups: number;
+      branches: number;
+      referrals: number;
+      attributions: number;
+      ledger: number;
+    }>(sql`
+      WITH leaked_account AS (
+        SELECT id FROM accounts WHERE email = ${email}
+      ),
+      leaked_groups AS (
+        SELECT id FROM merchant_groups
+        WHERE account_id IN (SELECT id FROM leaked_account)
+      ),
+      leaked_branches AS (
+        SELECT id FROM merchant_branches
+        WHERE merchant_group_id IN (SELECT id FROM leaked_groups)
+      ),
+      leaked_sources AS (
+        SELECT id::text AS source_reference FROM leaked_account
+        UNION
+        SELECT id::text AS source_reference FROM leaked_branches
+      )
+      SELECT
+        (SELECT count(*)::int FROM leaked_account) AS accounts,
+        (SELECT count(*)::int FROM leaked_groups) AS groups,
+        (SELECT count(*)::int FROM leaked_branches) AS branches,
+        (
+          SELECT count(*)::int FROM merchant_referrals
+          WHERE merchant_branch_id IN (SELECT id FROM leaked_branches)
+        ) AS referrals,
+        (
+          SELECT count(*)::int FROM merchant_attribution
+          WHERE merchant_account_id IN (SELECT id FROM leaked_account)
+             OR branch_id IN (SELECT id FROM leaked_branches)
+        ) AS attributions,
+        (
+          SELECT count(*)::int FROM commission_ledger
+          WHERE source_reference IN (SELECT source_reference FROM leaked_sources)
+        ) AS ledger
+    `);
+    const row = leaks.rows[0]!;
+    expect(row.accounts).toBe(0);
+    expect(row.groups).toBe(0);
+    expect(row.branches).toBe(0);
+    expect(row.referrals).toBe(0);
+    expect(row.attributions).toBe(0);
+    expect(row.ledger).toBe(0);
+  }
+
+  async function expectNoBranchLeakForName(input: {
+    merchantAccountId: string;
+    merchantGroupId: string;
+    branchName: string;
+  }) {
+    const leaks = await database.db.execute<{
+      branches: number;
+      referrals: number;
+      attributions: number;
+      ledger: number;
+    }>(sql`
+      WITH leaked_branch AS (
+        SELECT id FROM merchant_branches
+        WHERE merchant_group_id = ${input.merchantGroupId}
+          AND name = ${input.branchName}
+      ),
+      leaked_sources AS (
+        SELECT ${input.merchantAccountId}::text AS source_reference
+        UNION
+        SELECT id::text AS source_reference FROM leaked_branch
+      )
+      SELECT
+        (SELECT count(*)::int FROM leaked_branch) AS branches,
+        (
+          SELECT count(*)::int FROM merchant_referrals
+          WHERE merchant_branch_id IN (SELECT id FROM leaked_branch)
+        ) AS referrals,
+        (
+          SELECT count(*)::int FROM merchant_attribution
+          WHERE merchant_account_id = ${input.merchantAccountId}
+             OR branch_id IN (SELECT id FROM leaked_branch)
+        ) AS attributions,
+        (
+          SELECT count(*)::int FROM commission_ledger
+          WHERE source_reference IN (SELECT source_reference FROM leaked_sources)
+        ) AS ledger
+    `);
+    const row = leaks.rows[0]!;
+    expect(row.branches).toBe(0);
+    expect(row.referrals).toBe(0);
+    expect(row.attributions).toBe(0);
+    expect(row.ledger).toBe(0);
+  }
 
   async function createMember(): Promise<{
     memberId: string;
@@ -213,7 +367,8 @@ describe('C: Merchant Attribution Integration', () => {
       .insert(agentActivations)
       .values({
         memberId,
-        market: 'MY',
+        market: marketCode,
+        currency: 'MYR',
         status: 'ACTIVE',
         activatedAt: past,
         paymentConfirmedAt: past,
@@ -389,25 +544,105 @@ describe('C: Merchant Attribution Integration', () => {
           eq(commissionProcessing.sourceReference, transactionId),
         ),
       );
-    const procIds = processing.map((p) => p.id);
-    const results =
-      procIds.length > 0
-        ? await database.db
-            .select()
-            .from(commissionProcessingResults)
-            .where(
-              sql`${commissionProcessingResults.processingId} = ANY(ARRAY[${sql.join(
-                procIds.map((id: string) => sql`${id}::uuid`),
-                sql`, `,
-              )}]::uuid[])`,
-            )
-        : [];
+    const results = await database.db
+      .select({
+        id: commissionProcessingResults.id,
+        processingId: commissionProcessingResults.processingId,
+        beneficiaryId: commissionProcessingResults.beneficiaryId,
+        generation: commissionProcessingResults.generation,
+        entryType: commissionProcessingResults.entryType,
+        unroundedAmount: commissionProcessingResults.unroundedAmount,
+        postedAmount: commissionProcessingResults.postedAmount,
+        residualAmount: commissionProcessingResults.residualAmount,
+        outcome: commissionProcessingResults.outcome,
+        reason: commissionProcessingResults.reason,
+      })
+      .from(commissionProcessingResults)
+      .innerJoin(
+        commissionProcessing,
+        eq(commissionProcessing.id, commissionProcessingResults.processingId),
+      )
+      .where(
+        and(
+          eq(commissionProcessing.sourceType, 'MERCHANT_TRANSACTION'),
+          eq(commissionProcessing.sourceReference, transactionId),
+        ),
+      );
     const ledger = await database.db
       .select()
       .from(commissionLedger)
-      .where(eq(commissionLedger.sourceReference, transactionId));
+      .where(
+        and(
+          eq(commissionLedger.sourceReference, transactionId),
+          eq(commissionLedger.entryType, 'MERCHANT_RECRUITMENT_EARN'),
+        ),
+      );
 
     return { confirm, transactionId, processing, results, ledger };
+  }
+
+  async function expectMarketConsistency(input: {
+    transactionId: string;
+    branchId: string;
+    recruiterMemberId: string;
+    ledger: { market: string; currency: string; sourceReference: string };
+  }) {
+    const [txMarket] = await database.db
+      .select({
+        marketId: transactions.marketId,
+        marketCode: markets.code,
+        currency: transactions.currency,
+      })
+      .from(transactions)
+      .innerJoin(markets, eq(markets.id, transactions.marketId))
+      .where(eq(transactions.id, input.transactionId))
+      .limit(1);
+    expect(txMarket?.marketId).toBe(marketId);
+    expect(txMarket?.marketCode).toBe(marketCode);
+    expect(txMarket?.currency).toBe('MYR');
+
+    const [branchMarket] = await database.db
+      .select({ marketId: merchantBranches.marketId })
+      .from(merchantBranches)
+      .where(eq(merchantBranches.id, input.branchId))
+      .limit(1);
+    expect(branchMarket?.marketId).toBe(marketId);
+
+    const activeRecruiters = await database.db
+      .select({ id: agentActivations.id, currency: agentActivations.currency })
+      .from(agentActivations)
+      .where(
+        and(
+          eq(agentActivations.memberId, input.recruiterMemberId),
+          eq(agentActivations.market, marketCode),
+          eq(agentActivations.status, 'ACTIVE'),
+        ),
+      );
+    expect(activeRecruiters.length).toBe(1);
+    expect(activeRecruiters[0]!.currency).toBe('MYR');
+
+    const rateRows = await database.db
+      .select({
+        market: commissionRateVersions.market,
+        rateType: commissionRateVersions.rateType,
+        rateValue: sql<string>`${commissionRateVersions.rateValue}::numeric(38,6)::text`,
+      })
+      .from(commissionRateVersions)
+      .where(
+        and(
+          eq(commissionRateVersions.commissionType, 'MERCHANT_RECRUITMENT'),
+          eq(commissionRateVersions.generation, 0),
+          eq(commissionRateVersions.market, marketCode),
+        ),
+      );
+    expect(rateRows.length).toBe(1);
+    expect(rateRows[0]!.market).toBe(marketCode);
+    expect(rateRows[0]!.rateType).toBe('PERCENTAGE');
+    expect(rateRows[0]!.rateValue).toBe('0.500000');
+
+    expect(input.ledger.market).toBe(marketCode);
+    expect(input.ledger.currency).toBe('MYR');
+    expect(input.ledger.sourceReference).toBe(input.transactionId);
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -422,29 +657,21 @@ describe('C: Merchant Attribution Integration', () => {
     const attributions = await database.db
       .select()
       .from(merchantAttributions)
-      .where(
-        and(
-          eq(merchantAttributions.merchantAccountId, merch.accountId),
-          eq(merchantAttributions.attributedEntityType, 'MERCHANT'),
-        ),
-      );
-    expect(attributions.length).toBe(2);
-    const merchantAttr = attributions.find(
-      (a) => a.attributedEntityType === 'MERCHANT',
-    )!;
+      .where(eq(merchantAttributions.merchantAccountId, merch.accountId));
+    expect(attributions.length).toBe(1);
+    const merchantAttr = attributions[0]!;
+    expect(merchantAttr.attributedEntityType).toBe('MERCHANT');
     expect(merchantAttr.recruiterMemberId).toBe(recruiter.memberId);
     expect(merchantAttr.branchId).toBeNull();
-    const branchAttr = attributions.find(
-      (a) => a.attributedEntityType === 'BRANCH',
-    )!;
-    expect(branchAttr.recruiterMemberId).toBe(recruiter.memberId);
-    expect(branchAttr.branchId).not.toBeNull();
+    expect(merchantAttr.attributionSource).toBe('REGISTRATION');
+    expect(merchantAttr.attributionScope).toBe('PERMANENT');
 
-    const ledger = await database.db
+    const branchAttributions = await database.db
       .select()
-      .from(commissionLedger)
-      .where(eq(commissionLedger.sourceReference, merch.accountId));
-    expect(ledger.length).toBe(0);
+      .from(merchantAttributions)
+      .where(eq(merchantAttributions.branchId, merch.branchId));
+    expect(branchAttributions.length).toBe(0);
+    await expectNoLedgerForSourceReferences([merch.accountId, merch.branchId]);
   });
 
   // ═══════════════════════════════════════════════════════════
@@ -617,17 +844,24 @@ describe('C: Merchant Attribution Integration', () => {
       .send(body)
       .expect(201);
     expect(replay.body).toEqual(first.body);
+    const [createdAccount] = await database.db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(eq(accounts.email, email))
+      .limit(1);
+    expect(createdAccount?.id).not.toBeUndefined();
 
     const attributions = await database.db
       .select()
       .from(merchantAttributions)
       .where(
         and(
-          eq(merchantAttributions.recruiterMemberId, recruiter.memberId),
+          eq(merchantAttributions.merchantAccountId, createdAccount!.id),
           eq(merchantAttributions.attributedEntityType, 'MERCHANT'),
         ),
       );
     expect(attributions.length).toBe(1);
+    expect(attributions[0]!.recruiterMemberId).toBe(recruiter.memberId);
   });
 
   // ═══════════════════════════════════════════════════════════
@@ -666,16 +900,33 @@ describe('C: Merchant Attribution Integration', () => {
       .set('idempotency-key', idemKey)
       .send(bodyB)
       .expect(409);
+    const [createdAccount] = await database.db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(eq(accounts.email, email))
+      .limit(1);
+    expect(createdAccount?.id).not.toBeUndefined();
 
     const aAttrs = await database.db
       .select()
       .from(merchantAttributions)
-      .where(eq(merchantAttributions.recruiterMemberId, recruiterA.memberId));
+      .where(
+        and(
+          eq(merchantAttributions.merchantAccountId, createdAccount!.id),
+          eq(merchantAttributions.recruiterMemberId, recruiterA.memberId),
+          eq(merchantAttributions.attributedEntityType, 'MERCHANT'),
+        ),
+      );
     expect(aAttrs.length).toBe(1);
     const bAttrs = await database.db
       .select()
       .from(merchantAttributions)
-      .where(eq(merchantAttributions.recruiterMemberId, recruiterB.memberId));
+      .where(
+        and(
+          eq(merchantAttributions.merchantAccountId, createdAccount!.id),
+          eq(merchantAttributions.recruiterMemberId, recruiterB.memberId),
+        ),
+      );
     expect(bAttrs.length).toBe(0);
   });
 
@@ -712,6 +963,26 @@ describe('C: Merchant Attribution Integration', () => {
       .from(accounts)
       .where(eq(accounts.email, email));
     expect(acct).toBeUndefined();
+    await expectNoRegistrationLeakForEmail(email);
+
+    const validMerchant = await registerMerchant();
+    const invalidBranchName = `C Invalid Branch ${randomUUID().slice(0, 6)}`;
+    await expect(
+      merchants.addBranch(validMerchant.accountId, {
+        merchantGroupId: validMerchant.groupId,
+        marketId,
+        name: invalidBranchName,
+        referralAccountId: randomUUID(),
+        channel: 'ct',
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'MERCHANT_REFERRAL_INVALID' },
+    });
+    await expectNoBranchLeakForName({
+      merchantAccountId: validMerchant.accountId,
+      merchantGroupId: validMerchant.groupId,
+      branchName: invalidBranchName,
+    });
   });
 
   // ═══════════════════════════════════════════════════════════
@@ -724,6 +995,18 @@ describe('C: Merchant Attribution Integration', () => {
     const merch = await registerMerchant({
       referralAccountId: recruiter.accountId,
     });
+    const parentAttributions = await database.db
+      .select()
+      .from(merchantAttributions)
+      .where(eq(merchantAttributions.merchantAccountId, merch.accountId));
+    expect(parentAttributions.length).toBe(1);
+    expect(parentAttributions[0]!.attributedEntityType).toBe('MERCHANT');
+    expect(parentAttributions[0]!.recruiterMemberId).toBe(recruiter.memberId);
+    expect(parentAttributions[0]!.branchId).toBeNull();
+    expect(parentAttributions[0]!.attributionSource).toBe('REGISTRATION');
+    expect(parentAttributions[0]!.attributionScope).toBe('PERMANENT');
+    await expectNoLedgerForSourceReferences([merch.accountId, merch.branchId]);
+
     await activateMerchant(merch.branchId);
     await setMcpBalance(merch.branchId);
     const pkgId = await ensurePackage(merch.branchId, marketId);
@@ -738,16 +1021,22 @@ describe('C: Merchant Attribution Integration', () => {
       qrToken,
       pkgId,
     );
+    const expectedAmount = await expectedRecruitmentAmount(
+      result.transactionId,
+    );
 
     // Exactly 1 processing
     expect(result.processing.length).toBe(1);
     expect(result.processing[0]!.completionOutcome).toBe('CREATED');
+    expect(result.processing[0]!.sourceReference).toBe(result.transactionId);
 
     // Exactly 1 result
     expect(result.results.length).toBe(1);
     expect(result.results[0]!.outcome).toBe('CREATED');
     expect(result.results[0]!.beneficiaryId).toBe(recruiter.memberId);
     expect(result.results[0]!.generation).toBe(0);
+    expect(result.results[0]!.entryType).toBe('MERCHANT_RECRUITMENT_EARN');
+    expect(result.results[0]!.postedAmount).toBe(expectedAmount.postedAmount);
 
     // Exactly 1 recruitment ledger
     expect(result.ledger.length).toBe(1);
@@ -758,73 +1047,156 @@ describe('C: Merchant Attribution Integration', () => {
     expect(l.sourceReference).toBe(result.transactionId);
     expect(l.market).toBe(marketCode);
     expect(l.currency).toBe('MYR');
+    expect(l.amount).toBe(expectedAmount.postedAmount);
+    await expectMarketConsistency({
+      transactionId: result.transactionId,
+      branchId: merch.branchId,
+      recruiterMemberId: recruiter.memberId,
+      ledger: l,
+    });
   });
 
   // ═══════════════════════════════════════════════════════════
   // C-10: Branch attribution — no fallback to parent
   // ═══════════════════════════════════════════════════════════
   it('C-10: Branch attribution no-fallback, independent recruiter', async () => {
-    // Part 1: Register with referral → transaction earns recruitment commission
-    const recruiter = await createMember();
-    await seedAgentActivation(database.db, recruiter.memberId);
-    const merch1 = await registerMerchant({
-      referralAccountId: recruiter.accountId,
+    // Part 1: branch referral earns through its own attribution.
+    const parentRecruiter = await createMember();
+    const branchRecruiter = await createMember();
+    await seedAgentActivation(database.db, parentRecruiter.memberId);
+    await seedAgentActivation(database.db, branchRecruiter.memberId);
+
+    const merch = await registerMerchant({
+      referralAccountId: parentRecruiter.accountId,
+    });
+    const branchWithReferral = await merchants.addBranch(merch.accountId, {
+      merchantGroupId: merch.groupId,
+      marketId,
+      name: `C Branch Earn ${randomUUID().slice(0, 6)}`,
+      referralAccountId: branchRecruiter.accountId,
+      channel: 'ct',
+    });
+    const branchWithoutReferral = await merchants.addBranch(merch.accountId, {
+      merchantGroupId: merch.groupId,
+      marketId,
+      name: `C Branch NoRef ${randomUUID().slice(0, 6)}`,
+      channel: 'ct',
     });
 
-    await activateMerchant(merch1.branchId);
-    await setMcpBalance(merch1.branchId);
-    const pkgId = await ensurePackage(merch1.branchId, marketId);
+    const parentAttrs = await database.db
+      .select()
+      .from(merchantAttributions)
+      .where(
+        and(
+          eq(merchantAttributions.merchantAccountId, merch.accountId),
+          eq(merchantAttributions.attributedEntityType, 'MERCHANT'),
+        ),
+      );
+    expect(parentAttrs.length).toBe(1);
+    expect(parentAttrs[0]!.recruiterMemberId).toBe(parentRecruiter.memberId);
+    expect(parentAttrs[0]!.branchId).toBeNull();
+
+    const branchAttrs = await database.db
+      .select()
+      .from(merchantAttributions)
+      .where(eq(merchantAttributions.branchId, branchWithReferral.branchId));
+    expect(branchAttrs.length).toBe(1);
+    expect(branchAttrs[0]!.attributedEntityType).toBe('BRANCH');
+    expect(branchAttrs[0]!.recruiterMemberId).toBe(branchRecruiter.memberId);
+    expect(branchAttrs[0]!.attributionSource).toBe('REGISTRATION');
+    expect(branchAttrs[0]!.attributionScope).toBe('PERMANENT');
+
+    const noBranchAttrs = await database.db
+      .select()
+      .from(merchantAttributions)
+      .where(eq(merchantAttributions.branchId, branchWithoutReferral.branchId));
+    expect(noBranchAttrs.length).toBe(0);
+
+    await activateMerchant(branchWithReferral.branchId);
+    await setMcpBalance(branchWithReferral.branchId);
+    const pkgId = await ensurePackage(branchWithReferral.branchId, marketId);
     expect(pkgId).not.toBe('');
 
     const consumer = await createMember();
     const qrToken = await createQrToken(consumer.memberId);
 
     const r1 = await executeRecruitmentTransaction(
-      merch1.accountId,
-      merch1.branchId,
+      merch.accountId,
+      branchWithReferral.branchId,
       qrToken,
       pkgId,
+    );
+    const expectedBranchAmount = await expectedRecruitmentAmount(
+      r1.transactionId,
     );
 
     expect(r1.processing.length).toBe(1);
     expect(r1.processing[0]!.completionOutcome).toBe('CREATED');
     expect(r1.results.length).toBe(1);
     expect(r1.results[0]!.outcome).toBe('CREATED');
-    expect(r1.results[0]!.beneficiaryId).toBe(recruiter.memberId);
+    expect(r1.results[0]!.beneficiaryId).toBe(branchRecruiter.memberId);
     expect(r1.results[0]!.generation).toBe(0);
+    expect(r1.results[0]!.entryType).toBe('MERCHANT_RECRUITMENT_EARN');
+    expect(r1.results[0]!.postedAmount).toBe(expectedBranchAmount.postedAmount);
     expect(r1.ledger.length).toBe(1);
-    expect(r1.ledger[0]!.beneficiaryId).toBe(recruiter.memberId);
+    expect(r1.ledger[0]!.beneficiaryId).toBe(branchRecruiter.memberId);
+    expect(r1.ledger[0]!.generation).toBe(0);
+    expect(r1.ledger[0]!.amount).toBe(expectedBranchAmount.postedAmount);
+    await expectMarketConsistency({
+      transactionId: r1.transactionId,
+      branchId: branchWithReferral.branchId,
+      recruiterMemberId: branchRecruiter.memberId,
+      ledger: r1.ledger[0]!,
+    });
 
-    // Part 2: Separate merchant WITHOUT any referral → SKIPPED_NO_BENEFICIARY
-    const merch2 = await registerMerchant();
-
-    const noAttrAttrs = await database.db
+    const parentFallbackLedgers = await database.db
       .select()
-      .from(merchantAttributions)
-      .where(eq(merchantAttributions.merchantAccountId, merch2.accountId));
-    expect(noAttrAttrs.length).toBe(0);
+      .from(commissionLedger)
+      .where(
+        and(
+          eq(commissionLedger.sourceReference, r1.transactionId),
+          eq(commissionLedger.beneficiaryId, parentRecruiter.memberId),
+          eq(commissionLedger.entryType, 'MERCHANT_RECRUITMENT_EARN'),
+        ),
+      );
+    expect(parentFallbackLedgers.length).toBe(0);
 
-    await activateMerchant(merch2.branchId);
-    await setMcpBalance(merch2.branchId);
-    const pkgId2 = await ensurePackage(merch2.branchId, marketId);
+    // Part 2: sibling branch without attribution does not fallback.
+    await activateMerchant(branchWithoutReferral.branchId);
+    await setMcpBalance(branchWithoutReferral.branchId);
+    const pkgId2 = await ensurePackage(
+      branchWithoutReferral.branchId,
+      marketId,
+    );
     expect(pkgId2).not.toBe('');
 
     const consumer2 = await createMember();
     const qrToken2 = await createQrToken(consumer2.memberId);
 
     const r2 = await executeRecruitmentTransaction(
-      merch2.accountId,
-      merch2.branchId,
+      merch.accountId,
+      branchWithoutReferral.branchId,
       qrToken2,
       pkgId2,
     );
 
-    // No beneficiary → SKIPPED
     expect(r2.processing.length).toBe(1);
     expect(r2.processing[0]!.completionOutcome).toBe('SKIPPED_NO_BENEFICIARY');
     expect(r2.results.length).toBe(1);
     expect(r2.results[0]!.outcome).toBe('SKIPPED_NO_BENEFICIARY');
     expect(r2.results[0]!.beneficiaryId).toBeNull();
     expect(r2.ledger.length).toBe(0);
+
+    const noFallbackLedgers = await database.db
+      .select()
+      .from(commissionLedger)
+      .where(
+        and(
+          eq(commissionLedger.sourceReference, r2.transactionId),
+          eq(commissionLedger.beneficiaryId, parentRecruiter.memberId),
+          eq(commissionLedger.entryType, 'MERCHANT_RECRUITMENT_EARN'),
+        ),
+      );
+    expect(noFallbackLedgers.length).toBe(0);
   });
 });
