@@ -25,9 +25,12 @@ import {
   memberReferrals,
   merchantAttributions,
   merchantBranches,
+  merchantPackageAssignments,
   mcpAccounts,
   migrate,
   referralRelationships,
+  serviceFeeProfiles,
+  serviceFeeVersions,
   transactionCommissionDispatch,
 } from '@ipoint/database';
 import { seedFoundation } from '@ipoint/database/seeds/foundation';
@@ -324,12 +327,50 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     };
   }
 
-  // ── Helper: set up merchant package assignment ──
-  async function assignPackage(branchId: string): Promise<string> {
-    const result = await database.db.execute<{ id: string }>(
-      sql`SELECT mpa.id FROM merchant_package_assignments mpa WHERE mpa.merchant_branch_id = ${branchId}::uuid AND mpa.status = 'ACTIVE' LIMIT 1`,
-    );
-    return result.rows[0]?.id ?? '';
+  // ── Helper: ensure a service fee package is assigned to the branch ──
+  async function ensurePackage(branchId: string): Promise<string> {
+    const existing = await database.db
+      .select({ id: merchantPackageAssignments.id })
+      .from(merchantPackageAssignments)
+      .where(
+        and(
+          eq(merchantPackageAssignments.merchantBranchId, branchId),
+          eq(merchantPackageAssignments.status, 'ACTIVE'),
+        ),
+      )
+      .limit(1);
+    if (existing[0]?.id) return existing[0].id;
+
+    const [feeProfile] = await database.db
+      .select({ id: serviceFeeProfiles.id })
+      .from(serviceFeeProfiles)
+      .where(eq(serviceFeeProfiles.code, 'A'))
+      .limit(1);
+    if (!feeProfile) return '';
+
+    const [feeVersion] = await database.db
+      .select({ id: serviceFeeVersions.id })
+      .from(serviceFeeVersions)
+      .where(
+        and(
+          eq(serviceFeeVersions.serviceFeeProfileId, feeProfile.id),
+          eq(serviceFeeVersions.status, 'ACTIVE'),
+        ),
+      )
+      .limit(1);
+    if (!feeVersion) return '';
+
+    const [pkg] = await database.db
+      .insert(merchantPackageAssignments)
+      .values({
+        merchantBranchId: branchId,
+        serviceFeeVersionId: feeVersion.id,
+        status: 'ACTIVE',
+        isDefault: true,
+        version: 1,
+      })
+      .returning({ id: merchantPackageAssignments.id });
+    return pkg?.id ?? '';
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -752,7 +793,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     const consumer = await createAgentMember();
 
     // 5. Assign package to branch
-    const pkgId = await assignPackage(merch.branchId);
+    const pkgId = await ensurePackage(merch.branchId);
     expect(pkgId).toBeTruthy();
 
     // 6. Create transaction preview
@@ -876,7 +917,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     const consumer = await createAgentMember();
 
     // Get package
-    const pkgId = await assignPackage(branch.branchId);
+    const pkgId = await ensurePackage(branch.branchId);
     expect(pkgId).toBeTruthy();
 
     // Preview + Confirm on the BRANCH
