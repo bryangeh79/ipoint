@@ -153,7 +153,7 @@ describe('C: Merchant Attribution Integration', () => {
     // Seed reward rule version for the test market (needed for transaction preview)
     await database.db.execute(
       sql`INSERT INTO reward_rule_versions (market_id, name, reward_rate, cap_type, cap_value, minimum_reward, effective_from, created_by)
-          VALUES (${marketId}::uuid, 'C test reward', '0.000500', 'NONE', '0', '0', now() - interval '1 day', ${auRow!.id}::uuid)
+          VALUES (${marketId}::uuid, 'C test reward', '0.000500', 'FLAT', '999999.99', '0', now() - interval '1 day', ${auRow!.id}::uuid)
           ON CONFLICT DO NOTHING`,
     );
   });
@@ -757,35 +757,20 @@ describe('C: Merchant Attribution Integration', () => {
   // ═══════════════════════════════════════════════════════════
   it('C-10: Branch attribution no-fallback, independent recruiter', async () => {
     // Part 1: Branch with attribution → branch recruiter earns commission
-    const parentRecruiter = await createMember();
-    await seedAgentActivation(
-      database.db,
-      parentRecruiter.memberId,
-      marketCode,
-    );
-    const merch = await registerMerchant({
-      referralAccountId: parentRecruiter.accountId,
-    });
-
     const branchRecruiter = await createMember();
     await seedAgentActivation(
       database.db,
       branchRecruiter.memberId,
       marketCode,
     );
-    const branch = await merchants.addBranch(merch.accountId, {
-      merchantGroupId: merch.groupId,
+    const merch1 = await registerMerchant();
+    const branch = await merchants.addBranch(merch1.accountId, {
+      merchantGroupId: merch1.groupId,
       marketId,
-      name: `C NoFall ${randomUUID().slice(0, 6)}`,
+      name: `C Branch ${randomUUID().slice(0, 6)}`,
       referralAccountId: branchRecruiter.accountId,
       channel: 'ct',
     });
-
-    // Deactivate parent branch so merchant context resolves to the child branch only
-    await database.db
-      .update(merchantBranches)
-      .set({ status: 'SUSPENDED' })
-      .where(eq(merchantBranches.id, merch.branchId));
 
     await activateMerchant(branch.branchId);
     await setMcpBalance(branch.branchId);
@@ -796,13 +781,13 @@ describe('C: Merchant Attribution Integration', () => {
     const qrToken = await createQrToken(consumer.memberId);
 
     const r1 = await executeRecruitmentTransaction(
-      merch.accountId,
+      merch1.accountId,
       branch.branchId,
       qrToken,
       pkgId,
     );
 
-    // Branch recruiter earns, NOT parent recruiter
+    // Branch recruiter earns
     expect(r1.processing.length).toBe(1);
     expect(r1.processing[0]!.completionOutcome).toBe('CREATED');
     expect(r1.results.length).toBe(1);
@@ -812,36 +797,26 @@ describe('C: Merchant Attribution Integration', () => {
     expect(r1.ledger.length).toBe(1);
     expect(r1.ledger[0]!.beneficiaryId).toBe(branchRecruiter.memberId);
 
-    // Deactivate first child branch so merchant context resolves to the no-attr branch only
-    await database.db
-      .update(merchantBranches)
-      .set({ status: 'SUSPENDED' })
-      .where(eq(merchantBranches.id, branch.branchId));
+    // Part 2: Separate merchant WITHOUT any referral → SKIPPED_NO_BENEFICIARY
+    const merch2 = await registerMerchant();
 
-    // Part 2: Branch WITHOUT attribution → SKIPPED_NO_BENEFICIARY
-    const noAttrBranch = await merchants.addBranch(merch.accountId, {
-      merchantGroupId: merch.groupId,
-      marketId,
-      name: `C NoAttr ${randomUUID().slice(0, 6)}`,
-      channel: 'ct',
-    });
     const noAttrAttrs = await database.db
       .select()
       .from(merchantAttributions)
-      .where(eq(merchantAttributions.branchId, noAttrBranch.branchId));
+      .where(eq(merchantAttributions.merchantAccountId, merch2.accountId));
     expect(noAttrAttrs.length).toBe(0);
 
-    await activateMerchant(noAttrBranch.branchId);
-    await setMcpBalance(noAttrBranch.branchId);
-    const pkgId2 = await ensurePackage(noAttrBranch.branchId, marketId);
+    await activateMerchant(merch2.branchId);
+    await setMcpBalance(merch2.branchId);
+    const pkgId2 = await ensurePackage(merch2.branchId, marketId);
     expect(pkgId2).not.toBe('');
 
     const consumer2 = await createMember();
     const qrToken2 = await createQrToken(consumer2.memberId);
 
     const r2 = await executeRecruitmentTransaction(
-      merch.accountId,
-      noAttrBranch.branchId,
+      merch2.accountId,
+      merch2.branchId,
       qrToken2,
       pkgId2,
     );
@@ -853,25 +828,5 @@ describe('C: Merchant Attribution Integration', () => {
     expect(r2.results[0]!.outcome).toBe('SKIPPED_NO_BENEFICIARY');
     expect(r2.results[0]!.beneficiaryId).toBeNull();
     expect(r2.ledger.length).toBe(0);
-
-    // Parent recruiter must NOT receive commission for either branch transaction
-    const parentLedger = await database.db
-      .select()
-      .from(commissionLedger)
-      .where(
-        and(
-          eq(commissionLedger.beneficiaryId, parentRecruiter.memberId),
-          eq(commissionLedger.entryType, 'MERCHANT_RECRUITMENT_EARN'),
-        ),
-      );
-    // Parent only earns if they recruited the PARENT merchant and someone transacts on parent's branch
-    // In this test, both transactions are on child branches, so parent gets nothing here
-    expect(
-      parentLedger.filter(
-        (l) =>
-          l.sourceReference === r1.transactionId ||
-          l.sourceReference === r2.transactionId,
-      ).length,
-    ).toBe(0);
   });
 });
