@@ -41,6 +41,7 @@ import { AuthService } from '../auth/auth.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { MarketService } from '../platform-access/market.service.js';
 import { AccessAdministrationService } from '../platform-access/access-administration.service.js';
+import { RbacGuard } from '../platform-access/rbac.guard.js';
 import { TransactionService } from '../transaction/transaction.service.js';
 import { TransactionCommissionOutboxWorker } from '../transaction/transaction-commission-outbox.worker.js';
 
@@ -81,7 +82,10 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
 
     const moduleFixture = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideGuard(RbacGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
     app = moduleFixture.createNestApplication();
     configureApplication(app, {
       enableShutdownHooks: false,
