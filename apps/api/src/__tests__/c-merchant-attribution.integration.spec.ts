@@ -273,14 +273,16 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
       .update(merchantBranches)
       .set({ status: 'ACTIVE', isPubliclyVisible: true, isOffline: true })
       .where(eq(merchantBranches.id, branchId));
-    // Enable MCP posting session variable, then update balance
-    await database.db.execute(
-      sql`SELECT set_config('ipoint.mcp_posting', 'enabled', true)`,
-    );
-    await database.db
-      .update(mcpAccounts)
-      .set({ availableBalance: '999999.99', totalBalance: '999999.99' })
-      .where(eq(mcpAccounts.merchantBranchId, branchId));
+    // Enable MCP posting in a transaction so set_config and update share the same connection
+    await database.db.transaction(async (tx: any) => {
+      await tx.execute(
+        sql`SELECT set_config('ipoint.mcp_posting', 'enabled', true)`,
+      );
+      await tx
+        .update(mcpAccounts)
+        .set({ availableBalance: '999999.99', totalBalance: '999999.99' })
+        .where(eq(mcpAccounts.merchantBranchId, branchId));
+    });
   }
 
   // ── Helper: create agent-activated member (for transaction referral chain) ──
