@@ -156,6 +156,13 @@ describe('C: Merchant Attribution Integration', () => {
           VALUES (${marketId}::uuid, 'C test reward', '0.000500', 'FLAT', '999999.99', '0', now() - interval '1 day', ${auRow!.id}::uuid)
           ON CONFLICT DO NOTHING`,
     );
+
+    // Seed commission rate version for MERCHANT_RECRUITMENT
+    await database.db.execute(
+      sql`INSERT INTO commission_rate_version (commission_type, generation, market, rate_type, rate_value, effective_from, created_by)
+          VALUES ('MERCHANT_RECRUITMENT', 0, 'MY', 'PERCENTAGE', '0.500000', now() - interval '1 day', ${auRow!.id}::uuid)
+          ON CONFLICT DO NOTHING`,
+    );
   });
 
   afterAll(async () => {
