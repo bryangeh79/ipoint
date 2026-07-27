@@ -967,3 +967,55 @@ P5-S0 is documentation, architecture and contract planning only:
 - MAIN_PR: NOT_AUTHORIZED
 - MAIN_MERGE: NOT_AUTHORIZED
 - PRODUCTION_DEPLOYMENT: NOT_AUTHORIZED
+
+---
+
+## D-039: B Integration acceptance — B-15 market minimum transaction freeze
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-039 |
+| **Date** | 2026-07-27 |
+| **Source** | ChatGPT Command Center — MARKET MINIMUM TRANSACTION DECISION FROZEN / B INTEGRATION ACCEPTED AND FROZEN |
+| **Old Rule** | B-15 test used forbidden approaches: 0.000001% near-zero service fee rate, 0.01 micro-amount, UPDATE on immutable service_fee_versions |
+| **New Decision** | B-15 frozen with proper scenario: MYR 5.00 transaction at 2.500000% service fee → 0.13 MCP debit, G1/G2 commissions round to 0.00 → SKIPPED_ZERO_AMOUNT, 0 commission ledger entries. Market minimums: MYR 5.00 (Malaysia), VND 10,000 (Vietnam), THB 10 (Thailand), SGD 1.00 (Singapore). Per-market independent configuration using market's own currencyCode/currencyScale. All 15 B-tests pass (0 fail, 0 skip, 0 todo). |
+| **Reason** | Command Center direct order: fix B-15 with proper business scenario using normal 2.5% rate, not artificial near-zero rates. Prohibit zero-amount MCP postings. |
+| **Affected Files** | apps/api/src/__tests__/b-transaction-commission.integration.spec.ts (1 file, 40 insertions, 10 deletions) |
+| **Affected Phases** | Phase 5 (B Integration sub-phase) |
+| **Migration** | NONE |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | CI Run 30238150798 — 6/6 SUCCESS, SHA ac7c2ec49ffaa7e06bc9421da2705657e759b435 |
+| **Status** | **ACCEPTED / FROZEN** |
+
+### B-15 Frozen Baseline
+
+- **Commit:** `ac7c2ec49ffaa7e06bc9421da2705657e759b435`
+- **CI Run:** `30238150798`
+- **Test results:** 15 passed, 0 failed, 0 skipped, 0 todo
+- **Transaction Amount:** MYR 5.00
+- **Service Fee Rate:** 2.500000%
+- **Rounded Service Fee:** MYR 0.13
+- **MCP Deducted:** 0.13
+- **G1 Outcome:** SKIPPED_ZERO_AMOUNT
+- **G2 Outcome:** SKIPPED_ZERO_AMOUNT
+- **Commission Ledger:** 0 entries
+
+### Forbidden approaches (permanently retired)
+
+- 0.01 / 0.10 micro-amount transactions
+- 0.000001% / 0.100000% near-zero service fee rates
+- UPDATE on already-effective service_fee_versions
+- Bypassing immutable trigger
+- Zero MCP posting via append_mcp_ledger_entry
+- Modifying production Transaction Confirm logic
+
+### Active restrictions
+
+- B_INTEGRATION_ACCEPTED / B_FROZEN
+- C_INTEGRATION_NOT_AUTHORIZED
+- D_INTEGRATION_NOT_AUTHORIZED
+- PHASE_5_NOT_YET_CLOSED
+- READY_FOR_NEXT_PHASE_NOT_GRANTED
+- MAIN_PR: NOT_AUTHORIZED
+- MAIN_MERGE: NOT_AUTHORIZED
+- PRODUCTION_DEPLOYMENT: NOT_AUTHORIZED
