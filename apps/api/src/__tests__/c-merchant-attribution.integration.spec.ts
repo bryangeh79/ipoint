@@ -42,6 +42,7 @@ import { DatabaseService } from '../database/database.service.js';
 import { MarketService } from '../platform-access/market.service.js';
 import { AccessAdministrationService } from '../platform-access/access-administration.service.js';
 import { RbacGuard } from '../platform-access/rbac.guard.js';
+import { MerchantService } from '../merchant/merchant.service.js';
 import { TransactionService } from '../transaction/transaction.service.js';
 import { TransactionCommissionOutboxWorker } from '../transaction/transaction-commission-outbox.worker.js';
 
@@ -66,7 +67,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
   let server: Server;
   let database: DatabaseService;
   let auth: AuthService;
-  let merchants: any;
+  let merchants: MerchantService;
   let transactions: TransactionService;
   let outboxWorker: TransactionCommissionOutboxWorker;
   let marketId: string;
@@ -95,7 +96,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     server = app.getHttpServer() as Server;
     database = app.get(DatabaseService);
     auth = app.get(AuthService);
-    merchants = app.get('MerchantService') as any;
+    merchants = app.get(MerchantService);
     transactions = app.get(TransactionService);
     outboxWorker = app.get(TransactionCommissionOutboxWorker);
     await migrate(database.pool);
