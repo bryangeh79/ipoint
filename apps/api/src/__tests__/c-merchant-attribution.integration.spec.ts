@@ -54,6 +54,7 @@ async function seedAgentActivation(db: any, memberId: string) {
     .insert(agentActivations)
     .values({
       memberId,
+      market: 'MY',
       status: 'ACTIVE',
       activatedAt: new Date(),
       paymentConfirmedAt: new Date(),
@@ -592,7 +593,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
       .select()
       .from(merchantAttributions)
       .where(eq(merchantAttributions.attributedEntityType, 'MERCHANT'))
-      .orderBy(sql`created_at DESC`);
+      .orderBy(sql`effective_from DESC`);
     const matchingAttributions = await database.db
       .select()
       .from(merchantAttributions)
@@ -704,7 +705,7 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
       .select()
       .from(merchantAttributions)
       .where(sql`${merchantAttributions.attributedEntityType} = 'MERCHANT'`)
-      .orderBy(sql`created_at DESC`)
+      .orderBy(sql`effective_from DESC`)
       .limit(10);
 
     // Verify no attribution for this merchant
@@ -781,22 +782,13 @@ describe.skipIf(!databaseUrl)('C: Merchant Attribution Integration', () => {
     // 9. Verify MERCHANT_TRANSACTION processing exists
     const proc = await database.db
       .select()
-      .from(commissionProcessing)
-      .where(sql`${commissionProcessing.sourceType} = 'MERCHANT_TRANSACTION'`)
-      .orderBy(sql`created_at DESC`)
+       $args[0] -replace 'created_at DESC', 'created_at DESC' `)
       .limit(5);
 
     // 10. Verify merchant recruitment commission
     const recruitmentProc = await database.db
       .select()
-      .from(commissionProcessing)
-      .where(
-        and(
-          sql`${commissionProcessing.sourceType} = 'MERCHANT_TRANSACTION'`,
-          sql`${commissionProcessing.completionOutcome} IS NOT NULL`,
-        ),
-      )
-      .orderBy(sql`created_at DESC`)
+       $args[0] -replace 'created_at DESC', 'created_at DESC' `)
       .limit(5);
 
     // 11. Verify recruitment result with correct beneficiary

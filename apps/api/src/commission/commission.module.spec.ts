@@ -6,10 +6,17 @@
  */
 
 import { Test } from '@nestjs/testing';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeAll, vi } from 'vitest';
 import { CommissionModule } from './commission.module.js';
 
 describe('CommissionModule DI Wiring', () => {
+  beforeAll(() => {
+    vi.stubEnv('DATABASE_URL', 'postgresql://test:test@localhost:5432/test');
+    vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
+    vi.stubEnv('NODE_ENV', 'test');
+    vi.stubEnv('LOG_LEVEL', 'silent');
+  });
+
   it('compiles without UnknownDependenciesException', async () => {
     const moduleFixture = await Test.createTestingModule({
       imports: [CommissionModule],

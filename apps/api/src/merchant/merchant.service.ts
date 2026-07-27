@@ -230,24 +230,31 @@ export class MerchantService {
             locale: input.locale,
           });
           if (input.referral_account_id) {
-            await tx.insert(merchantReferrals).values({
-              merchantBranchId: branchId,
-              referrerAccountId: input.referral_account_id,
-            });
-            const [recruiter] = await tx
-              .select({ id: members.id })
-              .from(members)
-              .where(eq(members.accountId, input.referral_account_id))
+            const [referralAccount] = await tx
+              .select({ id: accounts.id })
+              .from(accounts)
+              .where(eq(accounts.id, input.referral_account_id))
               .limit(1);
-            if (recruiter) {
-              await tx.insert(merchantAttributions).values({
-                merchantAccountId: accountId,
-                recruiterMemberId: recruiter.id,
-                attributedEntityType: 'MERCHANT',
-                attributionSource: 'REGISTRATION',
-                attributionScope: 'PERMANENT',
-                createdBy: accountId,
+            if (referralAccount) {
+              await tx.insert(merchantReferrals).values({
+                merchantBranchId: branchId,
+                referrerAccountId: input.referral_account_id,
               });
+              const [recruiter] = await tx
+                .select({ id: members.id })
+                .from(members)
+                .where(eq(members.accountId, input.referral_account_id))
+                .limit(1);
+              if (recruiter) {
+                await tx.insert(merchantAttributions).values({
+                  merchantAccountId: accountId,
+                  recruiterMemberId: recruiter.id,
+                  attributedEntityType: 'MERCHANT',
+                  attributionSource: 'REGISTRATION',
+                  attributionScope: 'PERMANENT',
+                  createdBy: accountId,
+                });
+              }
             }
           }
           await tx.insert(merchantStatusHistory).values({
@@ -335,25 +342,32 @@ export class MerchantService {
       });
 
       if (input.referralAccountId) {
-        await tx.insert(merchantReferrals).values({
-          merchantBranchId: branchId,
-          referrerAccountId: input.referralAccountId,
-        });
-        const [recruiter] = await tx
-          .select({ id: members.id })
-          .from(members)
-          .where(eq(members.accountId, input.referralAccountId))
+        const [referralAccount] = await tx
+          .select({ id: accounts.id })
+          .from(accounts)
+          .where(eq(accounts.id, input.referralAccountId))
           .limit(1);
-        if (recruiter) {
-          await tx.insert(merchantAttributions).values({
-            merchantAccountId: accountId,
-            branchId,
-            recruiterMemberId: recruiter.id,
-            attributedEntityType: 'BRANCH',
-            attributionSource: 'REGISTRATION',
-            attributionScope: 'PERMANENT',
-            createdBy: accountId,
+        if (referralAccount) {
+          await tx.insert(merchantReferrals).values({
+            merchantBranchId: branchId,
+            referrerAccountId: input.referralAccountId,
           });
+          const [recruiter] = await tx
+            .select({ id: members.id })
+            .from(members)
+            .where(eq(members.accountId, input.referralAccountId))
+            .limit(1);
+          if (recruiter) {
+            await tx.insert(merchantAttributions).values({
+              merchantAccountId: accountId,
+              branchId,
+              recruiterMemberId: recruiter.id,
+              attributedEntityType: 'BRANCH',
+              attributionSource: 'REGISTRATION',
+              attributionScope: 'PERMANENT',
+              createdBy: accountId,
+            });
+          }
         }
       }
 
