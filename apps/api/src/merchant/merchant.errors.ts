@@ -15,6 +15,7 @@ export const merchantErrorCodes = {
   galleryLimit: 'MERCHANT_GALLERY_LIMIT_REACHED',
   registrationConflict: 'MERCHANT_REGISTRATION_CONFLICT',
   otpInvalid: 'MERCHANT_REGISTRATION_OTP_INVALID',
+  referralInvalid: 'MERCHANT_REFERRAL_INVALID',
 } as const;
 
 export function merchantBadRequest(code: string, message: string): never {

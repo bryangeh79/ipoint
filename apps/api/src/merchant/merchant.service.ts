@@ -235,27 +235,35 @@ export class MerchantService {
               .from(accounts)
               .where(eq(accounts.id, input.referral_account_id))
               .limit(1);
-            if (referralAccount) {
-              await tx.insert(merchantReferrals).values({
-                merchantBranchId: branchId,
-                referrerAccountId: input.referral_account_id,
-              });
-              const [recruiter] = await tx
-                .select({ id: members.id })
-                .from(members)
-                .where(eq(members.accountId, input.referral_account_id))
-                .limit(1);
-              if (recruiter) {
-                await tx.insert(merchantAttributions).values({
-                  merchantAccountId: accountId,
-                  recruiterMemberId: recruiter.id,
-                  attributedEntityType: 'MERCHANT',
-                  attributionSource: 'REGISTRATION',
-                  attributionScope: 'PERMANENT',
-                  createdBy: accountId,
-                });
-              }
+            if (!referralAccount) {
+              merchantBadRequest(
+                merchantErrorCodes.referralInvalid,
+                'The supplied referral account does not exist.',
+              );
             }
+            const [recruiter] = await tx
+              .select({ id: members.id })
+              .from(members)
+              .where(eq(members.accountId, input.referral_account_id))
+              .limit(1);
+            if (!recruiter) {
+              merchantBadRequest(
+                merchantErrorCodes.referralInvalid,
+                'The supplied referral account does not have a valid member profile.',
+              );
+            }
+            await tx.insert(merchantReferrals).values({
+              merchantBranchId: branchId,
+              referrerAccountId: input.referral_account_id,
+            });
+            await tx.insert(merchantAttributions).values({
+              merchantAccountId: accountId,
+              recruiterMemberId: recruiter.id,
+              attributedEntityType: 'MERCHANT',
+              attributionSource: 'REGISTRATION',
+              attributionScope: 'PERMANENT',
+              createdBy: accountId,
+            });
           }
           await tx.insert(merchantStatusHistory).values({
             merchantBranchId: branchId,
@@ -347,28 +355,36 @@ export class MerchantService {
           .from(accounts)
           .where(eq(accounts.id, input.referralAccountId))
           .limit(1);
-        if (referralAccount) {
-          await tx.insert(merchantReferrals).values({
-            merchantBranchId: branchId,
-            referrerAccountId: input.referralAccountId,
-          });
-          const [recruiter] = await tx
-            .select({ id: members.id })
-            .from(members)
-            .where(eq(members.accountId, input.referralAccountId))
-            .limit(1);
-          if (recruiter) {
-            await tx.insert(merchantAttributions).values({
-              merchantAccountId: accountId,
-              branchId,
-              recruiterMemberId: recruiter.id,
-              attributedEntityType: 'BRANCH',
-              attributionSource: 'REGISTRATION',
-              attributionScope: 'PERMANENT',
-              createdBy: accountId,
-            });
-          }
+        if (!referralAccount) {
+          merchantBadRequest(
+            merchantErrorCodes.referralInvalid,
+            'The supplied referral account does not exist.',
+          );
         }
+        const [recruiter] = await tx
+          .select({ id: members.id })
+          .from(members)
+          .where(eq(members.accountId, input.referralAccountId))
+          .limit(1);
+        if (!recruiter) {
+          merchantBadRequest(
+            merchantErrorCodes.referralInvalid,
+            'The supplied referral account does not have a valid member profile.',
+          );
+        }
+        await tx.insert(merchantReferrals).values({
+          merchantBranchId: branchId,
+          referrerAccountId: input.referralAccountId,
+        });
+        await tx.insert(merchantAttributions).values({
+          merchantAccountId: accountId,
+          branchId,
+          recruiterMemberId: recruiter.id,
+          attributedEntityType: 'BRANCH',
+          attributionSource: 'REGISTRATION',
+          attributionScope: 'PERMANENT',
+          createdBy: accountId,
+        });
       }
 
       await tx.insert(merchantStatusHistory).values({
