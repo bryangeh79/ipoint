@@ -40,6 +40,16 @@ export const foundationPermissions = [
   ['merchant.mcp.adjust.approve', 'Approve manual MCP adjustments'],
   ['merchant.mcp.adjust.execute', 'Execute approved MCP adjustments'],
   ['merchant.mcp.reverse', 'Create governed MCP reversal entries'],
+  ['redemption.catalog.manage', 'Manage redemption catalog items'],
+  ['redemption.rate.manage', 'Manage redemption rate versions'],
+  ['redemption.inventory.manage', 'Manage redemption inventory'],
+  ['redemption.pickup.manage', 'Manage redemption pickup locations'],
+  ['redemption.orders.view', 'View redemption orders'],
+  ['redemption.fulfilment.update', 'Update fulfilment status'],
+  ['redemption.refund.maker', 'Create refund requests as Maker'],
+  ['redemption.refund.checker', 'Approve/reject refund requests as Checker'],
+  ['redemption.voucher.reveal', 'Reveal voucher codes'],
+  ['redemption.audit.view', 'View redemption audit logs'],
 ] as const;
 
 export const standardServiceFeeProfiles = [

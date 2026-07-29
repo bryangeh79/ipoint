@@ -12,7 +12,9 @@ export type WalletEntryType =
   | 'AVAILABLE'
   | 'REVERSED'
   | 'COMPENSATION'
-  | 'ADJUSTMENT';
+  | 'ADJUSTMENT'
+  | 'REDEMPTION_DEBIT'
+  | 'REDEMPTION_REFUND';
 
 export interface WalletAccount {
   id: string;
@@ -54,3 +56,5 @@ export interface WalletBalance {
 
 export * from './agent-activation.js';
 export * from './referral.js';
+export * from './redemption.js';
+export * from './redemption.js';

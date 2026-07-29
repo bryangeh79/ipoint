@@ -28,6 +28,8 @@ export const walletEntryTypeSchema = z.enum([
   'REVERSED',
   'COMPENSATION',
   'ADJUSTMENT',
+  'REDEMPTION_DEBIT',
+  'REDEMPTION_REFUND',
 ]);
 
 export const createLedgerEntrySchema = z
@@ -65,3 +67,4 @@ export type PaginationDto = z.infer<typeof paginationSchema>;
 
 export * from './agent-activation.js';
 export * from './referral.js';
+export * from './redemption.js';
