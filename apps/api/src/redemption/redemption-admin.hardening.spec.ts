@@ -293,7 +293,7 @@ describe('P6-S8: Redemption Admin Hardening — Canonical Schema', () => {
       const result = await databaseService.db.execute(
         sql`SELECT column_name, data_type FROM information_schema.columns
             WHERE table_name = 'redemption_inventory'
-            AND column_name IN ('item_id', 'total_quantity', 'reserved_quantity', 'fulfilled_quantity', 'backorder_quantity', 'version')`,
+            AND column_name IN ('item_id', 'total_quantity', 'committed_quantity', 'fulfilled_quantity', 'backorder_quantity', 'version')`,
       );
       expect(result.rows.length).toBeGreaterThanOrEqual(5);
     });
@@ -327,7 +327,7 @@ describe('P6-S8: Redemption Admin Hardening — Canonical Schema', () => {
       expect(result.rows.length).toBe(1);
       const def = result.rows[0]!.constraint_def as string;
       expect(def).toContain('backorder_quantity');
-      expect(def).toContain('reserved_quantity');
+      expect(def).toContain('committed_quantity');
       expect(def).toContain('fulfilled_quantity');
     });
   });

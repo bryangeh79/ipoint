@@ -39,7 +39,7 @@ describe('Redemption (P6)', () => {
       sql`INSERT INTO redemption_catalog_items(id,market_id,sku,name,item_type,status,fiat_reference_value,fiat_currency,fulfilment_mode,inventory_mode,created_by,version) VALUES(${CID},${MKID},'TEST-SKU-001','Test Item','PHYSICAL','ACTIVE','50','MYR','PICKUP','TRACKED',${AID},1) ON CONFLICT(id) DO NOTHING`,
     );
     await db.execute(
-      sql`INSERT INTO redemption_inventory(id,item_id,total_quantity,reserved_quantity,fulfilled_quantity,backorder_quantity,version) VALUES('00000000-0000-4000-a000-000000000400',${CID},100,0,0,0,1) ON CONFLICT(id) DO NOTHING`,
+      sql`INSERT INTO redemption_inventory(id,item_id,total_quantity,committed_quantity,fulfilled_quantity,backorder_quantity,version) VALUES('00000000-0000-4000-a000-000000000400',${CID},100,0,0,0,1) ON CONFLICT(id) DO NOTHING`,
     );
     await db.execute(
       sql`INSERT INTO redemption_pickup_locations(id,market_id,name,address,contact_name,contact_phone,is_active,created_by) VALUES('00000000-0000-4000-a000-000000000500',${MKID},'Test Pickup','{}','John','+60123456789',true,${AID}) ON CONFLICT(id) DO NOTHING`,
@@ -59,7 +59,7 @@ describe('Redemption (P6)', () => {
       sql`INSERT INTO accounts(id,public_id,email,account_country,status,email_verified_at) VALUES(${a},${`m-${t}`},${`m${t}@x`},'MY','ACTIVE',NOW()) ON CONFLICT(id) DO NOTHING`,
     );
     await db.execute(
-      sql`INSERT INTO members(id,account_id,public_member_id,referral_code,status,kyc_level) VALUES(${m},${a},${`MB-${t}`},${`RF-${t}`},'ACTIVE'::member_status,'LEVEL_1'::member_kyc_level) ON CONFLICT(id) DO NOTHING`,
+      sql`INSERT INTO members(id,account_id,public_member_id,referral_code,status,kyc_level) VALUES(${m},${a},${`MB-${t}`},${`RF-${t}`},'ACTIVE'::member_status,'LEVEL_2'::member_kyc_level) ON CONFLICT(id) DO NOTHING`,
     );
     await db.execute(
       sql`INSERT INTO redemption_terms_acceptances(member_id,market_id,terms_version) VALUES(${m},${MKID},'v1') ON CONFLICT(member_id,market_id,terms_version) DO NOTHING`,
@@ -84,7 +84,7 @@ describe('Redemption (P6)', () => {
       idempotencyKey: `ai:${Date.now()}`,
     });
     await db.execute(
-      sql`INSERT INTO redemption_inventory(id,item_id,total_quantity,reserved_quantity,fulfilled_quantity,backorder_quantity,version) VALUES(${crypto.randomUUID()},${r.id},100,0,0,0,1) ON CONFLICT(id) DO NOTHING`,
+      sql`INSERT INTO redemption_inventory(id,item_id,total_quantity,committed_quantity,fulfilled_quantity,backorder_quantity,version) VALUES(${crypto.randomUUID()},${r.id},100,0,0,0,1) ON CONFLICT(id) DO NOTHING`,
     );
     await svc.setCatalogStatus(actor, r.id, {
       status: 'ACTIVE',

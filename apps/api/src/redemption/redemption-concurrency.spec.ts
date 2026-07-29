@@ -135,7 +135,7 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
             if (execIdx === 5) return { rows: [] }; // pg_advisory (wallet lock)
             if (execIdx === 6) return { rows: [insufficientWalletRow] }; // wallet
             if (execIdx === 7)
-              return { rows: [{ status: 'ACTIVE', kyc_level: 'LEVEL_1' }] }; // member
+              return { rows: [{ status: 'ACTIVE', kyc_level: 'LEVEL_2' }] }; // member
             if (execIdx === 8 || execIdx === 9) return { rows: [{}] }; // rate x2
             return { rows: [] };
           }),
@@ -224,7 +224,7 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
               return { rows: [sufficientWalletRow] };
             }
             if (s.includes('members')) {
-              return { rows: [{ status: 'ACTIVE', kyc_level: 'LEVEL_1' }] };
+              return { rows: [{ status: 'ACTIVE', kyc_level: 'LEVEL_2' }] };
             }
             if (
               s.includes('redemption_rate_versions') &&
