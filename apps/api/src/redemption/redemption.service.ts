@@ -1329,11 +1329,12 @@ export class RedemptionService {
           { memberId },
         );
       }
-      if ((memberRow.kyc_level as string) === 'NONE') {
+      const kycLevel = memberRow.kyc_level as string;
+      if (kycLevel !== 'LEVEL_2') {
         throw new RedemptionError(
           'REDEMPTION_KYC_REQUIRED',
-          'KYC verification Level 2 is required before redeeming items.',
-          { memberId, kycLevel: memberRow.kyc_level },
+          'KYC Level 2 is required before redeeming items.',
+          { memberId, kycLevel },
         );
       }
 
@@ -1346,21 +1347,13 @@ export class RedemptionService {
         );
       }
 
-      // ── Step 12: Check rate version still valid ──────────────────────
-      const rateResult = await tx.execute(
-        sql`SELECT * FROM redemption_rate_versions
-            WHERE id = ${quote.rate_version_id}
-              AND effective_from <= NOW()
-              AND (effective_until IS NULL OR effective_until > NOW())`,
-      );
-      const rateVersion = rateResult.rows[0];
-      if (!rateVersion) {
-        throw new RedemptionError(
-          'REDEMPTION_RATE_EXPIRED',
-          'The rate locked in this quote has expired. Please generate a new quote.',
-          { rateVersionId: quote.rate_version_id },
-        );
-      }
+      // ── Step 12: Load rate version for order record (no expiry rejection)
+      // A quote locks the rate at generation time; the snapshot is the binding record.
+      // We do NOT reject a valid quote just because its original rate version later expired.
+      const rateVersion = {
+        rate_value: (quote.rate_snapshot as any)?.rateValue ?? '0',
+        rate_version_id: quote.rate_version_id,
+      };
 
       // ── Step 13: Enforce wallet balance ────────────────────────────
       const availableBalance = wallet.available_balance as string;
@@ -1392,7 +1385,7 @@ export class RedemptionService {
       if (inventoryRow && (quote.inventory_mode as string) !== 'UNLIMITED') {
         inventoryVersion = Number(inventoryRow.version);
         const totalQuantity = inventoryRow.total_quantity as string | null;
-        const reserved = inventoryRow.reserved_quantity as string;
+        const reserved = inventoryRow.committed_quantity as string;
         const fulfilled = inventoryRow.fulfilled_quantity as string;
         const backorderQ = inventoryRow.backorder_quantity as string;
 
@@ -1514,7 +1507,7 @@ export class RedemptionService {
         if (!isBackordered) {
           await tx.execute(
             sql`UPDATE redemption_inventory
-                SET reserved_quantity = reserved_quantity + ${requestedQty}::numeric,
+                SET committed_quantity = committed_quantity + ${requestedQty}::numeric,
                     version = version + 1
                 WHERE id = ${inventoryRow.id}
                   AND version = ${inventoryVersion}`,
@@ -1522,7 +1515,7 @@ export class RedemptionService {
         } else {
           const totalQt = (inventoryRow.total_quantity as string) ?? '0';
           const usedTotal = this.addDecimal(
-            inventoryRow.reserved_quantity as string,
+            inventoryRow.committed_quantity as string,
             this.addDecimal(
               inventoryRow.fulfilled_quantity as string,
               inventoryRow.backorder_quantity as string,
@@ -1534,7 +1527,7 @@ export class RedemptionService {
 
           await tx.execute(
             sql`UPDATE redemption_inventory
-                SET reserved_quantity = reserved_quantity + ${reserveQty}::numeric,
+                SET committed_quantity = committed_quantity + ${reserveQty}::numeric,
                     backorder_quantity = backorder_quantity + ${backorderQty}::numeric,
                     version = version + 1
                 WHERE id = ${inventoryRow.id}
