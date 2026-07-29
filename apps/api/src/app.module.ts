@@ -22,6 +22,7 @@ import { TransactionModule } from './transaction/transaction.module.js';
 import { AgentActivationModule } from './agent-activation/agent-activation.module.js';
 import { ReferralModule } from './referral/referral.module.js';
 import { CommissionModule } from './commission/commission.module.js';
+import { RedemptionModule } from './redemption/redemption.module.js';
 import {
   RequestIdMiddleware,
   resolveRequestId,
@@ -83,6 +84,7 @@ import {
     AgentActivationModule,
     ReferralModule,
     CommissionModule,
+    RedemptionModule,
   ],
 })
 export class AppModule implements NestModule {
