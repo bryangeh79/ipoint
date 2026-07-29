@@ -21,5 +21,6 @@
   "0019_phase_5_commission_outbox.sql": "7881399941a571ab185cefca30f1705df2b2eb770f4e4af54809b0ce35c03b8e",
   "0020_phase_6_redemption_center_canonical.sql": "2c9107227f2e54bc74bade0a947b913f555b9922248fe0e5defadfe98e83e688",
   "0021_phase_6_redemption_contract_corrections.sql": "988064bcb6e85ca918a704ed1d99bb86a731c33ed735866e80920b33dcec73a4",
-  "0022_phase_6_inventory_direct_consumption.sql": "29272e2508ba733db4958d46c17df5ce709fe30eb5b23079a07fc1003746ca76"
+  "0022_phase_6_inventory_direct_consumption.sql": "29272e2508ba733db4958d46c17df5ce709fe30eb5b23079a07fc1003746ca76",
+  "0023_phase_6_final_contract_alignment.sql": "299fc9d9a7696ac40d446e0e973c79a99c4cf5b0947dcfb45994d8b6e5dc7a8b"
 }

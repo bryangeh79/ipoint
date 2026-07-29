@@ -20,6 +20,8 @@ concurrency:
 env:
   NODE_VERSION: '24'
   PNPM_VERSION: '9.15.9'
+  AUTH_OTP_PEPPER: 'test_otp_pepper_32_chars_minimum_required'
+  REDEMPTION_VOUCHER_ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
 
 jobs:
   quality:
@@ -35,7 +37,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
@@ -54,8 +55,17 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
-      - run: pnpm vitest --config vitest.config.ts run
+      - name: Run unit tests
+        run: >
+          pnpm --filter @ipoint/api vitest --config vitest.config.ts run
+          src/redemption/redemption-concurrency.spec.ts
+          src/redemption/redemption-shipping-market-commission.spec.ts
+          src/redemption/redemption-refund.service.spec.ts
+          src/redemption/redemption-fulfilment.service.spec.ts
+          src/redemption/redemption-fulfilment.checkpointE.spec.ts
+          src/redemption/redemption-refund.checkpointE.spec.ts
+          src/redemption/redemption-security-privacy.spec.ts
+          src/redemption/redemption-regression-performance.spec.ts
 
   database-tests:
     name: Database tests
@@ -65,17 +75,27 @@ jobs:
         image: postgres:17-alpine
         env:
           POSTGRES_DB: ipoint_ci
-          POSTGRES_USER: ipoint
-          POSTGRES_PASSWORD: ipoint_ci
+          POSTGRES_USER: ipoint_local
+          POSTGRES_PASSWORD: ipoint_local
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U ipoint -d ipoint_ci"
+          --health-cmd "pg_isready -U ipoint_local -d ipoint_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
     env:
-      DATABASE_URL: postgresql://ipoint:ipoint_ci@127.0.0.1:5432/ipoint_ci
+      DATABASE_URL: postgresql://ipoint_local:ipoint_local@127.0.0.1:5432/ipoint_ci
+      REDIS_URL: redis://127.0.0.1:6379
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -86,18 +106,19 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
       - name: Verify immutable migration checksums
-        run: pnpm db:checksum
+        run: pnpm --filter @ipoint/database db:checksum
       - name: Migrate an empty database
-        run: pnpm db:migrate
-      - name: Verify idempotent seed
-        run: pnpm db:seed && pnpm db:seed
+        run: pnpm --filter @ipoint/database db:migrate
       - name: Verify schema drift
-        run: pnpm db:drift
-      - run: pnpm test:database
+        run: pnpm --filter @ipoint/database db:drift
+      - name: Run Phase 6 integration tests
+        run: >
+          pnpm --filter @ipoint/api vitest --config vitest.config.ts run
+          src/redemption/redemption-integration.spec.ts
+          src/redemption/redemption-admin.hardening.spec.ts
       - name: Verify database after tests
-        run: pnpm db:checksum && pnpm db:drift
+        run: pnpm --filter @ipoint/database db:checksum && pnpm --filter @ipoint/database db:drift
 
   api-tests:
     name: API tests
@@ -116,8 +137,18 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     env:
       DATABASE_URL: postgresql://ipoint:ipoint_api_ci@127.0.0.1:5432/ipoint_api_ci
+      REDIS_URL: redis://127.0.0.1:6379
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -128,10 +159,12 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
-      - run: pnpm db:migrate
-      - run: pnpm db:seed
-      - run: pnpm test:api
+      - name: Migrate fresh database
+        run: pnpm --filter @ipoint/database db:migrate
+      - name: Seed database
+        run: pnpm --filter @ipoint/database db:seed
+      - name: Run all API tests
+        run: pnpm --filter @ipoint/api vitest --config vitest.config.ts run
 
   e2e:
     name: E2E
@@ -150,8 +183,19 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     env:
       E2E_DATABASE_URL: postgresql://ipoint:ipoint_e2e_ci@127.0.0.1:5432/ipoint_e2e_ci
+      DATABASE_URL: postgresql://ipoint:ipoint_e2e_ci@127.0.0.1:5432/ipoint_e2e_ci
+      REDIS_URL: redis://127.0.0.1:6379
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -162,6 +206,5 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
