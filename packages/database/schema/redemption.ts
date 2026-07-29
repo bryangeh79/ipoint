@@ -222,7 +222,10 @@ export const redemptionInventory = pgTable(
       .notNull()
       .references(() => redemptionCatalogItems.id, { onDelete: 'restrict' }),
     totalQuantity: numeric('total_quantity', { precision: 38, scale: 0 }),
-    reservedQuantity: numeric('reserved_quantity', { precision: 38, scale: 0 })
+    committedQuantity: numeric('committed_quantity', {
+      precision: 38,
+      scale: 0,
+    })
       .notNull()
       .default('0'),
     fulfilledQuantity: numeric('fulfilled_quantity', {
@@ -244,11 +247,11 @@ export const redemptionInventory = pgTable(
     uniqueIndex('uq_redemption_inventory_item').on(table.itemId),
     check(
       'chk_inventory_overflow',
-      sql`${table.totalQuantity} IS NULL OR (${table.reservedQuantity} + ${table.fulfilledQuantity} + ${table.backorderQuantity} <= ${table.totalQuantity})`,
+      sql`${table.totalQuantity} IS NULL OR (${table.committedQuantity} + ${table.fulfilledQuantity} + ${table.backorderQuantity} <= ${table.totalQuantity})`,
     ),
     check(
       'chk_inventory_non_negative',
-      sql`${table.reservedQuantity} >= 0 AND ${table.fulfilledQuantity} >= 0 AND ${table.backorderQuantity} >= 0`,
+      sql`${table.committedQuantity} >= 0 AND ${table.fulfilledQuantity} >= 0 AND ${table.backorderQuantity} >= 0`,
     ),
     check('chk_inventory_version', sql`${table.version} > 0`),
   ],
@@ -637,7 +640,7 @@ export const redemptionShippingPayments = pgTable(
     paidAt: utcTimestamp('paid_at'),
     failedAt: utcTimestamp('failed_at'),
     refundedAt: utcTimestamp('refunded_at'),
-    idempotencyKey: varchar('idempotency_key', { length: 255 }),
+    idempotencyKey: varchar('idempotency_key', { length: 255 }).notNull(),
     createdAt: utcTimestamp('created_at').notNull().defaultNow(),
     updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
   },

@@ -1154,7 +1154,7 @@ export const expectedSchema = {
     'id',
     'item_id',
     'total_quantity',
-    'reserved_quantity',
+    'committed_quantity',
     'fulfilled_quantity',
     'backorder_quantity',
     'version',
@@ -1208,6 +1208,8 @@ export const expectedSchema = {
     'cancelled_at',
     'created_at',
     'updated_at',
+    'terms_version',
+    'terms_accepted_at',
   ],
   redemption_fulfilments: [
     'id',
@@ -1243,6 +1245,7 @@ export const expectedSchema = {
     'decided_at',
     'created_at',
     'updated_at',
+    'refund_wallet_entry_id',
   ],
   redemption_audit_log: [
     'id',
@@ -1311,6 +1314,10 @@ export const expectedSchema = {
     'idempotency_key',
     'created_at',
     'updated_at',
+    'member_id',
+    'quote_id',
+    'request_hash',
+    'consumed_at',
   ],
   redemption_terms_acceptances: [
     'id',
