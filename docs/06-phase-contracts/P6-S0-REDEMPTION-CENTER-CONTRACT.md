@@ -122,38 +122,38 @@ The Redemption Center is the system responsible for enabling iPoint members to e
 
 The following principles are inherited from earlier phases and are **LOCKED**:
 
-| # | Principle | Source Phase | Rule |
-|---|---|---|---|
-| 1 | One Account + Multi Market | Phase 2 (D-027) | A single member can access multiple markets independently |
-| 2 | One Wallet Per Market | Phase 3 (D-029) | Each market has an independent iPoint wallet |
-| 3 | Immutable Ledger | Phase 3 (D-029) | Wallet entries are append-only; corrections use compensating entries |
-| 4 | Rate Snapshot at Source Time | Phase 4 (D-037) | Historical redemption orders must store rate snapshot at order time |
-| 5 | Atomic Transaction Boundary | Phase 4 (D-037) | Confirm operations must be all-or-nothing |
-| 6 | Decimal Arithmetic Only | Phase 3/5 (D-029/D-042) | All point arithmetic uses `NUMERIC(38,10)` with HALF_UP rounding |
-| 7 | Idempotency for Critical Writes | Phase 4 (D-037) | Each mutation must be idempotent via unique business constraint |
-| 8 | KYC Level 2 Required Before Redemption | Member PRD V1.1 | Level 2 KYC is a prerequisite for redemption |
-| 9 | Merchant Snapshot Preservation | Phase 3/4 | Historical order snapshots must preserve the state at order time |
+| #   | Principle                              | Source Phase            | Rule                                                                 |
+| --- | -------------------------------------- | ----------------------- | -------------------------------------------------------------------- |
+| 1   | One Account + Multi Market             | Phase 2 (D-027)         | A single member can access multiple markets independently            |
+| 2   | One Wallet Per Market                  | Phase 3 (D-029)         | Each market has an independent iPoint wallet                         |
+| 3   | Immutable Ledger                       | Phase 3 (D-029)         | Wallet entries are append-only; corrections use compensating entries |
+| 4   | Rate Snapshot at Source Time           | Phase 4 (D-037)         | Historical redemption orders must store rate snapshot at order time  |
+| 5   | Atomic Transaction Boundary            | Phase 4 (D-037)         | Confirm operations must be all-or-nothing                            |
+| 6   | Decimal Arithmetic Only                | Phase 3/5 (D-029/D-042) | All point arithmetic uses `NUMERIC(38,10)` with HALF_UP rounding     |
+| 7   | Idempotency for Critical Writes        | Phase 4 (D-037)         | Each mutation must be idempotent via unique business constraint      |
+| 8   | KYC Level 2 Required Before Redemption | Member PRD V1.1         | Level 2 KYC is a prerequisite for redemption                         |
+| 9   | Merchant Snapshot Preservation         | Phase 3/4               | Historical order snapshots must preserve the state at order time     |
 
 ---
 
 ## 2. Terminology
 
-| Term | Definition |
-|---|---|
-| **Redemption (兑换)** | The process of exchanging iPoint points for catalog items. |
-| **Redemption Center (兑换中心)** | The per-market interface where members browse, quote, and submit redemption orders. |
-| **Catalog (商品目录)** | A per-market listing of items available for redemption. |
-| **Catalog Item (商品)** | A single redeemable entity with a point cost, inventory, and fulfilment type. |
-| **Redemption Rate (兑换率)** | The conversion value of 1 iPoint in the market's fiat currency (e.g., 1 iPoint = RM 0.01). |
-| **Point Cost (所需积分)** | The iPoint amount required to redeem one unit of a catalog item (either fixed or derived from rate). |
-| **Reservation (预留)** | NOT USED in MVP. Bryan Decision OD-05 adopts Direct Atomic Debit. |
-| **Reservation (预留)** | NOT USED in MVP. Bryan Decision OD-05 adopts Direct Atomic Debit. |
-| **Redemption Order (兑换订单)** | A confirmed request to redeem a catalog item, with an associated state machine. |
-| **Fulfilment (履约)** | The process of delivering the redeemed item to the member (physical shipment, digital delivery, or service scheduling). |
-| **Voucher (电子券)** | A digital redemption item typically delivered as a code, barcode, or claim link. |
-| **Wallet Market (钱包市场)** | The market whose iPoint wallet is debited during redemption. |
-| **Inventory (库存)** | The available quantity of a catalog item. May be unlimited for digital items. |
-| **Refund (退点)** | The return of iPoint points to the member's wallet when an order is cancelled, fails, or is refunded. |
+| Term                             | Definition                                                                                                              |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Redemption (兑换)**            | The process of exchanging iPoint points for catalog items.                                                              |
+| **Redemption Center (兑换中心)** | The per-market interface where members browse, quote, and submit redemption orders.                                     |
+| **Catalog (商品目录)**           | A per-market listing of items available for redemption.                                                                 |
+| **Catalog Item (商品)**          | A single redeemable entity with a point cost, inventory, and fulfilment type.                                           |
+| **Redemption Rate (兑换率)**     | The conversion value of 1 iPoint in the market's fiat currency (e.g., 1 iPoint = RM 0.01).                              |
+| **Point Cost (所需积分)**        | The iPoint amount required to redeem one unit of a catalog item (either fixed or derived from rate).                    |
+| **Reservation (预留)**           | NOT USED in MVP. Bryan Decision OD-05 adopts Direct Atomic Debit.                                                       |
+| **Reservation (预留)**           | NOT USED in MVP. Bryan Decision OD-05 adopts Direct Atomic Debit.                                                       |
+| **Redemption Order (兑换订单)**  | A confirmed request to redeem a catalog item, with an associated state machine.                                         |
+| **Fulfilment (履约)**            | The process of delivering the redeemed item to the member (physical shipment, digital delivery, or service scheduling). |
+| **Voucher (电子券)**             | A digital redemption item typically delivered as a code, barcode, or claim link.                                        |
+| **Wallet Market (钱包市场)**     | The market whose iPoint wallet is debited during redemption.                                                            |
+| **Inventory (库存)**             | The available quantity of a catalog item. May be unlimited for digital items.                                           |
+| **Refund (退点)**                | The return of iPoint points to the member's wallet when an order is cancelled, fails, or is refunded.                   |
 
 ---
 
@@ -161,32 +161,32 @@ The following principles are inherited from earlier phases and are **LOCKED**:
 
 ### 3.1 Actors
 
-| Actor | Description |
-|---|---|
+| Actor      | Description                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- |
 | **Member** | Any registered iPoint member with KYC Level 2 completed. Can browse, quote, and redeem from their eligible markets. |
-| **Admin** | iPoint platform administrator. Can manage catalog, rates, inventory, orders, and perform manual adjustments. |
-| **System** | Automated processes: order expiry, fulfilment callbacks, inventory release, refund execution. |
+| **Admin**  | iPoint platform administrator. Can manage catalog, rates, inventory, orders, and perform manual adjustments.        |
+| **System** | Automated processes: order expiry, fulfilment callbacks, inventory release, refund execution.                       |
 
 ### 3.2 Permission Matrix
 
-| Action | Member | Admin | System |
-|---|---|---|---|
-| Browse catalog (own current market) | ✅ | ✅ | ✅ |
-| Browse catalog (cross-market) | ❌ (OD-03 PENDING) | ✅ | ✅ |
-| Generate quote | ✅ | ✅ | ✅ |
-| Confirm redemption order | ✅ | ✅ | ✅ |
-| Cancel own order | ✅ (limited by state) | ✅ | ✅ |
-| View own redemption history | ✅ | ✅ | ✅ |
-| View others' redemption history | ❌ | ✅ | ✅ |
-| Create catalog item | ❌ | ✅ | ❌ |
-| Update catalog item | ❌ | ✅ | ❌ |
-| Configure redemption rate | ❌ | ✅ | ❌ |
-| Adjust inventory | ❌ | ✅ | ✅ |
-| Fulfil order (physical) | ❌ | ✅ | ✅ (system callback) |
-| Fulfil order (digital) | ❌ | ✅ | ✅ (auto) |
-| Cancel any order | ❌ | ✅ | ✅ (on expiry) |
-| Refund points | ❌ | ✅ (OD-17 PENDING) | ✅ (on cancellation) |
-| Maker/Checker approval | ❌ | ✅ (OD-17 PENDING) | ❌ |
+| Action                              | Member                | Admin              | System               |
+| ----------------------------------- | --------------------- | ------------------ | -------------------- |
+| Browse catalog (own current market) | ✅                    | ✅                 | ✅                   |
+| Browse catalog (cross-market)       | ❌ (OD-03 PENDING)    | ✅                 | ✅                   |
+| Generate quote                      | ✅                    | ✅                 | ✅                   |
+| Confirm redemption order            | ✅                    | ✅                 | ✅                   |
+| Cancel own order                    | ✅ (limited by state) | ✅                 | ✅                   |
+| View own redemption history         | ✅                    | ✅                 | ✅                   |
+| View others' redemption history     | ❌                    | ✅                 | ✅                   |
+| Create catalog item                 | ❌                    | ✅                 | ❌                   |
+| Update catalog item                 | ❌                    | ✅                 | ❌                   |
+| Configure redemption rate           | ❌                    | ✅                 | ❌                   |
+| Adjust inventory                    | ❌                    | ✅                 | ✅                   |
+| Fulfil order (physical)             | ❌                    | ✅                 | ✅ (system callback) |
+| Fulfil order (digital)              | ❌                    | ✅                 | ✅ (auto)            |
+| Cancel any order                    | ❌                    | ✅                 | ✅ (on expiry)       |
+| Refund points                       | ❌                    | ✅ (OD-17 PENDING) | ✅ (on cancellation) |
+| Maker/Checker approval              | ❌                    | ✅ (OD-17 PENDING) | ❌                   |
 
 ---
 
@@ -196,20 +196,20 @@ The following principles are inherited from earlier phases and are **LOCKED**:
 
 When documents conflict during Phase 6, use this hierarchy (lower number wins):
 
-| Rank | Source | Notes |
-|---|---|---|
-| **1** | Bryan's latest explicit written decision | Highest authority |
-| **2** | ChatGPT Command Center Phase 6 Phase Brief or acceptance decision | Current execution authority |
-| **3** | **P6-S0-REDEMPTION-CENTER-CONTRACT.md** (this document) | Once frozen, becomes the Phase 6 single source of truth |
-| **4** | Latest approved Admin PRD V1.0 | Redemption Center admin rules |
-| **5** | Latest approved Member PRD V1.1 (International Architecture Update) | Market isolation and redemption rules |
-| **6** | Latest approved Merchant PRD | Merchant-owned items may reference merchant rules |
-| **7** | iPoint Product Design System | UI/UX token authority |
-| **8** | Project Master Control + Operating Rules | Governance baseline |
-| **9** | Phase 5 Agent & Commission Contract (frozen) | Commission semantics for merchant-owned items |
-| **10** | Phase 4 Transaction/Correction Contract (frozen) | Correction compensation patterns |
-| **11** | Phase 3 Wallet/Reward Contract (frozen) | Wallet ledger and immutable entry rules |
-| **12** | MVP Roadmap V1.0 | Business background only |
+| Rank   | Source                                                              | Notes                                                   |
+| ------ | ------------------------------------------------------------------- | ------------------------------------------------------- |
+| **1**  | Bryan's latest explicit written decision                            | Highest authority                                       |
+| **2**  | ChatGPT Command Center Phase 6 Phase Brief or acceptance decision   | Current execution authority                             |
+| **3**  | **P6-S0-REDEMPTION-CENTER-CONTRACT.md** (this document)             | Once frozen, becomes the Phase 6 single source of truth |
+| **4**  | Latest approved Admin PRD V1.0                                      | Redemption Center admin rules                           |
+| **5**  | Latest approved Member PRD V1.1 (International Architecture Update) | Market isolation and redemption rules                   |
+| **6**  | Latest approved Merchant PRD                                        | Merchant-owned items may reference merchant rules       |
+| **7**  | iPoint Product Design System                                        | UI/UX token authority                                   |
+| **8**  | Project Master Control + Operating Rules                            | Governance baseline                                     |
+| **9**  | Phase 5 Agent & Commission Contract (frozen)                        | Commission semantics for merchant-owned items           |
+| **10** | Phase 4 Transaction/Correction Contract (frozen)                    | Correction compensation patterns                        |
+| **11** | Phase 3 Wallet/Reward Contract (frozen)                             | Wallet ledger and immutable entry rules                 |
+| **12** | MVP Roadmap V1.0                                                    | Business background only                                |
 
 ### 4.2 Inherited Frozen Rules
 
@@ -249,26 +249,26 @@ Phase 5 (Commission Engine) ─── Phase 6 may need merchant-owned item commi
 
 ### 5.2 Required Interfaces
 
-| Interface | Provider | Phase 6 Usage |
-|---|---|---|
-| `GET /wallets/:id` | Phase 3 | Check point balance before quote/confirm |
-| `POST /wallets/:id/entries` | Phase 3 | Debit points on order confirmation |
-| Wallet ledger entry types | Phase 3 | Add `REDEMPTION_DEBIT`, `REDEMPTION_REFUND` entry types |
-| `POST /wallets/:id/reversal` | Phase 3 | Refund points on cancellation |
-| Member KYC status | Phase 2 | Check KYC Level 2 before allowing redemption |
-| Member current market | Phase 2 | Determine catalog visibility |
-| Member account country | Phase 2 | Determine wallet market (OD-04 PENDING) |
-| Merchant data | Phase 1 | Merchant-owned items reference merchant information |
-| Correction pattern | Phase 4 | Refund uses exact-opposite entry |
+| Interface                    | Provider | Phase 6 Usage                                           |
+| ---------------------------- | -------- | ------------------------------------------------------- |
+| `GET /wallets/:id`           | Phase 3  | Check point balance before quote/confirm                |
+| `POST /wallets/:id/entries`  | Phase 3  | Debit points on order confirmation                      |
+| Wallet ledger entry types    | Phase 3  | Add `REDEMPTION_DEBIT`, `REDEMPTION_REFUND` entry types |
+| `POST /wallets/:id/reversal` | Phase 3  | Refund points on cancellation                           |
+| Member KYC status            | Phase 2  | Check KYC Level 2 before allowing redemption            |
+| Member current market        | Phase 2  | Determine catalog visibility                            |
+| Member account country       | Phase 2  | Determine wallet market (OD-04 PENDING)                 |
+| Merchant data                | Phase 1  | Merchant-owned items reference merchant information     |
+| Correction pattern           | Phase 4  | Refund uses exact-opposite entry                        |
 
 ### 5.3 Phase 3 Wallet Ledger Extensions
 
 Phase 6 requires two new `entry_type` values in the existing `member_wallet_entries` table:
 
-| entry_type | Description |
-|---|---|
-| `REDEMPTION_DEBIT` | iPoint debited for a confirmed redemption order |
-| `REDEMPTION_REFUND` | iPoint refunded after cancellation/failure |
+| entry_type          | Description                                     |
+| ------------------- | ----------------------------------------------- |
+| `REDEMPTION_DEBIT`  | iPoint debited for a confirmed redemption order |
+| `REDEMPTION_REFUND` | iPoint refunded after cancellation/failure      |
 
 Phase 6 will require an explicit forward-only migration to extend the wallet entry-type constraint/enum while preserving all Phase 3 entry meanings and existing rows. The existing Phase 3 entry types (`REWARD_ACCRUAL`, `REVERSAL`, `CORRECTION`, `ADJUSTMENT`) remain unchanged.
 
@@ -297,11 +297,11 @@ Phase 6 will require an explicit forward-only migration to extend the wallet ent
 
 **Redemption-specific effects:**
 
-| Effect | Rule |
-|---|---|
+| Effect           | Rule                                                                                                                  |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------- |
 | Catalog Browsing | Current Market determines which catalog is displayed. Member sees only the catalog belonging to their current market. |
-| Quote Generation | Quote is generated against the current market's catalog and rate. |
-| Order Placement | Order is associated with the current market at time of confirmation. |
+| Quote Generation | Quote is generated against the current market's catalog and rate.                                                     |
+| Order Placement  | Order is associated with the current market at time of confirmation.                                                  |
 
 **OPEN:** Whether the Wallet Market (market whose wallet is debited) must equal the Current Market. See OD-04.
 
@@ -315,15 +315,15 @@ Phase 6 will require an explicit forward-only migration to extend the wallet ent
 
 Account Country does NOT determine the debit wallet. The Current Market unified concept applies:
 
-| Scope | Market |
-|---|---|
-| Catalog browsing | Current Market |
-| Quote generation | Current Market |
-| Wallet debited | Current Market |
-| Rate applied | Current Market |
-| Pickup location | Current Market |
+| Scope              | Market         |
+| ------------------ | -------------- |
+| Catalog browsing   | Current Market |
+| Quote generation   | Current Market |
+| Wallet debited     | Current Market |
+| Rate applied       | Current Market |
+| Pickup location    | Current Market |
 | Refund destination | Current Market |
-| Order association | Current Market |
+| Order association  | Current Market |
 
 ### 8.2 Design Impact
 
@@ -353,33 +353,33 @@ Market (MY)
 
 ### 9.2 Catalog Item Fields (Design)
 
-| Field | Type | Description |
-|---|---|---|
-| id | UUID | Unique item identifier |
-| market_id | UUID | FK to markets — the market this item belongs to |
-| sku | VARCHAR(64) | Optional SKU for inventory tracking |
-| name | VARCHAR(256) | Item name (market-language specific) |
-| description | TEXT | Item description |
-| item_type | VARCHAR(32) | `PHYSICAL`, `DIGITAL_VOUCHER`, `SERVICE` |
-| ownership | VARCHAR(32) | `PLATFORM_OWNED` or `MERCHANT_OWNED` |
-| merchant_id | UUID | FK to merchants (nullable — only for merchant-owned) |
-| point_cost | NUMERIC(38,10) | Fixed point cost per unit (if using Fixed Point Cost model) |
-| fiat_reference_value | NUMERIC(38,10) | Optional fiat value for reference display |
-| currency | VARCHAR(3) | Currency code for fiat reference value |
-| inventory_mode | VARCHAR(32) | `UNLIMITED`, `TRACKED`, `ON_DEMAND` |
-| total_inventory | NUMERIC(38,0) | Total units available (for TRACKED mode) |
-| available_inventory | NUMERIC(38,0) | Current available units (computed from total - reserved - fulfilled) |
-| image_url | TEXT | Item image |
-| terms | TEXT | Redemption terms and conditions |
-| is_active | BOOLEAN | Whether item is active in the catalog |
-| is_featured | BOOLEAN | Whether item is featured/promoted |
-| tags | TEXT[] | Search/filter tags |
-| effective_from | TIMESTAMPTZ | When item becomes available |
-| effective_until | TIMESTAMPTZ | When item expires (nullable) |
-| created_by | UUID | Admin who created the item |
-| version | INTEGER | Version number for optimistic locking |
-| created_at | TIMESTAMPTZ | Row creation timestamp |
-| updated_at | TIMESTAMPTZ | Row update timestamp |
+| Field                | Type           | Description                                                          |
+| -------------------- | -------------- | -------------------------------------------------------------------- |
+| id                   | UUID           | Unique item identifier                                               |
+| market_id            | UUID           | FK to markets — the market this item belongs to                      |
+| sku                  | VARCHAR(64)    | Optional SKU for inventory tracking                                  |
+| name                 | VARCHAR(256)   | Item name (market-language specific)                                 |
+| description          | TEXT           | Item description                                                     |
+| item_type            | VARCHAR(32)    | `PHYSICAL`, `DIGITAL_VOUCHER`, `SERVICE`                             |
+| ownership            | VARCHAR(32)    | `PLATFORM_OWNED` or `MERCHANT_OWNED`                                 |
+| merchant_id          | UUID           | FK to merchants (nullable — only for merchant-owned)                 |
+| point_cost           | NUMERIC(38,10) | Fixed point cost per unit (if using Fixed Point Cost model)          |
+| fiat_reference_value | NUMERIC(38,10) | Optional fiat value for reference display                            |
+| currency             | VARCHAR(3)     | Currency code for fiat reference value                               |
+| inventory_mode       | VARCHAR(32)    | `UNLIMITED`, `TRACKED`, `ON_DEMAND`                                  |
+| total_inventory      | NUMERIC(38,0)  | Total units available (for TRACKED mode)                             |
+| available_inventory  | NUMERIC(38,0)  | Current available units (computed from total - reserved - fulfilled) |
+| image_url            | TEXT           | Item image                                                           |
+| terms                | TEXT           | Redemption terms and conditions                                      |
+| is_active            | BOOLEAN        | Whether item is active in the catalog                                |
+| is_featured          | BOOLEAN        | Whether item is featured/promoted                                    |
+| tags                 | TEXT[]         | Search/filter tags                                                   |
+| effective_from       | TIMESTAMPTZ    | When item becomes available                                          |
+| effective_until      | TIMESTAMPTZ    | When item expires (nullable)                                         |
+| created_by           | UUID           | Admin who created the item                                           |
+| version              | INTEGER        | Version number for optimistic locking                                |
+| created_at           | TIMESTAMPTZ    | Row creation timestamp                                               |
+| updated_at           | TIMESTAMPTZ    | Row update timestamp                                                 |
 
 ### 9.3 Catalog Versioning
 
@@ -391,27 +391,30 @@ Each catalog item has a `version` counter. When an item's point cost or other ke
 
 ### 10.1 Type Classification
 
-| Type | Code | Inventory Needed | Fulfilment | Examples |
-|---|---|---|---|---|
-| Physical Goods | `PHYSICAL` | Yes (tracked) | Shipment via courier | Merchandise, gifts, branded items |
-| Digital Voucher | `DIGITAL_VOUCHER` | No (unlimited) | Instant delivery (code/barcode) | E-vouchers, gift cards, discount codes |
-| Service | `SERVICE` | Yes (slot-based) | Scheduling/appointment | Experiences, classes, consultations |
+| Type            | Code              | Inventory Needed | Fulfilment                      | Examples                               |
+| --------------- | ----------------- | ---------------- | ------------------------------- | -------------------------------------- |
+| Physical Goods  | `PHYSICAL`        | Yes (tracked)    | Shipment via courier            | Merchandise, gifts, branded items      |
+| Digital Voucher | `DIGITAL_VOUCHER` | No (unlimited)   | Instant delivery (code/barcode) | E-vouchers, gift cards, discount codes |
+| Service         | `SERVICE`         | Yes (slot-based) | Scheduling/appointment          | Experiences, classes, consultations    |
 
 ### 10.2 Type-specific Rules
 
 **Physical Goods:**
+
 - Inventory must be tracked and reserved at quote/confirm time
 - Fulfilment requires shipping address collection
 - Estimated delivery time must be communicated to the member
 - Shipping cost responsibility is OPEN (OD-07)
 
 **Digital Vouchers:**
+
 - Typically unlimited inventory (configurable per item)
 - Instant fulfilment or near-instant
 - Voucher code custody mode is OPEN (OD-24)
 - Voucher expiry handling is OPEN (OD-09, OD-10)
 
 **Service Items:**
+
 - Inventory is slot-based or capacity-based
 - Fulfilment requires scheduling coordination
 - May involve merchant interaction for service delivery
@@ -426,9 +429,9 @@ Each catalog item has a `version` counter. When an item's point cost or other ke
 
 MVP only supports platform-owned items. Merchant-owned items are NOT included in MVP.
 
-| Ownership | Owner | Catalog Management | Fulfilment Responsibility |
-|---|---|---|---|
-| `PLATFORM_OWNED` | iPoint platform | Admin only | Platform or platform-nominated fulfillment partner |
+| Ownership        | Owner           | Catalog Management | Fulfilment Responsibility                          |
+| ---------------- | --------------- | ------------------ | -------------------------------------------------- |
+| `PLATFORM_OWNED` | iPoint platform | Admin only         | Platform or platform-nominated fulfillment partner |
 
 ### 11.2 Merchant-Owned Items
 
@@ -448,10 +451,10 @@ A redemption rate defines the conversion value of 1 iPoint in the market's fiat 
 
 Two models for determining point cost are proposed:
 
-| Model | Description | Example |
-|---|---|---|
-| **Fixed Point Cost (OD-21 Option A)** | Each catalog item has a fixed `point_cost` directly set in the item record. | Item costs 5000 points regardless of rate changes. |
-| **Rate Conversion (OD-21 Option B)** | Point cost is derived from `fiat_reference_value / rate`. | Item valued at RM50, rate = 0.01 → 5000 points. Rate changes affect point cost. |
+| Model                                 | Description                                                                 | Example                                                                         |
+| ------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| **Fixed Point Cost (OD-21 Option A)** | Each catalog item has a fixed `point_cost` directly set in the item record. | Item costs 5000 points regardless of rate changes.                              |
+| **Rate Conversion (OD-21 Option B)**  | Point cost is derived from `fiat_reference_value / rate`.                   | Item valued at RM50, rate = 0.01 → 5000 points. Rate changes affect point cost. |
 
 **BRYAN DECISION (OD-21): RATE_CONVERSION_PRICING**
 
@@ -525,6 +528,7 @@ redemption_rate_versions
 Every confirmed redemption order MUST capture an immutable snapshot of the rate and item state at order time.
 
 **Locked at confirm time:**
+
 - Redemption rate version and rate value
 - Catalog item version and point cost
 - Item name and description (at confirm time)
@@ -616,14 +620,14 @@ Response:
 
 ### 15.4 Quote Rules
 
-| Rule | Description |
-|---|---|
-| **Quote does NOT debite** | Quote is an immutable commercial snapshot only. No wallet mutation, no inventory reservation, no order creation. |
-| **Quote does NOT reserve** | No inventory reservation during quote (OD-06 PENDING) |
-| **Quote may be re-validated** | At confirm time, the system must re-validate the quote (item available, rate still valid, balance sufficient) |
-| **Expired quote** | Confirm with an expired quote must be rejected with `REDEMPTION_QUOTE_EXPIRED` error |
-| **Stale quote** | Confirm must reject with `REDEMPTION_QUOTE_STALE` if item version has changed since quote was generated |
-| **Quote is idempotent** | Same (member, item, quantity) within quote expiry returns same quote |
+| Rule                          | Description                                                                                                      |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Quote does NOT debite**     | Quote is an immutable commercial snapshot only. No wallet mutation, no inventory reservation, no order creation. |
+| **Quote does NOT reserve**    | No inventory reservation during quote (OD-06 PENDING)                                                            |
+| **Quote may be re-validated** | At confirm time, the system must re-validate the quote (item available, rate still valid, balance sufficient)    |
+| **Expired quote**             | Confirm with an expired quote must be rejected with `REDEMPTION_QUOTE_EXPIRED` error                             |
+| **Stale quote**               | Confirm must reject with `REDEMPTION_QUOTE_STALE` if item version has changed since quote was generated          |
+| **Quote is idempotent**       | Same (member, item, quantity) within quote expiry returns same quote                                             |
 
 ---
 
@@ -675,15 +679,15 @@ Atomic Confirm (single database transaction)
 
 ### 16.3 Debit Entry
 
-| Field | Value for REDEMPTION_DEBIT |
-|---|---|
-| `entry_type` | `'REDEMPTION_DEBIT'` |
-| `amount` | `-total_point_cost` |
-| `balance_before` | Current wallet projection before debit |
-| `balance_after` | New projection after debit |
-| `idempotency_key` | `redemption:confirm:{order_id}` |
-| `reversal_of` | `NULL` |
-| `correlation_id` | Redemption Order ID |
+| Field             | Value for REDEMPTION_DEBIT             |
+| ----------------- | -------------------------------------- |
+| `entry_type`      | `'REDEMPTION_DEBIT'`                   |
+| `amount`          | `-total_point_cost`                    |
+| `balance_before`  | Current wallet projection before debit |
+| `balance_after`   | New projection after debit             |
+| `idempotency_key` | `redemption:confirm:{order_id}`        |
+| `reversal_of`     | `NULL`                                 |
+| `correlation_id`  | Redemption Order ID                    |
 
 ### 16.4 Balance Enforcement — Inside Wallet Lock
 
@@ -731,15 +735,15 @@ COMMIT
 
 ### 17.2 Debit Entry
 
-| Field | Value for REDEMPTION_DEBIT |
-|---|---|
-| `entry_type` | `'REDEMPTION_DEBIT'` |
-| `amount` | `-total_point_cost` |
-| `balance_before` | Current wallet projection before debit |
-| `balance_after` | New projection after debit |
-| `idempotency_key` | `redemption:confirm:{order_id}` |
-| `reversal_of` | `NULL` |
-| `correlation_id` | Redemption Order ID |
+| Field             | Value for REDEMPTION_DEBIT             |
+| ----------------- | -------------------------------------- |
+| `entry_type`      | `'REDEMPTION_DEBIT'`                   |
+| `amount`          | `-total_point_cost`                    |
+| `balance_before`  | Current wallet projection before debit |
+| `balance_after`   | New projection after debit             |
+| `idempotency_key` | `redemption:confirm:{order_id}`        |
+| `reversal_of`     | `NULL`                                 |
+| `correlation_id`  | Redemption Order ID                    |
 
 ### 17.3 Balance Enforcement — Inside Wallet Lock
 
@@ -823,7 +827,7 @@ Confirm trigger is Direct Atomic Debit. No release step. Post-debit issues enter
 2. **Refund creates a compensating entry.** Create a new wallet entry with:
    - `entry_type = 'REDEMPTION_REFUND'`
    - `amount = -(original_debit_amount)` — exact opposite (positive)
-   - `reversal_of = original_wallet_entry_id`\n   - `correlation_id = refund_order_id`
+   - `reversal_of = original_wallet_entry_id`\n - `correlation_id = refund_order_id`
    - Unique `idempotency_key`
 3. **Refund is all-or-nothing.** If partial refund is not approved (OD-12), a cancellation refunds the full order amount.
 
@@ -904,54 +908,54 @@ Quote is NOT an Order. Waitlist is NOT an Order. The Order state machine starts 
 
 ### 20.2 State Definitions
 
-| State | Code | Entry Conditions | Actor | Terminal | Cancellation by Member |
-|---|---|---|---|---|---|
-| CONFIRMED | `CONFIRMED` | iPoint debited, order created | System | No | ❌ Prohibited (OD-11) |
-| PROCESSING | `PROCESSING` | Fulfilment initiated | System, Admin | No | ❌ |
-| READY_FOR_PICKUP | `READY_FOR_PICKUP` | Item ready at pickup location | Admin, System | No | ❌ |
-| BACKORDERED | `BACKORDERED` | Out of stock, backorder allowed and accepted | System | No | ❌ |
-| FULFILMENT_SUSPENDED | `FULFILMENT_SUSPENDED` | Member suspended (OD-28), existing orders paused | System | No | ❌ |
-| FULFILMENT_EXCEPTION | `FULFILMENT_EXCEPTION` | Fulfilment failed (max retries or non-retryable) | System | No | ❌ |
-| REFUND_PENDING | `REFUND_PENDING` | Admin Maker/Checker refund initiated | Admin (Checker) | No | ❌ |
-| REFUNDED | `REFUNDED` | Wallet refund compensating entry created | System | ✅ | N/A |
-| FULFILLED | `FULFILLED` | Item delivered/picked up/voucher claimed | System, Admin | ✅ | N/A |
+| State                | Code                   | Entry Conditions                                 | Actor           | Terminal | Cancellation by Member |
+| -------------------- | ---------------------- | ------------------------------------------------ | --------------- | -------- | ---------------------- |
+| CONFIRMED            | `CONFIRMED`            | iPoint debited, order created                    | System          | No       | ❌ Prohibited (OD-11)  |
+| PROCESSING           | `PROCESSING`           | Fulfilment initiated                             | System, Admin   | No       | ❌                     |
+| READY_FOR_PICKUP     | `READY_FOR_PICKUP`     | Item ready at pickup location                    | Admin, System   | No       | ❌                     |
+| BACKORDERED          | `BACKORDERED`          | Out of stock, backorder allowed and accepted     | System          | No       | ❌                     |
+| FULFILMENT_SUSPENDED | `FULFILMENT_SUSPENDED` | Member suspended (OD-28), existing orders paused | System          | No       | ❌                     |
+| FULFILMENT_EXCEPTION | `FULFILMENT_EXCEPTION` | Fulfilment failed (max retries or non-retryable) | System          | No       | ❌                     |
+| REFUND_PENDING       | `REFUND_PENDING`       | Admin Maker/Checker refund initiated             | Admin (Checker) | No       | ❌                     |
+| REFUNDED             | `REFUNDED`             | Wallet refund compensating entry created         | System          | ✅       | N/A                    |
+| FULFILLED            | `FULFILLED`            | Item delivered/picked up/voucher claimed         | System, Admin   | ✅       | N/A                    |
 
 ### 20.3 State Transition Rules
 
-| From | To | Wallet Effect | Inventory Effect | Notes |
-|---|---|---|---|---|
-| CONFIRMED | PROCESSING | None | None | Fulfilment starts |
-| CONFIRMED | BACKORDERED | None (already debited) | Backorder count incremented | Item configured for backorder |
-| CONFIRMED | FULFILMENT_SUSPENDED | None | None | Member suspended |
-| CONFIRMED | FULFILLED | None | Inventory decremented | Digital auto-fulfilment |
-| PROCESSING | READY_FOR_PICKUP | None | None | Pickup ready |
-| PROCESSING | FULFILLED | None | None | Physical shipped/picked up |
-| PROCESSING | FULFILMENT_EXCEPTION | None | None | Retry max reached or non-retryable |
-| PROCESSING | FULFILMENT_SUSPENDED | None | None | Member suspended during processing |
-| BACKORDERED | PROCESSING | None | Inventory decremented | Restock received |
-| BACKORDERED | FULFILMENT_SUSPENDED | None | None | Member suspended during backorder |
-| READY_FOR_PICKUP | FULFILLED | None | None | Picked up |
-| FULFILMENT_SUSPENDED | PROCESSING | None | None | Member restored — resume |
-| FULFILMENT_SUSPENDED | READY_FOR_PICKUP | None | None | Resume pickup state |
-| FULFILMENT_EXCEPTION | REFUND_PENDING | None | None | Admin initiates refund |
-| FULFILMENT_SUSPENDED | REFUND_PENDING | None | None | Admin initiates refund for suspended |
-| REFUND_PENDING | REFUNDED | +refund_amount (REDEMPTION_REFUND) | Restored (if applicable) | Exact opposite of original debit |
-| FULFILMENT_EXCEPTION | REFUNDED | +refund_amount | Restored | After Maker/Checker approval |
+| From                 | To                   | Wallet Effect                      | Inventory Effect            | Notes                                |
+| -------------------- | -------------------- | ---------------------------------- | --------------------------- | ------------------------------------ |
+| CONFIRMED            | PROCESSING           | None                               | None                        | Fulfilment starts                    |
+| CONFIRMED            | BACKORDERED          | None (already debited)             | Backorder count incremented | Item configured for backorder        |
+| CONFIRMED            | FULFILMENT_SUSPENDED | None                               | None                        | Member suspended                     |
+| CONFIRMED            | FULFILLED            | None                               | Inventory decremented       | Digital auto-fulfilment              |
+| PROCESSING           | READY_FOR_PICKUP     | None                               | None                        | Pickup ready                         |
+| PROCESSING           | FULFILLED            | None                               | None                        | Physical shipped/picked up           |
+| PROCESSING           | FULFILMENT_EXCEPTION | None                               | None                        | Retry max reached or non-retryable   |
+| PROCESSING           | FULFILMENT_SUSPENDED | None                               | None                        | Member suspended during processing   |
+| BACKORDERED          | PROCESSING           | None                               | Inventory decremented       | Restock received                     |
+| BACKORDERED          | FULFILMENT_SUSPENDED | None                               | None                        | Member suspended during backorder    |
+| READY_FOR_PICKUP     | FULFILLED            | None                               | None                        | Picked up                            |
+| FULFILMENT_SUSPENDED | PROCESSING           | None                               | None                        | Member restored — resume             |
+| FULFILMENT_SUSPENDED | READY_FOR_PICKUP     | None                               | None                        | Resume pickup state                  |
+| FULFILMENT_EXCEPTION | REFUND_PENDING       | None                               | None                        | Admin initiates refund               |
+| FULFILMENT_SUSPENDED | REFUND_PENDING       | None                               | None                        | Admin initiates refund for suspended |
+| REFUND_PENDING       | REFUNDED             | +refund_amount (REDEMPTION_REFUND) | Restored (if applicable)    | Exact opposite of original debit     |
+| FULFILMENT_EXCEPTION | REFUNDED             | +refund_amount                     | Restored                    | After Maker/Checker approval         |
 
 ### 20.4 Key Rules
 
-| Rule | Detail |
-|---|---|
-| **No member cancellation** | After Confirm + Debit, member may NEVER cancel. Returns `REDEMPTION_ORDER_NOT_CANCELLABLE`. |
-| **Quote not an Order** | Abandoning a quote is not cancellation. No wallet effect. |
-| **Auto-refund prohibited** | No automatic iPoint refund on any failure. Admin Maker/Checker required. |
-| **Original debit immutable** | Refund creates compensating `REDEMPTION_REFUND`. Original `REDEMPTION_DEBIT` is never modified. |
-| **FULFILMENT_EXCEPTION** | After 3 retries or non-retryable failure. Admin review required. No auto-refund. |
-| **REFUND_PENDING** | NOT terminal. Wallet ledger must succeed before REFUNDED. |
-| **REFUNDED** | Terminal. Exact opposite of original debit. Full refund only. |
-| **FULFILLED** | Terminal. No rollback. |
-| **FULFILMENT_SUSPENDED** | Resume to previous state when member restored. |
-| **Backorder debit immediate** | Points debited on confirm. No cancellation. |
+| Rule                          | Detail                                                                                          |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| **No member cancellation**    | After Confirm + Debit, member may NEVER cancel. Returns `REDEMPTION_ORDER_NOT_CANCELLABLE`.     |
+| **Quote not an Order**        | Abandoning a quote is not cancellation. No wallet effect.                                       |
+| **Auto-refund prohibited**    | No automatic iPoint refund on any failure. Admin Maker/Checker required.                        |
+| **Original debit immutable**  | Refund creates compensating `REDEMPTION_REFUND`. Original `REDEMPTION_DEBIT` is never modified. |
+| **FULFILMENT_EXCEPTION**      | After 3 retries or non-retryable failure. Admin review required. No auto-refund.                |
+| **REFUND_PENDING**            | NOT terminal. Wallet ledger must succeed before REFUNDED.                                       |
+| **REFUNDED**                  | Terminal. Exact opposite of original debit. Full refund only.                                   |
+| **FULFILLED**                 | Terminal. No rollback.                                                                          |
+| **FULFILMENT_SUSPENDED**      | Resume to previous state when member restored.                                                  |
+| **Backorder debit immediate** | Points debited on confirm. No cancellation.                                                     |
 
 ## 21. Inventory
 
@@ -959,11 +963,11 @@ Quote is NOT an Order. Waitlist is NOT an Order. The Order state machine starts 
 
 Three inventory modes are supported:
 
-| Mode | Description | Applicable Items |
-|---|---|---|
-| `UNLIMITED` | No inventory tracking; any quantity is available | Digital vouchers (typically) |
-| `TRACKED` | Physical inventory is tracked; available = total - reserved - fulfilled | Physical goods |
-| `ON_DEMAND` | No pre-existing inventory; item is produced on order | Service items, made-to-order items |
+| Mode        | Description                                                             | Applicable Items                   |
+| ----------- | ----------------------------------------------------------------------- | ---------------------------------- |
+| `UNLIMITED` | No inventory tracking; any quantity is available                        | Digital vouchers (typically)       |
+| `TRACKED`   | Physical inventory is tracked; available = total - reserved - fulfilled | Physical goods                     |
+| `ON_DEMAND` | No pre-existing inventory; item is produced on order                    | Service items, made-to-order items |
 
 ### 21.2 Inventory Table (Design)
 
@@ -984,14 +988,14 @@ Computed: available_quantity = total_quantity - reserved_quantity - fulfilled_qu
 
 If Option B (reservation) is adopted:
 
-| Operation | Effect |
-|---|---|
-| Quote | No inventory reservation |
-| Confirm (with reservation) | `reserved_quantity += quantity` |
-| Confirm final | `reserved_quantity -= quantity; fulfilled_quantity += quantity` |
-| Cancellation (before fulfilment) | `reserved_quantity -= quantity` |
+| Operation                               | Effect                                                                    |
+| --------------------------------------- | ------------------------------------------------------------------------- |
+| Quote                                   | No inventory reservation                                                  |
+| Confirm (with reservation)              | `reserved_quantity += quantity`                                           |
+| Confirm final                           | `reserved_quantity -= quantity; fulfilled_quantity += quantity`           |
+| Cancellation (before fulfilment)        | `reserved_quantity -= quantity`                                           |
 | Cancellation (after fulfilment started) | `fulfilled_quantity -= quantity` (or kept, depending on item return rule) |
-| Reservation expiry | `reserved_quantity -= quantity` |
+| Reservation expiry                      | `reserved_quantity -= quantity`                                           |
 
 ---
 
@@ -999,15 +1003,16 @@ If Option B (reservation) is adopted:
 
 ### 22.1 Oversell Prevention
 
-| Mechanism | Description |
-|---|---|
-| **Optimistic lock** | `redemption_inventory.version` is checked during updates. If another transaction modified the inventory concurrently, the current transaction fails with `REDEMPTION_INVENTORY_VERSION_CONFLICT`. |
-| **CHECK constraint** | `CHECK(reserved_quantity + fulfilled_quantity <= total_quantity)` for TRACKED items |
-| **Confirm-time recheck** | Even if quote showed sufficient inventory, the confirm step rechecks available inventory |
+| Mechanism                | Description                                                                                                                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Optimistic lock**      | `redemption_inventory.version` is checked during updates. If another transaction modified the inventory concurrently, the current transaction fails with `REDEMPTION_INVENTORY_VERSION_CONFLICT`. |
+| **CHECK constraint**     | `CHECK(reserved_quantity + fulfilled_quantity <= total_quantity)` for TRACKED items                                                                                                               |
+| **Confirm-time recheck** | Even if quote showed sufficient inventory, the confirm step rechecks available inventory                                                                                                          |
 
 ### 22.2 Reservation Expiry (see OD-06)
 
 If reservations are used:
+
 - Reservation TTL is configurable per market (default: 15 minutes)
 - Expired reservations are released by a scheduled job or on-demand check
 - Release flow: `reserved_quantity -= quantity; status = 'EXPIRED'`
@@ -1053,10 +1058,10 @@ redemption_fulfilments
 
 ### 23.3 Shipping Fee (see OD-07)
 
-| Option | Description |
-|---|---|
-| **A: Platform pays** | Shipping cost is borne by iPoint; member only pays points |
-| **B: Member pays** | Member pays shipping fee separately (fiat or additional points) |
+| Option                         | Description                                                          |
+| ------------------------------ | -------------------------------------------------------------------- |
+| **A: Platform pays**           | Shipping cost is borne by iPoint; member only pays points            |
+| **B: Member pays**             | Member pays shipping fee separately (fiat or additional points)      |
 | **C: Free shipping threshold** | Free shipping above a certain point threshold; otherwise member pays |
 
 ---
@@ -1074,18 +1079,18 @@ FULFILLED (instant)
 
 ### 24.2 Digital Fulfilment Types
 
-| Type | Example | Delivery Method |
-|---|---|---|
-| Voucher Code | Promo code, gift card | Display in order history, email |
-| Barcode/QR | Event ticket | Display in member app, downloadable |
-| Claim Link | Digital content download | Link in order history, email |
-| Activation | Service activation (eSIM, subscription) | System-to-system integration |
+| Type         | Example                                 | Delivery Method                     |
+| ------------ | --------------------------------------- | ----------------------------------- |
+| Voucher Code | Promo code, gift card                   | Display in order history, email     |
+| Barcode/QR   | Event ticket                            | Display in member app, downloadable |
+| Claim Link   | Digital content download                | Link in order history, email        |
+| Activation   | Service activation (eSIM, subscription) | System-to-system integration        |
 
 ### 24.3 Voucher Expiry (see OD-09, OD-10)
 
-| Rule | Issue |
-|---|---|
-| Does the voucher itself have an expiry date? | OD-09: Digital Voucher Expiry |
+| Rule                                                            | Issue                         |
+| --------------------------------------------------------------- | ----------------------------- |
+| Does the voucher itself have an expiry date?                    | OD-09: Digital Voucher Expiry |
 | If voucher expires without being used, is a point refund given? | OD-10: Expired Voucher Refund |
 
 ---
@@ -1117,23 +1122,23 @@ FULFILLED (requires completion confirmation)
 
 ### 26.1 Cancellable States (see OD-11)
 
-| State | Member Cancellable? | Admin Cancellable? | System Cancellable? |
-|---|---|---|---|
-| DRAFT | ✅ | ✅ | ✅ (on session expiry) |
-| QUOTED | ✅ | ✅ | ✅ (on quote expiry) |
-| RESERVED (FLOW B) | ✅ (before debit) | ✅ | ✅ (on reservation expiry) |
-| CONFIRMED | ❌ (OD-11 PENDING) | ✅ | ❌ |
-| PROCESSING | ❌ | ✅ | ✅ (on failure) |
-| FULFILLED | ❌ | ❌ (post-fulfilment) | ❌ |
-| FAILED | ❌ | ✅ (triggers refund) | ✅ (auto-refund if configured) |
+| State             | Member Cancellable? | Admin Cancellable?   | System Cancellable?            |
+| ----------------- | ------------------- | -------------------- | ------------------------------ |
+| DRAFT             | ✅                  | ✅                   | ✅ (on session expiry)         |
+| QUOTED            | ✅                  | ✅                   | ✅ (on quote expiry)           |
+| RESERVED (FLOW B) | ✅ (before debit)   | ✅                   | ✅ (on reservation expiry)     |
+| CONFIRMED         | ❌ (OD-11 PENDING)  | ✅                   | ❌                             |
+| PROCESSING        | ❌                  | ✅                   | ✅ (on failure)                |
+| FULFILLED         | ❌                  | ❌ (post-fulfilment) | ❌                             |
+| FAILED            | ❌                  | ✅ (triggers refund) | ✅ (auto-refund if configured) |
 
 ### 26.2 Cancellation Pre-conditions
 
-| Before debit | After debit |
-|---|---|
-| No wallet action needed | Wallet refund required |
+| Before debit                  | After debit                                   |
+| ----------------------------- | --------------------------------------------- |
+| No wallet action needed       | Wallet refund required                        |
 | Release inventory reservation | Restore inventory (if item not yet fulfilled) |
-| No points returned | Full point refund via compensating entry |
+| No points returned            | Full point refund via compensating entry      |
 
 ### 26.3 Cancellation Wallet Effect
 
@@ -1147,12 +1152,12 @@ FULFILLED (requires completion confirmation)
 
 ### 27.1 Refund Rules
 
-| Rule | Value |
-|---|---|
-| **Full Refund** | Exact opposite of original debit amount. Fully supported. |
-| **Partial Refund** | OD-12 PENDING. If approved, refund portion only. |
+| Rule                            | Value                                                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Full Refund**                 | Exact opposite of original debit amount. Fully supported.                                               |
+| **Partial Refund**              | OD-12 PENDING. If approved, refund portion only.                                                        |
 | **Original Debit Immutability** | Original `REDEMPTION_DEBIT` entry is NEVER modified. Refund creates separate `REDEMPTION_REFUND` entry. |
-| **Refund Idempotency** | Each refund request has a unique idempotency key. Duplicate requests return the same result. |
+| **Refund Idempotency**          | Each refund request has a unique idempotency key. Duplicate requests return the same result.            |
 
 ### 27.2 Refund Flow
 
@@ -1172,6 +1177,7 @@ FULFILLED (requires completion confirmation)
 ### 27.3 Out-of-stock Auto Refund (see OD-13)
 
 If an order is confirmed but subsequently discovered to be out of stock:
+
 - Automatic cancellation + full refund
 - Notified to member with reason
 
@@ -1183,35 +1189,35 @@ If an order is confirmed but subsequently discovered to be out of stock:
 
 **LOCKED (inherited from Member PRD V1.0 and Design System):**
 
-| Requirement | Rule |
-|---|---|
-| **KYC Level 2** | Required before redemption. Enforcement point defined in OD-15. |
+| Requirement       | Rule                                                                                                                                            |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **KYC Level 2**   | Required before redemption. Enforcement point defined in OD-15.                                                                                 |
 | **KYC downgrade** | If member's KYC is downgraded after order confirmation, existing confirmed/filled orders are NOT affected. New redemption attempts are blocked. |
 
 ### 28.2 Member Status Checks
 
-| Member Status | Redemption Allowed? |
-|---|---|
-| ACTIVE | ✅ |
-| SUSPENDED | ❌ (existing confirmed orders continue through fulfilment) |
-| CLOSED | ❌ (pending refunds are processed; no new orders) |
-| PENDING_KYC | ❌ |
+| Member Status | Redemption Allowed?                                        |
+| ------------- | ---------------------------------------------------------- |
+| ACTIVE        | ✅                                                         |
+| SUSPENDED     | ❌ (existing confirmed orders continue through fulfilment) |
+| CLOSED        | ❌ (pending refunds are processed; no new orders)          |
+| PENDING_KYC   | ❌                                                         |
 
 ### 28.3 Eligibility at Confirm Time
 
 The following eligibility checks are performed atomically at confirm time:
 
-| Check | Rejection Code |
-|---|---|
-| Member exists and is ACTIVE | `REDEMPTION_MEMBER_NOT_ACTIVE` |
-| KYC Level 2 completed (if OD-15 Option B) | `REDEMPTION_KYC_LEVEL_2_REQUIRED` |
-| Member not SUSPENDED or CLOSED | `REDEMPTION_MEMBER_SUSPENDED` or `REDEMPTION_MEMBER_CLOSED` |
-| Item is active in current market's catalog | `REDEMPTION_ITEM_NOT_ACTIVE` |
-| Item effective_from <= now <= effective_until | `REDEMPTION_ITEM_NOT_AVAILABLE` |
-| Inventory sufficient (for TRACKED items) | `REDEMPTION_INVENTORY_INSUFFICIENT` |
-| Wallet balance >= total point cost | `REDEMPTION_BALANCE_INSUFFICIENT` |
-| Daily/monthly limit not exceeded | `REDEMPTION_LIMIT_EXCEEDED` |
-| Quote is valid (not expired, version matches) | `REDEMPTION_QUOTE_EXPIRED` or `REDEMPTION_QUOTE_STALE` |
+| Check                                         | Rejection Code                                              |
+| --------------------------------------------- | ----------------------------------------------------------- |
+| Member exists and is ACTIVE                   | `REDEMPTION_MEMBER_NOT_ACTIVE`                              |
+| KYC Level 2 completed (if OD-15 Option B)     | `REDEMPTION_KYC_LEVEL_2_REQUIRED`                           |
+| Member not SUSPENDED or CLOSED                | `REDEMPTION_MEMBER_SUSPENDED` or `REDEMPTION_MEMBER_CLOSED` |
+| Item is active in current market's catalog    | `REDEMPTION_ITEM_NOT_ACTIVE`                                |
+| Item effective_from <= now <= effective_until | `REDEMPTION_ITEM_NOT_AVAILABLE`                             |
+| Inventory sufficient (for TRACKED items)      | `REDEMPTION_INVENTORY_INSUFFICIENT`                         |
+| Wallet balance >= total point cost            | `REDEMPTION_BALANCE_INSUFFICIENT`                           |
+| Daily/monthly limit not exceeded              | `REDEMPTION_LIMIT_EXCEEDED`                                 |
+| Quote is valid (not expired, version matches) | `REDEMPTION_QUOTE_EXPIRED` or `REDEMPTION_QUOTE_STALE`      |
 
 ---
 
@@ -1235,39 +1241,39 @@ Not applicable — limits not implemented in MVP (OD-19).---
 
 ### 30.1 Catalog Management
 
-| Operation | Description | Maker/Checker Needed? |
-|---|---|---|
-| Create catalog item | Add new item to market catalog | No (OD-18 PENDING) |
-| Update item details | Change name, description, image | No |
-| Update item point cost | Change point cost (new version) | No |
-| Enable/disable item | Toggle `is_active` | No |
-| Delete item (soft) | Set effective_until to past | No |
+| Operation              | Description                     | Maker/Checker Needed? |
+| ---------------------- | ------------------------------- | --------------------- |
+| Create catalog item    | Add new item to market catalog  | No (OD-18 PENDING)    |
+| Update item details    | Change name, description, image | No                    |
+| Update item point cost | Change point cost (new version) | No                    |
+| Enable/disable item    | Toggle `is_active`              | No                    |
+| Delete item (soft)     | Set effective_until to past     | No                    |
 
 ### 30.2 Rate Management
 
-| Operation | Description | Maker/Checker Needed? |
-|---|---|---|
-| Create new rate version | Add new rate with effective_from | No |
-| Supersede rate | End current rate and activate new rate | No |
-| Cancel pending rate | Remove a rate that hasn't taken effect | No |
+| Operation               | Description                            | Maker/Checker Needed? |
+| ----------------------- | -------------------------------------- | --------------------- |
+| Create new rate version | Add new rate with effective_from       | No                    |
+| Supersede rate          | End current rate and activate new rate | No                    |
+| Cancel pending rate     | Remove a rate that hasn't taken effect | No                    |
 
 ### 30.3 Inventory Management
 
-| Operation | Description | Maker/Checker Needed? |
-|---|---|---|
-| Adjust inventory | Increase/decrease total_quantity | OD-18 PENDING |
-| Force release reservation | Release a stuck reservation | No |
-| Override available | Directly set available count | OD-18 PENDING |
+| Operation                 | Description                      | Maker/Checker Needed? |
+| ------------------------- | -------------------------------- | --------------------- |
+| Adjust inventory          | Increase/decrease total_quantity | OD-18 PENDING         |
+| Force release reservation | Release a stuck reservation      | No                    |
+| Override available        | Directly set available count     | OD-18 PENDING         |
 
 ### 30.4 Order Administration
 
-| Operation | Description |
-|---|---|
-| View all orders | Admin sees all orders across all members (with privacy projection — Section 38) |
-| Cancel order | Admin can cancel any order in eligible states |
-| Trigger refund | Admin can initiate refund for confirmed orders |
-| Update fulfilment status | Admin can manually update fulfilment tracking |
-| Force fulfil | Admin can mark a digital item as fulfilled |
+| Operation                | Description                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------- |
+| View all orders          | Admin sees all orders across all members (with privacy projection — Section 38) |
+| Cancel order             | Admin can cancel any order in eligible states                                   |
+| Trigger refund           | Admin can initiate refund for confirmed orders                                  |
+| Update fulfilment status | Admin can manually update fulfilment tracking                                   |
+| Force fulfil             | Admin can mark a digital item as fulfilled                                      |
 
 ### 30.5 Rate Effective Time Administration
 
@@ -1285,18 +1291,19 @@ Rate changes follow the same pattern as Phase 3 reward rule versions:
 ### 31.1 Current Rule (inherited from D-005 / Admin PRD)
 
 **LOCKED (Admin PRD D-05):** Maker/Checker is mandatory only for:
+
 1. **Manual MCP adjustments** (Phase 1)
 2. **Manual iPoint wallet adjustments** (Phase 7)
 
 ### 31.2 Phase 6 Consideration
 
-| Operation | Maker/Checker Needed? | OD Reference |
-|---|---|---|
-| Refund (admin-initiated) | OD-17 PENDING | OD-17 |
-| Inventory adjustment | OD-18 PENDING | OD-18 |
-| Catalog item creation/update | Not recommended (low risk) | — |
-| Rate change | Not recommended (prospective only) | — |
-| Manual order modification | Not recommended | — |
+| Operation                    | Maker/Checker Needed?              | OD Reference |
+| ---------------------------- | ---------------------------------- | ------------ |
+| Refund (admin-initiated)     | OD-17 PENDING                      | OD-17        |
+| Inventory adjustment         | OD-18 PENDING                      | OD-18        |
+| Catalog item creation/update | Not recommended (low risk)         | —            |
+| Rate change                  | Not recommended (prospective only) | —            |
+| Manual order modification    | Not recommended                    | —            |
 
 ---
 
@@ -1306,22 +1313,22 @@ Rate changes follow the same pattern as Phase 3 reward rule versions:
 
 Inheriting the domain-specific idempotency pattern from Phase 3/4.
 
-| Operation | Idempotency Key | Guarantee |
-|---|---|---|
-| Quote generation | `quote:{member_id}:{item_id}:{quantity}` | Same quote returned for same params |
+| Operation                  | Idempotency Key                            | Guarantee                              |
+| -------------------------- | ------------------------------------------ | -------------------------------------- |
+| Quote generation           | `quote:{member_id}:{item_id}:{quantity}`   | Same quote returned for same params    |
 | Point reservation (FLOW B) | `reserve:{member_id}:{item_id}:{quote_id}` | One active reservation per member-item |
-| Order confirmation | `confirm:{quote_id}` | One confirmed order per quote |
-| Refund | `refund:{order_id}:{admin_id}` | One refund per order (full) |
-| Cancellation | `cancel:{order_id}` | One cancellation per order |
-| Inventory adjustment | `inventory:{item_id}:{timestamp}` | One inventory change per operation |
+| Order confirmation         | `confirm:{quote_id}`                       | One confirmed order per quote          |
+| Refund                     | `refund:{order_id}:{admin_id}`             | One refund per order (full)            |
+| Cancellation               | `cancel:{order_id}`                        | One cancellation per order             |
+| Inventory adjustment       | `inventory:{item_id}:{timestamp}`          | One inventory change per operation     |
 
 ### 32.2 Idempotency Mismatch Rule
 
 **FROZEN rule:**
 
-| Scenario | Outcome |
-|---|---|
-| Same idempotency key + same payload | Return exact original result (idempotent replay) |
+| Scenario                                 | Outcome                                                                                                                     |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Same idempotency key + same payload      | Return exact original result (idempotent replay)                                                                            |
 | Same idempotency key + different payload | **REJECT** with `REDEMPTION_IDEMPOTENCY_MISMATCH` (HTTP 409). No wallet mutation. No inventory mutation. No order mutation. |
 
 This is a hard rule — no CONFIGURABLE escape. Idempotency is a security and correctness invariant.
@@ -1332,11 +1339,11 @@ This is a hard rule — no CONFIGURABLE escape. Idempotency is a security and co
 - No separate centralized idempotency table required for Phase 6
 - UNIQUE constraints:
 
-| Table | Constraints |
-|---|---|
-| `redemption_reservations` | `UNIQUE(member_id, item_id)` where status = 'ACTIVE' |
-| `redemption_orders` | `UNIQUE(quote_id)` — one order per successful quote |
-| `member_wallet_entries` | `UNIQUE(account_id, idempotency_key)` — existing Phase 3 constraint |
+| Table                     | Constraints                                                         |
+| ------------------------- | ------------------------------------------------------------------- |
+| `redemption_reservations` | `UNIQUE(member_id, item_id)` where status = 'ACTIVE'                |
+| `redemption_orders`       | `UNIQUE(quote_id)` — one order per successful quote                 |
+| `member_wallet_entries`   | `UNIQUE(account_id, idempotency_key)` — existing Phase 3 constraint |
 
 ---
 
@@ -1344,15 +1351,15 @@ This is a hard rule — no CONFIGURABLE escape. Idempotency is a security and co
 
 ### 33.1 Race Conditions
 
-| Race | Scenario | Prevention |
-|---|---|---|
-| **Wallet Balance Race** | Two concurrent confirm attempts from the same wallet | Lock wallet account before balance check |
-| **Inventory Oversell** | Two concurrent confirm attempts for the same item | Lock inventory record before decrement |
-| **Duplicate Confirm** | Same quote confirmed twice | UNIQUE constraint on `redemption_orders(quote_id)` |
-| **Duplicate Cancellation** | Same order cancelled twice | Idempotency on `cancel:{order_id}` |
-| **Duplicate Refund** | Same order refunded twice | UNIQUE constraint on wallet `reversal_of` + `entry_type` = 'REDEMPTION_REFUND' |
-| **Reservation Expiry Race** | Reservation expires while confirm is in progress | Use `expires_at` + advisory lock; confirm checks expiry within the transaction |
-| **Admin Manual Action Race** | Admin modifies inventory while confirm is in progress | Optimistic locking on `redemption_inventory.version` |
+| Race                         | Scenario                                              | Prevention                                                                     |
+| ---------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Wallet Balance Race**      | Two concurrent confirm attempts from the same wallet  | Lock wallet account before balance check                                       |
+| **Inventory Oversell**       | Two concurrent confirm attempts for the same item     | Lock inventory record before decrement                                         |
+| **Duplicate Confirm**        | Same quote confirmed twice                            | UNIQUE constraint on `redemption_orders(quote_id)`                             |
+| **Duplicate Cancellation**   | Same order cancelled twice                            | Idempotency on `cancel:{order_id}`                                             |
+| **Duplicate Refund**         | Same order refunded twice                             | UNIQUE constraint on wallet `reversal_of` + `entry_type` = 'REDEMPTION_REFUND' |
+| **Reservation Expiry Race**  | Reservation expires while confirm is in progress      | Use `expires_at` + advisory lock; confirm checks expiry within the transaction |
+| **Admin Manual Action Race** | Admin modifies inventory while confirm is in progress | Optimistic locking on `redemption_inventory.version`                           |
 
 ### 33.2 Concurrent Confirm Mitigation
 
@@ -1429,6 +1436,7 @@ Phase 3 Lock Order:
 ```
 
 **Both Phase 3 and Phase 6 acquire the wallet advisory lock on `wallet_account.id`.** This is the shared resource. A read-only code audit is required during P6-S1 to:
+
 1. Verify the exact Phase 3 wallet lock acquisition point (function name, lock type, duration).
 2. Confirm that Phase 6 and Phase 3 never hold conflicting locks when acquiring the wallet lock.
 3. Confirm that `lock_timeout = '3s'` applies to both paths.
@@ -1439,12 +1447,14 @@ Phase 3 Lock Order:
 ### 34.4 Phase 4 / Phase 5 Compatibility
 
 Phase 4 lock ordering (transaction confirm):
+
 1. Transaction ID lock
 2. MCP Account
 3. MCP Ledger
 4. Commission processing
 
 Phase 5 lock ordering (commission calculation):
+
 1. Commission Rate Version
 2. Commission Ledger
 3. Agent Activation Status
@@ -1525,26 +1535,30 @@ BEGIN TRANSACTION
   ├── (G) INSERT audit log entry
 COMMIT
 ```
+
 ├── (E) Restore inventory (if applicable)
 ├── (F) Insert audit log entry
 COMMIT
+
 ```
 
 ### 35.3 Cancellation Boundary
 
 ```
+
 BEGIN TRANSACTION
 ├── (A) Validate cancellation request
 ├── (B) IF points already debited:
-│   ├── Create refund wallet entry
-│   └── Update wallet account balance
+│ ├── Create refund wallet entry
+│ └── Update wallet account balance
 ├── (C) IF points reserved (not yet debited):
-│   └── Release reservation (no wallet entry needed)
+│ └── Release reservation (no wallet entry needed)
 ├── (D) Restore inventory (if previously reserved/decremented)
 ├── (E) Update order status (CANCELLED)
 ├── (F) Insert audit log entry
 COMMIT
-```
+
+````
 
 ---
 
@@ -1683,7 +1697,7 @@ CREATE TABLE redemption_catalog_items (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-```
+````
 
 #### `redemption_inventory`
 
@@ -1727,7 +1741,6 @@ CREATE TABLE redemption_rate_versions (
 #### `redemption_reservations`
 
 NOT APPLICABLE. Point reservation is not used in MVP (OD-05). This table is not implemented.
-
 
 #### `redemption_orders`
 
@@ -1818,30 +1831,30 @@ To the existing `member_wallet_entries` table, add two new `entry_type` values:
 
 ### 41.1 Unique Constraints
 
-| Table | Constraint | Purpose |
-|---|---|---|
-| `redemption_catalog_items` | `(market_id, sku)` — unique where non-null | SKU uniqueness per market |
-| `redemption_inventory` | `(item_id)` — unique | One inventory record per item |
-| `redemption_rate_versions` | `(market_id)` where status = 'ACTIVE' | Only one active rate per market |
-| `redemption_reservations` | NOT APPLICABLE for MVP | Reservation not used |
-| `redemption_orders` | `(order_number)` | Unique order number |
-| `redemption_orders` | `(quote_id)` — unique where non-null | One order per confirmed quote |
-| `redemption_member_limits` | `(member_id, market_id, local_date, period_type)` | One limit record per period |
+| Table                      | Constraint                                        | Purpose                         |
+| -------------------------- | ------------------------------------------------- | ------------------------------- |
+| `redemption_catalog_items` | `(market_id, sku)` — unique where non-null        | SKU uniqueness per market       |
+| `redemption_inventory`     | `(item_id)` — unique                              | One inventory record per item   |
+| `redemption_rate_versions` | `(market_id)` where status = 'ACTIVE'             | Only one active rate per market |
+| `redemption_reservations`  | NOT APPLICABLE for MVP                            | Reservation not used            |
+| `redemption_orders`        | `(order_number)`                                  | Unique order number             |
+| `redemption_orders`        | `(quote_id)` — unique where non-null              | One order per confirmed quote   |
+| `redemption_member_limits` | `(member_id, market_id, local_date, period_type)` | One limit record per period     |
 
 ### 41.2 Index Strategy
 
-| Table | Index | Type | Purpose |
-|---|---|---|---|
-| `redemption_catalog_items` | `(market_id, is_active)` | B-tree | Catalog browsing by market |
-| `redemption_catalog_items` | `(merchant_id)` | B-tree | Merchant-owned items lookup |
-| `redemption_catalog_items` | `(tags)` | GIN | Tag-based search |
-| `redemption_orders` | `(member_id, created_at)` | B-tree | Member order history |
-| `redemption_orders` | `(status)` | Partial (where not terminal) | Active orders by status |
-| `redemption_orders` | `(item_id, created_at)` | B-tree | Item popularity analysis |
-| `redemption_reservations` | NOT APPLICABLE for MVP | Reservation not used |
-| `redemption_fulfilments` | `(status)` | B-tree | Pending fulfilment queue |
-| `redemption_member_limits` | `(member_id, market_id, period_type)` | B-tree | Limit check queries |
-| `redemption_rate_versions` | `(market_id, effective_from)` | B-tree | Rate version lookup |
+| Table                      | Index                                 | Type                         | Purpose                     |
+| -------------------------- | ------------------------------------- | ---------------------------- | --------------------------- |
+| `redemption_catalog_items` | `(market_id, is_active)`              | B-tree                       | Catalog browsing by market  |
+| `redemption_catalog_items` | `(merchant_id)`                       | B-tree                       | Merchant-owned items lookup |
+| `redemption_catalog_items` | `(tags)`                              | GIN                          | Tag-based search            |
+| `redemption_orders`        | `(member_id, created_at)`             | B-tree                       | Member order history        |
+| `redemption_orders`        | `(status)`                            | Partial (where not terminal) | Active orders by status     |
+| `redemption_orders`        | `(item_id, created_at)`               | B-tree                       | Item popularity analysis    |
+| `redemption_reservations`  | NOT APPLICABLE for MVP                | Reservation not used         |
+| `redemption_fulfilments`   | `(status)`                            | B-tree                       | Pending fulfilment queue    |
+| `redemption_member_limits` | `(member_id, market_id, period_type)` | B-tree                       | Limit check queries         |
+| `redemption_rate_versions` | `(market_id, effective_from)`         | B-tree                       | Rate version lookup         |
 
 ---
 
@@ -1849,73 +1862,73 @@ To the existing `member_wallet_entries` table, add two new `entry_type` values:
 
 ### 42.1 Member APIs
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/v1/redemption/catalog` | Browse active catalog for current market (filterable by type, tags) |
-| `GET` | `/api/v1/redemption/catalog/:itemId` | Get item details |
-| `GET` | `/api/v1/redemption/catalog/:itemId/quote?quantity=N` | Generate quote for item |
-| `POST` | `/api/v1/redemption/orders` | Create redemption order (confirm after quote) |
-| `GET` | `/api/v1/redemption/orders` | List member's redemption orders (paginated) |
-| `GET` | `/api/v1/redemption/orders/:orderId` | Get order details |
-| `POST` | `/api/v1/redemption/orders/:orderId/cancel` | Cancel an order (if eligible) |
-| `GET` | `/api/v1/redemption/orders/:orderId/fulfilment` | Get fulfilment status |
+| Method | Endpoint                                              | Description                                                         |
+| ------ | ----------------------------------------------------- | ------------------------------------------------------------------- |
+| `GET`  | `/api/v1/redemption/catalog`                          | Browse active catalog for current market (filterable by type, tags) |
+| `GET`  | `/api/v1/redemption/catalog/:itemId`                  | Get item details                                                    |
+| `GET`  | `/api/v1/redemption/catalog/:itemId/quote?quantity=N` | Generate quote for item                                             |
+| `POST` | `/api/v1/redemption/orders`                           | Create redemption order (confirm after quote)                       |
+| `GET`  | `/api/v1/redemption/orders`                           | List member's redemption orders (paginated)                         |
+| `GET`  | `/api/v1/redemption/orders/:orderId`                  | Get order details                                                   |
+| `POST` | `/api/v1/redemption/orders/:orderId/cancel`           | Cancel an order (if eligible)                                       |
+| `GET`  | `/api/v1/redemption/orders/:orderId/fulfilment`       | Get fulfilment status                                               |
 
 ### 42.2 Admin APIs
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/v1/admin/redemption/catalog` | List all catalog items (admin view) |
-| `POST` | `/api/v1/admin/redemption/catalog` | Create catalog item |
-| `PUT` | `/api/v1/admin/redemption/catalog/:itemId` | Update catalog item |
-| `DELETE` | `/api/v1/admin/redemption/catalog/:itemId` | Soft-delete catalog item |
-| `GET` | `/api/v1/admin/redemption/catalog/:itemId/inventory` | Get inventory details |
-| `PUT` | `/api/v1/admin/redemption/catalog/:itemId/inventory` | Adjust inventory |
-| `GET` | `/api/v1/admin/redemption/rates` | List rate versions |
-| `POST` | `/api/v1/admin/redemption/rates` | Create new rate version |
-| `GET` | `/api/v1/admin/redemption/orders` | List all orders (admin view, filtered) |
-| `GET` | `/api/v1/admin/redemption/orders/:orderId` | Get order detail |
-| `POST` | `/api/v1/admin/redemption/orders/:orderId/cancel` | Admin cancel order |
-| `POST` | `/api/v1/admin/redemption/orders/:orderId/refund` | Admin trigger refund |
-| `PUT` | `/api/v1/admin/redemption/orders/:orderId/fulfilment` | Update fulfilment status |
-| `GET` | `/api/v1/admin/redemption/members/:memberId/limits` | View member's limits |
-| `PUT` | `/api/v1/admin/redemption/members/:memberId/limits` | Override member limits |
+| Method   | Endpoint                                              | Description                            |
+| -------- | ----------------------------------------------------- | -------------------------------------- |
+| `GET`    | `/api/v1/admin/redemption/catalog`                    | List all catalog items (admin view)    |
+| `POST`   | `/api/v1/admin/redemption/catalog`                    | Create catalog item                    |
+| `PUT`    | `/api/v1/admin/redemption/catalog/:itemId`            | Update catalog item                    |
+| `DELETE` | `/api/v1/admin/redemption/catalog/:itemId`            | Soft-delete catalog item               |
+| `GET`    | `/api/v1/admin/redemption/catalog/:itemId/inventory`  | Get inventory details                  |
+| `PUT`    | `/api/v1/admin/redemption/catalog/:itemId/inventory`  | Adjust inventory                       |
+| `GET`    | `/api/v1/admin/redemption/rates`                      | List rate versions                     |
+| `POST`   | `/api/v1/admin/redemption/rates`                      | Create new rate version                |
+| `GET`    | `/api/v1/admin/redemption/orders`                     | List all orders (admin view, filtered) |
+| `GET`    | `/api/v1/admin/redemption/orders/:orderId`            | Get order detail                       |
+| `POST`   | `/api/v1/admin/redemption/orders/:orderId/cancel`     | Admin cancel order                     |
+| `POST`   | `/api/v1/admin/redemption/orders/:orderId/refund`     | Admin trigger refund                   |
+| `PUT`    | `/api/v1/admin/redemption/orders/:orderId/fulfilment` | Update fulfilment status               |
+| `GET`    | `/api/v1/admin/redemption/members/:memberId/limits`   | View member's limits                   |
+| `PUT`    | `/api/v1/admin/redemption/members/:memberId/limits`   | Override member limits                 |
 
 ---
 
 ## 43. Error Codes
 
-| HTTP Status | Code | Description |
-|---|---|---|
-| 400 | `REDEMPTION_INVALID_QUANTITY` | Quantity must be > 0 |
-| 400 | `REDEMPTION_INVALID_ITEM_TYPE` | Item type not supported for this operation |
-| 400 | `REDEMPTION_QUOTE_EXPIRED` | Quote has expired; regenerate |
-| 400 | `REDEMPTION_QUOTE_STALE` | Item version changed since quote; regenerate |
-| 400 | `REDEMPTION_ORDER_NOT_CANCELLABLE` | Order is not in a cancellable state |
-| 400 | `REDEMPTION_ORDER_NOT_REFUNDABLE` | Order is not eligible for refund |
-| 400 | `REDEMPTION_ALREADY_CANCELLED` | Order is already cancelled |
-| 400 | `REDEMPTION_ALREADY_REFUNDED` | Order is already refunded |
-| 401 | `REDEMPTION_AUTH_REQUIRED` | Authentication required |
-| 403 | `REDEMPTION_MARKET_ACCESS_DENIED` | Member does not have access to this market's catalog |
-| 403 | `REDEMPTION_KYC_LEVEL_2_REQUIRED` | Member must complete KYC Level 2 before redemption |
-| 403 | `REDEMPTION_MEMBER_NOT_ACTIVE` | Member account is not ACTIVE |
-| 403 | `REDEMPTION_MEMBER_SUSPENDED` | Member account is SUSPENDED |
-| 403 | `REDEMPTION_MEMBER_CLOSED` | Member account is CLOSED |
-| 404 | `REDEMPTION_ITEM_NOT_FOUND` | Catalog item not found |
-| 404 | `REDEMPTION_ORDER_NOT_FOUND` | Redemption order not found |
-| 404 | `REDEMPTION_RATE_NOT_FOUND` | Active redemption rate not found for market |
-| 409 | `REDEMPTION_INVENTORY_INSUFFICIENT` | Not enough inventory available |
-| 409 | `REDEMPTION_BALANCE_INSUFFICIENT` | Insufficient iPoint balance |
-| 409 | `REDEMPTION_LIMIT_EXCEEDED` | Daily or monthly redemption limit exceeded |
-| 409 | `REDEMPTION_INVENTORY_VERSION_CONFLICT` | Inventory was modified by another operation; retry |
-| 409 | `REDEMPTION_RESERVATION_CONFLICT` | Only one active reservation per item allowed |
-| 409 | `REDEMPTION_DUPLICATE_ORDER` | Order for this quote already exists |
-| 409 | `REDEMPTION_LOCK_TIMEOUT` | Could not acquire lock within 3-second timeout |
-| 409 | `REDEMPTION_IDEMPOTENCY_MISMATCH` | Same idempotency key with different payload — rejected |
-| 422 | `REDEMPTION_ITEM_NOT_ACTIVE` | Item is not currently active in catalog |
-| 422 | `REDEMPTION_ITEM_NOT_AVAILABLE` | Item is outside its effective date range |
-| 422 | `REDEMPTION_ITEM_DISABLED` | Item has been disabled by admin |
-| 500 | `REDEMPTION_INTERNAL_ERROR` | Unexpected internal error |
-| 503 | `REDEMPTION_SERVICE_UNAVAILABLE` | Redemption service temporarily unavailable |
+| HTTP Status | Code                                    | Description                                            |
+| ----------- | --------------------------------------- | ------------------------------------------------------ |
+| 400         | `REDEMPTION_INVALID_QUANTITY`           | Quantity must be > 0                                   |
+| 400         | `REDEMPTION_INVALID_ITEM_TYPE`          | Item type not supported for this operation             |
+| 400         | `REDEMPTION_QUOTE_EXPIRED`              | Quote has expired; regenerate                          |
+| 400         | `REDEMPTION_QUOTE_STALE`                | Item version changed since quote; regenerate           |
+| 400         | `REDEMPTION_ORDER_NOT_CANCELLABLE`      | Order is not in a cancellable state                    |
+| 400         | `REDEMPTION_ORDER_NOT_REFUNDABLE`       | Order is not eligible for refund                       |
+| 400         | `REDEMPTION_ALREADY_CANCELLED`          | Order is already cancelled                             |
+| 400         | `REDEMPTION_ALREADY_REFUNDED`           | Order is already refunded                              |
+| 401         | `REDEMPTION_AUTH_REQUIRED`              | Authentication required                                |
+| 403         | `REDEMPTION_MARKET_ACCESS_DENIED`       | Member does not have access to this market's catalog   |
+| 403         | `REDEMPTION_KYC_LEVEL_2_REQUIRED`       | Member must complete KYC Level 2 before redemption     |
+| 403         | `REDEMPTION_MEMBER_NOT_ACTIVE`          | Member account is not ACTIVE                           |
+| 403         | `REDEMPTION_MEMBER_SUSPENDED`           | Member account is SUSPENDED                            |
+| 403         | `REDEMPTION_MEMBER_CLOSED`              | Member account is CLOSED                               |
+| 404         | `REDEMPTION_ITEM_NOT_FOUND`             | Catalog item not found                                 |
+| 404         | `REDEMPTION_ORDER_NOT_FOUND`            | Redemption order not found                             |
+| 404         | `REDEMPTION_RATE_NOT_FOUND`             | Active redemption rate not found for market            |
+| 409         | `REDEMPTION_INVENTORY_INSUFFICIENT`     | Not enough inventory available                         |
+| 409         | `REDEMPTION_BALANCE_INSUFFICIENT`       | Insufficient iPoint balance                            |
+| 409         | `REDEMPTION_LIMIT_EXCEEDED`             | Daily or monthly redemption limit exceeded             |
+| 409         | `REDEMPTION_INVENTORY_VERSION_CONFLICT` | Inventory was modified by another operation; retry     |
+| 409         | `REDEMPTION_RESERVATION_CONFLICT`       | Only one active reservation per item allowed           |
+| 409         | `REDEMPTION_DUPLICATE_ORDER`            | Order for this quote already exists                    |
+| 409         | `REDEMPTION_LOCK_TIMEOUT`               | Could not acquire lock within 3-second timeout         |
+| 409         | `REDEMPTION_IDEMPOTENCY_MISMATCH`       | Same idempotency key with different payload — rejected |
+| 422         | `REDEMPTION_ITEM_NOT_ACTIVE`            | Item is not currently active in catalog                |
+| 422         | `REDEMPTION_ITEM_NOT_AVAILABLE`         | Item is outside its effective date range               |
+| 422         | `REDEMPTION_ITEM_DISABLED`              | Item has been disabled by admin                        |
+| 500         | `REDEMPTION_INTERNAL_ERROR`             | Unexpected internal error                              |
+| 503         | `REDEMPTION_SERVICE_UNAVAILABLE`        | Redemption service temporarily unavailable             |
 
 ---
 
@@ -1923,257 +1936,257 @@ To the existing `member_wallet_entries` table, add two new `entry_type` values:
 
 ### 44.1 Catalog Visibility
 
-| # | Test | Expected |
-|---|---|---|
-| T-01 | Member in Market MY sees MY catalog only | Items from other markets NOT visible |
-| T-02 | Disabled catalog item not visible to members | Item hidden from catalog |
-| T-03 | Expired item (effective_until passed) not visible | Item hidden from catalog |
-| T-04 | Featured items appear with featured indicator | UI shows featured items |
+| #    | Test                                              | Expected                             |
+| ---- | ------------------------------------------------- | ------------------------------------ |
+| T-01 | Member in Market MY sees MY catalog only          | Items from other markets NOT visible |
+| T-02 | Disabled catalog item not visible to members      | Item hidden from catalog             |
+| T-03 | Expired item (effective_until passed) not visible | Item hidden from catalog             |
+| T-04 | Featured items appear with featured indicator     | UI shows featured items              |
 
 ### 44.2 Market Isolation
 
-| # | Test | Expected |
-|---|---|---|
-| T-05 | Member cannot browse SG catalog from MY market | Access denied |
-| T-06 | Admin can browse all market catalogs | Admin sees all markets' items |
+| #    | Test                                           | Expected                               |
+| ---- | ---------------------------------------------- | -------------------------------------- |
+| T-05 | Member cannot browse SG catalog from MY market | Access denied                          |
+| T-06 | Admin can browse all market catalogs           | Admin sees all markets' items          |
 | T-07 | Each market has independent rate configuration | SG rate change does not affect MY rate |
 
 ### 44.3 Rate Snapshot
 
-| # | Test | Expected |
-|---|---|---|
-| T-08 | Rate snapshot is stored in order record | `order.snapshot.rate_value` matches rate at confirm time |
-| T-09 | Rate change after confirm does NOT affect historical order | Historical order retains original rate |
-| T-10 | Rate change before confirm affects new confirm only | New confirms use new rate; old quotes using old rate show REDEMPTION_QUOTE_STALE |
+| #    | Test                                                       | Expected                                                                         |
+| ---- | ---------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| T-08 | Rate snapshot is stored in order record                    | `order.snapshot.rate_value` matches rate at confirm time                         |
+| T-09 | Rate change after confirm does NOT affect historical order | Historical order retains original rate                                           |
+| T-10 | Rate change before confirm affects new confirm only        | New confirms use new rate; old quotes using old rate show REDEMPTION_QUOTE_STALE |
 
 ### 44.4 Quote Expiry
 
-| # | Test | Expected |
-|---|---|---|
-| T-11 | Confirm with valid quote succeeds | Order created successfully |
-| T-12 | Confirm with expired quote rejected | `REDEMPTION_QUOTE_EXPIRED` error |
-| T-13 | Confirm with stale quote (item version changed) rejected | `REDEMPTION_QUOTE_STALE` error |
+| #    | Test                                                     | Expected                         |
+| ---- | -------------------------------------------------------- | -------------------------------- |
+| T-11 | Confirm with valid quote succeeds                        | Order created successfully       |
+| T-12 | Confirm with expired quote rejected                      | `REDEMPTION_QUOTE_EXPIRED` error |
+| T-13 | Confirm with stale quote (item version changed) rejected | `REDEMPTION_QUOTE_STALE` error   |
 
 ### 44.5 Successful Redemption
 
-| # | Test | Expected |
-|---|---|---|
-| T-14 | Member with sufficient balance confirms redemption | Order CONFIRMED, wallet debited, inventory decremented |
-| T-15 | Order creates correct wallet entry | `entry_type = 'REDEMPTION_DEBIT'`, amount = -total_points |
+| #    | Test                                               | Expected                                                  |
+| ---- | -------------------------------------------------- | --------------------------------------------------------- |
+| T-14 | Member with sufficient balance confirms redemption | Order CONFIRMED, wallet debited, inventory decremented    |
+| T-15 | Order creates correct wallet entry                 | `entry_type = 'REDEMPTION_DEBIT'`, amount = -total_points |
 
 ### 44.6 Insufficient Balance
 
-| # | Test | Expected |
-|---|---|---|
-| T-16 | Member with insufficient balance cannot confirm | `REDEMPTION_BALANCE_INSUFFICIENT` error |
-| T-17 | No partial state left on rejection | No wallet entry, no inventory change, no order |
+| #    | Test                                            | Expected                                       |
+| ---- | ----------------------------------------------- | ---------------------------------------------- |
+| T-16 | Member with insufficient balance cannot confirm | `REDEMPTION_BALANCE_INSUFFICIENT` error        |
+| T-17 | No partial state left on rejection              | No wallet entry, no inventory change, no order |
 
 ### 44.7 Concurrent Redemption
 
-| # | Test | Expected |
-|---|---|---|
-| T-18 | Two concurrent confirm attempts for same wallet/balance | Only one succeeds; second fails |
+| #    | Test                                                    | Expected                                    |
+| ---- | ------------------------------------------------------- | ------------------------------------------- |
+| T-18 | Two concurrent confirm attempts for same wallet/balance | Only one succeeds; second fails             |
 | T-19 | Two concurrent confirm attempts for same inventory item | Only one decrements inventory; second fails |
 
 ### 44.8 Inventory Oversell Prevention
 
-| # | Test | Expected |
-|---|---|---|
+| #    | Test                                                  | Expected                                                         |
+| ---- | ----------------------------------------------------- | ---------------------------------------------------------------- |
 | T-20 | Confirm when inventory = 1 with 2 concurrent requests | One succeeds, one fails with `REDEMPTION_INVENTORY_INSUFFICIENT` |
-| T-21 | Confirm after inventory reaches 0 | `REDEMPTION_INVENTORY_INSUFFICIENT` error |
+| T-21 | Confirm after inventory reaches 0                     | `REDEMPTION_INVENTORY_INSUFFICIENT` error                        |
 
 ### 44.9 Idempotent Confirm Replay
 
-| # | Test | Expected |
-|---|---|---|
-| T-22 | Same confirm request sent twice | Same order returned; no duplicate wallet entry |
-| T-23 | Same confirm with idempotency key returns original result | Consistent response |
+| #    | Test                                                      | Expected                                       |
+| ---- | --------------------------------------------------------- | ---------------------------------------------- |
+| T-22 | Same confirm request sent twice                           | Same order returned; no duplicate wallet entry |
+| T-23 | Same confirm with idempotency key returns original result | Consistent response                            |
 
 ### 44.10 Idempotency Mismatch (FROZEN)
 
-| # | Test | Expected |
-|---|---|---|
+| #    | Test                                    | Expected                                                                                                    |
+| ---- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | T-24 | Same idempotency key, different payload | `REDEMPTION_IDEMPOTENCY_MISMATCH` (HTTP 409). No wallet mutation. No inventory mutation. No order mutation. |
 
 ### 44.11 Cancellation
 
-| # | Test | Expected |
-|---|---|---|
-| T-25 | Cancel QUOTED order before debit | Order CANCELLED, no wallet effect |
-| T-26 | Cancel CONFIRMED order | Order CANCELLED, wallet refunded, inventory restored |
-| T-27 | Cancel already-cancelled order | `REDEMPTION_ALREADY_CANCELLED` error |
+| #    | Test                             | Expected                                             |
+| ---- | -------------------------------- | ---------------------------------------------------- |
+| T-25 | Cancel QUOTED order before debit | Order CANCELLED, no wallet effect                    |
+| T-26 | Cancel CONFIRMED order           | Order CANCELLED, wallet refunded, inventory restored |
+| T-27 | Cancel already-cancelled order   | `REDEMPTION_ALREADY_CANCELLED` error                 |
 
 ### 44.12 Reservation Release
 
-| # | Test | Expected |
-|---|---|---|
+| #    | Test                                                          | Expected                     |
+| ---- | ------------------------------------------------------------- | ---------------------------- |
 | T-28 | Expired reservation releases points (conceptual for Option B) | Reservation status = EXPIRED |
-| T-29 | Cancellation before debit releases reservation | Inventory restored |
+| T-29 | Cancellation before debit releases reservation                | Inventory restored           |
 
 ### 44.13 Full Refund
 
-| # | Test | Expected |
-|---|---|---|
-| T-30 | Refund CONFIRMED order | Wallet receives `REDEMPTION_REFUND` entry with exact opposite amount |
-| T-31 | Duplicate refund request | Returns existing refund; no duplicate entry |
+| #    | Test                     | Expected                                                             |
+| ---- | ------------------------ | -------------------------------------------------------------------- |
+| T-30 | Refund CONFIRMED order   | Wallet receives `REDEMPTION_REFUND` entry with exact opposite amount |
+| T-31 | Duplicate refund request | Returns existing refund; no duplicate entry                          |
 
 ### 44.14 Exact-opposite Refund
 
-| # | Test | Expected |
-|---|---|---|
-| T-32 | Refund amount = -(original debit amount) | Amounts match exactly |
+| #    | Test                                         | Expected                    |
+| ---- | -------------------------------------------- | --------------------------- |
+| T-32 | Refund amount = -(original debit amount)     | Amounts match exactly       |
 | T-33 | `reversal_of` links to original wallet entry | FK points to original entry |
 
 ### 44.15 Original Debit Immutability
 
-| # | Test | Expected |
-|---|---|---|
+| #    | Test                                                    | Expected                                   |
+| ---- | ------------------------------------------------------- | ------------------------------------------ |
 | T-34 | After refund, original REDEMPTION_DEBIT entry unchanged | Entry is intact; refund is separate record |
-| T-35 | Cannot modify or delete original debit entry | DB constraint prevents mutation |
+| T-35 | Cannot modify or delete original debit entry            | DB constraint prevents mutation            |
 
 ### 44.16 Digital Fulfilment
 
-| # | Test | Expected |
-|---|---|---|
-| T-36 | Digital item confirmed → auto-fulfilled | Order transitions CONFIRMED→FULFILLED |
-| T-37 | Voucher code generated and stored | Fulfilment record contains digital_value |
+| #    | Test                                    | Expected                                 |
+| ---- | --------------------------------------- | ---------------------------------------- |
+| T-36 | Digital item confirmed → auto-fulfilled | Order transitions CONFIRMED→FULFILLED    |
+| T-37 | Voucher code generated and stored       | Fulfilment record contains digital_value |
 
 ### 44.17 Physical Fulfilment
 
-| # | Test | Expected |
-|---|---|---|
+| #    | Test                                 | Expected                                      |
+| ---- | ------------------------------------ | --------------------------------------------- |
 | T-38 | Physical item confirmed → PROCESSING | Fulfilment record created with PENDING status |
-| T-39 | Admin marks as fulfilled → FULFILLED | Status updated, timestamp recorded |
+| T-39 | Admin marks as fulfilled → FULFILLED | Status updated, timestamp recorded            |
 
 ### 44.18 Failed Fulfilment
 
-| # | Test | Expected |
-|---|---|---|
+| #    | Test                               | Expected                                   |
+| ---- | ---------------------------------- | ------------------------------------------ |
 | T-40 | Fulfilment failure triggers refund | Order → FAILED → REFUND_PENDING → REFUNDED |
-| T-41 | Points returned to wallet | Wallet refund entry created |
+| T-41 | Points returned to wallet          | Wallet refund entry created                |
 
 ### 44.19 KYC Rejection
 
-| # | Test | Expected |
-|---|---|---|
+| #    | Test                                                           | Expected                          |
+| ---- | -------------------------------------------------------------- | --------------------------------- |
 | T-42 | Member without KYC Level 2 tries to browse (if OD-15 Option A) | `REDEMPTION_KYC_LEVEL_2_REQUIRED` |
-| T-43 | Member without KYC Level 2 tries to confirm | `REDEMPTION_KYC_LEVEL_2_REQUIRED` |
+| T-43 | Member without KYC Level 2 tries to confirm                    | `REDEMPTION_KYC_LEVEL_2_REQUIRED` |
 
 ### 44.20 Suspended Member
 
-| # | Test | Expected |
-|---|---|---|
-| T-44 | Suspended member tries to quote/confirm | `REDEMPTION_MEMBER_SUSPENDED` |
-| T-45 | Existing confirmed order continues for suspended member | Fulfilment proceeds normally |
+| #    | Test                                                    | Expected                      |
+| ---- | ------------------------------------------------------- | ----------------------------- |
+| T-44 | Suspended member tries to quote/confirm                 | `REDEMPTION_MEMBER_SUSPENDED` |
+| T-45 | Existing confirmed order continues for suspended member | Fulfilment proceeds normally  |
 
 ### 44.21 Cross-market Rejection
 
-| # | Test | Expected |
-|---|---|---|
-| T-46 | Member in MY tries to browse SG catalog | Access denied |
+| #    | Test                                      | Expected                          |
+| ---- | ----------------------------------------- | --------------------------------- |
+| T-46 | Member in MY tries to browse SG catalog   | Access denied                     |
 | T-47 | Cross-market redemption (if not approved) | `REDEMPTION_MARKET_ACCESS_DENIED` |
 
 ### 44.22 Admin Rate Change
 
-| # | Test | Expected |
-|---|---|---|
-| T-48 | Admin creates new rate version | Rate becomes effective at effective_from |
-| T-49 | New confirm uses new rate | Point cost recalculated |
-| T-50 | Historical order retains old rate snapshot | Snapshot unchanged |
+| #    | Test                                       | Expected                                 |
+| ---- | ------------------------------------------ | ---------------------------------------- |
+| T-48 | Admin creates new rate version             | Rate becomes effective at effective_from |
+| T-49 | New confirm uses new rate                  | Point cost recalculated                  |
+| T-50 | Historical order retains old rate snapshot | Snapshot unchanged                       |
 
 ### 44.23 Historical Order Stability
 
-| # | Test | Expected |
-|---|---|---|
+| #    | Test                                                 | Expected                             |
+| ---- | ---------------------------------------------------- | ------------------------------------ |
 | T-51 | Item point cost changed → existing orders unaffected | Snapshot retains original point cost |
-| T-52 | Item deleted → existing orders still visible | Order retains snapshot data |
+| T-52 | Item deleted → existing orders still visible         | Order retains snapshot data          |
 
 ### 44.24 Concurrent Refund
 
-| # | Test | Expected |
-|---|---|---|
+| #    | Test                           | Expected                                      |
+| ---- | ------------------------------ | --------------------------------------------- |
 | T-53 | Two concurrent refund requests | One succeeds; second detects already refunded |
 
 ### 44.25 Atomic Rollback
 
-| # | Test | Expected |
-|---|---|---|
+| #    | Test                                                         | Expected                       |
+| ---- | ------------------------------------------------------------ | ------------------------------ |
 | T-54 | Confirm fails after wallet entry but before inventory update | Full rollback; wallet restored |
-| T-55 | Confirm fails at any step | No partial state visible |
+| T-55 | Confirm fails at any step                                    | No partial state visible       |
 
 ### 44.26 Audit Completeness
 
-| # | Test | Expected |
-|---|---|---|
-| T-56 | Every order mutation has corresponding audit entry | Audit log complete |
-| T-57 | Audit links to redemption order and wallet entry | Correlation chain intact |
+| #    | Test                                               | Expected                 |
+| ---- | -------------------------------------------------- | ------------------------ |
+| T-56 | Every order mutation has corresponding audit entry | Audit log complete       |
+| T-57 | Audit links to redemption order and wallet entry   | Correlation chain intact |
 
 ### 44.27 Privacy Projection
 
-| # | Test | Expected |
-|---|---|---|
-| T-58 | Member sees own full order details | Full view |
-| T-59 | Member cannot see another member's orders | 403 or 404 |
+| #    | Test                                              | Expected                    |
+| ---- | ------------------------------------------------- | --------------------------- |
+| T-58 | Member sees own full order details                | Full view                   |
+| T-59 | Member cannot see another member's orders         | 403 or 404                  |
 | T-60 | Admin sees masked personal data for other members | Name/phone partially masked |
 
 ### 44.28 Wallet Projection / Ledger Atomic Consistency
 
-| # | Test | Expected |
-|---|---|---|
+| #    | Test                                                          | Expected                                       |
+| ---- | ------------------------------------------------------------- | ---------------------------------------------- |
 | T-61 | Wallet ledger entry and projection update in same transaction | All-or-nothing: both succeed or both roll back |
-| T-62 | Balance derived from SUM(ledger) matches projection | `SUM(amount) = wallet_account.balance` |
+| T-62 | Balance derived from SUM(ledger) matches projection           | `SUM(amount) = wallet_account.balance`         |
 
 ### 44.29 Negative Balance Prevention
 
-| # | Test | Expected |
-|---|---|---|
-| T-63 | Confirm with insufficient balance (wallet lock held) | `REDEMPTION_BALANCE_INSUFFICIENT`. No wallet mutation. |
+| #    | Test                                                         | Expected                                                                |
+| ---- | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| T-63 | Confirm with insufficient balance (wallet lock held)         | `REDEMPTION_BALANCE_INSUFFICIENT`. No wallet mutation.                  |
 | T-64 | Concurrent confirm attempts draining the same wallet to zero | Only one succeeds. Second fails with `REDEMPTION_BALANCE_INSUFFICIENT`. |
 
 ### 44.30 Refund Failure State
 
-| # | Test | Expected |
-|---|---|---|
+| #    | Test                               | Expected                                                                                   |
+| ---- | ---------------------------------- | ------------------------------------------------------------------------------------------ |
 | T-65 | Refund wallet entry creation fails | Order stays in `REFUND_PENDING`. NOT silently moved to `CANCELLED`. Admin review required. |
-| T-66 | Retry refund after failure | Idempotent; second attempt succeeds if original refund was incomplete. |
+| T-66 | Retry refund after failure         | Idempotent; second attempt succeeds if original refund was incomplete.                     |
 
 ### 44.31 Voucher Encryption / Masking / Audit
 
-| # | Test | Expected |
-|---|---|---|
-| T-67 | Voucher code at rest is encrypted | Code is encrypted with managed key. Not in plaintext. |
-| T-68 | Admin list view shows masked code by default | Code partially masked (e.g., `XXXX-XXXX-ABCD`). |
-| T-69 | Full reveal creates audit event | `action='VOUCHER_REVEAL'`, `actor_id=admin_id` in audit log. |
-| T-70 | Member sees own fulfilled order code only | Other member's codes are never visible. |
-| T-71 | Voucher code not in application logs or telemetry | Log redaction verified. |
+| #    | Test                                              | Expected                                                     |
+| ---- | ------------------------------------------------- | ------------------------------------------------------------ |
+| T-67 | Voucher code at rest is encrypted                 | Code is encrypted with managed key. Not in plaintext.        |
+| T-68 | Admin list view shows masked code by default      | Code partially masked (e.g., `XXXX-XXXX-ABCD`).              |
+| T-69 | Full reveal creates audit event                   | `action='VOUCHER_REVEAL'`, `actor_id=admin_id` in audit log. |
+| T-70 | Member sees own fulfilled order code only         | Other member's codes are never visible.                      |
+| T-71 | Voucher code not in application logs or telemetry | Log redaction verified.                                      |
 
 ### 44.32 Lock Timeout / Retry
 
-| # | Test | Expected |
-|---|---|---|
-| T-72 | Lock cannot be acquired within 3 seconds | `REDEMPTION_LOCK_TIMEOUT`. Full transaction rollback. |
-| T-73 | Retry after lock timeout | Exponential backoff retry succeeds if lock becomes available. |
+| #    | Test                                     | Expected                                                      |
+| ---- | ---------------------------------------- | ------------------------------------------------------------- |
+| T-72 | Lock cannot be acquired within 3 seconds | `REDEMPTION_LOCK_TIMEOUT`. Full transaction rollback.         |
+| T-73 | Retry after lock timeout                 | Exponential backoff retry succeeds if lock becomes available. |
 
 ### 44.33 Rate Effective Range Overlap Rejection
 
-| # | Test | Expected |
-|---|---|---|
+| #    | Test                                                                              | Expected                               |
+| ---- | --------------------------------------------------------------------------------- | -------------------------------------- |
 | T-74 | Admin creates overlapping rate version (same market, overlapping effective range) | EXCLUDE constraint rejects the INSERT. |
-| T-75 | Non-overlapping rate version for different market is accepted | INSERT succeeds. |
+| T-75 | Non-overlapping rate version for different market is accepted                     | INSERT succeeds.                       |
 
 ### 44.34 Fraud Limit
 
-| # | Test | Expected |
-|---|---|---|
-| T-76 | Member exceeds daily limit | `REDEMPTION_LIMIT_EXCEEDED` |
+| #    | Test                         | Expected                    |
+| ---- | ---------------------------- | --------------------------- |
+| T-76 | Member exceeds daily limit   | `REDEMPTION_LIMIT_EXCEEDED` |
 | T-77 | Member exceeds monthly limit | `REDEMPTION_LIMIT_EXCEEDED` |
-| T-78 | Rate-limited quote requests | Throttled |
+| T-78 | Rate-limited quote requests  | Throttled                   |
 
 ### 44.35 Maker/Checker
 
-| # | Test | Expected |
-|---|---|---|
-| T-79 | (If approved) Refund without Checker approval | Rejected |
+| #    | Test                                                        | Expected |
+| ---- | ----------------------------------------------------------- | -------- |
+| T-79 | (If approved) Refund without Checker approval               | Rejected |
 | T-80 | (If approved) Inventory adjustment without Checker approval | Rejected |
 
 ---
@@ -2182,25 +2195,25 @@ To the existing `member_wallet_entries` table, add two new `entry_type` values:
 
 The following items are explicitly deferred from Phase 6 MVP and must NOT be implemented without a new authorization:
 
-| # | Item | Reason |
-|---|---|---|
-| D-01 | Cash withdrawal | Not a redemption feature; requires financial license |
-| D-02 | Bank withdrawal | Not a redemption feature |
-| D-03 | Agent Commission Payout | Per Phase 5 deferred scope |
-| D-04 | Wallet cash-out | Not a redemption feature |
-| D-05 | Five-level team reward | Per MVP Roadmap deferred scope |
-| D-06 | Merchant settlement for redeemed items | OD-25 — N/A for MVP |
-| D-07 | Redemption commission for agent referrals | OD-29 — not included |
-| D-08 | Cart/multi-item checkout | Single-item redemption per order |
-| D-09 | Bulk redemption API | Not needed for MVP |
-| D-10 | Wishlist / favorites | Not needed for MVP |
-| D-11 | Rating and reviews | Not needed for MVP |
-| D-12 | Recommendation engine | Not needed for MVP |
-| D-13 | Cross-market wallet transfer | Per Project Master Control deferred scope |
-| D-14 | Expired points handling | Per Phase 3 deferred scope |
-| D-15 | Tax/invoice handling | OD-20 — Deployment Blocker |
-| D-16 | Dispute process | OD-30 — Support Ticket model; Final Terms PENDING (Deployment Blocker) |
-| D-17 | Backorder / waitlist | OD-27 — implemented in MVP |
+| #    | Item                                      | Reason                                                                 |
+| ---- | ----------------------------------------- | ---------------------------------------------------------------------- |
+| D-01 | Cash withdrawal                           | Not a redemption feature; requires financial license                   |
+| D-02 | Bank withdrawal                           | Not a redemption feature                                               |
+| D-03 | Agent Commission Payout                   | Per Phase 5 deferred scope                                             |
+| D-04 | Wallet cash-out                           | Not a redemption feature                                               |
+| D-05 | Five-level team reward                    | Per MVP Roadmap deferred scope                                         |
+| D-06 | Merchant settlement for redeemed items    | OD-25 — N/A for MVP                                                    |
+| D-07 | Redemption commission for agent referrals | OD-29 — not included                                                   |
+| D-08 | Cart/multi-item checkout                  | Single-item redemption per order                                       |
+| D-09 | Bulk redemption API                       | Not needed for MVP                                                     |
+| D-10 | Wishlist / favorites                      | Not needed for MVP                                                     |
+| D-11 | Rating and reviews                        | Not needed for MVP                                                     |
+| D-12 | Recommendation engine                     | Not needed for MVP                                                     |
+| D-13 | Cross-market wallet transfer              | Per Project Master Control deferred scope                              |
+| D-14 | Expired points handling                   | Per Phase 3 deferred scope                                             |
+| D-15 | Tax/invoice handling                      | OD-20 — Deployment Blocker                                             |
+| D-16 | Dispute process                           | OD-30 — Support Ticket model; Final Terms PENDING (Deployment Blocker) |
+| D-17 | Backorder / waitlist                      | OD-27 — implemented in MVP                                             |
 
 ---
 
@@ -2216,60 +2229,66 @@ All decisions below have **Bryan Decision: APPROVED** (per Phase 6 Full Executio
 
 MVP only permits platform-owned catalog items. Merchant-owned items are not permitted in MVP.
 
-| Field | Value |
-|---|---|
-| **Decision** | `PLATFORM_OWNED_CATALOG_ONLY` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                         |
+| ------------------ | ----------------------------- |
+| **Decision**       | `PLATFORM_OWNED_CATALOG_ONLY` |
+| **Bryan Decision** | **APPROVED**                  |
+
 ### OD-02: Merchant-owned Items
 
 **BRYAN DECISION — MERCHANT_OWNED_ITEMS_NOT_INCLUDED_IN_MVP**
 
 Merchant Catalog, Merchant Fulfilment and Merchant Redemption Items must NOT be implemented.
 
-| Field | Value |
-|---|---|
-| **Decision** | `MERCHANT_OWNED_ITEMS_NOT_INCLUDED_IN_MVP` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                                      |
+| ------------------ | ------------------------------------------ |
+| **Decision**       | `MERCHANT_OWNED_ITEMS_NOT_INCLUDED_IN_MVP` |
+| **Bryan Decision** | **APPROVED**                               |
+
 ### OD-03: Cross-market Redemption
 
 **BRYAN DECISION — NO_CROSS_MARKET_REDEMPTION**
 
 Cross-market redemption, point exchange, and wallet merging are prohibited.
 
-| Field | Value |
-|---|---|
-| **Decision** | `NO_CROSS_MARKET_REDEMPTION` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                        |
+| ------------------ | ---------------------------- |
+| **Decision**       | `NO_CROSS_MARKET_REDEMPTION` |
+| **Bryan Decision** | **APPROVED**                 |
+
 ### OD-04: Debit Wallet Market
 
 **BRYAN DECISION — CURRENT_MARKET = CATALOG_MARKET = ORDER_MARKET = WALLET_MARKET = RATE_MARKET = PICKUP_MARKET**
 
 Current Market determines all: catalog, order, wallet debited, rate, and pickup market. Account Country does NOT determine the debit wallet.
 
-| Field | Value |
-|---|---|
-| **Decision** | `CURRENT_MARKET_UNIFIED` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                    |
+| ------------------ | ------------------------ |
+| **Decision**       | `CURRENT_MARKET_UNIFIED` |
+| **Bryan Decision** | **APPROVED**             |
+
 ### OD-05: Point Reservation
 
 **BRYAN DECISION — DIRECT_ATOMIC_DEBIT**
 
 MVP uses direct atomic debit. No reservation, no wallet hold, no inventory reservation, no RESERVED state, no reservation expiry, no release flow.
 
-| Field | Value |
-|---|---|
-| **Decision** | `DIRECT_ATOMIC_DEBIT` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                 |
+| ------------------ | --------------------- |
+| **Decision**       | `DIRECT_ATOMIC_DEBIT` |
+| **Bryan Decision** | **APPROVED**          |
+
 ### OD-06: Reservation Expiry
 
 **BRYAN DECISION — NOT_APPLICABLE_FOR_MVP**
 
 Reservation is not used in MVP. This decision is not applicable.
 
-| Field | Value |
-|---|---|
-| **Decision** | `NOT_APPLICABLE_FOR_MVP` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                    |
+| ------------------ | ------------------------ |
+| **Decision**       | `NOT_APPLICABLE_FOR_MVP` |
+| **Bryan Decision** | **APPROVED**             |
+
 ### OD-07: Physical Shipping Fee
 
 **BRYAN DECISION — MEMBER_PAYS_PHYSICAL_SHIPPING_FEE with ONLINE_FIAT_SHIPPING_PAYMENT**
@@ -2284,6 +2303,7 @@ Reservation is not used in MVP. This decision is not applicable.
 - Client must not submit or modify shipping fee amount.
 
 **Payment implementation:**
+
 - Reuse existing Payment Gateway architecture where possible.
 - No hard-coded payment provider binding.
 - Provider Adapter Interface with Test/Sandbox Adapter.
@@ -2296,20 +2316,22 @@ Reservation is not used in MVP. This decision is not applicable.
 - Missing Provider Credentials must NOT block code and test completion.
 - Provider Production Configuration listed as Deployment Blocker.
 
-| Field | Value |
-|---|---|
-| **Decision** | `MEMBER_PAYS_ONLINE_FIAT_SHIPPING` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                              |
+| ------------------ | ---------------------------------- |
+| **Decision**       | `MEMBER_PAYS_ONLINE_FIAT_SHIPPING` |
+| **Bryan Decision** | **APPROVED**                       |
+
 ### OD-08: Store Pickup
 
 **BRYAN DECISION — STORE_PICKUP_SUPPORTED_IN_MVP**
 
 Supported fulfilment modes: `DELIVERY_ONLY`, `PICKUP_ONLY`, `DELIVERY_OR_PICKUP`. Pickup Locations must be configured by platform. This does NOT open Merchant-owned Catalog.
 
-| Field | Value |
-|---|---|
-| **Decision** | `STORE_PICKUP_SUPPORTED` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                    |
+| ------------------ | ------------------------ |
+| **Decision**       | `STORE_PICKUP_SUPPORTED` |
+| **Bryan Decision** | **APPROVED**             |
+
 ### OD-09: Digital Voucher Expiry
 
 **BRYAN DECISION — DIGITAL_VOUCHER_EXPIRY_CONFIGURABLE, DEFAULT_3_CALENDAR_MONTHS**
@@ -2320,20 +2342,22 @@ Supported fulfilment modes: `DELIVERY_ONLY`, `PICKUP_ONLY`, `DELIVERY_OR_PICKUP`
 - UTC storage.
 - Expiry Snapshot is immutable.
 
-| Field | Value |
-|---|---|
-| **Decision** | `VOUCHER_EXPIRY_CONFIGURABLE_3M_DEFAULT` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                                    |
+| ------------------ | ---------------------------------------- |
+| **Decision**       | `VOUCHER_EXPIRY_CONFIGURABLE_3M_DEFAULT` |
+| **Bryan Decision** | **APPROVED**                             |
+
 ### OD-10: Expired Voucher Refund
 
 **BRYAN DECISION — EXPIRED_VOUCHER_NO_REFUND**
 
 Expired vouchers: no iPoint return, no re-issuance, no extension, no refund ledger, status = EXPIRED.
 
-| Field | Value |
-|---|---|
-| **Decision** | `EXPIRED_VOUCHER_NO_REFUND` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                       |
+| ------------------ | --------------------------- |
+| **Decision**       | `EXPIRED_VOUCHER_NO_REFUND` |
+| **Bryan Decision** | **APPROVED**                |
+
 ### OD-11: Cancellable States
 
 **BRYAN DECISION — NO_MEMBER_CANCELLATION_AFTER_CONFIRM**
@@ -2342,60 +2366,66 @@ Expired vouchers: no iPoint return, no re-issuance, no extension, no refund ledg
 - After Confirm + Debit: Member may NEVER cancel. Not before shipment, not before pickup, not before voucher use.
 - Returns `REDEMPTION_ORDER_NOT_CANCELLABLE`.
 
-| Field | Value |
-|---|---|
-| **Decision** | `NO_MEMBER_CANCELLATION_AFTER_CONFIRM` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                                  |
+| ------------------ | -------------------------------------- |
+| **Decision**       | `NO_MEMBER_CANCELLATION_AFTER_CONFIRM` |
+| **Bryan Decision** | **APPROVED**                           |
+
 ### OD-12: Partial Refund
 
 **BRYAN DECISION — NO_PARTIAL_REFUND**
 
 Only Full Refund is permitted. Each Debit may have at most one Refund.
 
-| Field | Value |
-|---|---|
-| **Decision** | `NO_PARTIAL_REFUND` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value               |
+| ------------------ | ------------------- |
+| **Decision**       | `NO_PARTIAL_REFUND` |
+| **Bryan Decision** | **APPROVED**        |
+
 ### OD-13: Out-of-stock Auto Refund
 
 **BRYAN DECISION — NO_AUTOMATIC_REFUND_FOR_POST_CONFIRM_STOCKOUT**
 
 Post-confirm stockout: no auto-refund. Enter `BACKORDERED` or `FULFILMENT_EXCEPTION`. Admin Review. Can wait for restock or propose alternative fulfilment. Refund requires Maker/Checker.
 
-| Field | Value |
-|---|---|
-| **Decision** | `NO_POST_CONFIRM_AUTO_REFUND` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                         |
+| ------------------ | ----------------------------- |
+| **Decision**       | `NO_POST_CONFIRM_AUTO_REFUND` |
+| **Bryan Decision** | **APPROVED**                  |
+
 ### OD-14: Fulfilment SLA
 
 **BRYAN DECISION — NO_FORMAL_FULFILMENT_SLA_IN_MVP**
 
 Estimated Time may be displayed but SLA Engine is NOT built.
 
-| Field | Value |
-|---|---|
-| **Decision** | `NO_FORMAL_FULFILMENT_SLA` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                      |
+| ------------------ | -------------------------- |
+| **Decision**       | `NO_FORMAL_FULFILMENT_SLA` |
+| **Bryan Decision** | **APPROVED**               |
+
 ### OD-15: KYC Enforcement Point
 
 **BRYAN DECISION — KYC_LEVEL_2_REQUIRED_AT_CONFIRM**
 
 Without KYC Level 2: Browse, Item Detail, and Quote are allowed. Confirm, Wallet Debit, and Confirmed Order Creation are prohibited.
 
-| Field | Value |
-|---|---|
-| **Decision** | `KYC_LEVEL_2_REQUIRED_AT_CONFIRM` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                             |
+| ------------------ | --------------------------------- |
+| **Decision**       | `KYC_LEVEL_2_REQUIRED_AT_CONFIRM` |
+| **Bryan Decision** | **APPROVED**                      |
+
 ### OD-16: High-value Review
 
 **BRYAN DECISION — NO_HIGH_VALUE_MANUAL_REVIEW_IN_MVP**
 
 No manual review threshold is established in MVP.
 
-| Field | Value |
-|---|---|
-| **Decision** | `NO_HIGH_VALUE_MANUAL_REVIEW` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                         |
+| ------------------ | ----------------------------- |
+| **Decision**       | `NO_HIGH_VALUE_MANUAL_REVIEW` |
+| **Bryan Decision** | **APPROVED**                  |
+
 ### OD-17: Refund Maker / Checker
 
 **BRYAN DECISION — ADMIN_REFUND_REQUIRES_MAKER_CHECKER**
@@ -2406,40 +2436,44 @@ No manual review threshold is established in MVP.
 - Full Refund Only.
 - `REFUNDED` only enters after Ledger and Projection succeed.
 
-| Field | Value |
-|---|---|
-| **Decision** | `REFUND_MAKER_CHECKER_REQUIRED` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                           |
+| ------------------ | ------------------------------- |
+| **Decision**       | `REFUND_MAKER_CHECKER_REQUIRED` |
+| **Bryan Decision** | **APPROVED**                    |
+
 ### OD-18: Inventory Maker / Checker
 
 **BRYAN DECISION — INVENTORY_ADJUSTMENT_NO_MAKER_CHECKER**
 
 Maker/Checker not required for inventory adjustment. Must still have: permission, reason, before/after/adjustment values, version check, and audit.
 
-| Field | Value |
-|---|---|
-| **Decision** | `INVENTORY_ADJUSTMENT_NO_MAKER_CHECKER` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                                   |
+| ------------------ | --------------------------------------- |
+| **Decision**       | `INVENTORY_ADJUSTMENT_NO_MAKER_CHECKER` |
+| **Bryan Decision** | **APPROVED**                            |
+
 ### OD-19: Daily / Monthly Limits
 
 **BRYAN DECISION — NO_DAILY_OR_MONTHLY_REDEMPTION_LIMIT**
 
 No Daily Limit, Monthly Limit, Limit Counter, or Limit Override. No `REDEMPTION_LIMIT_EXCEEDED`. API Rate Limit, Quantity Constraint, Inventory Constraint, and Fraud Monitoring are retained.
 
-| Field | Value |
-|---|---|
-| **Decision** | `NO_DAILY_MONTHLY_LIMITS` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                     |
+| ------------------ | ------------------------- |
+| **Decision**       | `NO_DAILY_MONTHLY_LIMITS` |
+| **Bryan Decision** | **APPROVED**              |
+
 ### OD-20: Tax / Invoice Responsibility
 
 **BRYAN DECISION — TAX_AND_INVOICE_NOT_INCLUDED_IN_PHASE_6_MVP**
 
 `LEGAL_AND_TAX_REVIEW_REQUIRED_BEFORE_PRODUCTION` — recorded as Deployment Blocker. Does NOT block engineering completion, but blocks Production Deployment.
 
-| Field | Value |
-|---|---|
-| **Decision** | `TAX_INVOICE_DEFERRED` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                  |
+| ------------------ | ---------------------- |
+| **Decision**       | `TAX_INVOICE_DEFERRED` |
+| **Bryan Decision** | **APPROVED**           |
+
 ### OD-21: Fixed Point Cost vs Rate Conversion
 
 **BRYAN DECISION — RATE_CONVERSION_PRICING**
@@ -2448,10 +2482,11 @@ Formula: `required_iPoint = fiat_reference_value / redemption_rate`. 1 iPoint = 
 
 Must use: NUMERIC/Decimal, HALF_UP, explicit Calculation Scale, Posting Scale inherits Wallet Contract. Quote stores unrounded and final posted values. Client-side pricing is prohibited. Fixed Point Cost as primary pricing source is prohibited.
 
-| Field | Value |
-|---|---|
-| **Decision** | `RATE_CONVERSION_PRICING` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                     |
+| ------------------ | ------------------------- |
+| **Decision**       | `RATE_CONVERSION_PRICING` |
+| **Bryan Decision** | **APPROVED**              |
+
 ### OD-22: Rate Effective Time
 
 **BRYAN DECISION — RATE_LOCKED_AT_QUOTE_TIME**
@@ -2463,23 +2498,26 @@ Must use: NUMERIC/Decimal, HALF_UP, explicit Calculation Scale, Posting Scale in
 - Rate changes must NOT make valid quotes automatically stale.
 - Item Version, Market, Eligibility, or Payload changes MAY make quote stale.
 
-| Field | Value |
-|---|---|
-| **Decision** | `RATE_LOCKED_AT_QUOTE_TIME` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                       |
+| ------------------ | --------------------------- |
+| **Decision**       | `RATE_LOCKED_AT_QUOTE_TIME` |
+| **Bryan Decision** | **APPROVED**                |
+
 ### OD-23: Promotional Rate
 
 **BRYAN DECISION — NO_PROMOTIONAL_RATE_IN_MVP**
 
-| Field | Value |
-|---|---|
-| **Decision** | `NO_PROMOTIONAL_RATE` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                 |
+| ------------------ | --------------------- |
+| **Decision**       | `NO_PROMOTIONAL_RATE` |
+| **Bryan Decision** | **APPROVED**          |
+
 ### OD-24: Voucher Code Custody
 
 **BRYAN DECISION — SYSTEM_GENERATED_VOUCHER_CODE**
 
 Voucher Codes must be:
+
 - Cryptographically Secure Random Generator
 - Unique
 - Encrypted at Rest
@@ -2491,23 +2529,26 @@ Voucher Codes must be:
 - Member views only own fulfilled Order codes
 - No duplicate assignment under concurrency
 
-| Field | Value |
-|---|---|
-| **Decision** | `SYSTEM_GENERATED_VOUCHER_CODE` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                           |
+| ------------------ | ------------------------------- |
+| **Decision**       | `SYSTEM_GENERATED_VOUCHER_CODE` |
+| **Bryan Decision** | **APPROVED**                    |
+
 ### OD-25: Merchant Settlement
 
 **BRYAN DECISION — MERCHANT_SETTLEMENT_NOT_APPLICABLE_FOR_MVP**
 
-| Field | Value |
-|---|---|
-| **Decision** | `NOT_APPLICABLE_FOR_MVP` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                    |
+| ------------------ | ------------------------ |
+| **Decision**       | `NOT_APPLICABLE_FOR_MVP` |
+| **Bryan Decision** | **APPROVED**             |
+
 ### OD-26: Failed Fulfilment
 
 **BRYAN DECISION — RETRY_THEN_ADMIN_REVIEW**
 
 **Retryable Failure:**
+
 - Auto retry, max 3 times, exponential backoff.
 - Each retry must record Audit.
 - Retry must be Idempotent.
@@ -2521,15 +2562,17 @@ Prohibited: auto iPoint refund, auto order cancellation, auto original debit mod
 
 Admin refund decision: Full Refund Only, Maker/Checker, creates REDEMPTION_REFUND, exact opposite, original debit unchanged.
 
-| Field | Value |
-|---|---|
-| **Decision** | `RETRY_THEN_ADMIN_REVIEW` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                     |
+| ------------------ | ------------------------- |
+| **Decision**       | `RETRY_THEN_ADMIN_REVIEW` |
+| **Bryan Decision** | **APPROVED**              |
+
 ### OD-27: Backorder / Waitlist
 
 **BRYAN DECISION — BACKORDER_AND_WAITLIST_SUPPORTED**
 
 **WAITLIST:**
+
 - No Order created.
 - No point debit.
 - No rate lock.
@@ -2538,46 +2581,52 @@ Admin refund decision: Full Refund Only, Maker/Checker, creates REDEMPTION_REFUN
 - Waitlist Subscription can be cancelled.
 
 **BACKORDER:**
+
 - Only when item allows.
 - Immediate iPoint debit on Confirm.
 - Status BACKORDERED.
 - Member must explicitly accept before Confirm: currently out of stock, estimated restock, no cancellation after confirm, no auto-refund.
 - Configurable: allow_backorder, max_backorder_quantity, estimated_restock_at.
 
-| Field | Value |
-|---|---|
-| **Decision** | `BACKORDER_AND_WAITLIST_SUPPORTED` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                              |
+| ------------------ | ---------------------------------- |
+| **Decision**       | `BACKORDER_AND_WAITLIST_SUPPORTED` |
+| **Bryan Decision** | **APPROVED**                       |
+
 ### OD-28: Suspended Member Orders
 
 **BRYAN DECISION — SUSPEND_EXISTING_UNFULFILLED_ORDERS**
 
 Member suspended:
+
 - New Confirm prohibited.
 - Unfulfilled orders FULFILMENT_SUSPENDED.
 - Pause shipping, pickup code, unissued vouchers, service fulfilment.
 - No auto-refund, no auto-cancel.
 
 Restored to ACTIVE:
+
 - Resume to previous continuable state.
 - Full Audit.
 
 Completed/claimed/irreversible vouchers are NOT rolled back.
 
-| Field | Value |
-|---|---|
-| **Decision** | `SUSPEND_EXISTING_UNFULFILLED_ORDERS` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                                 |
+| ------------------ | ------------------------------------- |
+| **Decision**       | `SUSPEND_EXISTING_UNFULFILLED_ORDERS` |
+| **Bryan Decision** | **APPROVED**                          |
+
 ### OD-29: Redemption Commission
 
 **BRYAN DECISION — NO_REDEMPTION_COMMISSION**
 
 Prohibited: Commission Processing, Commission Ledger, Commission Worker, new Phase 5 Commission Source, any Upline Commission trigger.
 
-| Field | Value |
-|---|---|
-| **Decision** | `NO_REDEMPTION_COMMISSION` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                      |
+| ------------------ | -------------------------- |
+| **Decision**       | `NO_REDEMPTION_COMMISSION` |
+| **Bryan Decision** | **APPROVED**               |
+
 ### OD-30: Dispute Process
 
 **BRYAN DECISION — TERMS_AND_CONDITIONS_ACCEPTANCE_MODEL**
@@ -2590,10 +2639,11 @@ Member issues use Support Ticket linked to redemption_order_id.
 
 Final legal terms text is pending: FINAL_TERMS_CONTENT_PENDING — does NOT block Phase 6 engineering completion, but blocks Production Deployment.
 
-| Field | Value |
-|---|---|
-| **Decision** | `TERMS_ACCEPTANCE_SUPPORT_TICKET` |
-| **Bryan Decision** | **APPROVED** |
+| Field              | Value                             |
+| ------------------ | --------------------------------- |
+| **Decision**       | `TERMS_ACCEPTANCE_SUPPORT_TICKET` |
+| **Bryan Decision** | **APPROVED**                      |
+
 ## 47. Proposed P6-S1 onward Breakdown
 
 The following breakdown is proposed for ChatGPT Command Center approval after P6-S0 is accepted:
@@ -2666,6 +2716,6 @@ The following breakdown is proposed for ChatGPT Command Center approval after P6
 
 ---
 
-*End of P6-S0 Redemption Center Contract Draft*
-*Status: DRAFT — Awaiting Bryan decisions on OD-01 through OD-30 before freezing*
-*All OD decisions marked PENDING — no production action authorized*
+_End of P6-S0 Redemption Center Contract Draft_
+_Status: DRAFT — Awaiting Bryan decisions on OD-01 through OD-30 before freezing_
+_All OD decisions marked PENDING — no production action authorized_
