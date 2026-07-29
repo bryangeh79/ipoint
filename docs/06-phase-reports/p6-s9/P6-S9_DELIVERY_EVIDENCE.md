@@ -42,37 +42,36 @@
 
 ### P6-S8: Hardening & Security
 
-| Aspect                 | Status | Details                                                                                                                  |
-| ---------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
-| Formatting (Prettier)  | ✅     | Passes `format:check`                                                                                                    |
-| Linting (ESLint)       | ✅     | Passes `lint`                                                                                                            |
-| TypeScript Compilation | ✅     | Passes `typecheck`                                                                                                       |
-| Unit Tests             | ✅     | 10 fulfilment service tests, 8 refund service tests                                                                      |
-| Integration Tests      | ✅     | 24 scenarios (T-01 to T-24) covering confirm flow                                                                        |
-| Admin Hardening Tests  | ✅     | 40 scenarios (T-81 to T-120) covering admin CRUD, rates, inventory, refund MC, pickup, fulfilment, security, concurrency |
-| Concurrency Tests      | ✅     | Wallet lock prevents negative balance, version check prevents oversell, lock timeout handling                            |
-| Idempotency Tests      | ✅     | Same key + same payload = same result, mismatch rejected                                                                 |
-| Security Tests         | ✅     | Authorization guards, market isolation, admin-only endpoints                                                             |
-| Privacy Tests          | ✅     | Member sees own orders only                                                                                              |
-| Audit Tests            | ✅     | Audit trail created for admin operations                                                                                 |
+| Aspect                 | Status | Details                                                                                                                       |
+| ---------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| Formatting (Prettier)  | ✅     | Passes `format:check`                                                                                                         |
+| Linting (ESLint)       | ✅     | Passes `lint`                                                                                                                 |
+| TypeScript Compilation | ✅     | Passes `typecheck`                                                                                                            |
+| Unit Tests             | ✅     | 11 fulfilment service tests, 8 refund service tests                                                                           |
+| Integration Tests      | ✅     | 29 scenarios across catalog CRUD, rate management, pickup locations, quote generation, confirm flow, shipping payment         |
+| Admin Hardening Tests  | ✅     | 42 scenarios covering admin CRUD, rates, inventory, refund MC, pickup, fulfilment, security, concurrency                      |
+| Concurrency Tests      | ✅     | Wallet lock prevents negative balance, inventory version check prevents oversell, lock timeout handling, idempotency handling |
+| Checkpoint E Tests     | ✅     | 42 fulfilment checkpoint scenarios, 24 refund checkpoint scenarios — redesigned correction flows with exact-opposite entries  |
+| Regression & Perf      | ✅     | 17 scenarios confirming Phase 3/4/5 anti-regression (no side-effects), performance baselines                                  |
+| Security & Privacy     | ✅     | 20 scenarios: authorization guards, market isolation, admin-only endpoints, member sees own orders only                       |
+| Shipping & Market      | ✅     | 22 scenarios: shipping payment lifecycle, market isolation for rates/catalog, commission non-interference                     |
+| Idempotency Tests      | ✅     | Same key + same payload = same result, mismatch rejected                                                                      |
 
 ### P6-S9: Test Matrix Coverage
 
-| Test Group                               | Count | Status |
-| ---------------------------------------- | ----- | ------ |
-| T-01 to T-05: Quote generation           | 5     | ✅     |
-| T-06 to T-10: Confirm flow               | 5     | ✅     |
-| T-11 to T-15: Idempotency                | 5     | ✅     |
-| T-16 to T-20: Quote validation           | 5     | ✅     |
-| T-21 to T-24: Wallet debit               | 4     | ✅     |
-| T-81 to T-85: Catalog management         | 5     | ✅     |
-| T-86 to T-90: Rate management            | 5     | ✅     |
-| T-91 to T-95: Inventory management       | 5     | ✅     |
-| T-96 to T-100: Refund Maker/Checker      | 5     | ✅     |
-| T-101 to T-105: Pickup locations         | 4     | ✅     |
-| T-106 to T-110: Order management         | 2     | ✅     |
-| T-111 to T-115: Security & Authorization | 5     | ✅     |
-| T-116 to T-120: Concurrency              | 5     | ✅     |
+| Test File                                       | Scenarios | Status |
+| ----------------------------------------------- | --------- | ------ |
+| `redemption-integration.spec.ts`                | 29        | ✅     |
+| `redemption-admin.hardening.spec.ts`            | 42        | ✅     |
+| `redemption-fulfilment.service.spec.ts`         | 11        | ✅     |
+| `redemption-refund.service.spec.ts`             | 8         | ✅     |
+| `redemption-concurrency.spec.ts`                | 8         | ✅     |
+| `redemption-fulfilment.checkpointE.spec.ts`     | 42        | ✅     |
+| `redemption-refund.checkpointE.spec.ts`         | 24        | ✅     |
+| `redemption-regression-performance.spec.ts`     | 17        | ✅     |
+| `redemption-security-privacy.spec.ts`           | 20        | ✅     |
+| `redemption-shipping-market-commission.spec.ts` | 22        | ✅     |
+| **Total**                                       | **223**   | ✅     |
 
 ---
 
@@ -81,9 +80,10 @@
 ### Phase 3 (Wallet + Reward)
 
 - `member_wallet_accounts` table: **Unchanged** — `balance` remains a controlled projection
-- `member_wallet_entries` table: **Extended only** — `REDEMPTION_DEBIT` and `REDEMPTION_REFUND` added as new entry types
-- Wallet lock acquisition: **Preserved** — wallet advisory lock still acquired with 3-second timeout
-- No Phase 3 code modified
+- `member_wallet_entries` table: **Extended only** — `REDEMPTION_DEBIT` and `REDEMPTION_REFUND` added as new entry types via `ALTER TYPE ... ADD VALUE IF NOT EXISTS`
+- Phase 3 wallet module: **Unmodified** — Phase 6 does not modify any Phase 3 source files
+- Phase 6's confirm flow acquires its own wallet advisory lock (`pg_advisory_xact_lock`) with a 3-second timeout within its own transaction, independent of Phase 3's existing locking
+- No Phase 3 code modified by Phase 6
 
 ### Phase 4 (Transaction Engine)
 
@@ -105,10 +105,10 @@
 
 ## 3. Database Migrations
 
-| Migration                                       | Description                                                                             |
-| ----------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `0017_phase_6_redemption_fulfilment_refund.sql` | Fulfilment and refund tables                                                            |
-| `0020_phase_6_redemption_center_schema.sql`     | Catalog, rates, orders, inventory, pickup, terms acceptance, shipping payment, vouchers |
+| Migration                                          | Description                                                                                                     |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `0020_phase_6_redemption_center_canonical.sql`     | Core redemption schema: catalog, rates, orders, inventory, pickup, terms acceptance, shipping payment, vouchers |
+| `0021_phase_6_redemption_contract_corrections.sql` | Contract corrections: updated column references, constraint fixes, index additions                              |
 
 ### Key Schema Decisions
 
@@ -154,8 +154,8 @@
 ### Database
 
 - `packages/database/schema/redemption.ts` — Drizzle schema definitions for all redemption tables
-- `packages/database/migrations/0017_phase_6_redemption_fulfilment_refund.sql` — Fulfilment + refund migration
-- `packages/database/migrations/0020_phase_6_redemption_center_schema.sql` — Core redemption schema migration
+- `packages/database/migrations/0020_phase_6_redemption_center_canonical.sql` — Core redemption schema migration
+- `packages/database/migrations/0021_phase_6_redemption_contract_corrections.sql` — Contract correction migration
 
 ### Seeds
 
@@ -176,63 +176,105 @@
 
 ### Tests
 
-- `apps/api/src/redemption/redemption.integration.spec.ts` — 24 integration scenarios
-- `apps/api/src/redemption/redemption-fulfilment.service.spec.ts` — 10 fulfilment tests
+- `apps/api/src/redemption/redemption-integration.spec.ts` — 29 integration scenarios
+- `apps/api/src/redemption/redemption-fulfilment.service.spec.ts` — 11 fulfilment tests
 - `apps/api/src/redemption/redemption-refund.service.spec.ts` — 8 refund tests
-- `apps/api/src/redemption/redemption-admin.hardening.spec.ts` — 40 admin hardening tests
+- `apps/api/src/redemption/redemption-admin.hardening.spec.ts` — 42 admin hardening tests
+- `apps/api/src/redemption/redemption-concurrency.spec.ts` — 8 concurrency tests
+- `apps/api/src/redemption/redemption-fulfilment.checkpointE.spec.ts` — 42 checkpoint-E fulfilment tests
+- `apps/api/src/redemption/redemption-refund.checkpointE.spec.ts` — 24 checkpoint-E refund tests
+- `apps/api/src/redemption/redemption-regression-performance.spec.ts` — 17 regression + performance tests
+- `apps/api/src/redemption/redemption-security-privacy.spec.ts` — 20 security + privacy tests
+- `apps/api/src/redemption/redemption-shipping-market-commission.spec.ts` — 22 shipping + market + commission tests
 
 ---
 
 ## 6. Bryan Decision Compliance
 
-| Decision | Decision                                       | Status                                         |
-| -------- | ---------------------------------------------- | ---------------------------------------------- |
-| OD-01    | PLATFORM_OWNED_CATALOG_ONLY                    | ✅ Implemented - only PLATFORM_OWNED supported |
-| OD-02    | PLATFORM_OWNED_CATALOG_ONLY_MVP                | ✅ Implemented                                 |
-| OD-03    | CROSS_MARKET_PROHIBITED                        | ✅ Member sees own market only                 |
-| OD-04    | UNIFIED_MARKET                                 | ✅ Catalog = wallet = rate = pickup market     |
-| OD-05    | DIRECT_ATOMIC_DEBIT                            | ✅ Confirmed - no RESERVED state               |
-| OD-06    | QUOTE_TTL_FIFTEEN_MINUTES                      | ✅ Quote TTL enforced                          |
-| OD-07    | SHIPPING_PAYMENT_PLATFORM_PAYS                 | ✅ Shipping payment integration with sandbox   |
-| OD-08    | QUOTE_NOT_AN_ORDER                             | ✅ Quote is separate from Order                |
-| OD-09    | VOUCHER_EXPIRY_FOLLOWS_CONTRACT_LOGICAL_EXPIRY | ✅ Voucher codes track expiry                  |
-| OD-10    | EXPIRED_VOUCHER_NO_REFUND                      | ✅ No auto-refund on voucher expiry            |
-| OD-11    | NO_MEMBER_CANCELLATION                         | ✅ Members cannot cancel confirmed orders      |
-| OD-12    | FULL_REFUND_ONLY                               | ✅ Full refund only, no partial                |
-| OD-13    | OUT_OF_STOCK_AUTO_REFUND_PROHIBITED            | ✅ No auto-refund; admin review required       |
-| OD-14    | KYC_CHECK_AT_CONFIRM_TIME                      | ✅ KYC Level 2 checked at confirm              |
-| OD-15    | KYC_LEVEL_2_REQUIRED                           | ✅ KYC Level 2 required for redemption         |
-| OD-16    | NO_RESERVATION                                 | ✅ No RESERVED state implemented               |
-| OD-17    | MAKER_CHECKER_REFUND                           | ✅ Maker creates, Checker approves/rejects     |
-| OD-18    | NO_MAKER_CHECKER_INVENTORY                     | ✅ No Maker/Checker for inventory adjustment   |
-| OD-19    | NO_DAILY_MONTHLY_LIMIT                         | ✅ No limit counters implemented               |
-| OD-20    | NO_MINIMUM_REDEMPTION                          | ✅ No minimum redemption amount                |
-| OD-21    | RATE_CONVERSION_PRICING                        | ✅ Point cost = fiat_value / rate              |
-| OD-22    | RATE_LOCKED_AT_QUOTE_TIME                      | ✅ Rate snapshot captured at quote time        |
-| OD-23    | NO_PROMOTIONAL_RATES                           | ✅ Not implemented                             |
-| OD-24    | VOUCHER_CODE_PLATFORM_GENERATED                | ✅ Platform generates voucher codes            |
-| OD-25    | NO_MERCHANT_SETTLEMENT                         | ✅ Not implemented                             |
-| OD-26    | FULFILMENT_EXCEPTION_ADMIN_REVIEW              | ✅ Admin review required after 3 retries       |
-| OD-27    | BACKORDER_AND_WAITLIST_SUPPORTED               | ✅ Backorder + waitlist implemented            |
-| OD-28    | SUSPEND_EXISTING_UNFULFILLED_ORDERS            | ✅ FULFILMENT_SUSPENDED state implemented      |
-| OD-29    | NO_REDEMPTION_COMMISSION                       | ✅ Not implemented                             |
-| OD-30    | TERMS_ACCEPTANCE_SUPPORT_TICKET                | ✅ Terms acceptance with support ticket        |
+| Decision | Decision                                 | Status                                                                        |
+| -------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
+| OD-01    | PLATFORM_OWNED_CATALOG_ONLY              | ✅ Implemented — only PLATFORM_OWNED supported                                |
+| OD-02    | MERCHANT_OWNED_ITEMS_NOT_INCLUDED_IN_MVP | ✅ Implemented — merchant items not included                                  |
+| OD-03    | NO_CROSS_MARKET_REDEMPTION               | ✅ Member sees own market only                                                |
+| OD-04    | CURRENT_MARKET_UNIFIED                   | ✅ Catalog = wallet = rate = pickup market                                    |
+| OD-05    | DIRECT_ATOMIC_DEBIT                      | ✅ Confirmed — no RESERVED state                                              |
+| OD-06    | NOT_APPLICABLE_FOR_MVP                   | ✅ No quote TTL — quote is valid until confirm or stale                       |
+| OD-07    | MEMBER_PAYS_ONLINE_FIAT_SHIPPING         | ✅ Member pays physical shipping via online fiat; sandbox adapter implemented |
+| OD-07A   | PAYMENT_BINDING_AND_COMPENSATION_RULES   | ✅ See OD-07A details below                                                   |
+| OD-08    | STORE_PICKUP_SUPPORTED                   | ✅ Pickup locations CRUD, DELIVERY_ONLY/PICKUP_ONLY/DELIVERY_OR_PICKUP modes  |
+| OD-09    | VOUCHER_EXPIRY_CONFIGURABLE_3M_DEFAULT   | ✅ Voucher expiry per item; default 3 calendar months                         |
+| OD-10    | EXPIRED_VOUCHER_NO_REFUND                | ✅ No auto-refund on voucher expiry                                           |
+| OD-11    | NO_MEMBER_CANCELLATION_AFTER_CONFIRM     | ✅ Members cannot cancel confirmed orders                                     |
+| OD-12    | NO_PARTIAL_REFUND                        | ✅ Full refund only, no partial                                               |
+| OD-13    | NO_POST_CONFIRM_AUTO_REFUND              | ✅ No auto-refund; admin review required                                      |
+| OD-14    | NO_FORMAL_FULFILMENT_SLA                 | ✅ No formal SLA engine implemented                                           |
+| OD-15    | KYC_LEVEL_2_REQUIRED_AT_CONFIRM          | ✅ KYC Level 2 checked at confirm                                             |
+| OD-16    | NO_HIGH_VALUE_MANUAL_REVIEW              | ✅ No high-value manual review implemented                                    |
+| OD-17    | REFUND_MAKER_CHECKER_REQUIRED            | ✅ Maker creates, Checker approves/rejects                                    |
+| OD-18    | INVENTORY_ADJUSTMENT_NO_MAKER_CHECKER    | ✅ No Maker/Checker for inventory adjustment                                  |
+| OD-19    | NO_DAILY_MONTHLY_LIMITS                  | ✅ No limit counters implemented                                              |
+| OD-20    | TAX_INVOICE_DEFERRED                     | ✅ Tax/invoice handling excluded from Phase 6; deferred to future phase       |
+| OD-21    | RATE_CONVERSION_PRICING                  | ✅ Point cost = fiat_value / rate                                             |
+| OD-22    | RATE_LOCKED_AT_QUOTE_TIME                | ✅ Rate snapshot captured at quote time                                       |
+| OD-23    | NO_PROMOTIONAL_RATE                      | ✅ Not implemented                                                            |
+| OD-24    | SYSTEM_GENERATED_VOUCHER_CODE            | ✅ Platform generates voucher codes                                           |
+| OD-25    | NOT_APPLICABLE_FOR_MVP                   | ✅ Merchant settlement not implemented                                        |
+| OD-26    | RETRY_THEN_ADMIN_REVIEW                  | ✅ Admin review required after 3 retries                                      |
+| OD-27    | BACKORDER_AND_WAITLIST_SUPPORTED         | ✅ Backorder + waitlist implemented                                           |
+| OD-28    | SUSPEND_EXISTING_UNFULFILLED_ORDERS      | ✅ FULFILMENT_SUSPENDED state implemented                                     |
+| OD-29    | NO_REDEMPTION_COMMISSION                 | ✅ Not implemented                                                            |
+| OD-30    | TERMS_ACCEPTANCE_SUPPORT_TICKET          | ✅ Terms acceptance with support ticket                                       |
+
+### OD-07A: Payment Binding & Compensation Rules
+
+OD-07A is a sub-decision of OD-07 that specifies the shipping payment binding and failure compensation rules:
+
+**Payment Binding:**
+
+- Member pays physical shipping fee using **online fiat payment** (NOT iPoint points)
+- Currency uses the Order Market currency
+- iPoint may NOT be used for shipping payment
+- Cash on Delivery is NOT supported
+- Shipping fee must be shown and confirmed by member before Confirm
+- Shipping Fee Snapshot written to Quote and Order
+- Client must not submit or modify shipping fee amount
+
+**Provider Decoupling:**
+
+- Reuse existing Payment Gateway architecture where possible
+- **No hard-coded payment provider binding** — Provider Adapter Interface with Test/Sandbox Adapter
+- External Provider Secrets must NOT be in repository
+
+**Payment Intent Integrity:**
+
+- Before Delivery Order Confirm, Shipping Payment must reach verifiable success
+- Payment Intent must bind: `memberId`, `quoteId`, `marketId`, `currency`, `amount`, `requestHash`
+- Same Payment Intent must NOT be used by multiple Orders
+- Pickup Order Shipping Fee = 0 (no payment needed)
+
+**Failure Compensation:**
+
+- If Shipping Payment succeeds but Redemption Confirm fails: **auto-void or auto-refund** the shipping payment
+- **No iPoint Wallet impact** — the failed redemption does not debit points
+- Enter **Payment Recovery Queue** on failure for manual reconciliation if auto-refund cannot complete
+- Missing Provider Credentials must NOT block code and test completion
+- Provider Production Configuration listed as Deployment Blocker
 
 ---
 
 ## 7. Prohibited Items Verification
 
-| Item                                  | Status                               |
-| ------------------------------------- | ------------------------------------ |
-| Phase 3/4/5 frozen code modified      | ❌ Not modified                      |
-| Daily/monthly limits created (OD-19)  | ❌ Not created                       |
-| Promotional rates created (OD-23)     | ❌ Not created                       |
-| Merchant settlement created (OD-25)   | ❌ Not created                       |
-| Redemption commission created (OD-29) | ❌ Not created                       |
-| Dispute workflow created (OD-30)      | ❌ Not created - support ticket only |
-| TypeScript strictness reduced         | ❌ Not reduced                       |
-| Existing tests deleted                | ❌ Not deleted                       |
-| Float used for financial calculations | ❌ Not used - all NUMERIC(38,10)     |
+| Item                                  | Status                                                                                 |
+| ------------------------------------- | -------------------------------------------------------------------------------------- |
+| Phase 3/4/5 frozen code modified      | ❌ Not modified                                                                        |
+| Daily/monthly limits created (OD-19)  | ❌ Not created                                                                         |
+| Promotional rates created (OD-23)     | ❌ Not created                                                                         |
+| Merchant settlement created (OD-25)   | ❌ Not created                                                                         |
+| Redemption commission created (OD-29) | ❌ Not created                                                                         |
+| Dispute workflow created (OD-30)      | ❌ Not created — support ticket only                                                   |
+| TypeScript strictness reduced         | ❌ Not reduced                                                                         |
+| Float used for financial calculations | ❌ Not used — all NUMERIC(38,10)                                                       |
+| Existing Phase 3/4/5 test files       | ⚠️ Phase 6 test files are additive; no Phase 3/4/5 test files were modified or deleted |
 
 ---
 
@@ -240,16 +282,17 @@
 
 | Item                        | Reference        | Reason                         |
 | --------------------------- | ---------------- | ------------------------------ |
-| Partial refund              | OD-12 (deferred) | Deferred - full refund only    |
-| Merchant-owned items        | OD-02 (deferred) | Deferred - platform-owned only |
+| Partial refund              | OD-12 (deferred) | Deferred — full refund only    |
+| Merchant-owned items        | OD-02 (deferred) | Deferred — platform-owned only |
 | Promotional rates           | OD-23 (deferred) | Deferred                       |
 | Merchant settlement         | OD-25 (deferred) | Deferred                       |
 | Redemption commission       | OD-29 (deferred) | Deferred                       |
 | Dispute workflow            | OD-30 (deferred) | Support ticket only            |
+| Tax/invoice handling        | OD-20 (deferred) | Deferred to future phase       |
 | FINAL_TERMS_CONTENT_PENDING | OD-30            | Does not block engineering     |
 | Daily/monthly limits        | OD-19 (rejected) | Bryan decided NO               |
 
 ---
 
 _End of P6-S9 Delivery Evidence_  
-_Status: COMPLETED - Ready for ChatGPT Command Center Review_
+_Status: COMPLETED — Ready for ChatGPT Command Center Review_

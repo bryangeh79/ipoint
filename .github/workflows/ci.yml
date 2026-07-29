@@ -1,12 +1,14 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
       - main
       - develop
       - phase/0-engineering-foundation
+      - phase/6-redemption-center
 
 permissions:
   contents: read
