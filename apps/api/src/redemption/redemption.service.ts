@@ -1399,6 +1399,7 @@ export class RedemptionService {
       let inventoryRow: Record<string, unknown> | null = null;
       let inventoryVersion = 0;
       let shippingPayment: Record<string, unknown> | null = null;
+      let shippingFee = '0.00';
 
       const invResult = await tx.execute(
         sql`SELECT * FROM redemption_inventory
@@ -1462,7 +1463,7 @@ export class RedemptionService {
             { marketId },
           );
         }
-        const shippingFee = this.getShippingFee(marketId);
+        shippingFee = this.getShippingFee(marketId);
         const requestHash = this.shippingPaymentRequestHash(
           memberId,
           marketId,
@@ -1502,15 +1503,6 @@ export class RedemptionService {
           );
         }
         recoveryPayment = shippingPayment;
-      } else {
-        const shippingFee = '0.00';
-        if (!this.equalDecimal(shippingFee, '0.00')) {
-          throw new RedemptionError(
-            'REDEMPTION_SHIPPING_PAYMENT_MISMATCH',
-            'Pickup orders must have a zero shipping fee.',
-            { quoteId: quote.id },
-          );
-        }
       }
 
       // ═══════════════════════════════════════════════════════════════════
@@ -1623,6 +1615,7 @@ export class RedemptionService {
         itemType: quote.item_type,
         fiatReferenceValue: quote.fiat_reference_value,
         fiatCurrency: quote.fiat_currency,
+        shippingFee,
         version: Number(quote.catalog_version),
       };
       const rateSnapshot = quote.rate_snapshot as Record<string, unknown>;
