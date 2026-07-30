@@ -22,8 +22,10 @@ import { DatabaseService } from '../database/database.service.js';
 import { RedemptionService } from './redemption.service.js';
 import { RedemptionError } from './redemption.errors.js';
 import {
+  type CreateShippingPaymentDto,
   type MemberCatalogQueryDto,
   type QuoteQueryDto,
+  createShippingPaymentSchema,
   memberCatalogQuerySchema,
   quoteQuerySchema,
 } from './redemption.dto.js';
@@ -143,22 +145,22 @@ export class RedemptionController {
    * Create a shipping payment intent.
    * Returns provider-specific details for the frontend to complete payment.
    */
-  @Post('shipping-payment')
+  @Post('checkout/shipping-payment')
   @HttpCode(201)
   async createShippingPayment(
     @CurrentActor() actor: RequestActor,
-    @Body()
-    body: {
-      quoteId: string;
-      fulfilmentMode: string;
-      pickupLocationId?: string;
-      shippingAddress?: Record<string, unknown>;
-      idempotencyKey: string;
-    },
+    @Body(new ZodValidationPipe(createShippingPaymentSchema))
+    body: CreateShippingPaymentDto,
   ) {
     const marketId = await this.resolveCurrentMarket(actor.accountId);
+    const memberId = await this.resolveMemberId(actor.accountId);
     return this.handle(() =>
-      this.redemption.createShippingPayment(actor.accountId, marketId, body),
+      this.redemption.createShippingPayment(memberId, marketId, body.quoteId, {
+        amount: body.amount,
+        currency: body.currency,
+        requestHash: body.requestHash,
+        idempotencyKey: body.idempotencyKey,
+      }),
     );
   }
 
@@ -297,6 +299,10 @@ export class RedemptionController {
         case 'REDEMPTION_TERMS_NOT_ACCEPTED':
         case 'REDEMPTION_SHIPPING_PAYMENT_FAILED':
         case 'REDEMPTION_SHIPPING_ADAPTER_ERROR':
+        case 'REDEMPTION_SHIPPING_PAYMENT_MISMATCH':
+        case 'REDEMPTION_SHIPPING_PAYMENT_RECOVERY_FAILED':
+        case 'REDEMPTION_IDEMPOTENCY_MISMATCH':
+        case 'REDEMPTION_MARKET_MISMATCH':
           throw new ConflictException(body);
         default:
           throw new BadRequestException(body);
@@ -312,22 +318,12 @@ export class RedemptionController {
     const db = this.database.db;
 
     // Get member ID from account ID
-    const memberResult = await db.execute(
-      sql`SELECT id FROM ${sql.identifier(MEMBER_TABLE)}
-          WHERE account_id = ${accountId}`,
-    );
-    const memberRow = memberResult.rows[0];
-    if (!memberRow) {
-      throw new BadRequestException({
-        code: 'REDEMPTION_MEMBER_NOT_FOUND',
-        message: 'Member profile not found.',
-      });
-    }
+    const memberId = await this.resolveMemberId(accountId);
 
     // Get current market preference
     const prefResult = await db.execute(
       sql`SELECT market_id FROM ${sql.identifier(MARKET_PREF_TABLE)}
-          WHERE member_id = ${memberRow.id} AND is_current = true
+          WHERE member_id = ${memberId} AND is_current = true
           LIMIT 1`,
     );
     const prefRow = prefResult.rows[0];
@@ -339,5 +335,21 @@ export class RedemptionController {
     }
 
     return prefRow.market_id as string;
+  }
+
+  private async resolveMemberId(accountId: string): Promise<string> {
+    const memberResult = await this.database.db.execute(
+      sql`SELECT id FROM ${sql.identifier(MEMBER_TABLE)}
+          WHERE account_id = ${accountId}`,
+    );
+    const memberRow = memberResult.rows[0];
+    if (!memberRow) {
+      throw new BadRequestException({
+        code: 'REDEMPTION_MEMBER_NOT_FOUND',
+        message: 'Member profile not found.',
+      });
+    }
+
+    return memberRow.id as string;
   }
 }

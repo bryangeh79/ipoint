@@ -1169,6 +1169,9 @@ export class RedemptionService {
     meta: { ipAddress?: string; requestId?: string },
   ): Promise<RedemptionOrderResponse> {
     const db = this.database.db;
+    let recoveryPayment: Record<string, unknown> | null = null;
+    let recoveryOrderId: string | null = null;
+    let shippingPaymentConsumed = false;
 
     // ── Step 0: Short-circuit terms not accepted ────────────────────────
     if (!input.termsAcceptance.accepted) {
@@ -1179,7 +1182,7 @@ export class RedemptionService {
     }
 
     // Begin atomic confirm transaction
-    return db.transaction(async (tx) => {
+    const confirmation = db.transaction(async (tx) => {
       // ═══════════════════════════════════════════════════════════════════
       // VALIDATION PHASE
       // ═══════════════════════════════════════════════════════════════════
@@ -1216,6 +1219,20 @@ export class RedemptionService {
         throw new RedemptionError(
           'REDEMPTION_QUOTE_NOT_FOUND',
           'Quote not found for this member.',
+          { quoteId: input.quoteId },
+        );
+      }
+      if (quote.market_id !== marketId) {
+        throw new RedemptionError(
+          'REDEMPTION_MARKET_MISMATCH',
+          'Quote does not belong to the current market.',
+          { quoteId: input.quoteId, marketId },
+        );
+      }
+      if (quote.consumed_at !== null) {
+        throw new RedemptionError(
+          'REDEMPTION_QUOTE_EXPIRED',
+          'This quote has already been consumed.',
           { quoteId: input.quoteId },
         );
       }
@@ -1381,6 +1398,7 @@ export class RedemptionService {
       let backorderQuantity = '0';
       let inventoryRow: Record<string, unknown> | null = null;
       let inventoryVersion = 0;
+      let shippingPayment: Record<string, unknown> | null = null;
 
       const invResult = await tx.execute(
         sql`SELECT * FROM redemption_inventory
@@ -1424,22 +1442,73 @@ export class RedemptionService {
       }
 
       // ── Step 15: Validate shipping payment (if delivery) ────────────
-      if (
-        input.shippingPaymentIntentReference &&
-        input.fulfilment.type === 'DELIVERY'
-      ) {
+      if (input.fulfilment.type === 'DELIVERY') {
+        if (!input.shippingPaymentIntentReference) {
+          throw new RedemptionError(
+            'REDEMPTION_SHIPPING_PAYMENT_NOT_FOUND',
+            'A paid shipping payment is required for delivery.',
+            { quoteId: quote.id },
+          );
+        }
+
+        const marketCurrencyResult = await tx.execute(
+          sql`SELECT currency_code FROM markets WHERE id = ${marketId}`,
+        );
+        const marketCurrency = marketCurrencyResult.rows[0]?.currency_code;
+        if (!marketCurrency) {
+          throw new RedemptionError(
+            'REDEMPTION_MARKET_NOT_FOUND',
+            'Order market currency could not be resolved.',
+            { marketId },
+          );
+        }
+        const shippingFee = this.getShippingFee(marketId);
+        const requestHash = this.shippingPaymentRequestHash(
+          memberId,
+          marketId,
+          quote.id as string,
+          shippingFee,
+          marketCurrency as string,
+        );
         const shipPayResult = await tx.execute(
           sql`SELECT * FROM redemption_shipping_payments
               WHERE id = ${input.shippingPaymentIntentReference}
-                AND status = 'PAID'::redemption_shipping_payment_status
-                AND paid_at IS NOT NULL
-              FOR NO KEY UPDATE`,
+              FOR UPDATE`,
         );
-        if (!shipPayResult.rows[0]) {
+        shippingPayment = shipPayResult.rows[0] ?? null;
+        if (!shippingPayment) {
           throw new RedemptionError(
             'REDEMPTION_SHIPPING_PAYMENT_NOT_FOUND',
-            'Shipping payment not found or not yet completed.',
+            'Shipping payment not found.',
             { paymentId: input.shippingPaymentIntentReference },
+          );
+        }
+        const validPayment =
+          shippingPayment.status === 'PAID' &&
+          shippingPayment.paid_at !== null &&
+          shippingPayment.consumed_at === null &&
+          shippingPayment.member_id === memberId &&
+          shippingPayment.quote_id === quote.id &&
+          shippingPayment.market_id === marketId &&
+          this.equalDecimal(shippingPayment.amount as string, shippingFee) &&
+          shippingPayment.currency === marketCurrency &&
+          shippingPayment.request_hash === requestHash &&
+          shippingPayment.order_id === null;
+        if (!validPayment) {
+          throw new RedemptionError(
+            'REDEMPTION_SHIPPING_PAYMENT_MISMATCH',
+            'Shipping payment is not paid, is already consumed, or does not match this order.',
+            { paymentId: input.shippingPaymentIntentReference },
+          );
+        }
+        recoveryPayment = shippingPayment;
+      } else {
+        const shippingFee = '0.00';
+        if (!this.equalDecimal(shippingFee, '0.00')) {
+          throw new RedemptionError(
+            'REDEMPTION_SHIPPING_PAYMENT_MISMATCH',
+            'Pickup orders must have a zero shipping fee.',
+            { quoteId: quote.id },
           );
         }
       }
@@ -1591,6 +1660,7 @@ export class RedemptionService {
           'REDEMPTION_ORDER_CREATE_FAILED',
           'Order creation failed',
         );
+      recoveryOrderId = orderRow.id as string;
 
       // ── Step 24: INSERT fulfilment record ─────────────────────────────
       const fulfilmentMode = quote.fulfilment_mode as string;
@@ -1620,16 +1690,25 @@ export class RedemptionService {
       // is tracked via order existence in Step 3 above
 
       // ── Step 26: Link shipping payment to order (if delivery) ──────
-      if (
-        input.shippingPaymentIntentReference &&
-        input.fulfilment.type === 'DELIVERY'
-      ) {
-        await tx.execute(
+      if (shippingPayment && input.fulfilment.type === 'DELIVERY') {
+        const consumePaymentResult = await tx.execute(
           sql`UPDATE redemption_shipping_payments
-              SET order_id = ${orderRow.id}
+              SET order_id = ${orderRow.id},
+                  consumed_at = NOW(),
+                  updated_at = NOW()
               WHERE id = ${input.shippingPaymentIntentReference}
-                AND order_id = '00000000-0000-4000-a000-000000000000'`,
+                AND order_id IS NULL
+                AND consumed_at IS NULL
+              RETURNING id`,
         );
+        if (consumePaymentResult.rows.length !== 1) {
+          throw new RedemptionError(
+            'REDEMPTION_SHIPPING_PAYMENT_MISMATCH',
+            'Shipping payment was consumed concurrently.',
+            { paymentId: input.shippingPaymentIntentReference },
+          );
+        }
+        shippingPaymentConsumed = true;
       }
 
       // ── Step 27: INSERT audit log entry ──────────────────────────────
@@ -1664,6 +1743,24 @@ export class RedemptionService {
 
       return this.mapOrderToResponse(orderRow);
     });
+
+    return confirmation.catch(async (error: unknown) => {
+      if (
+        shippingPaymentConsumed &&
+        recoveryPayment !== null &&
+        recoveryOrderId !== null
+      ) {
+        await this.recoverConsumedShippingPayment(
+          recoveryPayment,
+          recoveryOrderId,
+          memberId,
+          marketId,
+          error,
+          meta,
+        );
+      }
+      throw error;
+    });
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -1675,6 +1772,115 @@ export class RedemptionService {
    * - PICKUP: shipping fee = 0
    * - DELIVERY: shipping fee calculated (CONFIGURABLE) per market
    */
+  private async recoverConsumedShippingPayment(
+    payment: Record<string, unknown>,
+    orderId: string,
+    memberId: string,
+    marketId: string,
+    confirmError: unknown,
+    meta: { ipAddress?: string; requestId?: string },
+  ): Promise<void> {
+    const paymentId = payment.id as string;
+    const providerIntentId = payment.payment_intent_id as string;
+    const confirmFailureReason = this.errorMessage(confirmError);
+    let recoveryStatus = 'VOIDED';
+    let recoveryFailureReason: string | null = null;
+
+    try {
+      await this.paymentAdapter.voidIntent({
+        providerIntentId,
+        paymentId,
+        reason: `Order confirmation failed: ${confirmFailureReason}`,
+      });
+    } catch (voidError) {
+      recoveryStatus = 'PENDING';
+      recoveryFailureReason = this.errorMessage(voidError);
+      this.logger.error(
+        { voidError, paymentId, orderId },
+        'Failed to void shipping payment after order confirmation failure',
+      );
+    }
+
+    try {
+      await this.database.db.execute(
+        sql`INSERT INTO redemption_shipping_payment_recovery (
+            order_id, payment_intent_id, payment_method, amount, currency,
+            recovery_status, failure_reason, retry_count, max_retries,
+            voided_at
+          ) VALUES (
+            ${orderId}, ${providerIntentId},
+            ${(payment.payment_method as string | null) ?? null},
+            ${payment.amount as string}, ${payment.currency as string},
+            ${recoveryStatus}::redemption_shipping_payment_recovery_status,
+            ${recoveryFailureReason ?? confirmFailureReason},
+            0, 3,
+            ${recoveryStatus === 'VOIDED' ? sql`NOW()` : null}
+          )
+          ON CONFLICT (order_id) DO NOTHING`,
+      );
+    } catch (recoveryError) {
+      this.logger.error(
+        { recoveryError, paymentId, orderId },
+        'Failed to persist shipping payment recovery record',
+      );
+      await this.writeShippingRecoveryFailureAudit(
+        paymentId,
+        memberId,
+        marketId,
+        this.errorMessage(recoveryError),
+        meta,
+      );
+      throw new RedemptionError(
+        'REDEMPTION_SHIPPING_PAYMENT_RECOVERY_FAILED',
+        'Shipping payment recovery could not be persisted.',
+        { paymentId, orderId },
+      );
+    }
+
+    if (recoveryFailureReason !== null) {
+      await this.writeShippingRecoveryFailureAudit(
+        paymentId,
+        memberId,
+        marketId,
+        recoveryFailureReason,
+        meta,
+      );
+    }
+  }
+
+  private async writeShippingRecoveryFailureAudit(
+    paymentId: string,
+    memberId: string,
+    marketId: string,
+    reason: string,
+    meta: { ipAddress?: string; requestId?: string },
+  ): Promise<void> {
+    try {
+      await this.database.db.execute(
+        sql`INSERT INTO redemption_audit_log (
+            actor_type, actor_id, market_id, action,
+            entity_type, entity_id, reason, result, request_id, ip_address
+          ) VALUES (
+            'MEMBER', ${memberId}, ${marketId},
+            'SHIPPING_PAYMENT_RECOVERY_FAILED',
+            'REDEMPTION_SHIPPING_PAYMENT', ${paymentId},
+            ${reason}, 'FAILURE', ${meta.requestId ?? null},
+            ${meta.ipAddress ?? null}
+          )`,
+      );
+    } catch (auditError) {
+      this.logger.error(
+        { auditError, paymentId },
+        'Failed to write shipping payment recovery failure audit',
+      );
+      throw new RedemptionError(
+        'REDEMPTION_SHIPPING_PAYMENT_RECOVERY_FAILED',
+        'Shipping payment recovery failure audit could not be persisted.',
+        { paymentId },
+      );
+    }
+  }
+
   async calculateShippingCost(
     marketId: string,
     _itemId: string,
@@ -1701,160 +1907,195 @@ export class RedemptionService {
 
   /**
    * Create a shipping payment intent for delivery orders.
-   * Canonical redemption_shipping_payments columns:
-   *   order_id, market_id, amount, currency, status, payment_provider,
-   *   payment_intent_id, payment_method, paid_at, failed_at, refunded_at,
-   *   idempotency_key, created_at, updated_at
-   *
-   * Note: In the quote-to-order flow, order_id may not exist yet at payment
-   * creation time, so we create the payment record with a placeholder UUID
-   * and link it later during confirmOrder.
+   * The payment is bound to member, quote, market, amount, currency and
+   * request hash before an order exists. confirmOrder atomically consumes it.
    */
   async createShippingPayment(
     memberId: string,
     marketId: string,
+    quoteId: string,
     input: {
-      quoteId: string;
-      fulfilmentMode: string;
-      pickupLocationId?: string;
-      shippingAddress?: Record<string, unknown>;
+      amount: string;
+      currency: string;
+      requestHash: string;
       idempotencyKey: string;
     },
-  ): Promise<{
-    paymentId: string;
-    provider: string;
-    providerIntentId: string;
-    clientSecret: string | null;
-    amount: string;
-    currency: string;
-    status: string;
-  }> {
+  ): Promise<{ paymentId: string; status: string }> {
     const db = this.database.db;
-
-    // Load and validate quote (canonical: uses idempotency_key as lookup)
-    // Note: consumed_at is not checked here because the table is append-only
-    // (reject_update prevents marking consumed). Order existence check
-    // in confirmOrder prevents double-use.
-    const quoteResult = await db.execute(
-      sql`SELECT * FROM redemption_quotes
-          WHERE id = ${input.quoteId}`,
-    );
-    const quote = quoteResult.rows[0];
-    if (!quote) {
-      throw new RedemptionError(
-        'REDEMPTION_QUOTE_NOT_FOUND',
-        'Quote not found, consumed, or expired.',
-        { quoteId: input.quoteId },
-      );
-    }
-
-    // Check quote expiry
-    if (new Date(quote.expires_at as string) < new Date()) {
-      throw new RedemptionError(
-        'REDEMPTION_QUOTE_EXPIRED',
-        'Quote has expired. Please generate a new quote.',
-        { quoteId: input.quoteId },
-      );
-    }
-
-    // Calculate shipping cost
-    const shippingCost = await this.calculateShippingCost(
-      marketId,
-      quote.catalog_item_id as string,
-      input.fulfilmentMode,
+    const lockKey = this.hashKeyToBigInt(
+      `shipping-payment:${input.idempotencyKey}`,
     );
 
-    if (shippingCost.isFree) {
-      return {
-        paymentId: '',
-        provider: 'none',
-        providerIntentId: '',
-        clientSecret: null,
-        amount: '0',
-        currency: '',
-        status: 'NO_PAYMENT_NEEDED',
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockKey})`);
+
+      const existingResult = await tx.execute(
+        sql`SELECT * FROM redemption_shipping_payments
+            WHERE idempotency_key = ${input.idempotencyKey}`,
+      );
+      const existing = existingResult.rows[0];
+      if (existing) {
+        const sameRequest =
+          existing.member_id === memberId &&
+          existing.market_id === marketId &&
+          existing.quote_id === quoteId &&
+          this.equalDecimal(existing.amount as string, input.amount) &&
+          existing.currency === input.currency &&
+          existing.request_hash === input.requestHash;
+        if (!sameRequest) {
+          throw new RedemptionError(
+            'REDEMPTION_IDEMPOTENCY_MISMATCH',
+            'This idempotency key was already used for a different shipping payment request.',
+            { idempotencyKey: input.idempotencyKey },
+          );
+        }
+        return {
+          paymentId: existing.id as string,
+          status: existing.status as string,
+        };
+      }
+
+      const quoteResult = await tx.execute(
+        sql`SELECT q.*
+            FROM redemption_quotes q
+            WHERE q.id = ${quoteId}
+              AND q.consumed_at IS NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM redemption_orders o WHERE o.quote_id = q.id
+              )
+            FOR UPDATE`,
+      );
+      const quote = quoteResult.rows[0];
+      if (!quote) {
+        throw new RedemptionError(
+          'REDEMPTION_QUOTE_NOT_FOUND',
+          'Quote not found or already consumed.',
+          { quoteId },
+        );
+      }
+      if (quote.member_id !== memberId) {
+        throw new RedemptionError(
+          'REDEMPTION_QUOTE_NOT_FOUND',
+          'Quote does not belong to this member.',
+          { quoteId },
+        );
+      }
+      if (quote.market_id !== marketId) {
+        throw new RedemptionError(
+          'REDEMPTION_MARKET_MISMATCH',
+          'Quote does not belong to the current market.',
+          { quoteId, marketId },
+        );
+      }
+      if (new Date(quote.expires_at as string) < new Date()) {
+        throw new RedemptionError(
+          'REDEMPTION_QUOTE_EXPIRED',
+          'Quote has expired. Please generate a new quote.',
+          { quoteId },
+        );
+      }
+
+      const expectedAmount = this.getShippingFee(marketId);
+      const marketResult = await tx.execute(
+        sql`SELECT currency_code FROM markets WHERE id = ${marketId}`,
+      );
+      const expectedCurrency = marketResult.rows[0]?.currency_code as
+        | string
+        | undefined;
+      if (!expectedCurrency) {
+        throw new RedemptionError(
+          'REDEMPTION_MARKET_NOT_FOUND',
+          'Shipping payment market currency could not be resolved.',
+          { marketId },
+        );
+      }
+      const expectedHash = this.shippingPaymentRequestHash(
+        memberId,
+        marketId,
+        quoteId,
+        expectedAmount,
+        expectedCurrency,
+      );
+      if (
+        !this.equalDecimal(input.amount, expectedAmount) ||
+        input.currency !== expectedCurrency ||
+        input.requestHash !== expectedHash
+      ) {
+        throw new RedemptionError(
+          'REDEMPTION_SHIPPING_PAYMENT_MISMATCH',
+          'Shipping payment details do not match the server-calculated quote.',
+          { quoteId },
+        );
+      }
+
+      const paymentRequest: PaymentIntentRequest = {
+        memberId,
+        marketId,
+        quoteId,
+        currency: input.currency,
+        amount: input.amount,
+        idempotencyKey: input.idempotencyKey,
+        requestHash: input.requestHash,
+        description: `Shipping for redemption quote ${quoteId}`,
       };
-    }
 
-    // Build request for idempotency via payment provider
-    const requestData = {
-      memberId,
-      quoteId: input.quoteId,
-      marketId,
-      amount: shippingCost.shippingFee,
-      currency: shippingCost.currency,
-    };
-    const requestHash = this.hashPayload(requestData);
+      let paymentIntent: Awaited<
+        ReturnType<ShippingPaymentAdapter['createIntent']>
+      >;
+      try {
+        paymentIntent = await this.paymentAdapter.createIntent(paymentRequest);
+      } catch (error) {
+        this.logger.error(
+          { error, quoteId },
+          'Failed to create shipping payment intent',
+        );
+        throw new RedemptionError(
+          'REDEMPTION_SHIPPING_PAYMENT_FAILED',
+          'Failed to create shipping payment. Please try again.',
+          { quoteId },
+        );
+      }
 
-    // Call payment provider adapter
-    const paymentRequest: PaymentIntentRequest = {
-      memberId,
-      marketId,
-      quoteId: input.quoteId,
-      currency: shippingCost.currency,
-      amount: shippingCost.shippingFee,
-      idempotencyKey: input.idempotencyKey,
-      requestHash,
-      description: `Shipping for redemption quote ${input.quoteId}`,
-    };
+      if (
+        !this.equalDecimal(paymentIntent.amount, input.amount) ||
+        paymentIntent.currency !== input.currency
+      ) {
+        throw new RedemptionError(
+          'REDEMPTION_SHIPPING_ADAPTER_ERROR',
+          'Payment provider returned mismatched shipping payment details.',
+          { quoteId },
+        );
+      }
 
-    let paymentIntent: Awaited<
-      ReturnType<ShippingPaymentAdapter['createIntent']>
-    >;
-    try {
-      paymentIntent = await this.paymentAdapter.createIntent(paymentRequest);
-    } catch (error) {
-      this.logger.error(
-        { error, quoteId: input.quoteId },
-        'Failed to create shipping payment intent',
+      const paymentResult = await tx.execute(
+        sql`INSERT INTO redemption_shipping_payments (
+            order_id, member_id, quote_id, market_id,
+            amount, currency, request_hash,
+            status, payment_provider, payment_intent_id,
+            idempotency_key
+          ) VALUES (
+            NULL, ${memberId}, ${quoteId}, ${marketId},
+            ${input.amount}, ${input.currency}, ${input.requestHash},
+            'PENDING'::redemption_shipping_payment_status,
+            ${paymentIntent.provider}, ${paymentIntent.providerIntentId},
+            ${input.idempotencyKey}
+          )
+          RETURNING id, status`,
       );
-      throw new RedemptionError(
-        'REDEMPTION_SHIPPING_PAYMENT_FAILED',
-        'Failed to create shipping payment. Please try again.',
-        { quoteId: input.quoteId },
-      );
-    }
+      const payment = paymentResult.rows[0];
+      if (!payment) {
+        throw new RedemptionError(
+          'REDEMPTION_SHIPPING_PAYMENT_NOT_FOUND',
+          'Failed to create shipping payment record.',
+          { quoteId },
+        );
+      }
 
-    // Use a placeholder order_id (will be updated on order confirm)
-    const placeholderOrderId = '00000000-0000-4000-a000-000000000000';
-
-    // Record payment in canonical redemption_shipping_payments
-    const paymentResult = await db.execute(
-      sql`INSERT INTO redemption_shipping_payments (
-          order_id, market_id, amount, currency,
-          status, payment_provider, payment_intent_id,
-          idempotency_key
-        ) VALUES (
-          ${placeholderOrderId}, ${marketId},
-          ${paymentIntent.amount}, ${paymentIntent.currency},
-          'PENDING'::redemption_shipping_payment_status,
-          ${paymentIntent.provider}, ${paymentIntent.providerIntentId},
-          ${input.idempotencyKey}
-        )
-        ON CONFLICT (idempotency_key)
-        DO UPDATE SET
-          payment_provider = EXCLUDED.payment_provider,
-          payment_intent_id = EXCLUDED.payment_intent_id
-        RETURNING *`,
-    );
-    const payment = paymentResult.rows[0];
-    if (!payment) {
-      throw new RedemptionError(
-        'REDEMPTION_SHIPPING_PAYMENT_NOT_FOUND',
-        'Failed to create shipping payment record.',
-        { quoteId: input.quoteId },
-      );
-    }
-
-    return {
-      paymentId: payment.id as string,
-      provider: payment.payment_provider as string,
-      providerIntentId: payment.payment_intent_id as string,
-      clientSecret: paymentIntent.clientSecret,
-      amount: payment.amount as string,
-      currency: payment.currency as string,
-      status: payment.status as string,
-    };
+      return {
+        paymentId: payment.id as string,
+        status: payment.status as string,
+      };
+    });
   }
 
   /**
@@ -1978,6 +2219,26 @@ export class RedemptionService {
     return createHash('sha256').update(json).digest('hex');
   }
 
+  private errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
+
+  private shippingPaymentRequestHash(
+    memberId: string,
+    marketId: string,
+    quoteId: string,
+    amount: string,
+    currency: string,
+  ): string {
+    return this.hashPayload({
+      memberId,
+      quoteId,
+      marketId,
+      amount,
+      currency,
+    });
+  }
+
   /**
    * Hash a string key to a non-negative BigInt for pg_advisory_xact_lock.
    * Uses first 8 bytes of SHA-256 to produce a 64-bit integer, ensures non-negative.
@@ -2005,6 +2266,10 @@ export class RedemptionService {
     const aScaled = BigInt(aInt + aFrac.padEnd(maxFrac, '0'));
     const bScaled = BigInt(bInt + bFrac.padEnd(maxFrac, '0'));
     return aScaled >= bScaled;
+  }
+
+  private equalDecimal(a: string, b: string): boolean {
+    return this.gteDecimal(a, b) && this.gteDecimal(b, a);
   }
 
   /**

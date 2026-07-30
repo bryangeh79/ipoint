@@ -93,6 +93,22 @@ export const quoteQuerySchema = z.object({
 
 export type QuoteQueryDto = z.infer<typeof quoteQuerySchema>;
 
+export const createShippingPaymentSchema = z.object({
+  quoteId: z.string().uuid(),
+  amount: z.string().regex(/^\d+(?:\.\d{1,10})?$/),
+  currency: z
+    .string()
+    .trim()
+    .length(3)
+    .transform((value) => value.toUpperCase()),
+  requestHash: z.string().regex(/^[a-f0-9]{64}$/i),
+  idempotencyKey: z.string().trim().min(1).max(255),
+});
+
+export type CreateShippingPaymentDto = z.infer<
+  typeof createShippingPaymentSchema
+>;
+
 // ─── Path Param Schemas ───────────────────────────────────────────────────
 
 export const uuidParamSchema = z.object({
