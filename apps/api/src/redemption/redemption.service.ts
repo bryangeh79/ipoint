@@ -1166,7 +1166,7 @@ export class RedemptionService {
     memberId: string,
     marketId: string,
     input: ConfirmOrderInput,
-    meta: { ipAddress?: string; requestId?: string },
+    meta: { ipAddress?: string; requestId?: string; userAgent?: string | null },
   ): Promise<RedemptionOrderResponse> {
     const db = this.database.db;
     let recoveryPayment: Record<string, unknown> | null = null;
@@ -1793,7 +1793,7 @@ export class RedemptionService {
     memberId: string,
     marketId: string,
     confirmError: unknown,
-    meta: { ipAddress?: string; requestId?: string },
+    meta: { ipAddress?: string; requestId?: string; userAgent?: string | null },
   ): Promise<void> {
     const paymentId = payment.id as string;
     const providerIntentId = payment.payment_intent_id as string;
@@ -1868,7 +1868,7 @@ export class RedemptionService {
     memberId: string,
     marketId: string,
     reason: string,
-    meta: { ipAddress?: string; requestId?: string },
+    meta: { ipAddress?: string; requestId?: string; userAgent?: string | null },
   ): Promise<void> {
     try {
       await this.database.db.execute(
