@@ -511,7 +511,7 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
       expect(result.id).toBe(existingOrder.id);
     });
 
-    it('same idempotency key + different payload returns 409', async () => {
+    it('same idempotency key + different payload returns error', async () => {
       const idempKey = `concurrency:conflict:${Date.now()}`;
 
       const quoteRow = {
@@ -538,9 +538,6 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
         version: 1,
       };
 
-      // The idempotency guard finds the existing order, but it was created
-      // with different parameters. The service returns the existing one
-      // regardless (idempotent = same key = same result).
       const existingOrder = {
         id: 'order-conflict',
         order_reference: 'RDM-CONFLICT',
@@ -584,28 +581,26 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
         return cb(tx);
       });
 
-      // For same key with different payload, the current implementation
-      // returns the original result (no conflict). This is standard idempotency.
-      const result = await service.confirmOrder(
-        testMemberId,
-        testMarketId,
-        {
-          quoteId: testQuoteId,
-          idempotencyKey: idempKey,
-          expectedItemVersion: 999, // different payload
-          expectedTotalPoints: '1', // different payload
-          expectedQuantity: '99', // different payload
-          fulfilment: {
-            type: 'DELIVERY',
-            deliveryAddress: { line1: 'Different' },
+      // Same idempotency key with different payload must be rejected
+      await expect(
+        service.confirmOrder(
+          testMemberId,
+          testMarketId,
+          {
+            quoteId: testQuoteId,
+            idempotencyKey: idempKey,
+            expectedItemVersion: 999, // different payload
+            expectedTotalPoints: '1', // different payload
+            expectedQuantity: '99', // different payload
+            fulfilment: {
+              type: 'DELIVERY',
+              deliveryAddress: { line1: 'Different' },
+            },
+            termsAcceptance: { accepted: true, termsVersion: 'v1' },
           },
-          termsAcceptance: { accepted: true, termsVersion: 'v1' },
-        },
-        { ipAddress: '127.0.0.1' },
-      );
-
-      // Returns the original (no 409) because the guard returns existing
-      expect(result.id).toBe(existingOrder.id);
+          { ipAddress: '127.0.0.1' },
+        ),
+      ).rejects.toThrow();
     });
   });
 });
