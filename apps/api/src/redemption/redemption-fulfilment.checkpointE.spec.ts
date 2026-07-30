@@ -21,6 +21,8 @@ import type { ConfigService } from '../config/config.service.js';
 import type { DatabaseService } from '../database/database.service.js';
 import { RedemptionFulfilmentService } from './redemption-fulfilment.service.js';
 
+type MockTransactionCallback = (tx: unknown) => unknown;
+
 describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
   const orderId = randomUUID();
   const memberId = randomUUID();
@@ -225,7 +227,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
         retryCount: 2,
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit
           .mockResolvedValueOnce([fulfilmentRow]) // initial select
@@ -260,7 +262,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
         retryCount: 1,
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         // retryFulfilment: select, update, audit, final select
         tx.limit
@@ -291,7 +293,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     it('should transition CONFIRMED → BACKORDERED', async () => {
       const orderRow = createOrderRow({ status: 'CONFIRMED' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([orderRow]);
         tx.update.mockReturnThis();
@@ -311,7 +313,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     });
 
     it('should transition BACKORDERED → PROCESSING on restock', async () => {
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([createOrderRow({ status: 'BACKORDERED' })]);
         tx.update.mockReturnThis();
@@ -327,7 +329,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     });
 
     it('should reject backorder from invalid state (FULFILLED)', async () => {
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([createOrderRow({ status: 'FULFILLED' })]);
         tx.update.mockReturnThis();
@@ -350,7 +352,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
 
   describe('Suspension / Resume — OD-28', () => {
     it('should suspend CONFIRMED order', async () => {
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([createOrderRow({ status: 'CONFIRMED' })]);
         tx.update.mockReturnThis();
@@ -367,7 +369,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     });
 
     it('should resume FULFILMENT_SUSPENDED order to PROCESSING', async () => {
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         // First call: find order
         tx.limit
@@ -390,7 +392,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     });
 
     it('should resume to FULFILLED if fulfilment was COMPLETED', async () => {
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit
           .mockResolvedValueOnce([
@@ -415,7 +417,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     });
 
     it('should reject resume if not suspended', async () => {
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([createOrderRow({ status: 'CONFIRMED' })]);
         return cb(tx);
@@ -430,7 +432,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     });
 
     it('should reject suspend from terminal state (REFUNDED)', async () => {
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([createOrderRow({ status: 'REFUNDED' })]);
         return cb(tx);
@@ -451,7 +453,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
 
   describe('Waitlist — OD-27', () => {
     it('should subscribe to waitlist', async () => {
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([]);
         tx.insert.mockReturnThis();
@@ -472,7 +474,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     it('should return existing subscription if already subscribed', async () => {
       const existing = createWaitlistRow();
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([existing]);
         return cb(tx);
@@ -487,7 +489,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     it('should cancel a waitlist subscription', async () => {
       const entry = createWaitlistRow();
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([entry]);
         tx.update.mockReturnThis();
@@ -501,7 +503,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     it('should cancel waitlist with actor for audit', async () => {
       const entry = createWaitlistRow();
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([entry]);
         tx.update.mockReturnThis();
@@ -524,7 +526,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
       const itemId = entries[0].catalogItemId;
       entries.forEach((e) => (e.catalogItemId = itemId));
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         // notifyWaitlist does: select().from(redemptionWaitlistEntries).where(and(...))
         // The chain returns entries directly from where()
@@ -545,7 +547,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     it('should expire a waitlist subscription', async () => {
       const entry = createWaitlistRow();
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([entry]);
         tx.update.mockReturnThis();
@@ -557,7 +559,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     });
 
     it('should throw on expire for non-existent subscription', async () => {
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([]);
         return cb(tx);
@@ -575,7 +577,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     it('should generate a pickup code with PICKUP_HASH prefix', async () => {
       const fRow = createFulfilmentRow({ fulfilmentType: 'PHYSICAL' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([fRow]);
         tx.update.mockReturnThis();
@@ -596,7 +598,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     it('should reject pickup code for DIGITAL fulfilment', async () => {
       const fRow = createFulfilmentRow({ fulfilmentType: 'DIGITAL' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([fRow]);
         return cb(tx);
@@ -611,7 +613,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
         digitalValue: 'PICKUP_HASH:abc123hashvalue',
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit
           .mockResolvedValueOnce([fRow]) // first for fulfilment
@@ -639,7 +641,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
         digitalValue: `PICKUP_HASH:${createHash('sha256').update('CORRECT_CODE').digest('hex')}`,
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit
           .mockResolvedValueOnce([fRow])
@@ -666,7 +668,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
         digitalValue: `PICKUP_HASH:${createHash('sha256').update('CODE').digest('hex')}`,
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit
           .mockResolvedValueOnce([fRow])
@@ -865,7 +867,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
         digitalValue: null,
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit
           .mockResolvedValueOnce([orderRow]) // find order
@@ -895,7 +897,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
         serviceScheduledAt: new Date('2026-08-01T10:00:00Z'),
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit
           .mockResolvedValueOnce([orderRow]) // order lookup
@@ -934,7 +936,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
         retryCount: 0,
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit
           .mockResolvedValueOnce([fulfilmentRow])
@@ -967,7 +969,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
         retryCount: 0,
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit
           .mockResolvedValueOnce([fulfilmentRow])
@@ -1004,7 +1006,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
       const fRow = createFulfilmentRow({ status: 'PENDING' });
       const updatedRow = { ...fRow, status: 'IN_PROGRESS' };
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit
           .mockResolvedValueOnce([fRow])
@@ -1031,7 +1033,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
         fulfilledAt: new Date(),
       };
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit
           .mockResolvedValueOnce([fRow])
@@ -1053,7 +1055,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     it('should reject COMPLETED → IN_PROGRESS (terminal state)', async () => {
       const fRow = createFulfilmentRow({ status: 'COMPLETED' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([fRow]);
         return cb(tx);
@@ -1070,7 +1072,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     it('should transition IN_PROGRESS → FAILED with tracking update', async () => {
       const fRow = createFulfilmentRow({ status: 'IN_PROGRESS' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValueOnce([fRow]).mockResolvedValueOnce([fRow]);
         tx.update.mockReturnThis();
@@ -1102,7 +1104,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
       const orderRow = createOrderRow({ status: 'CONFIRMED' });
       const fRow = createFulfilmentRow();
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit
           .mockResolvedValueOnce([orderRow]) // order lookup
@@ -1132,7 +1134,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
         fulfilledAt: new Date(),
       };
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit
           .mockResolvedValueOnce([fRow])
@@ -1152,7 +1154,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     });
 
     it('should reject fulfilment for REFUNDED order', async () => {
-      mockDb.runTransaction.mockImplementation(async (cb: Function) => {
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
         tx.limit.mockResolvedValue([createOrderRow({ status: 'REFUNDED' })]);
         return cb(tx);

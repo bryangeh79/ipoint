@@ -33,6 +33,13 @@ import type {
   WaitlistSubscription,
 } from './redemption.types.js';
 
+type RedemptionTx = Parameters<
+  Parameters<DatabaseService['runTransaction']>[0]
+>[0];
+type RedemptionOrderStatus = NonNullable<
+  (typeof redemptionOrders.$inferInsert)['status']
+>;
+
 const TX_OPTIONS: TransactionExecutionOptions = {
   statementTimeoutMs: 5000,
   lockTimeoutMs: 3000,
@@ -45,7 +52,9 @@ const RETRY_DELAY_MS = [0, 5000, 30000, 120000];
 /**
  * Valid order status transitions per P6 Contract §20.
  */
-const ORDER_TRANSITIONS: Record<string, string[]> = {
+const ORDER_TRANSITIONS: Partial<
+  Record<RedemptionOrderStatus, RedemptionOrderStatus[]>
+> = {
   CONFIRMED: ['PROCESSING', 'BACKORDERED', 'FULFILMENT_SUSPENDED', 'FULFILLED'],
   PROCESSING: [
     'READY_FOR_PICKUP',
@@ -125,7 +134,7 @@ export class RedemptionFulfilmentService {
   // ─── Audit helper ─────────────────────────────────────────────────────
 
   private async audit(
-    tx: any,
+    tx: RedemptionTx,
     action: string,
     entityType: string,
     entityId: string,
@@ -220,9 +229,7 @@ export class RedemptionFulfilmentService {
           orderId: params.orderId,
           fulfilmentType: ft,
           status: 'PENDING',
-          shippingAddress: params.shippingAddress
-            ? (params.shippingAddress as any)
-            : null,
+          shippingAddress: params.shippingAddress ?? null,
           trackingNumber: params.trackingNumber ?? null,
           courier: params.courier ?? null,
           estimatedDeliveryDate: params.estimatedDeliveryDate ?? null,
@@ -238,7 +245,7 @@ export class RedemptionFulfilmentService {
       if (os === 'CONFIRMED' || os === 'BACKORDERED') {
         await tx
           .update(redemptionOrders)
-          .set({ status: 'PROCESSING' } as any)
+          .set({ status: 'PROCESSING' })
           .where(eq(redemptionOrders.id, params.orderId));
       }
 
@@ -267,7 +274,7 @@ export class RedemptionFulfilmentService {
     fulfilment: typeof redemptionFulfilments.$inferSelect,
     order: typeof redemptionOrders.$inferSelect,
     actor: ActorInfo,
-    tx: any,
+    tx: RedemptionTx,
   ): Promise<FulfilmentRecord> {
     const code = this.generateCode();
     const encrypted = this.encrypt(code);
@@ -280,13 +287,13 @@ export class RedemptionFulfilmentService {
         status: 'COMPLETED',
         digitalValue: encrypted,
         fulfilledAt: new Date(),
-      } as any)
+      })
       .where(eq(redemptionFulfilments.id, fulfilment.id));
 
     // Mark order FULFILLED
     await tx
       .update(redemptionOrders)
-      .set({ status: 'FULFILLED' } as any)
+      .set({ status: 'FULFILLED' })
       .where(eq(redemptionOrders.id, order.id));
 
     await this.audit(
@@ -434,7 +441,7 @@ export class RedemptionFulfilmentService {
         .update(redemptionFulfilments)
         .set({
           digitalValue: `PICKUP_HASH:${codeHash}`,
-        } as any)
+        })
         .where(eq(redemptionFulfilments.id, fulfilmentId));
 
       await this.audit(
@@ -512,11 +519,11 @@ export class RedemptionFulfilmentService {
 
       await tx
         .update(redemptionFulfilments)
-        .set({ status: 'COMPLETED', fulfilledAt: new Date() } as any)
+        .set({ status: 'COMPLETED', fulfilledAt: new Date() })
         .where(eq(redemptionFulfilments.id, fulfilmentId));
       await tx
         .update(redemptionOrders)
-        .set({ status: 'FULFILLED' } as any)
+        .set({ status: 'FULFILLED' })
         .where(eq(redemptionOrders.id, f.orderId));
 
       await this.audit(
@@ -563,7 +570,9 @@ export class RedemptionFulfilmentService {
         );
       }
 
-      const updates: Record<string, unknown> = { status: params.status };
+      const updates: Partial<typeof redemptionFulfilments.$inferInsert> = {
+        status: params.status,
+      };
       if (params.trackingNumber) updates.trackingNumber = params.trackingNumber;
       if (params.courier) updates.courier = params.courier;
       if (params.failureReason) updates.failureReason = params.failureReason;
@@ -572,14 +581,14 @@ export class RedemptionFulfilmentService {
 
       await tx
         .update(redemptionFulfilments)
-        .set(updates as any)
+        .set(updates)
         .where(eq(redemptionFulfilments.id, params.fulfilmentId));
 
       // Map fulfilment completion to order status
       if (params.status === 'COMPLETED') {
         await tx
           .update(redemptionOrders)
-          .set({ status: 'FULFILLED' } as any)
+          .set({ status: 'FULFILLED' })
           .where(eq(redemptionOrders.id, f.orderId));
       }
 
@@ -620,7 +629,7 @@ export class RedemptionFulfilmentService {
     fulfilment: typeof redemptionFulfilments.$inferSelect,
     reason: string,
     actor: ActorInfo,
-    tx: any,
+    tx: RedemptionTx,
   ): Promise<void> {
     const attempt = fulfilment.retryCount + 1;
     const nonRetryable = NON_RETRYABLE_KEYWORDS.some((kw) =>
@@ -630,7 +639,7 @@ export class RedemptionFulfilmentService {
     if (nonRetryable) {
       await tx
         .update(redemptionOrders)
-        .set({ status: 'FULFILMENT_EXCEPTION' } as any)
+        .set({ status: 'FULFILMENT_EXCEPTION' })
         .where(eq(redemptionOrders.id, fulfilment.orderId));
       this.logger.error(
         `Non-retryable: fulfilment ${fulfilment.id} → FULFILMENT_EXCEPTION: ${reason}`,
@@ -641,7 +650,7 @@ export class RedemptionFulfilmentService {
     if (attempt >= MAX_RETRIES) {
       await tx
         .update(redemptionOrders)
-        .set({ status: 'FULFILMENT_EXCEPTION' } as any)
+        .set({ status: 'FULFILMENT_EXCEPTION' })
         .where(eq(redemptionOrders.id, fulfilment.orderId));
       this.logger.warn(
         `Max retries (${MAX_RETRIES}) for fulfilment ${fulfilment.id}`,
@@ -653,7 +662,7 @@ export class RedemptionFulfilmentService {
           status: 'PENDING',
           retryCount: attempt,
           failureReason: `Retry ${attempt}/${MAX_RETRIES}: ${reason}`,
-        } as any)
+        })
         .where(eq(redemptionFulfilments.id, fulfilment.id));
       const delay =
         RETRY_DELAY_MS[Math.min(attempt, RETRY_DELAY_MS.length - 1)];
@@ -687,7 +696,7 @@ export class RedemptionFulfilmentService {
 
       await tx
         .update(redemptionFulfilments)
-        .set({ status: 'PENDING', failureReason: null } as any)
+        .set({ status: 'PENDING', failureReason: null })
         .where(eq(redemptionFulfilments.id, fulfilmentId));
       await this.audit(
         tx,
@@ -741,7 +750,7 @@ export class RedemptionFulfilmentService {
         .from(redemptionFulfilments)
         .where(eq(redemptionFulfilments.orderId, orderId))
         .limit(1);
-      let target = 'CONFIRMED';
+      let target: RedemptionOrderStatus = 'CONFIRMED';
       if (f) {
         target =
           f.fulfilmentType === 'PHYSICAL'
@@ -753,7 +762,7 @@ export class RedemptionFulfilmentService {
 
       await tx
         .update(redemptionOrders)
-        .set({ status: target } as any)
+        .set({ status: target })
         .where(eq(redemptionOrders.id, orderId));
       await this.audit(
         tx,
@@ -827,7 +836,7 @@ export class RedemptionFulfilmentService {
             requestedQuantity,
             expiredAt: null,
             notifiedAt: null,
-          } as any)
+          })
           .where(eq(redemptionWaitlistEntries.id, existing.id));
 
         const [updated] = await tx
@@ -873,7 +882,7 @@ export class RedemptionFulfilmentService {
 
       await tx
         .update(redemptionWaitlistEntries)
-        .set({ status: 'CANCELLED' } as any)
+        .set({ status: 'CANCELLED' })
         .where(eq(redemptionWaitlistEntries.id, subscriptionId));
 
       if (actor) {
@@ -904,7 +913,7 @@ export class RedemptionFulfilmentService {
       for (const entry of entries) {
         await tx
           .update(redemptionWaitlistEntries)
-          .set({ status: 'NOTIFIED', notifiedAt: new Date() } as any)
+          .set({ status: 'NOTIFIED', notifiedAt: new Date() })
           .where(eq(redemptionWaitlistEntries.id, entry.id));
       }
 
@@ -929,7 +938,7 @@ export class RedemptionFulfilmentService {
 
       await tx
         .update(redemptionWaitlistEntries)
-        .set({ status: 'EXPIRED', expiredAt: new Date() } as any)
+        .set({ status: 'EXPIRED', expiredAt: new Date() })
         .where(eq(redemptionWaitlistEntries.id, subscriptionId));
     }, TX_OPTIONS);
   }
@@ -965,7 +974,7 @@ export class RedemptionFulfilmentService {
     const totalQty = inventory.totalQuantity
       ? Number(inventory.totalQuantity)
       : 0;
-    const reserved = Number(inventory.reservedQuantity);
+    const reserved = Number(inventory.committedQuantity);
     const fulfilled = Number(inventory.fulfilledQuantity);
     const backordered = Number(inventory.backorderQuantity);
     const used = reserved + fulfilled + backordered;
@@ -980,7 +989,7 @@ export class RedemptionFulfilmentService {
 
   private async transitionOrder(
     orderId: string,
-    to: string,
+    to: RedemptionOrderStatus,
     reason: string,
     actor: ActorInfo,
   ): Promise<void> {
@@ -1004,7 +1013,7 @@ export class RedemptionFulfilmentService {
       }
       await tx
         .update(redemptionOrders)
-        .set({ status: to } as any)
+        .set({ status: to })
         .where(eq(redemptionOrders.id, orderId));
       await this.audit(tx, `ORDER_${to}`, 'REDEMPTION_ORDER', orderId, actor, {
         fromStatus: from,

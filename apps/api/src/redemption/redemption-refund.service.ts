@@ -25,6 +25,10 @@ import type {
   ShippingPaymentRecoveryStatus,
 } from './redemption.types.js';
 
+type RedemptionTx = Parameters<
+  Parameters<DatabaseService['runTransaction']>[0]
+>[0];
+
 const TX_OPTIONS: TransactionExecutionOptions = {
   statementTimeoutMs: 8000,
   lockTimeoutMs: 3000,
@@ -48,7 +52,7 @@ export class RedemptionRefundService {
   // ─── Audit helper ─────────────────────────────────────────────────────
 
   private async audit(
-    tx: any,
+    tx: RedemptionTx,
     action: string,
     entityId: string,
     actor: ActorInfo,
@@ -83,7 +87,7 @@ export class RedemptionRefundService {
       publicReference: r.id,
       totalPointCost: r.refundAmount,
       reason: r.reason,
-      status: r.status as any,
+      status: r.status as RefundRequestRecord['status'],
       makerId: r.makerId,
       checkerId: r.checkerId,
       makerNotes: null,
@@ -166,7 +170,7 @@ export class RedemptionRefundService {
       // Update order to REFUND_PENDING
       await tx
         .update(redemptionOrders)
-        .set({ status: 'REFUND_PENDING' } as any)
+        .set({ status: 'REFUND_PENDING' })
         .where(eq(redemptionOrders.id, params.orderId));
 
       await this.audit(
@@ -245,7 +249,7 @@ export class RedemptionRefundService {
           checkerId,
           checkerNotes: params.checkerNotes ?? null,
           decidedAt: new Date(),
-        } as any)
+        })
         .where(eq(redemptionRefundRequests.id, params.refundRequestId));
 
       // Execute atomic refund
@@ -262,7 +266,7 @@ export class RedemptionRefundService {
           .set({
             status: 'FAILED',
             checkerNotes: `Execution failed: ${msg}`,
-          } as any)
+          })
           .where(eq(redemptionRefundRequests.id, params.refundRequestId));
 
         await this.audit(
@@ -309,7 +313,7 @@ export class RedemptionRefundService {
 
   private async executeAtomicRefund(
     request: typeof redemptionRefundRequests.$inferSelect,
-    tx: any,
+    tx: RedemptionTx,
   ): Promise<void> {
     // 1. Lock order
     const [order] = await tx
@@ -345,7 +349,7 @@ export class RedemptionRefundService {
       .update(redemptionOrders)
       .set({
         status: 'REFUNDED',
-      } as any)
+      })
       .where(eq(redemptionOrders.id, request.orderId));
 
     // 7. Restore inventory (simple quantity increment)
@@ -361,8 +365,8 @@ export class RedemptionRefundService {
         .update(redemptionInventory)
         .set({
           fulfilledQuantity: sql`GREATEST(${redemptionInventory.fulfilledQuantity} - ${qty}, 0)`,
-          reservedQuantity: sql`GREATEST(${redemptionInventory.reservedQuantity} - ${qty}, 0)`,
-        } as any)
+          committedQuantity: sql`GREATEST(${redemptionInventory.committedQuantity} - ${qty}, 0)`,
+        })
         .where(eq(redemptionInventory.id, inventory.id));
     }
 
@@ -372,7 +376,7 @@ export class RedemptionRefundService {
       .set({
         status: 'APPROVED',
         walletEntryId,
-      } as any)
+      })
       .where(eq(redemptionRefundRequests.id, request.id));
   }
 
@@ -423,14 +427,14 @@ export class RedemptionRefundService {
           checkerId,
           checkerNotes: reason,
           decidedAt: new Date(),
-        } as any)
+        })
         .where(eq(redemptionRefundRequests.id, refundRequestId))
         .returning();
 
       // Restore order status
       await tx
         .update(redemptionOrders)
-        .set({ status: 'FULFILMENT_EXCEPTION' } as any)
+        .set({ status: 'FULFILMENT_EXCEPTION' })
         .where(eq(redemptionOrders.id, request.orderId));
 
       await this.audit(
@@ -579,14 +583,14 @@ export class RedemptionRefundService {
     const rows = await this.database.db
       .select()
       .from(redemptionRefundRequests)
-      .where(eq(redemptionRefundRequests.status, 'PENDING_CHECKER' as any))
+      .where(eq(redemptionRefundRequests.status, 'PENDING_CHECKER'))
       .orderBy(redemptionRefundRequests.createdAt)
       .limit(limit)
       .offset(offset);
     const countResult = await this.database.db
       .select({ count: sql<number>`count(*)` })
       .from(redemptionRefundRequests)
-      .where(eq(redemptionRefundRequests.status, 'PENDING_CHECKER' as any));
+      .where(eq(redemptionRefundRequests.status, 'PENDING_CHECKER'));
     return {
       requests: rows.map((r) => this.toRecord(r)),
       total: Number(countResult[0]?.count ?? 0),

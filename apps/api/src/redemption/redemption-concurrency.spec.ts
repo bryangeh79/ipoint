@@ -30,6 +30,8 @@ function sqlStr(s: any): string {
   return String(s);
 }
 
+type MockTransactionCallback = (tx: unknown) => unknown;
+
 describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
   const testMarketId = '00000000-0000-4000-a000-000000000010';
   const testMemberId = '00000000-0000-4000-a000-000000000001';
@@ -123,7 +125,7 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
       };
 
       // Mock transaction
-      mockDb.db.transaction.mockImplementation(async (cb: Function) => {
+      mockDb.db.transaction.mockImplementation(async (cb: MockTransactionCallback) => {
         let execIdx = 0;
         const tx = {
           execute: vi.fn().mockImplementation(async () => {
@@ -182,7 +184,7 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
       }
 
       let transactionCommitted = false;
-      mockDb.db.transaction.mockImplementation(async (cb: Function) => {
+      mockDb.db.transaction.mockImplementation(async (cb: MockTransactionCallback) => {
         let execIdx = 0;
         const tx = {
           execute: vi.fn().mockImplementation(async (sql: any) => {
@@ -339,7 +341,7 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
         version: 1,
       };
 
-      mockDb.db.transaction.mockImplementation(async (cb: Function) => {
+      mockDb.db.transaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = {
           execute: vi.fn().mockImplementation(async () => {
             return { rows: [] };
@@ -375,7 +377,7 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
     it('should set lock_timeout = 3s in transaction', async () => {
       let lockTimeoutSet = false;
 
-      mockDb.db.transaction.mockImplementation(async (cb: Function) => {
+      mockDb.db.transaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = {
           execute: vi.fn().mockImplementation(async (sql: any) => {
             const s = sqlStr(sql);
@@ -473,7 +475,7 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
         terms_accepted_at: null,
       };
 
-      mockDb.db.transaction.mockImplementation(async (cb: Function) => {
+      mockDb.db.transaction.mockImplementation(async (cb: MockTransactionCallback) => {
         let execIdx = 0;
         const tx = {
           execute: vi.fn().mockImplementation(async (sql: any) => {
@@ -568,7 +570,7 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
         terms_accepted_at: null,
       };
 
-      mockDb.db.transaction.mockImplementation(async (cb: Function) => {
+      mockDb.db.transaction.mockImplementation(async (cb: MockTransactionCallback) => {
         let execIdx = 0;
         const tx = {
           execute: vi.fn().mockImplementation(async (sql: any) => {
@@ -657,7 +659,7 @@ describe('P6 Concurrency — Concurrent Quote & Order', () => {
       return {
         db: {
           execute: vi.fn(),
-          transaction: vi.fn().mockImplementation(async (cb: Function) => {
+          transaction: vi.fn().mockImplementation(async (cb: MockTransactionCallback) => {
             let execIdx = 0;
             const tx = {
               execute: vi.fn().mockImplementation(async () => {
@@ -757,7 +759,7 @@ describe('P6 Concurrency — Concurrent Quote & Order', () => {
     const mockDb2 = {
       db: {
         execute: vi.fn(),
-        transaction: vi.fn().mockImplementation(async (cb: Function) => {
+        transaction: vi.fn().mockImplementation(async (cb: MockTransactionCallback) => {
           let execIdx = 0;
           const tx = {
             execute: vi.fn().mockImplementation(async () => {

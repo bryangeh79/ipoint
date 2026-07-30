@@ -4,6 +4,8 @@ import type { ConfigService } from '../config/config.service.js';
 import type { DatabaseService } from '../database/database.service.js';
 import { RedemptionRefundService } from './redemption-refund.service.js';
 
+type MockTransactionCallback = (tx: unknown) => unknown;
+
 describe('RedemptionRefundService', () => {
   const orderId = randomUUID();
   const memberId = randomUUID();
@@ -169,7 +171,7 @@ describe('RedemptionRefundService', () => {
       const orderRow = createOrderRow();
       const requestRow = createRefundRequestRow();
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),
@@ -207,7 +209,7 @@ describe('RedemptionRefundService', () => {
     it('should reject if order is not in a refundable status (CONFIRMED)', async () => {
       const orderRow = createOrderRow({ status: 'CONFIRMED' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),
@@ -239,7 +241,7 @@ describe('RedemptionRefundService', () => {
     it('should reject if order is FULFILLED', async () => {
       const orderRow = createOrderRow({ status: 'FULFILLED' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),
@@ -294,7 +296,7 @@ describe('RedemptionRefundService', () => {
         balanceAfter: '15000.0000000000',
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),
@@ -333,7 +335,7 @@ describe('RedemptionRefundService', () => {
         makerId: adminUserId,
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),
@@ -358,7 +360,7 @@ describe('RedemptionRefundService', () => {
     it('should reject if refund already completed', async () => {
       const refundRequestRow = createRefundRequestRow({ status: 'COMPLETED' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),
@@ -392,7 +394,7 @@ describe('RedemptionRefundService', () => {
         decidedAt: new Date(),
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),

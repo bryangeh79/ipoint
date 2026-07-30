@@ -1350,8 +1350,15 @@ export class RedemptionService {
       // ── Step 12: Load rate version for order record (no expiry rejection)
       // A quote locks the rate at generation time; the snapshot is the binding record.
       // We do NOT reject a valid quote just because its original rate version later expired.
+      const lockedRateSnapshot =
+        typeof quote.rate_snapshot === 'object' &&
+        quote.rate_snapshot !== null &&
+        !Array.isArray(quote.rate_snapshot)
+          ? (quote.rate_snapshot as Record<string, unknown>)
+          : {};
+      const rateValue = lockedRateSnapshot['rateValue'] ?? '0';
       const rateVersion = {
-        rate_value: (quote.rate_snapshot as any)?.rateValue ?? '0',
+        rate_value: rateValue,
         rate_version_id: quote.rate_version_id,
       };
 

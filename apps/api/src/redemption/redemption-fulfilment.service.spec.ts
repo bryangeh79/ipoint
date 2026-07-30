@@ -4,6 +4,8 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { DatabaseService } from '../database/database.service.js';
 import { RedemptionFulfilmentService } from './redemption-fulfilment.service.js';
 
+type MockTransactionCallback = (tx: unknown) => unknown;
+
 describe('RedemptionFulfilmentService', () => {
   const orderId = randomUUID();
   const memberId = randomUUID();
@@ -118,7 +120,7 @@ describe('RedemptionFulfilmentService', () => {
         .mockResolvedValueOnce([orderRow])
         .mockResolvedValueOnce([]);
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),
@@ -149,7 +151,7 @@ describe('RedemptionFulfilmentService', () => {
     it('should reject if order does not exist', async () => {
       const limitMock = vi.fn().mockResolvedValueOnce([]);
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),
@@ -174,7 +176,7 @@ describe('RedemptionFulfilmentService', () => {
     it('should reject if order is not in a fulfilable state', async () => {
       const orderRow = createOrderRow({ status: 'REFUNDED' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),
@@ -207,7 +209,7 @@ describe('RedemptionFulfilmentService', () => {
         .mockResolvedValueOnce([fulfilmentRow])
         .mockResolvedValueOnce([updatedRow]);
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),
@@ -232,7 +234,7 @@ describe('RedemptionFulfilmentService', () => {
     it('should reject invalid transition (COMPLETED to IN_PROGRESS)', async () => {
       const fulfilmentRow = createFulfilmentRow({ status: 'DELIVERED' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),
@@ -277,7 +279,7 @@ describe('RedemptionFulfilmentService', () => {
     it('should transition CONFIRMED to FULFILMENT_SUSPENDED', async () => {
       const orderRow = createOrderRow();
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),
@@ -316,7 +318,7 @@ describe('RedemptionFulfilmentService', () => {
 
       const limitMock = vi.fn().mockResolvedValueOnce([]);
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),
@@ -356,7 +358,7 @@ describe('RedemptionFulfilmentService', () => {
 
       const limitMock = vi.fn().mockResolvedValue([existingRow]);
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb({
           select: vi.fn().mockReturnThis(),
           from: vi.fn().mockReturnThis(),

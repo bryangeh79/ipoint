@@ -17,6 +17,8 @@ import type { ConfigService } from '../config/config.service.js';
 import type { DatabaseService } from '../database/database.service.js';
 import { RedemptionRefundService } from './redemption-refund.service.js';
 
+type MockTransactionCallback = (tx: unknown) => unknown;
+
 describe('RedemptionRefundService — P6 Checkpoint E', () => {
   const orderId = randomUUID();
   const memberId = randomUUID();
@@ -179,7 +181,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
       const orderRow = createOrderRow({ status: 'FULFILMENT_SUSPENDED' });
       const requestRow = createRefundRequestRow();
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi
@@ -206,7 +208,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
     });
 
     it('should reject for CONFIRMED order (not refundable)', async () => {
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi
@@ -232,7 +234,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
     });
 
     it('should reject for FULFILLED order', async () => {
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi
@@ -258,7 +260,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
     });
 
     it('should reject if order not found', async () => {
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi.fn().mockResolvedValue([]),
@@ -284,7 +286,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
     it('should reject duplicate refund request (pending checker)', async () => {
       const existing = createRefundRequestRow({ status: 'PENDING_CHECKER' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi
@@ -316,7 +318,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
         walletEntryId: randomUUID(),
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi
@@ -352,7 +354,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
       const requestRow = createRefundRequestRow({ status: 'PENDING_CHECKER' });
       const orderRow = createOrderRow({ status: 'REFUND_PENDING' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi
@@ -407,7 +409,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
     it('should reject Maker = Checker (OD-17)', async () => {
       const requestRow = createRefundRequestRow({ status: 'PENDING_CHECKER' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi.fn().mockResolvedValue([requestRow]),
@@ -427,7 +429,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
     it('should reject if already APPROVED', async () => {
       const requestRow = createRefundRequestRow({ status: 'APPROVED' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi.fn().mockResolvedValue([requestRow]),
@@ -447,7 +449,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
     it('should reject if already REJECTED', async () => {
       const requestRow = createRefundRequestRow({ status: 'REJECTED' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi.fn().mockResolvedValue([requestRow]),
@@ -479,7 +481,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
         checkerNotes: 'Not eligible',
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi.fn().mockResolvedValue([requestRow]),
@@ -504,7 +506,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
     it('should reject Maker = Checker on reject (OD-17)', async () => {
       const requestRow = createRefundRequestRow({ status: 'PENDING_CHECKER' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi.fn().mockResolvedValue([requestRow]),
@@ -520,7 +522,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
     it('should reject if already APPROVED', async () => {
       const requestRow = createRefundRequestRow({ status: 'APPROVED' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi.fn().mockResolvedValue([requestRow]),
@@ -550,7 +552,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
       const orderRow = createOrderRow({ status: 'REFUND_PENDING' });
 
       // First call: approve
-      mockDb.runTransaction.mockImplementationOnce(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementationOnce(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi
@@ -597,7 +599,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
       expect(first.status).toBe('APPROVED');
 
       // Second call: should reject as already approved
-      mockDb.runTransaction.mockImplementationOnce(async (cb: Function) =>
+      mockDb.runTransaction.mockImplementationOnce(async (cb: MockTransactionCallback) =>
         cb(
           makeTx({
             limit: vi.fn().mockResolvedValue([requestRow]),
