@@ -125,25 +125,27 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
       };
 
       // Mock transaction
-      mockDb.db.transaction.mockImplementation(async (cb: MockTransactionCallback) => {
-        let execIdx = 0;
-        const tx = {
-          execute: vi.fn().mockImplementation(async () => {
-            execIdx++;
-            if (execIdx === 1) return { rows: [] }; // pg_advisory (idem lock)
-            if (execIdx === 2) return { rows: [] }; // idempotency check
-            if (execIdx === 3) return { rows: [quoteRow] }; // quote
-            if (execIdx === 4) return { rows: [] }; // consumed check
-            if (execIdx === 5) return { rows: [] }; // pg_advisory (wallet lock)
-            if (execIdx === 6) return { rows: [insufficientWalletRow] }; // wallet
-            if (execIdx === 7)
-              return { rows: [{ status: 'ACTIVE', kyc_level: 'LEVEL_2' }] }; // member
-            if (execIdx === 8 || execIdx === 9) return { rows: [{}] }; // rate x2
-            return { rows: [] };
-          }),
-        };
-        return cb(tx);
-      });
+      mockDb.db.transaction.mockImplementation(
+        async (cb: MockTransactionCallback) => {
+          let execIdx = 0;
+          const tx = {
+            execute: vi.fn().mockImplementation(async () => {
+              execIdx++;
+              if (execIdx === 1) return { rows: [] }; // pg_advisory (idem lock)
+              if (execIdx === 2) return { rows: [] }; // idempotency check
+              if (execIdx === 3) return { rows: [quoteRow] }; // quote
+              if (execIdx === 4) return { rows: [] }; // consumed check
+              if (execIdx === 5) return { rows: [] }; // pg_advisory (wallet lock)
+              if (execIdx === 6) return { rows: [insufficientWalletRow] }; // wallet
+              if (execIdx === 7)
+                return { rows: [{ status: 'ACTIVE', kyc_level: 'LEVEL_2' }] }; // member
+              if (execIdx === 8 || execIdx === 9) return { rows: [{}] }; // rate x2
+              return { rows: [] };
+            }),
+          };
+          return cb(tx);
+        },
+      );
 
       await expect(
         service.confirmOrder(
@@ -184,88 +186,93 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
       }
 
       let transactionCommitted = false;
-      mockDb.db.transaction.mockImplementation(async (cb: MockTransactionCallback) => {
-        let execIdx = 0;
-        const tx = {
-          execute: vi.fn().mockImplementation(async (sql: any) => {
-            const s = sqlStr(sql);
-            execIdx++;
+      mockDb.db.transaction.mockImplementation(
+        async (cb: MockTransactionCallback) => {
+          let execIdx = 0;
+          const tx = {
+            execute: vi.fn().mockImplementation(async (sql: any) => {
+              const s = sqlStr(sql);
+              execIdx++;
 
-            // Call 3 is the quote query
-            if (execIdx === 3) {
-              return {
-                rows: [
-                  {
-                    id: testQuoteId,
-                    catalog_item_id: testCatalogItemId,
-                    member_id: testMemberId,
-                    market_id: testMarketId,
-                    status: 'VALID',
-                    rate_version_id: 'rv-test-1',
-                    rate_snapshot: { rateValue: '0.0100000000' },
-                    posted_point_cost: '5000.0000000000',
-                    unrounded_point_cost: '5000.0000000000',
-                    payload_hash: 'a'.repeat(64),
-                    expires_at: new Date(Date.now() + 600000).toISOString(),
-                    consumed_at: null,
-                    catalog_version: 1,
-                    item_name: 'Test Item',
-                    item_sku: 'SKU-001',
-                    item_type: 'PHYSICAL',
-                    fiat_reference_value: '50.0000000000',
-                    fiat_currency: 'MYR',
-                    fulfilment_mode: 'PICKUP',
-                    inventory_mode: 'UNLIMITED',
-                    version: 1,
-                  },
-                ],
-              };
-            }
+              // Call 3 is the quote query
+              if (execIdx === 3) {
+                return {
+                  rows: [
+                    {
+                      id: testQuoteId,
+                      catalog_item_id: testCatalogItemId,
+                      member_id: testMemberId,
+                      market_id: testMarketId,
+                      status: 'VALID',
+                      rate_version_id: 'rv-test-1',
+                      rate_snapshot: { rateValue: '0.0100000000' },
+                      posted_point_cost: '5000.0000000000',
+                      unrounded_point_cost: '5000.0000000000',
+                      payload_hash: 'a'.repeat(64),
+                      expires_at: new Date(Date.now() + 600000).toISOString(),
+                      consumed_at: null,
+                      catalog_version: 1,
+                      item_name: 'Test Item',
+                      item_sku: 'SKU-001',
+                      item_type: 'PHYSICAL',
+                      fiat_reference_value: '50.0000000000',
+                      fiat_currency: 'MYR',
+                      fulfilment_mode: 'PICKUP',
+                      inventory_mode: 'UNLIMITED',
+                      version: 1,
+                    },
+                  ],
+                };
+              }
 
-            if (s.includes('member_wallet_accounts')) {
-              return { rows: [sufficientWalletRow] };
-            }
-            if (s.includes('members')) {
-              return { rows: [{ status: 'ACTIVE', kyc_level: 'LEVEL_2' }] };
-            }
-            if (
-              s.includes('redemption_rate_versions') &&
-              s.includes('SELECT')
-            ) {
-              return { rows: [{ id: 'rv-1', rate_value: '0.0100000000' }] };
-            }
-            if (s.includes('INSERT') && s.includes('member_wallet_entries')) {
-              return { rows: [{ id: 'we-test-1' }] };
-            }
-            if (s.includes('UPDATE') && s.includes('member_wallet_accounts')) {
-              return { rows: [{ id: testWalletId }] };
-            }
-            if (s.includes('INSERT') && s.includes('redemption_orders')) {
-              return {
-                rows: [
-                  {
-                    id: 'order-test-1',
-                    status: 'CONFIRMED',
-                    order_reference: 'RDM-TEST',
-                    confirmed_at: new Date(),
-                  },
-                ],
-              };
-            }
-            if (s.includes('redemption_fulfilments')) {
+              if (s.includes('member_wallet_accounts')) {
+                return { rows: [sufficientWalletRow] };
+              }
+              if (s.includes('members')) {
+                return { rows: [{ status: 'ACTIVE', kyc_level: 'LEVEL_2' }] };
+              }
+              if (
+                s.includes('redemption_rate_versions') &&
+                s.includes('SELECT')
+              ) {
+                return { rows: [{ id: 'rv-1', rate_value: '0.0100000000' }] };
+              }
+              if (s.includes('INSERT') && s.includes('member_wallet_entries')) {
+                return { rows: [{ id: 'we-test-1' }] };
+              }
+              if (
+                s.includes('UPDATE') &&
+                s.includes('member_wallet_accounts')
+              ) {
+                return { rows: [{ id: testWalletId }] };
+              }
+              if (s.includes('INSERT') && s.includes('redemption_orders')) {
+                return {
+                  rows: [
+                    {
+                      id: 'order-test-1',
+                      status: 'CONFIRMED',
+                      order_reference: 'RDM-TEST',
+                      confirmed_at: new Date(),
+                    },
+                  ],
+                };
+              }
+              if (s.includes('redemption_fulfilments')) {
+                return { rows: [] };
+              }
+              if (s.includes('redemption_quotes') && s.includes('UPDATE')) {
+                return { rows: [{ id: testQuoteId }] };
+              }
               return { rows: [] };
-            }
-            if (s.includes('redemption_quotes') && s.includes('UPDATE')) {
-              return { rows: [{ id: testQuoteId }] };
-            }
-            return { rows: [] };
-          }),
-        };
+            }),
+          };
 
-        const result = await cb(tx);
-        transactionCommitted = true;
-        return result;
-      });
+          const result = await cb(tx);
+          transactionCommitted = true;
+          return result;
+        },
+      );
 
       const input = {
         quoteId: testQuoteId,
@@ -341,14 +348,16 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
         version: 1,
       };
 
-      mockDb.db.transaction.mockImplementation(async (cb: MockTransactionCallback) => {
-        const tx = {
-          execute: vi.fn().mockImplementation(async () => {
-            return { rows: [] };
-          }),
-        };
-        return cb(tx);
-      });
+      mockDb.db.transaction.mockImplementation(
+        async (cb: MockTransactionCallback) => {
+          const tx = {
+            execute: vi.fn().mockImplementation(async () => {
+              return { rows: [] };
+            }),
+          };
+          return cb(tx);
+        },
+      );
 
       await expect(
         service.confirmOrder(
@@ -377,21 +386,23 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
     it('should set lock_timeout = 3s in transaction', async () => {
       let lockTimeoutSet = false;
 
-      mockDb.db.transaction.mockImplementation(async (cb: MockTransactionCallback) => {
-        const tx = {
-          execute: vi.fn().mockImplementation(async (sql: any) => {
-            const s = sqlStr(sql);
-            if (s.includes('lock_timeout')) {
-              lockTimeoutSet = true;
+      mockDb.db.transaction.mockImplementation(
+        async (cb: MockTransactionCallback) => {
+          const tx = {
+            execute: vi.fn().mockImplementation(async (sql: any) => {
+              const s = sqlStr(sql);
+              if (s.includes('lock_timeout')) {
+                lockTimeoutSet = true;
+                return { rows: [] };
+              }
               return { rows: [] };
-            }
-            return { rows: [] };
-          }),
-        };
-        await cb(tx);
-        expect(lockTimeoutSet).toBe(true);
-        return { id: 'order-test' };
-      });
+            }),
+          };
+          await cb(tx);
+          expect(lockTimeoutSet).toBe(true);
+          return { id: 'order-test' };
+        },
+      );
 
       try {
         await service.confirmOrder(
@@ -475,21 +486,23 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
         terms_accepted_at: null,
       };
 
-      mockDb.db.transaction.mockImplementation(async (cb: MockTransactionCallback) => {
-        let execIdx = 0;
-        const tx = {
-          execute: vi.fn().mockImplementation(async (sql: any) => {
-            execIdx++;
-            // Call 2 is the idempotency check (SELECT from redemption_orders WHERE idempotency_key)
-            if (execIdx === 2) {
-              return { rows: [existingOrder] };
-            }
-            return { rows: [] };
-          }),
-        };
-        const result = await cb(tx);
-        return result;
-      });
+      mockDb.db.transaction.mockImplementation(
+        async (cb: MockTransactionCallback) => {
+          let execIdx = 0;
+          const tx = {
+            execute: vi.fn().mockImplementation(async (sql: any) => {
+              execIdx++;
+              // Call 2 is the idempotency check (SELECT from redemption_orders WHERE idempotency_key)
+              if (execIdx === 2) {
+                return { rows: [existingOrder] };
+              }
+              return { rows: [] };
+            }),
+          };
+          const result = await cb(tx);
+          return result;
+        },
+      );
 
       const result = await service.confirmOrder(
         testMemberId,
@@ -567,19 +580,21 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
         terms_accepted_at: null,
       };
 
-      mockDb.db.transaction.mockImplementation(async (cb: MockTransactionCallback) => {
-        let execIdx = 0;
-        const tx = {
-          execute: vi.fn().mockImplementation(async (sql: any) => {
-            execIdx++;
-            if (execIdx === 2) {
-              return { rows: [existingOrder] };
-            }
-            return { rows: [] };
-          }),
-        };
-        return cb(tx);
-      });
+      mockDb.db.transaction.mockImplementation(
+        async (cb: MockTransactionCallback) => {
+          let execIdx = 0;
+          const tx = {
+            execute: vi.fn().mockImplementation(async (sql: any) => {
+              execIdx++;
+              if (execIdx === 2) {
+                return { rows: [existingOrder] };
+              }
+              return { rows: [] };
+            }),
+          };
+          return cb(tx);
+        },
+      );
 
       // Same idempotency key with different payload must be rejected
       await expect(
@@ -654,20 +669,22 @@ describe('P6 Concurrency — Concurrent Quote & Order', () => {
       return {
         db: {
           execute: vi.fn(),
-          transaction: vi.fn().mockImplementation(async (cb: MockTransactionCallback) => {
-            let execIdx = 0;
-            const tx = {
-              execute: vi.fn().mockImplementation(async () => {
-                execIdx++;
-                if (execIdx === 3) return { rows: [fixedQuote] };
-                // Step 3.5: If existingOrderId provided, return it as consumed
-                if (execIdx === 4 && existingOrderId)
-                  return { rows: [{ id: existingOrderId }] };
-                return { rows: [] };
-              }),
-            };
-            return cb(tx);
-          }),
+          transaction: vi
+            .fn()
+            .mockImplementation(async (cb: MockTransactionCallback) => {
+              let execIdx = 0;
+              const tx = {
+                execute: vi.fn().mockImplementation(async () => {
+                  execIdx++;
+                  if (execIdx === 3) return { rows: [fixedQuote] };
+                  // Step 3.5: If existingOrderId provided, return it as consumed
+                  if (execIdx === 4 && existingOrderId)
+                    return { rows: [{ id: existingOrderId }] };
+                  return { rows: [] };
+                }),
+              };
+              return cb(tx);
+            }),
         },
       };
     }
@@ -754,17 +771,19 @@ describe('P6 Concurrency — Concurrent Quote & Order', () => {
     const mockDb2 = {
       db: {
         execute: vi.fn(),
-        transaction: vi.fn().mockImplementation(async (cb: MockTransactionCallback) => {
-          let execIdx = 0;
-          const tx = {
-            execute: vi.fn().mockImplementation(async () => {
-              execIdx++;
-              if (execIdx === 3) return { rows: [expiredQuoteRow] };
-              return { rows: [] };
-            }),
-          };
-          return cb(tx);
-        }),
+        transaction: vi
+          .fn()
+          .mockImplementation(async (cb: MockTransactionCallback) => {
+            let execIdx = 0;
+            const tx = {
+              execute: vi.fn().mockImplementation(async () => {
+                execIdx++;
+                if (execIdx === 3) return { rows: [expiredQuoteRow] };
+                return { rows: [] };
+              }),
+            };
+            return cb(tx);
+          }),
       },
     };
 

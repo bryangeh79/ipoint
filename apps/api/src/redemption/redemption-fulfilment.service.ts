@@ -97,9 +97,7 @@ export class RedemptionFulfilmentService {
     }
     this.encryptionKey = Buffer.from(keyHex, 'hex');
     if (this.encryptionKey.length !== 32) {
-      throw new Error(
-        'REDEMPTION_VOUCHER_ENCRYPTION_KEY must be 64 hex chars',
-      );
+      throw new Error('REDEMPTION_VOUCHER_ENCRYPTION_KEY must be 64 hex chars');
     }
   }
 

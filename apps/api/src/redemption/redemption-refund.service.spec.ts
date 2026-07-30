@@ -171,21 +171,22 @@ describe('RedemptionRefundService', () => {
       const orderRow = createOrderRow();
       const requestRow = createRefundRequestRow();
 
-      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
-        cb({
-          select: vi.fn().mockReturnThis(),
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockReturnThis(),
-          limit: vi
-            .fn()
-            .mockResolvedValueOnce([orderRow]) // order exists
-            .mockResolvedValueOnce([]), // no existing refund request
-          insert: vi.fn().mockReturnThis(),
-          values: vi.fn().mockReturnThis(),
-          returning: vi.fn().mockResolvedValue([requestRow]),
-          update: vi.fn().mockReturnThis(),
-          set: vi.fn().mockReturnThis(),
-        }),
+      mockDb.runTransaction.mockImplementation(
+        async (cb: MockTransactionCallback) =>
+          cb({
+            select: vi.fn().mockReturnThis(),
+            from: vi.fn().mockReturnThis(),
+            where: vi.fn().mockReturnThis(),
+            limit: vi
+              .fn()
+              .mockResolvedValueOnce([orderRow]) // order exists
+              .mockResolvedValueOnce([]), // no existing refund request
+            insert: vi.fn().mockReturnThis(),
+            values: vi.fn().mockReturnThis(),
+            returning: vi.fn().mockResolvedValue([requestRow]),
+            update: vi.fn().mockReturnThis(),
+            set: vi.fn().mockReturnThis(),
+          }),
       );
 
       const result = await service.createRefundRequest(
@@ -209,18 +210,19 @@ describe('RedemptionRefundService', () => {
     it('should reject if order is not in a refundable status (CONFIRMED)', async () => {
       const orderRow = createOrderRow({ status: 'CONFIRMED' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
-        cb({
-          select: vi.fn().mockReturnThis(),
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockReturnThis(),
-          limit: vi.fn().mockResolvedValue([orderRow]),
-          insert: vi.fn().mockReturnThis(),
-          values: vi.fn().mockReturnThis(),
-          returning: vi.fn(),
-          update: vi.fn().mockReturnThis(),
-          set: vi.fn().mockReturnThis(),
-        }),
+      mockDb.runTransaction.mockImplementation(
+        async (cb: MockTransactionCallback) =>
+          cb({
+            select: vi.fn().mockReturnThis(),
+            from: vi.fn().mockReturnThis(),
+            where: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockResolvedValue([orderRow]),
+            insert: vi.fn().mockReturnThis(),
+            values: vi.fn().mockReturnThis(),
+            returning: vi.fn(),
+            update: vi.fn().mockReturnThis(),
+            set: vi.fn().mockReturnThis(),
+          }),
       );
 
       await expect(
@@ -241,18 +243,19 @@ describe('RedemptionRefundService', () => {
     it('should reject if order is FULFILLED', async () => {
       const orderRow = createOrderRow({ status: 'FULFILLED' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
-        cb({
-          select: vi.fn().mockReturnThis(),
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockReturnThis(),
-          limit: vi.fn().mockResolvedValue([orderRow]),
-          insert: vi.fn().mockReturnThis(),
-          values: vi.fn().mockReturnThis(),
-          returning: vi.fn(),
-          update: vi.fn().mockReturnThis(),
-          set: vi.fn().mockReturnThis(),
-        }),
+      mockDb.runTransaction.mockImplementation(
+        async (cb: MockTransactionCallback) =>
+          cb({
+            select: vi.fn().mockReturnThis(),
+            from: vi.fn().mockReturnThis(),
+            where: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockResolvedValue([orderRow]),
+            insert: vi.fn().mockReturnThis(),
+            values: vi.fn().mockReturnThis(),
+            returning: vi.fn(),
+            update: vi.fn().mockReturnThis(),
+            set: vi.fn().mockReturnThis(),
+          }),
       );
 
       await expect(
@@ -296,24 +299,25 @@ describe('RedemptionRefundService', () => {
         balanceAfter: '15000.0000000000',
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
-        cb({
-          select: vi.fn().mockReturnThis(),
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockReturnThis(),
-          limit: vi
-            .fn()
-            .mockResolvedValueOnce([refundRequestRow]) // 1: find refund request
-            .mockResolvedValueOnce([orderRow]) // 2: lock order (in executeAtomicRefund)
-            .mockResolvedValueOnce([inventoryRow]) // 3: inventory lookup (in executeAtomicRefund)
-            .mockResolvedValueOnce([completedRefundRow]), // 4: final SELECT after refund
-          insert: vi.fn().mockReturnThis(),
-          values: vi.fn().mockReturnThis(),
-          returning: vi.fn().mockResolvedValue([refundEntryRow]),
-          update: vi.fn().mockReturnThis(),
-          set: vi.fn().mockReturnThis(),
-          for: vi.fn().mockReturnThis(),
-        }),
+      mockDb.runTransaction.mockImplementation(
+        async (cb: MockTransactionCallback) =>
+          cb({
+            select: vi.fn().mockReturnThis(),
+            from: vi.fn().mockReturnThis(),
+            where: vi.fn().mockReturnThis(),
+            limit: vi
+              .fn()
+              .mockResolvedValueOnce([refundRequestRow]) // 1: find refund request
+              .mockResolvedValueOnce([orderRow]) // 2: lock order (in executeAtomicRefund)
+              .mockResolvedValueOnce([inventoryRow]) // 3: inventory lookup (in executeAtomicRefund)
+              .mockResolvedValueOnce([completedRefundRow]), // 4: final SELECT after refund
+            insert: vi.fn().mockReturnThis(),
+            values: vi.fn().mockReturnThis(),
+            returning: vi.fn().mockResolvedValue([refundEntryRow]),
+            update: vi.fn().mockReturnThis(),
+            set: vi.fn().mockReturnThis(),
+            for: vi.fn().mockReturnThis(),
+          }),
       );
 
       const result = await service.approveRefundRequest(
@@ -335,18 +339,19 @@ describe('RedemptionRefundService', () => {
         makerId: adminUserId,
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
-        cb({
-          select: vi.fn().mockReturnThis(),
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockReturnThis(),
-          limit: vi.fn().mockResolvedValue([refundRequestRow]),
-          insert: vi.fn().mockReturnThis(),
-          values: vi.fn().mockReturnThis(),
-          returning: vi.fn(),
-          update: vi.fn().mockReturnThis(),
-          set: vi.fn().mockReturnThis(),
-        }),
+      mockDb.runTransaction.mockImplementation(
+        async (cb: MockTransactionCallback) =>
+          cb({
+            select: vi.fn().mockReturnThis(),
+            from: vi.fn().mockReturnThis(),
+            where: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockResolvedValue([refundRequestRow]),
+            insert: vi.fn().mockReturnThis(),
+            values: vi.fn().mockReturnThis(),
+            returning: vi.fn(),
+            update: vi.fn().mockReturnThis(),
+            set: vi.fn().mockReturnThis(),
+          }),
       );
 
       await expect(
@@ -360,18 +365,19 @@ describe('RedemptionRefundService', () => {
     it('should reject if refund already completed', async () => {
       const refundRequestRow = createRefundRequestRow({ status: 'COMPLETED' });
 
-      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
-        cb({
-          select: vi.fn().mockReturnThis(),
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockReturnThis(),
-          limit: vi.fn().mockResolvedValue([refundRequestRow]),
-          insert: vi.fn().mockReturnThis(),
-          values: vi.fn().mockReturnThis(),
-          returning: vi.fn(),
-          update: vi.fn().mockReturnThis(),
-          set: vi.fn().mockReturnThis(),
-        }),
+      mockDb.runTransaction.mockImplementation(
+        async (cb: MockTransactionCallback) =>
+          cb({
+            select: vi.fn().mockReturnThis(),
+            from: vi.fn().mockReturnThis(),
+            where: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockResolvedValue([refundRequestRow]),
+            insert: vi.fn().mockReturnThis(),
+            values: vi.fn().mockReturnThis(),
+            returning: vi.fn(),
+            update: vi.fn().mockReturnThis(),
+            set: vi.fn().mockReturnThis(),
+          }),
       );
 
       await expect(
@@ -394,18 +400,19 @@ describe('RedemptionRefundService', () => {
         decidedAt: new Date(),
       });
 
-      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) =>
-        cb({
-          select: vi.fn().mockReturnThis(),
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockReturnThis(),
-          limit: vi.fn().mockResolvedValueOnce([refundRequestRow]),
-          insert: vi.fn().mockReturnThis(),
-          values: vi.fn().mockReturnThis(),
-          returning: vi.fn().mockResolvedValue([rejectedRow]),
-          update: vi.fn().mockReturnThis(),
-          set: vi.fn().mockReturnThis(),
-        }),
+      mockDb.runTransaction.mockImplementation(
+        async (cb: MockTransactionCallback) =>
+          cb({
+            select: vi.fn().mockReturnThis(),
+            from: vi.fn().mockReturnThis(),
+            where: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockResolvedValueOnce([refundRequestRow]),
+            insert: vi.fn().mockReturnThis(),
+            values: vi.fn().mockReturnThis(),
+            returning: vi.fn().mockResolvedValue([rejectedRow]),
+            update: vi.fn().mockReturnThis(),
+            set: vi.fn().mockReturnThis(),
+          }),
       );
 
       const result = await service.rejectRefundRequest(
