@@ -94,6 +94,10 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
     });
     await app.init();
     server = app.getHttpServer() as Server;
+    // Prevent ECONNRESET under concurrent load: keep connections alive longer
+    server.keepAliveTimeout = 120_000;
+    server.headersTimeout = 125_000;
+    server.maxConnections = 200;
     database = app.get(DatabaseService);
     auth = app.get(AuthService);
     rateLimiter = app.get(AUTH_RATE_LIMITER);
