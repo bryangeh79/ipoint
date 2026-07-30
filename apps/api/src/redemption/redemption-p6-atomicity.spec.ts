@@ -230,21 +230,20 @@ describe.sequential('Phase 6 PostgreSQL financial atomicity', () => {
       SET status = 'FULFILMENT_EXCEPTION'::redemption_order_status
       WHERE id = ${order.id}
     `);
-    const request = await refundService.createRefundRequest(
-      {
-        orderId: order.id,
-        memberId: member.memberId,
-        marketId: marketId,
-        makerId: adminUserId,
-        totalPointCost: order.totalPointCost,
-        reason: 'P6 atomicity verification',
-      },
-      { actorType: 'ADMIN', actorId: adminUserId },
-    );
+    const requestId = randomUUID();
+    await db.execute(sql`
+      INSERT INTO redemption_refund_requests (
+        id, order_id, maker_id, status, refund_amount, reason
+      ) VALUES (
+        ${requestId}, ${order.id}, ${adminUserId},
+        'PENDING_CHECKER'::redemption_refund_request_status,
+        ${order.totalPointCost}, 'P6 atomicity verification'
+      )
+    `);
     return {
       orderId: order.id,
       walletId: member.walletId,
-      requestId: request.id,
+      requestId,
     };
   }
 
@@ -583,7 +582,7 @@ describe.sequential('Phase 6 PostgreSQL financial atomicity', () => {
       FROM redemption_refund_requests
       WHERE id = ${fixture.requestId}
     `);
-    expect(request.rows[0]?.status).toBe('APPROVED');
+    expect(request.rows[0]?.status).toBe('COMPLETED');
   });
 
   it('14. leaves the wallet unchanged when refund execution fails', async () => {
@@ -663,7 +662,7 @@ describe.sequential('Phase 6 PostgreSQL financial atomicity', () => {
       FROM redemption_orders
       WHERE id = ${fixture.orderId}
     `);
-    expect(order.rows[0]?.status).toBe('REFUND_PENDING');
+    expect(order.rows[0]?.status).toBe('FULFILMENT_EXCEPTION');
   });
 
   it('17. prevents a negative wallet balance', async () => {

@@ -215,7 +215,7 @@ export class RedemptionRefundService {
       }
 
       if (request.status !== 'PENDING_CHECKER') {
-        if (request.status === 'APPROVED') {
+        if (request.status === 'APPROVED' || request.status === 'COMPLETED') {
           redemptionConflict(
             redemptionErrorCodes.refundAlreadyApproved,
             'Refund already approved',
@@ -241,11 +241,11 @@ export class RedemptionRefundService {
         );
       }
 
-      // Mark approved
+      // Mark executing before the atomic wallet/order work begins.
       await tx
         .update(redemptionRefundRequests)
         .set({
-          status: 'APPROVED',
+          status: 'EXECUTING',
           checkerId,
           checkerNotes: params.checkerNotes ?? null,
           decidedAt: new Date(),
@@ -374,7 +374,7 @@ export class RedemptionRefundService {
     await tx
       .update(redemptionRefundRequests)
       .set({
-        status: 'APPROVED',
+        status: 'COMPLETED',
         walletEntryId,
       })
       .where(eq(redemptionRefundRequests.id, request.id));
@@ -508,6 +508,11 @@ export class RedemptionRefundService {
   private toShippingRecoveryRecord(
     row: Record<string, unknown>,
   ): ShippingPaymentRecoveryRecord {
+    const toIsoString = (value: unknown): string =>
+      value instanceof Date
+        ? value.toISOString()
+        : new Date(String(value)).toISOString();
+
     return {
       id: row.id as string,
       orderId: row.order_id as string,
@@ -518,12 +523,10 @@ export class RedemptionRefundService {
       failureReason: (row.failure_reason as string) ?? null,
       retryCount: Number(row.retry_count),
       maxRetries: Number(row.max_retries),
-      voidedAt: row.voided_at ? (row.voided_at as Date).toISOString() : null,
-      refundedAt: row.refunded_at
-        ? (row.refunded_at as Date).toISOString()
-        : null,
-      failedAt: row.failed_at ? (row.failed_at as Date).toISOString() : null,
-      createdAt: (row.created_at as Date).toISOString(),
+      voidedAt: row.voided_at ? toIsoString(row.voided_at) : null,
+      refundedAt: row.refunded_at ? toIsoString(row.refunded_at) : null,
+      failedAt: row.failed_at ? toIsoString(row.failed_at) : null,
+      createdAt: toIsoString(row.created_at),
     };
   }
 

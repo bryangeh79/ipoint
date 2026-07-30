@@ -1199,6 +1199,25 @@ export class RedemptionService {
       );
       const existingRow = existingOrder.rows[0];
       if (existingRow) {
+        const samePayload =
+          existingRow.member_id === memberId &&
+          existingRow.market_id === marketId &&
+          existingRow.quote_id === input.quoteId &&
+          this.equalDecimal(
+            existingRow.total_points as string,
+            input.expectedTotalPoints,
+          ) &&
+          this.equalDecimal(
+            existingRow.quantity as string,
+            input.expectedQuantity,
+          );
+        if (!samePayload) {
+          throw new RedemptionError(
+            'REDEMPTION_IDEMPOTENCY_MISMATCH',
+            'This idempotency key was already used for a different redemption confirmation.',
+            { idempotencyKey },
+          );
+        }
         return this.mapOrderToResponse(existingRow);
       }
 
