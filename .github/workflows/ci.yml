@@ -56,8 +56,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Run unit tests
-    env:
-      DATABASE_URL: postgresql://u:p@localhost:5432/ipoint_test
+        env:
+          DATABASE_URL: postgresql://u:p@localhost:5432/ipoint_test
         run: >
           pnpm --filter @ipoint/api exec vitest --config vitest.config.ts run
           src/redemption/redemption-concurrency.spec.ts
