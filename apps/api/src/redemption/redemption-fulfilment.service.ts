@@ -4,6 +4,7 @@ import {
   redemptionOrders,
   redemptionInventory,
   redemptionAuditLog,
+  redemptionVoucherCodes,
   redemptionPickupLocations,
   redemptionWaitlistEntries,
 } from '@ipoint/database';
@@ -48,6 +49,7 @@ const TX_OPTIONS: TransactionExecutionOptions = {
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = [0, 5000, 30000, 120000];
+const MAX_VOUCHER_CODE_ATTEMPTS = 5;
 
 /**
  * Valid order status transitions per P6 Contract §20.
@@ -90,13 +92,14 @@ export class RedemptionFulfilmentService {
     @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {
     const keyHex = process.env['REDEMPTION_VOUCHER_ENCRYPTION_KEY'] ?? '';
-    if (keyHex) {
-      this.encryptionKey = Buffer.from(keyHex, 'hex');
-      if (this.encryptionKey.length !== 32) {
-        throw new Error(
-          'REDEMPTION_VOUCHER_ENCRYPTION_KEY must be 64 hex chars',
-        );
-      }
+    if (!keyHex) {
+      throw new Error('REDEMPTION_VOUCHER_ENCRYPTION_KEY is required');
+    }
+    this.encryptionKey = Buffer.from(keyHex, 'hex');
+    if (this.encryptionKey.length !== 32) {
+      throw new Error(
+        'REDEMPTION_VOUCHER_ENCRYPTION_KEY must be 64 hex chars',
+      );
     }
   }
 
@@ -276,11 +279,52 @@ export class RedemptionFulfilmentService {
     actor: ActorInfo,
     tx: RedemptionTx,
   ): Promise<FulfilmentRecord> {
-    const code = this.generateCode();
-    const encrypted = this.encrypt(code);
-    const hash = createHash('sha256').update(code).digest('hex');
+    let encrypted: string | null = null;
+    const itemSnapshot = order.itemSnapshot as Record<string, unknown>;
+    const snapshotExpiryDate =
+      itemSnapshot['voucherExpiryDate'] ?? itemSnapshot['expiryDate'];
+    const expiryDate =
+      typeof snapshotExpiryDate === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(snapshotExpiryDate)
+        ? snapshotExpiryDate
+        : null;
 
-    // Store encryted value on fulfilment
+    for (let attempt = 1; attempt <= MAX_VOUCHER_CODE_ATTEMPTS; attempt += 1) {
+      const code = this.generateCode();
+      const candidateEncrypted = this.encrypt(code);
+      const codeHash = createHash('sha256').update(code).digest('hex');
+
+      const inserted = await tx
+        .insert(redemptionVoucherCodes)
+        .values({
+          orderId: order.id,
+          catalogItemId: order.itemId,
+          marketId: order.marketId,
+          codeHash,
+          codeEncrypted: candidateEncrypted,
+          // Current catalog rows have no expiry field; preserve a future
+          // catalog-derived order snapshot date when present, otherwise null.
+          expiryDate,
+        })
+        .onConflictDoNothing({
+          target: redemptionVoucherCodes.codeHash,
+        })
+        .returning({ id: redemptionVoucherCodes.id });
+
+      if (inserted.length > 0) {
+        encrypted = candidateEncrypted;
+        break;
+      }
+    }
+
+    if (!encrypted) {
+      redemptionConflict(
+        redemptionErrorCodes.voucherCodeGenerationFailed,
+        'Unable to allocate a unique voucher code',
+      );
+    }
+
+    // Keep the encrypted fulfilment projection in sync with the canonical code.
     await tx
       .update(redemptionFulfilments)
       .set({
@@ -305,7 +349,6 @@ export class RedemptionFulfilmentService {
       {
         fulfilmentId: fulfilment.id,
         fulfilmentType: 'DIGITAL',
-        hashPrefix: hash.substring(0, 16),
       },
       'Digital auto-fulfilment',
     );
@@ -355,58 +398,74 @@ export class RedemptionFulfilmentService {
     memberId: string | null,
     actor: ActorInfo,
   ): Promise<VoucherRevealResult> {
-    const [order] = await this.database.db
-      .select()
-      .from(redemptionOrders)
-      .where(eq(redemptionOrders.id, orderId))
-      .limit(1);
-    if (!order)
-      redemptionNotFound(
-        redemptionErrorCodes.fulfilmentOrderNotFound,
-        `Order ${orderId} not found`,
-      );
+    return this.database.runTransaction(async (tx) => {
+      const [order] = await tx
+        .select()
+        .from(redemptionOrders)
+        .where(eq(redemptionOrders.id, orderId))
+        .limit(1);
+      if (!order)
+        redemptionNotFound(
+          redemptionErrorCodes.fulfilmentOrderNotFound,
+          `Order ${orderId} not found`,
+        );
 
-    if (actor.actorType === 'MEMBER' && order.memberId !== memberId) {
-      redemptionForbidden(
-        redemptionErrorCodes.voucherRevealNotAuthorized,
-        'Only own voucher codes can be viewed',
-      );
-    }
-    if (order.status !== 'FULFILLED') {
-      redemptionBadRequest(
-        redemptionErrorCodes.fulfilmentInvalidTransition,
-        `Order ${orderId} not fulfilled`,
-      );
-    }
+      const isOwnMemberVoucher =
+        actor.actorType === 'MEMBER' &&
+        actor.actorId !== null &&
+        actor.actorId === memberId &&
+        order.memberId === memberId;
+      const isAuthorizedAdmin =
+        actor.actorType === 'ADMIN' && actor.actorId !== null;
 
-    const [f] = await this.database.db
-      .select()
-      .from(redemptionFulfilments)
-      .where(eq(redemptionFulfilments.orderId, orderId))
-      .limit(1);
-    if (!f || !f.digitalValue)
-      redemptionNotFound(
-        redemptionErrorCodes.fulfilmentNotFound,
-        `No digital value for order ${orderId}`,
-      );
+      if (!isOwnMemberVoucher && !isAuthorizedAdmin) {
+        redemptionForbidden(
+          redemptionErrorCodes.voucherRevealNotAuthorized,
+          'Voucher reveal is not authorized',
+        );
+      }
+      if (order.status !== 'FULFILLED') {
+        redemptionBadRequest(
+          redemptionErrorCodes.fulfilmentInvalidTransition,
+          `Order ${orderId} not fulfilled`,
+        );
+      }
 
-    const plain = this.decrypt(f.digitalValue);
-    const [audit] = await this.database.db
-      .insert(redemptionAuditLog)
-      .values({
-        actorType: actor.actorType,
-        actorId: actor.actorId,
-        action: 'VOUCHER_REVEAL',
-        entityType: 'REDEMPTION_ORDER',
-        entityId: orderId,
-        after: { orderId },
-        result: 'SUCCESS',
-        occurredAt: new Date(),
-      })
-      .returning();
-    if (!audit) throw new Error('Failed to create audit log entry');
+      const [voucher] = await tx
+        .select()
+        .from(redemptionVoucherCodes)
+        .where(eq(redemptionVoucherCodes.orderId, orderId))
+        .orderBy(redemptionVoucherCodes.createdAt)
+        .limit(1);
+      if (!voucher)
+        redemptionNotFound(
+          redemptionErrorCodes.fulfilmentNotFound,
+          `No voucher code for order ${orderId}`,
+        );
 
-    return { code: plain, orderId, auditEventId: audit.id };
+      const plain = this.decrypt(voucher.codeEncrypted);
+      const [audit] = await tx
+        .insert(redemptionAuditLog)
+        .values({
+          actorType: actor.actorType,
+          actorId: actor.actorId,
+          marketId: order.marketId,
+          action: 'VOUCHER_REVEAL',
+          entityType: 'REDEMPTION_ORDER',
+          entityId: orderId,
+          before: null,
+          after: { orderId },
+          reason: null,
+          result: 'SUCCESS',
+          requestId: actor.requestId ?? null,
+          ipAddress: actor.ipAddress ?? null,
+          occurredAt: new Date(),
+        })
+        .returning({ id: redemptionAuditLog.id });
+      if (!audit) throw new Error('Failed to create audit log entry');
+
+      return { code: plain, orderId, auditEventId: audit.id };
+    }, TX_OPTIONS);
   }
 
   // ─── Pickup Code ──────────────────────────────────────────────────────

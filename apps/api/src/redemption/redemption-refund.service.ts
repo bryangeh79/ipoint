@@ -495,25 +495,10 @@ export class RedemptionRefundService {
     );
 
     if (!result.rows[0]) {
-      this.logger.warn(
+      redemptionNotFound(
+        redemptionErrorCodes.shippingPaymentNotFound,
         `Shipping recovery ${recoveryId} not found for ${action}`,
       );
-      // Return stub for graceful degradation
-      return {
-        id: recoveryId,
-        orderId: '',
-        paymentIntentId: '',
-        amount: '0',
-        currency: 'MYR',
-        recoveryStatus: 'FAILED',
-        failureReason: 'Not found',
-        retryCount: 0,
-        maxRetries: 3,
-        voidedAt: null,
-        refundedAt: null,
-        failedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      };
     }
 
     this.logger.log(`Shipping recovery ${recoveryId}: ${action} completed`);
