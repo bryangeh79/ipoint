@@ -709,15 +709,12 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
       expect(result.recoveryStatus).toBe('REFUNDED');
     });
 
-    it('should return graceful failure for missing recovery record', async () => {
+    it('should throw for missing recovery record', async () => {
       mockDb.db.execute.mockResolvedValue({ rows: [] });
 
-      const result = await service.processShippingRecovery(
-        randomUUID(),
-        'REFUND',
-      );
-      expect(result.recoveryStatus).toBe('FAILED');
-      expect(result.failureReason).toBe('Not found');
+      await expect(
+        service.processShippingRecovery(randomUUID(), 'REFUND'),
+      ).rejects.toThrow(/Shipping recovery .* not found for REFUND/);
     });
 
     it('should upsert shipping recovery ON CONFLICT order_id', async () => {

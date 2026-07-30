@@ -1,4 +1,4 @@
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID, createCipheriv, createHash, randomBytes } from 'node:crypto';
 
 /**
  * P6 Checkpoint E — Enhanced Fulfilment Unit Tests
@@ -24,6 +24,8 @@ import { RedemptionFulfilmentService } from './redemption-fulfilment.service.js'
 type MockTransactionCallback = (tx: unknown) => unknown;
 
 describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
+  const voucherEncryptionKey =
+    '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
   const orderId = randomUUID();
   const memberId = randomUUID();
   const marketId = randomUUID();
@@ -45,6 +47,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
       for: vi.fn().mockReturnThis(),
       insert: vi.fn().mockReturnThis(),
       values: vi.fn().mockReturnThis(),
+      onConflictDoNothing: vi.fn().mockReturnThis(),
       returning: vi.fn(),
       update: vi.fn().mockReturnThis(),
       set: vi.fn().mockReturnThis(),
@@ -70,6 +73,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
         limit: vi.fn().mockReturnThis(),
         insert: vi.fn().mockReturnThis(),
         values: vi.fn().mockReturnThis(),
+        onConflictDoNothing: vi.fn().mockReturnThis(),
         returning: vi.fn(),
         orderBy: vi.fn().mockReturnThis(),
         update: vi.fn().mockReturnThis(),
@@ -189,6 +193,35 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     };
   }
 
+  function createVoucherCodeRow(
+    plainCode = 'TEST-VOUCHER-CODE',
+  ): any {
+    const iv = randomBytes(16);
+    const cipher = createCipheriv(
+      'aes-256-gcm',
+      Buffer.from(voucherEncryptionKey, 'hex'),
+      iv,
+    );
+    const encrypted = Buffer.concat([
+      cipher.update(plainCode, 'utf8'),
+      cipher.final(),
+    ]);
+    return {
+      id: randomUUID(),
+      orderId,
+      catalogItemId: randomUUID(),
+      marketId,
+      codeHash: createHash('sha256').update(plainCode).digest('hex'),
+      codeEncrypted: Buffer.concat([
+        iv,
+        cipher.getAuthTag(),
+        encrypted,
+      ]).toString('base64'),
+      expiryDate: null,
+      createdAt: new Date(),
+    };
+  }
+
   function makeTx(behaviors?: Record<string, any>): any {
     const defaultResolve = vi.fn().mockResolvedValue([]);
     return {
@@ -198,6 +231,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
       limit: vi.fn(),
       insert: vi.fn().mockReturnThis(),
       values: vi.fn().mockReturnThis(),
+      onConflictDoNothing: vi.fn().mockReturnThis(),
       returning: vi.fn(),
       update: vi.fn().mockReturnThis(),
       set: vi.fn().mockReturnThis(),
@@ -697,42 +731,36 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     // public createFulfilment (DIGITAL auto-complete) and revealVoucher API.
 
     it('should produce decryptable voucher codes via revealVoucher', async () => {
+      const plainCode = 'ABCD-EFGH-JKLM-NPQR';
       const orderRow = createOrderRow({
         status: 'FULFILLED',
         memberId,
         fulfilledAt: new Date(),
       });
-      const fRow = createFulfilmentRow({
-        fulfilmentType: 'DIGITAL',
-        status: 'COMPLETED',
-        digitalValue: 'dGVzdC1lbmNyeXB0ZWQ=',
+
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
+        const tx = makeTx();
+        tx.limit
+          .mockResolvedValueOnce([orderRow])
+          .mockResolvedValueOnce([createVoucherCodeRow(plainCode)]);
+        tx.returning.mockResolvedValue([{ id: randomUUID() }]);
+        return cb(tx);
       });
 
-      mockDb.db.select.mockReturnThis();
-      mockDb.db.from.mockReturnThis();
-      mockDb.db.where.mockReturnThis();
-      mockDb.db.limit
-        .mockResolvedValueOnce([orderRow])
-        .mockResolvedValueOnce([fRow]);
-      mockDb.db.insert.mockReturnThis();
-      mockDb.db.values.mockReturnThis();
-      mockDb.db.returning.mockResolvedValue([{ id: randomUUID() }]);
-
-      const result = await service
-        .revealVoucher(orderId, memberId, {
+      const result = await service.revealVoucher(orderId, memberId, {
           actorType: 'MEMBER',
           actorId: memberId,
           requestId: 'req-1',
-        })
-        .catch(() => ({ code: 'test-code', orderId, auditEventId: 'mock' }));
-      expect(result).toBeDefined();
+        });
+      expect(result.code).toBe(plainCode);
+      expect(result.orderId).toBe(orderId);
     });
 
     it('revealVoucher should return decrypted code for own order', async () => {
-      mockDb.db.select.mockReturnThis();
-      mockDb.db.from.mockReturnThis();
-      mockDb.db.where.mockReturnThis();
-      mockDb.db.limit
+      const plainCode = 'OWN-VOUCHER-CODE';
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
+        const tx = makeTx();
+        tx.limit
         .mockResolvedValueOnce([
           createOrderRow({
             status: 'FULFILLED',
@@ -740,42 +768,33 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
             fulfilledAt: new Date(),
           }),
         ])
-        .mockResolvedValueOnce([
-          createFulfilmentRow({
-            digitalValue: 'dGVzdC1lbmNyeXB0ZWQ=',
-            fulfilmentType: 'DIGITAL',
-            status: 'COMPLETED',
-          }),
-        ]);
-      mockDb.db.insert.mockReturnThis();
-      mockDb.db.values.mockReturnThis();
-      mockDb.db.returning.mockResolvedValue([{ id: randomUUID() }]);
+          .mockResolvedValueOnce([createVoucherCodeRow(plainCode)]);
+        tx.returning.mockResolvedValue([{ id: randomUUID() }]);
+        return cb(tx);
+      });
 
-      // revealVoucher decrypts digitalValue; test data won't decrypt properly
-      // but the query/audit flow is verified
-      const result = await service
-        .revealVoucher(orderId, memberId, {
+      const result = await service.revealVoucher(orderId, memberId, {
           actorType: 'MEMBER',
           actorId: memberId,
           requestId: 'req-1',
-        })
-        .catch(() => ({ orderId, code: 'test', auditEventId: 'mock' }));
-      expect(result).toBeDefined();
+        });
+      expect(result.code).toBe(plainCode);
     });
 
     it('revealVoucher should reject for non-owner member', async () => {
       const differentMemberId = randomUUID();
 
-      mockDb.db.select.mockReturnThis();
-      mockDb.db.from.mockReturnThis();
-      mockDb.db.where.mockReturnThis();
-      mockDb.db.limit.mockResolvedValue([
-        createOrderRow({
-          status: 'FULFILLED',
-          memberId: differentMemberId,
-          fulfilledAt: new Date(),
-        }),
-      ]);
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
+        const tx = makeTx();
+        tx.limit.mockResolvedValue([
+          createOrderRow({
+            status: 'FULFILLED',
+            memberId: differentMemberId,
+            fulfilledAt: new Date(),
+          }),
+        ]);
+        return cb(tx);
+      });
 
       await expect(
         service.revealVoucher(orderId, memberId, {
@@ -786,10 +805,10 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
     });
 
     it('revealVoucher should succeed for admin', async () => {
-      mockDb.db.select.mockReturnThis();
-      mockDb.db.from.mockReturnThis();
-      mockDb.db.where.mockReturnThis();
-      mockDb.db.limit
+      const plainCode = 'ADMIN-VOUCHER-CODE';
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
+        const tx = makeTx();
+        tx.limit
         .mockResolvedValueOnce([
           createOrderRow({
             status: 'FULFILLED',
@@ -797,31 +816,22 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
             fulfilledAt: new Date(),
           }),
         ])
-        .mockResolvedValueOnce([
-          createFulfilmentRow({
-            digitalValue: 'dGVzdC1lbmNyeXB0ZWQ=',
-            fulfilmentType: 'DIGITAL',
-            status: 'COMPLETED',
-          }),
-        ]);
-      mockDb.db.insert.mockReturnThis();
-      mockDb.db.values.mockReturnThis();
-      mockDb.db.returning.mockResolvedValue([{ id: randomUUID() }]);
+          .mockResolvedValueOnce([createVoucherCodeRow(plainCode)]);
+        tx.returning.mockResolvedValue([{ id: randomUUID() }]);
+        return cb(tx);
+      });
 
-      const result = await service
-        .revealVoucher(orderId, null, {
+      const result = await service.revealVoucher(orderId, null, {
           actorType: 'ADMIN',
           actorId: adminUserId,
-        })
-        .catch(() => ({ orderId, code: 'test', auditEventId: 'mock' }));
-      expect(result).toBeDefined();
+        });
+      expect(result.code).toBe(plainCode);
     });
 
     it('revealVoucher should create audit log', async () => {
-      mockDb.db.select.mockReturnThis();
-      mockDb.db.from.mockReturnThis();
-      mockDb.db.where.mockReturnThis();
-      mockDb.db.limit
+      mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
+        const tx = makeTx();
+        tx.limit
         .mockResolvedValueOnce([
           createOrderRow({
             status: 'FULFILLED',
@@ -829,27 +839,15 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
             fulfilledAt: new Date(),
           }),
         ])
-        .mockResolvedValueOnce([
-          createFulfilmentRow({
-            digitalValue: 'dGVzdC1lbmNyeXB0ZWQ=',
-            fulfilmentType: 'DIGITAL',
-            status: 'COMPLETED',
-          }),
-        ]);
-      mockDb.db.insert.mockReturnThis();
-      mockDb.db.values.mockReturnThis();
-      mockDb.db.returning.mockResolvedValue([{ id: 'audit-event-123' }]);
+          .mockResolvedValueOnce([createVoucherCodeRow()]);
+        tx.returning.mockResolvedValue([{ id: 'audit-event-123' }]);
+        return cb(tx);
+      });
 
-      const result = await service
-        .revealVoucher(orderId, null, {
+      const result = await service.revealVoucher(orderId, null, {
           actorType: 'ADMIN',
           actorId: adminUserId,
-        })
-        .catch(() => ({
-          auditEventId: 'audit-event-123',
-          orderId,
-          code: 'test',
-        }));
+        });
       expect(result.auditEventId).toBe('audit-event-123');
     });
   });
@@ -869,13 +867,21 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
 
       mockDb.runTransaction.mockImplementation(async (cb: MockTransactionCallback) => {
         const tx = makeTx();
+        const completedFulfilment = createFulfilmentRow({
+          ...fulfilmentRow,
+          status: 'COMPLETED',
+          fulfilledAt: new Date(),
+        });
         tx.limit
           .mockResolvedValueOnce([orderRow]) // find order
           .mockResolvedValueOnce([]) // no existing fulfilment
-          .mockResolvedValueOnce([createPickupLocationRow({ isActive: true })]); // pickup validation (not needed for DIGITAL but mock)
+          .mockResolvedValueOnce([completedFulfilment]); // updated fulfilment
         tx.insert.mockReturnThis();
         tx.values.mockReturnThis();
-        tx.returning.mockResolvedValue([fulfilmentRow]); // insert returns PENDING fulfilment
+        tx.onConflictDoNothing.mockReturnThis();
+        tx.returning
+          .mockResolvedValueOnce([fulfilmentRow]) // fulfilment insert
+          .mockResolvedValueOnce([{ id: randomUUID() }]); // voucher insert
         tx.update.mockReturnThis();
         tx.set.mockReturnThis();
         return cb(tx);
@@ -887,6 +893,7 @@ describe('RedemptionFulfilmentService — P6 Checkpoint E', () => {
       );
 
       expect(result).toBeDefined();
+      expect(result.status).toBe('COMPLETED');
     });
 
     it('should create SERVICE fulfilment with scheduled date', async () => {
