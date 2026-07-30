@@ -66,7 +66,7 @@ describe('P6-S8: Redemption Admin Hardening — Canonical Schema', () => {
     // Seed test market (required FK for redemption catalog/rates/locations)
     await databaseService.db.execute(sql`
       INSERT INTO markets(id,code,name,status,currency_code,timezone,default_locale)
-      VALUES(${testMarketId},'TST-MARKET','Test Market','ACTIVE','MYR','Asia/Kuala_Lumpur','en-MY')
+      VALUES(${testMarketId},'TSTMKT','Test Market','ACTIVE','MYR','Asia/Kuala_Lumpur','en-MY')
       ON CONFLICT(id) DO NOTHING
     `);
     await databaseService.db.execute(sql`
