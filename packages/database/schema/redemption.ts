@@ -370,6 +370,8 @@ export const redemptionOrders = pgTable(
     readyForPickupAt: utcTimestamp('ready_for_pickup_at'),
     backorderedAt: utcTimestamp('backordered_at'),
     fulfilledAt: utcTimestamp('fulfilled_at'),
+    termsVersion: varchar('terms_version', { length: 64 }),
+    termsAcceptedAt: utcTimestamp('terms_accepted_at'),
     cancelledAt: utcTimestamp('cancelled_at'),
     createdAt: utcTimestamp('created_at').notNull().defaultNow(),
     updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
@@ -623,14 +625,21 @@ export const redemptionShippingPayments = pgTable(
   'redemption_shipping_payments',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    orderId: uuid('order_id')
-      .notNull()
-      .references(() => redemptionOrders.id, { onDelete: 'restrict' }),
+    orderId: uuid('order_id').references(() => redemptionOrders.id, {
+      onDelete: 'restrict',
+    }),
+    memberId: uuid('member_id').references(() => members.id, {
+      onDelete: 'restrict',
+    }),
+    quoteId: uuid('quote_id').references(() => redemptionQuotes.id, {
+      onDelete: 'restrict',
+    }),
     marketId: uuid('market_id')
       .notNull()
       .references(() => markets.id, { onDelete: 'restrict' }),
     amount: numeric('amount', { precision: 38, scale: 10 }).notNull(),
     currency: varchar('currency', { length: 3 }).notNull(),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
     status: redemptionShippingPaymentStatus('status')
       .notNull()
       .default('PENDING'),
@@ -638,17 +647,28 @@ export const redemptionShippingPayments = pgTable(
     paymentIntentId: varchar('payment_intent_id', { length: 128 }),
     paymentMethod: varchar('payment_method', { length: 64 }),
     paidAt: utcTimestamp('paid_at'),
+    consumedAt: utcTimestamp('consumed_at'),
     failedAt: utcTimestamp('failed_at'),
     refundedAt: utcTimestamp('refunded_at'),
-    idempotencyKey: varchar('idempotency_key', { length: 255 }).notNull(),
+    idempotencyKey: varchar('idempotency_key', { length: 255 })
+      .notNull()
+      .unique(),
     createdAt: utcTimestamp('created_at').notNull().defaultNow(),
     updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex('uq_shipping_order').on(table.orderId),
+    uniqueIndex('ux_shipping_consumed_order')
+      .on(table.orderId)
+      .where(sql`${table.orderId} IS NOT NULL`),
     check('chk_shipping_amount', sql`${table.amount} > 0`),
     check('chk_shipping_currency', sql`char_length(${table.currency}) = 3`),
+    check('chk_shipping_request_hash', sql`char_length(${table.requestHash}) = 64`),
+    check(
+      'chk_shipping_payment_bind',
+      sql`${table.memberId} IS NOT NULL AND ${table.quoteId} IS NOT NULL`,
+    ),
     index('idx_shipping_order').on(table.orderId),
+    index('idx_shipping_member').on(table.memberId),
   ],
 );
 
@@ -658,6 +678,9 @@ export const redemptionTermsAcceptances = pgTable(
   'redemption_terms_acceptances',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    orderId: uuid('order_id').references(() => redemptionOrders.id, {
+      onDelete: 'restrict',
+    }),
     memberId: uuid('member_id')
       .notNull()
       .references(() => members.id, { onDelete: 'restrict' }),
@@ -668,6 +691,7 @@ export const redemptionTermsAcceptances = pgTable(
     acceptedAt: utcTimestamp('accepted_at').notNull().defaultNow(),
     ipAddress: varchar('ip_address', { length: 45 }),
     userAgent: text('user_agent'),
+    requestId: varchar('request_id', { length: 128 }),
   },
   (table) => [
     uniqueIndex('uq_redemption_terms').on(
@@ -675,6 +699,7 @@ export const redemptionTermsAcceptances = pgTable(
       table.marketId,
       table.termsVersion,
     ),
+    index('idx_redemption_terms_order').on(table.orderId),
     index('idx_redemption_terms_member').on(table.memberId),
   ],
 );
