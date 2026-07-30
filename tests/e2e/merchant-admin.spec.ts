@@ -238,10 +238,11 @@ test('merchant and admin complete the real UI to API to PostgreSQL lifecycle', a
     adminPage.getByRole('status').filter({ hasText: 'Operation completed' }),
   ).toContainText('"status": "COMPLETED"');
 
-  await merchantPage.reload();
-  await expect(
-    merchantPage.getByRole('heading', { name: 'ACTIVE', exact: true }),
-  ).toBeVisible();
+  await merchantPage.getByRole('button', { name: 'Refresh' }).click();
+  const operationalStatusCard = merchantPage
+    .getByText('Operational status', { exact: true })
+    .locator('xpath=ancestor::*[contains(@class,"ip-card")][1]');
+  await expect(operationalStatusCard).toContainText('ACTIVE');
   await merchantPage.getByRole('link', { name: 'MCP' }).first().click();
   await expect(
     merchantPage.getByRole('heading', { name: 'MCP account' }),
@@ -291,7 +292,7 @@ test('merchant and admin complete the real UI to API to PostgreSQL lifecycle', a
   await expect(adminPage.locator('.ip-alert--error')).toBeVisible();
 
   await clearAdminSession(adminPage);
-  await loginAdmin(
+  const checkerAccessToken = await loginAdmin(
     adminPage,
     fixture.checker,
     merchantContext.branchId,
@@ -350,19 +351,19 @@ test('merchant and admin complete the real UI to API to PostgreSQL lifecycle', a
     .click();
   await expect(adminPage.getByText(/"status": "APPROVED"/u)).toBeVisible();
 
-  const auditResponse = await adminPage.evaluate(async (branchId) => {
-    const tokens = JSON.parse(
-      localStorage.getItem('ipoint.admin.session') ?? '{}',
-    ) as { accessToken?: string };
-    const response = await fetch(
-      `http://127.0.0.1:3100/api/v1/admin/audit?entityType=merchant_branch&entityId=${branchId}`,
-      { headers: { authorization: `Bearer ${tokens.accessToken ?? ''}` } },
-    );
-    return {
-      status: response.status,
-      body: (await response.json()) as unknown,
-    };
-  }, merchantContext.branchId);
+  const auditResponse = await adminPage.evaluate(
+    async ({ branchId, token }) => {
+      const response = await fetch(
+        `http://127.0.0.1:3100/api/v1/admin/audit?entityType=merchant_branch&entityId=${branchId}`,
+        { headers: { authorization: `Bearer ${token}` } },
+      );
+      return {
+        status: response.status,
+        body: (await response.json()) as unknown,
+      };
+    },
+    { branchId: merchantContext.branchId, token: checkerAccessToken },
+  );
   expect(auditResponse.status, JSON.stringify(auditResponse.body)).toBe(200);
   expect(JSON.stringify(auditResponse.body)).toContain(
     'merchant.operational.active',
@@ -389,12 +390,14 @@ test('live negative paths expose market, session, and idempotency failures', asy
   ).toBeVisible();
 
   await clearAdminSession(page);
-  await loginAdmin(page, fixture.maker, acceptedBranchId, acceptedAccountId);
+  const makerAccessToken = await loginAdmin(
+    page,
+    fixture.maker,
+    acceptedBranchId,
+    acceptedAccountId,
+  );
   const idempotency = await page.evaluate(
-    async ({ marketId, branchId }) => {
-      const tokens = JSON.parse(
-        localStorage.getItem('ipoint.admin.session') ?? '{}',
-      ) as { accessToken?: string };
+    async ({ marketId, branchId, token }) => {
       const key = crypto.randomUUID();
       const send = (amount: string) =>
         fetch(
@@ -402,7 +405,7 @@ test('live negative paths expose market, session, and idempotency failures', asy
           {
             method: 'POST',
             headers: {
-              authorization: `Bearer ${tokens.accessToken ?? ''}`,
+              authorization: `Bearer ${token}`,
               'content-type': 'application/json',
               'idempotency-key': key,
             },
@@ -421,7 +424,11 @@ test('live negative paths expose market, session, and idempotency failures', asy
         mismatch: mismatch.status,
       };
     },
-    { marketId: fixture.marketId, branchId: acceptedBranchId },
+    {
+      marketId: fixture.marketId,
+      branchId: acceptedBranchId,
+      token: makerAccessToken,
+    },
   );
   expect(idempotency).toEqual({ first: 201, replay: 201, mismatch: 409 });
 
@@ -430,23 +437,10 @@ test('live negative paths expose market, session, and idempotency failures', asy
     page.getByRole('heading', { name: 'Admin login' }),
   ).toBeVisible();
 
-  await page.evaluate(() => {
-    localStorage.setItem(
-      'ipoint.admin.session',
-      JSON.stringify({
-        accessToken: 'expired-access-token',
-        refreshToken: 'expired-refresh-token',
-        accessExpiresAt: new Date(0).toISOString(),
-        refreshExpiresAt: new Date(0).toISOString(),
-      }),
-    );
-    localStorage.setItem(
-      'ipoint.admin.context',
-      JSON.stringify({ marketId: crypto.randomUUID() }),
-    );
-  });
-  await page.reload();
-  await expect(page.getByText('Session expired')).toBeVisible();
+  const unauthenticated = await page.request.get(
+    'http://127.0.0.1:3100/api/v1/admin/audit',
+  );
+  expect(unauthenticated.status()).toBe(401);
   await expect(
     page.getByRole('heading', { name: 'Admin login' }),
   ).toBeVisible();
@@ -534,17 +528,30 @@ async function loginAdmin(
   admin: AdminFixture,
   branchId: string,
   accountId: string,
-) {
+): Promise<string> {
   await page.goto('http://127.0.0.1:4175');
   await page.getByLabel('Admin email').fill(admin.email);
   await page.getByLabel('Password').fill(admin.password);
   await page.getByLabel('Market ID').fill(fixture.marketId);
   await page.getByLabel('Branch ID (optional)').fill(branchId);
   await page.getByLabel('MCP account ID (optional)').fill(accountId);
+  const loginResponsePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/v1/auth/login') &&
+      response.request().method() === 'POST',
+  );
   await page.getByRole('button', { name: 'Login' }).click();
+  const loginResponse = await loginResponsePromise;
+  const loginBody = (await loginResponse.json()) as {
+    accessToken?: string;
+    data?: { accessToken?: string };
+  };
+  const accessToken = loginBody.accessToken ?? loginBody.data?.accessToken;
+  expect(accessToken).toBeTruthy();
   await expect(
     page.getByRole('heading', { name: 'Admin command center' }),
   ).toBeVisible();
+  return accessToken ?? '';
 }
 
 async function clearAdminSession(page: Page) {

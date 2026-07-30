@@ -5,8 +5,8 @@ import { routes } from './routes';
 
 export function App() {
   return (
-    <AuthProvider apiClient={apiClient} autoRestore>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider apiClient={apiClient} autoRestore>
         <Routes>
           {routes.map((route) => (
             <Route
@@ -16,7 +16,7 @@ export function App() {
             />
           ))}
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
