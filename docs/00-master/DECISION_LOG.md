@@ -1428,5 +1428,26 @@ Between C and D milestones, the following remediation commits corrected integrat
 - MAIN_PR: NOT_AUTHORIZED
 - MAIN_MERGE: NOT_AUTHORIZED
 - PRODUCTION_DEPLOYMENT: NOT_AUTHORIZED
-- PHASE_6_FULL_EXECUTION_AUTHORIZED
-- P6-S0 THROUGH P6-S9 ALL AUTHORIZED
+- PHASE_6: DELIVERY_COMPLETE / UNDER_REVIEW
+- PHASE_6_ACCEPTED: NOT_YET
+- PHASE_6_CLOSED: NOT_YET
+- PHASE_6_FROZEN: NOT_YET
+
+---
+
+## D-044: Phase 6 Delivery Submitted for Command Center Acceptance
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-044 |
+| **Date** | 2026-07-30 |
+| **Source** | Phase 6 Final CI Run 30540983452 — 5/5 Jobs SUCCESS |
+| **Old Rule** | Phase 6 in FULL_EXECUTION_AUTHORIZED state; P6-S0 through P6-S9 IN_PROGRESS |
+| **New Decision** | Phase 6 delivery complete. P6-S1 through P6-S9 COMPLETE. Phase 6 status: DELIVERY_COMPLETE / UNDER_REVIEW. Awaiting ChatGPT Command Center acceptance decision. |
+| **Reason** | All 5 CI jobs succeeded: Unit 150/150, Database 85/85, API 1164/1164, E2E ✅, Quality ✅. All Phase 6 Final Remediation items completed. |
+| **Affected Files** | PHASE_REGISTRY.md, DECISION_LOG.md |
+| **Affected Phases** | Phase 6 |
+| **Migration** | N/A — governance-only update |
+| **Approver** | OpenClaw (delivery submission — not final acceptance) |
+| **Basis** | CI Run 30540983452. SHA `b4508b51`. |
+| **Status** | DELIVERY_SUBMITTED_AWAITING_ACCEPTANCE |
