@@ -71,7 +71,7 @@
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **COMPLETE / ACCEPTED / FROZEN** | Accepted under D-029. Final SHA 2ed57f4e. CI Run 30000394880. P3-S2+ NOT_AUTHORIZED. |
 | **Phase 4** | Transaction Engine | **COMPLETE / CLOSED** | All 8 sub-phases (P4-S1 through P4-S8) accepted. Phase 4 closed under D-037. Final HEAD `87ea05aa`. CI Run 30099595759. Phase branch: phase/4-transaction-engine. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. Phase 5 NOT_AUTHORIZED. |
 | **Phase 5** | Agent & Commission Engine | **ACCEPTED / COMPLETE / CLOSED / FROZEN** | Final Technical Baseline `93ad0850`. Accepted CI Run 30260182865. B 15/15, C 10/10, D 10/10, Total 35/35, Semantic Gate SUCCESS. Phase 5 formally closed at D-042. Main PR/Main Merge NOT_AUTHORIZED. Five-level team rewards DEFERRED. |
-| **Phase 6** | Redemption Center | **DELIVERY_COMPLETE / UNDER_REVIEW** | Final SHA `b4508b51`. CI Run **30540983452** — 5/5 SUCCESS. All P6-S1 through P6-S9 COMPLETE. Awaiting Command Center acceptance. Under D-043. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. |
+| **Phase 6** | Redemption Center | **ACCEPTED / COMPLETE / CLOSED / FROZEN** | Final governance SHA `b4840498`. Accepted CI Run **30541203165** — 5/5 SUCCESS. D-045. P6-S0 through P6-S9 COMPLETE / ACCEPTED. Baseline modification prohibited. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. Phase 7 NOT_AUTHORIZED. |
 | **Phase 7** | Admin Operations | **NOT_AUTHORIZED** | Dashboards, rule management, Maker/Checker, risk, audit, reports |
 | **Phase 8** | Advertising & Content | **NOT_AUTHORIZED** | Merchant ad submission, admin review, MCP debit, member banners |
 | **Phase 9** | Reporting, Risk & Audit | **NOT_AUTHORIZED** | Reconciliation reports, risk flags, case workflow |
@@ -148,37 +148,34 @@
 
 | Sub-phase | Scope | Status | Next gate |
 |---|---|---|---|
-| **P6-S0** | Contract Freeze & Architecture Draft | **COMPLETE / FROZEN** | All 30 Bryan decisions applied and frozen under D-043. P6-S0 contract locked. P6-S1 through P6-S9 all authorized. |
-| **P6-S1** | Redemption Schema & Forward Migrations | **COMPLETE** | Database schema, migrations 0021-0026, Drizzle schema alignment. |
-| **P6-S2** | Catalog & Rate Management | **COMPLETE** | Admin catalog CRUD, rate management, pickup locations. |
-| **P6-S3** | Shipping & Fulfilment | **COMPLETE** | Shipping payment flow, delivery confirm, pickup fulfilment, failed confirm recovery. |
-| **P6-S4** | Terms Evidence & Order Binding | **COMPLETE** | Order-level terms_version/terms_accepted_at, per-order acceptance record. |
-| **P6-S5** | Voucher Contract & Security | **COMPLETE** | AES-256-GCM encrypted voucher codes, SHA-256 hash, unique constraint, atomic allocation. |
-| **P6-S6** | Wallet Debit & Atomic Redemption | **COMPLETE** | Atomic redemption flow, concurrency isolation, POSTGRES_ISOLATION errors. |
-| **P6-S7** | Idempotency, Refund & Recovery | **COMPLETE** | Idempotency mismatch detection, refund lifecycle, shipping payment recovery v2. |
-| **P6-S8** | Hardening & Admin Operations | **COMPLETE** | Admin RBAC, redemption.voucher.reveal, schema canonical column alignment. |
-| **P6-S9** | Final Integration, CI & Delivery | **COMPLETE** | CI Run 30540983452. Unit 150/150, Database 85/85, API 1164/1164, E2E ✅, Quality ✅. Final SHA `b4508b51`. |
+| **P6-S0** | Contract Freeze & Architecture Draft | **COMPLETE / ACCEPTED** | All 30 Bryan decisions applied and frozen under D-043. P6-S0 contract locked. P6-S1 through P6-S9 all authorized. |
+| **P6-S1** | Redemption Schema & Forward Migrations | **COMPLETE / ACCEPTED** | Database schema, migrations 0021-0026, Drizzle schema alignment. |
+| **P6-S2** | Catalog & Rate Management | **COMPLETE / ACCEPTED** | Admin catalog CRUD, rate management, pickup locations. |
+| **P6-S3** | Shipping & Fulfilment | **COMPLETE / ACCEPTED** | Shipping payment flow, delivery confirm, pickup fulfilment, failed confirm recovery. |
+| **P6-S4** | Terms Evidence & Order Binding | **COMPLETE / ACCEPTED** | Order-level terms_version/terms_accepted_at, per-order acceptance record. |
+| **P6-S5** | Voucher Contract & Security | **COMPLETE / ACCEPTED** | AES-256-GCM encrypted voucher codes, SHA-256 hash, unique constraint, atomic allocation. |
+| **P6-S6** | Wallet Debit & Atomic Redemption | **COMPLETE / ACCEPTED** | Atomic redemption flow, concurrency isolation, POSTGRES_ISOLATION errors. |
+| **P6-S7** | Idempotency, Refund & Recovery | **COMPLETE / ACCEPTED** | Idempotency mismatch detection, refund lifecycle, shipping payment recovery v2. |
+| **P6-S8** | Hardening & Admin Operations | **COMPLETE / ACCEPTED** | Admin RBAC, redemption.voucher.reveal, schema canonical column alignment. |
+| **P6-S9** | Final Integration, CI & Delivery | **COMPLETE / ACCEPTED** | CI Run 30541203165. Unit 150/150, Database 85/85, API 1164/1164, E2E ✅, Quality ✅. Final SHA `b4840498`. |
 
 ## Current allowed actions
 
-- Prepare Main PR when authorized by Command Center
-- Continue governance file maintenance
+- None currently authorized beyond Phase 6 governance closure
 
 ## Current prohibited actions
 
-- Modify B, C, or D integration test code
-- Modify accepted commission semantics
-- Modify attribution semantics
-- Modify correction compensation semantics
-- Modify original ledger immutability rules
-- Modify atomic transaction boundary
+- Modify Phase 6 frozen baseline (production code, migrations, tests, CI workflow)
+- Modify Phase 3/4/5 frozen code
 - Change LOCKED business rules
-- Implement DEFERRED modules (Five-level team rewards, Payout/Withdrawal, Wallet cash-out)
+- Implement DEFERRED modules (Five-level team rewards, Payout/Withdrawal, Wallet cash-out, Backorder/Waitlist)
 - Implement Agent Reapplication Policy (OPEN, not implemented)
 - Implement Merchant/Branch Attribution Change Policy (OPEN, not implemented)
+- Implement OPEN questions from OPEN_QUESTIONS.md
 - Push or merge Main
 - Open a Main PR (not yet authorized)
 - Production deployment
+- Begin Phase 7
 - Force push, reset, amend pushed history, or rewrite `main` history
 - Delete tests or lower TypeScript strictness
 - Delete, clean, stash, or batch-add untracked files
