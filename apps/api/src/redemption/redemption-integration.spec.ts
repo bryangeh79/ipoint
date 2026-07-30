@@ -62,7 +62,7 @@ describe('Redemption (P6)', () => {
       sql`INSERT INTO members(id,account_id,public_member_id,referral_code,status,kyc_level) VALUES(${m},${a},${`MB-${t}`},${`RF-${t}`},'ACTIVE'::member_status,'LEVEL_2'::member_kyc_level) ON CONFLICT(id) DO NOTHING`,
     );
     await db.execute(
-      sql`INSERT INTO redemption_terms_acceptances(member_id,market_id,terms_version) VALUES(${m},${MKID},'v1') ON CONFLICT(member_id,market_id,terms_version) DO NOTHING`,
+      sql`INSERT INTO redemption_terms_acceptances(member_id,market_id,terms_version) VALUES(${m},${MKID},'v1') ON CONFLICT DO NOTHING`,
     );
     if (!o?.noWallet)
       await db.execute(
@@ -311,11 +311,12 @@ describe('Redemption (P6)', () => {
     expect(Number(w.rows[0]!.available_balance)).toBeLessThan(100000);
   });
 
-  it('CO-02: delivery', async () => {
+  it('CO-02: delivery requires a paid shipping payment', async () => {
     const f = await mbr();
     const i = await activeItem();
-    const r = await confirm(f.m, i, `c02:${Date.now()}`, 'DELIVERY');
-    expect(r.status).toBe('CONFIRMED');
+    await expect(
+      confirm(f.m, i, `c02:${Date.now()}`, 'DELIVERY'),
+    ).rejects.toThrow(/paid shipping payment is required/i);
   });
 
   it('CO-03: no terms', async () => {
