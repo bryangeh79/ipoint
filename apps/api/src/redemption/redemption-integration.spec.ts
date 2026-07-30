@@ -36,6 +36,12 @@ describe('Redemption (P6)', () => {
       sql`INSERT INTO markets(id,code,name,status,currency_code,timezone,default_locale) VALUES(${MKID},'INTMKT','Integration Market','ACTIVE','MYR','Asia/Kuala_Lumpur','en-MY') ON CONFLICT(id) DO NOTHING`,
     );
     await db.execute(
+      sql`INSERT INTO accounts(id,public_id,email,account_country,status,email_verified_at) VALUES('00000000-0000-4000-a000-000000000810','int-admin','int-admin@test.com','MY','ACTIVE',NOW()) ON CONFLICT(id) DO NOTHING`,
+    );
+    await db.execute(
+      sql`INSERT INTO admin_users(id,account_id,display_name,status) VALUES('00000000-0000-4000-a000-000000000900','00000000-0000-4000-a000-000000000810','Integration Admin','ACTIVE') ON CONFLICT(id) DO NOTHING`,
+    );
+    await db.execute(
       sql`INSERT INTO redemption_rate_versions(id,market_id,rate_type,rate_value,effective_from,created_by) VALUES('00000000-0000-4000-a000-000000000300',${MKID},'POINTS_PER_CURRENCY','0.0100000000','2026-01-01T00:00:00.000Z',${AID}) ON CONFLICT(id) DO NOTHING`,
     );
     await db.execute(

@@ -634,4 +634,3 @@ describe('P6-S8: Redemption Concurrency — Canonical Schema', () => {
     expect(result.rows.length).toBe(1);
   });
 });
-
