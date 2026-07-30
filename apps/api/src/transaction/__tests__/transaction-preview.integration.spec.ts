@@ -94,10 +94,8 @@ describe.skipIf(!databaseUrl)('POST /merchant/transactions/preview', () => {
       scanSwaggerRoutes: false,
     });
     await app.init();
+    await app.listen(0);
     server = app.getHttpServer() as Server;
-    // Increase concurrent socket capacity for 20-Promise.all latency test
-    http.globalAgent.maxSockets = 200;
-    http.globalAgent.maxFreeSockets = 200;
     database = app.get(DatabaseService);
     auth = app.get(AuthService);
     rateLimiter = app.get(AUTH_RATE_LIMITER);
