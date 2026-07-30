@@ -62,6 +62,13 @@ describe('P6-S8: Redemption Admin Hardening — Canonical Schema', () => {
       VALUES (${'00000000-0000-4000-a000-000000001000'}, 'admin-hardening', 'admin-hardening@test.com', 'MY', 'ACTIVE', NOW())
       ON CONFLICT (id) DO NOTHING
     `);
+
+    // Seed test market (required FK for redemption catalog/rates/locations)
+    await databaseService.db.execute(sql`
+      INSERT INTO markets(id,code,name,status,currency_code,timezone,default_locale)
+      VALUES(${testMarketId},'TST-MARKET','Test Market','ACTIVE','MYR','Asia/Kuala_Lumpur','en-MY')
+      ON CONFLICT(id) DO NOTHING
+    `);
     await databaseService.db.execute(sql`
       INSERT INTO admin_users (id, account_id, display_name, status)
       VALUES (${adminUserId}, ${'00000000-0000-4000-a000-000000001000'}, 'Admin Hardening', 'ACTIVE')
@@ -193,7 +200,7 @@ describe('P6-S8: Redemption Admin Hardening — Canonical Schema', () => {
     it('T-87: lists rate versions for a market', async () => {
       const rates = await redemptionService.listRateVersions(
         adminActor,
-        testMarketId,
+        rateMarketId,
         { page: 1, pageSize: 20 },
       );
       expect(rates.versions.length).toBeGreaterThanOrEqual(1);
@@ -627,3 +634,4 @@ describe('P6-S8: Redemption Concurrency — Canonical Schema', () => {
     expect(result.rows.length).toBe(1);
   });
 });
+
