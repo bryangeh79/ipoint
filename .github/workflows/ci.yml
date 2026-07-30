@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on:
   workflow_dispatch:
@@ -57,7 +57,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Run unit tests
         run: >
-          pnpm --filter @ipoint/api vitest --config vitest.config.ts run
+          pnpm --filter @ipoint/api exec vitest --config vitest.config.ts run
           src/redemption/redemption-concurrency.spec.ts
           src/redemption/redemption-shipping-market-commission.spec.ts
           src/redemption/redemption-refund.service.spec.ts
@@ -114,9 +114,10 @@ jobs:
         run: pnpm --filter @ipoint/database db:drift
       - name: Run Phase 6 integration tests
         run: >
-          pnpm --filter @ipoint/api vitest --config vitest.config.ts run
+          pnpm --filter @ipoint/api exec vitest --config vitest.config.ts run
           src/redemption/redemption-integration.spec.ts
           src/redemption/redemption-admin.hardening.spec.ts
+          src/redemption/redemption-p6-atomicity.spec.ts
       - name: Verify database after tests
         run: pnpm --filter @ipoint/database db:checksum && pnpm --filter @ipoint/database db:drift
 
@@ -164,7 +165,7 @@ jobs:
       - name: Seed database
         run: pnpm --filter @ipoint/database db:seed
       - name: Run all API tests
-        run: pnpm --filter @ipoint/api vitest --config vitest.config.ts run
+        run: pnpm --filter @ipoint/api exec vitest --config vitest.config.ts run
 
   e2e:
     name: E2E
