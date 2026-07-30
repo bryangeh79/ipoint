@@ -260,8 +260,13 @@ export class RedemptionController {
           shippingPaymentIntentReference: body.shippingPaymentIntentReference,
         },
         {
-          ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? req.ip ?? '127.0.0.1',
-          requestId: (req.headers['x-request-id'] as string) ?? 'p6-' + Date.now().toString(36),
+          ipAddress:
+            (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
+            req.ip ??
+            '127.0.0.1',
+          requestId:
+            (req.headers['x-request-id'] as string) ??
+            'p6-' + Date.now().toString(36),
           userAgent: (req.headers['user-agent'] as string) ?? null,
         },
       ),
