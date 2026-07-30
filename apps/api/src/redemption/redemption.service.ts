@@ -1623,6 +1623,7 @@ export class RedemptionService {
       // ── Step 23: INSERT redemption_order ──────────────────────────────
       const orderStatus = isBackordered ? 'BACKORDERED' : 'CONFIRMED';
       const confirmedAt = new Date().toISOString();
+      const termsAcceptedAt = new Date().toISOString();
       const orderResult = await tx.execute(
         sql`INSERT INTO redemption_orders (
             order_reference, market_id, member_id, item_id,
@@ -1633,7 +1634,7 @@ export class RedemptionService {
             rounding_mode, calculation_scale, posting_scale,
             item_snapshot, rate_snapshot,
             idempotency_key, notes,
-            confirmed_at
+            terms_version, terms_accepted_at, confirmed_at
           ) VALUES (
             ${orderReference}, ${marketId}, ${memberId}, ${quote.catalog_item_id},
             ${wallet.id}, ${walletEntryId}, ${quote.id},
@@ -1644,7 +1645,7 @@ export class RedemptionService {
             'HALF_UP', 10, 10,
             ${JSON.stringify(itemSnapshot)}, ${JSON.stringify(rateSnapshot)},
             ${idempotencyKey}, NULL,
-            ${confirmedAt}
+            ${input.termsAcceptance.termsVersion}, ${termsAcceptedAt}, ${confirmedAt}
           ) RETURNING *`,
       );
       const orderRow = orderResult.rows[0];
@@ -1726,12 +1727,14 @@ export class RedemptionService {
       // ── Step 28: Record terms acceptance ────────────────────────────
       await tx.execute(
         sql`INSERT INTO redemption_terms_acceptances (
-            member_id, market_id, terms_version
+            order_id, member_id, market_id, terms_version,
+            accepted_at, request_id, ip_address, user_agent
           ) VALUES (
-            ${memberId}, ${marketId}, ${input.termsAcceptance.termsVersion}
+            ${orderRow.id}, ${memberId}, ${marketId},
+            ${input.termsAcceptance.termsVersion}, ${termsAcceptedAt},
+            ${meta.requestId ?? null}, ${meta.ipAddress ?? null}, NULL
           )
-          ON CONFLICT (member_id, market_id, terms_version)
-          DO NOTHING`,
+          ON CONFLICT DO NOTHING`,
       );
 
       return this.mapOrderToResponse(orderRow);
