@@ -1327,6 +1327,8 @@ export const expectedSchema = {
     'accepted_at',
     'ip_address',
     'user_agent',
+    'order_id',
+    'request_id',
   ],
   redemption_fulfilment_exceptions: [
     'id',

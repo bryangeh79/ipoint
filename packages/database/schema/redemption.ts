@@ -628,9 +628,9 @@ export const redemptionShippingPayments = pgTable(
     orderId: uuid('order_id').references(() => redemptionOrders.id, {
       onDelete: 'restrict',
     }),
-    memberId: uuid('member_id').references(() => members.id, {
-      onDelete: 'restrict',
-    }),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
     quoteId: uuid('quote_id').references(() => redemptionQuotes.id, {
       onDelete: 'restrict',
     }),
@@ -662,10 +662,9 @@ export const redemptionShippingPayments = pgTable(
       .where(sql`${table.orderId} IS NOT NULL`),
     check('chk_shipping_amount', sql`${table.amount} > 0`),
     check('chk_shipping_currency', sql`char_length(${table.currency}) = 3`),
-    check('chk_shipping_request_hash', sql`char_length(${table.requestHash}) = 64`),
     check(
-      'chk_shipping_payment_bind',
-      sql`${table.memberId} IS NOT NULL AND ${table.quoteId} IS NOT NULL`,
+      'chk_shipping_request_hash',
+      sql`char_length(${table.requestHash}) = 64`,
     ),
     index('idx_shipping_order').on(table.orderId),
     index('idx_shipping_member').on(table.memberId),
@@ -694,12 +693,15 @@ export const redemptionTermsAcceptances = pgTable(
     requestId: varchar('request_id', { length: 128 }),
   },
   (table) => [
-    uniqueIndex('uq_redemption_terms').on(
-      table.memberId,
-      table.marketId,
-      table.termsVersion,
-    ),
-    index('idx_redemption_terms_order').on(table.orderId),
+    uniqueIndex('uq_redemption_terms')
+      .on(table.memberId, table.marketId, table.termsVersion)
+      .where(sql`${table.orderId} IS NULL`),
+    uniqueIndex('uq_redemption_terms_order')
+      .on(table.orderId)
+      .where(sql`${table.orderId} IS NOT NULL`),
+    index('idx_redemption_terms_order')
+      .on(table.orderId)
+      .where(sql`${table.orderId} IS NOT NULL`),
     index('idx_redemption_terms_member').on(table.memberId),
   ],
 );
