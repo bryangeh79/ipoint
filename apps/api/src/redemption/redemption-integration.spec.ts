@@ -41,6 +41,16 @@ describe('Redemption (P6)', () => {
     await db.execute(
       sql`INSERT INTO admin_users(id,account_id,display_name,status) VALUES('00000000-0000-4000-a000-000000000900','00000000-0000-4000-a000-000000000810','Integration Admin','ACTIVE') ON CONFLICT(id) DO NOTHING`,
     );
+    // Seed test member + account for QT-01/QT-02 (fresh DB needs these)
+    await db.execute(
+      sql`INSERT INTO accounts(id,public_id,email,account_country,status,email_verified_at) VALUES('00000000-0000-4000-a000-000000000001','qt-member','qt@test.com','MY','ACTIVE',NOW()) ON CONFLICT(id) DO NOTHING`,
+    );
+    await db.execute(
+      sql`INSERT INTO members(id,account_id,public_member_id,referral_code,status,kyc_level) VALUES('00000000-0000-4000-a000-000000000001','00000000-0000-4000-a000-000000000001','QT-MEMBER','QT-REF','ACTIVE'::member_status,'LEVEL_2'::member_kyc_level) ON CONFLICT(id) DO NOTHING`,
+    );
+    await db.execute(
+      sql`INSERT INTO redemption_terms_acceptances(member_id,market_id,terms_version) VALUES('00000000-0000-4000-a000-000000000001',${MKID},'v1') ON CONFLICT DO NOTHING`,
+    );
     await db.execute(
       sql`INSERT INTO redemption_rate_versions(id,market_id,rate_type,rate_value,effective_from,created_by) VALUES('00000000-0000-4000-a000-000000000300',${MKID},'POINTS_PER_CURRENCY','0.0100000000','2026-01-01T00:00:00.000Z',${AID}) ON CONFLICT(id) DO NOTHING`,
     );
