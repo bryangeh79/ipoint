@@ -37,6 +37,9 @@ export const expectedSchema = {
     'revoke_reason',
     'replaced_by_session_id',
     'access_expires_at',
+    'current_admin_market_id',
+    'current_admin_market_selected_at',
+    'market_context_version',
   ],
   otps: [
     'id',
