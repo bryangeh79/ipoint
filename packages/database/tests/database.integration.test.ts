@@ -104,6 +104,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0024_phase_6_terms_order_binding.sql',
       '0025_phase_6_shipping_terms_constraints.sql',
       '0026_phase_6_shipping_recovery_v2.sql',
+      '0027_admin_mfa_session_policy.sql',
       '0028_admin_market_session_context.sql',
     ]);
 
