@@ -321,7 +321,7 @@ export class ApiClient {
   private refreshPromise: Promise<boolean> | null = null;
 
   /** Callback invoked when the session is cleared (e.g. refresh failure). */
-  public onSessionExpired: (() => void) | null = null;
+  public onSessionExpired: ((code?: string) => void) | null = null;
 
   constructor(
     private readonly baseUrl: string,
@@ -373,12 +373,12 @@ export class ApiClient {
     this._refreshToken = tokens.refreshToken ?? null;
   }
 
-  clearSession(): void {
+  clearSession(code?: string): void {
     this._accessToken = null;
     this._refreshToken = null;
     this.refreshPromise = null;
     dispatchSessionEvent('session-cleared');
-    this.onSessionExpired?.();
+    this.onSessionExpired?.(code);
   }
 
   /**
@@ -551,6 +551,11 @@ export class ApiClient {
 
     // ---- 401 handling with single-flight refresh ----
     if (response.status === 401 && !options?.skipAuth) {
+      const originalError = await toApiError(response.clone());
+      if (isTerminalAdminSessionCode(originalError.body.code)) {
+        this.clearSession(originalError.body.code);
+        throw originalError;
+      }
       const refreshed = await this.singleFlightRefresh();
       if (refreshed) {
         // Retry the original request exactly once with the new token
@@ -855,12 +860,12 @@ export class AdminApiClient {
     return this.client.tokens;
   }
 
-  set onSessionExpired(callback: (() => void) | null) {
+  set onSessionExpired(callback: ((code?: string) => void) | null) {
     this.client.onSessionExpired = callback;
   }
 
-  clearSession(): void {
-    this.client.clearSession();
+  clearSession(code?: string): void {
+    this.client.clearSession(code);
   }
 
   async beginLogin(
@@ -997,4 +1002,17 @@ export class AdminApiClient {
       )
     ).data;
   }
+}
+
+function isTerminalAdminSessionCode(code: string | undefined): boolean {
+  return Boolean(
+    code &&
+    [
+      'SESSION_IDLE_EXPIRED',
+      'SESSION_ABSOLUTE_EXPIRED',
+      'SESSION_FAMILY_EXPIRED',
+      'SESSION_REUSE_DETECTED',
+      'SESSION_REVOKED',
+    ].includes(code),
+  );
 }

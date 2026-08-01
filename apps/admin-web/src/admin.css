@@ -64,7 +64,7 @@
 .admin-navigation h2 {
   margin: 0 0 var(--ip-space-0-5);
   padding-inline: var(--ip-space-1);
-  color: var(--ip-color-text-subtle);
+  color: var(--ip-color-text-muted);
   font-size: var(--ip-font-size-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -123,6 +123,10 @@
   display: flex;
   align-items: center;
   gap: var(--ip-space-2);
+}
+
+.admin-topbar-context .ip-badge--success {
+  color: var(--ip-color-primary-active);
 }
 
 .admin-market-selector--compact .ip-form-field {

@@ -14,6 +14,7 @@ import {
   Outlet,
   RouterProvider,
   createBrowserRouter,
+  createMemoryRouter,
   matchPath,
   useLocation,
   useRouteError,
@@ -51,6 +52,7 @@ const routeObjects: RouteObject[] = [
       path: definition.path,
       element: <RoutePlaceholder route={definition} />,
       loader: () => ({ routeId: definition.id, loader: definition.loader }),
+      hydrateFallbackElement: <ShellState kind="loading" />,
       errorElement: <RouteErrorBoundary />,
     })),
   },
@@ -61,10 +63,19 @@ export function createAdminRouter() {
   return createBrowserRouter(routeObjects);
 }
 
-export function AdminApp() {
+export function createAdminMemoryRouter(initialEntries: string[]) {
+  return createMemoryRouter(routeObjects, { initialEntries });
+}
+
+export function AdminApp({
+  router,
+}: {
+  router?: ReturnType<typeof createAdminRouter>;
+}) {
+  const [resolvedRouter] = useState(() => router ?? createAdminRouter());
   return (
     <AdminSessionProvider>
-      <RouterProvider router={createAdminRouter()} />
+      <RouterProvider router={resolvedRouter} />
     </AdminSessionProvider>
   );
 }

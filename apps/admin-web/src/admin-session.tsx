@@ -119,7 +119,7 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
     }, []);
 
   useEffect(() => {
-    adminApi.onSessionExpired = () => resetState('SESSION_REVOKED');
+    adminApi.onSessionExpired = (code) => resetState(code ?? 'SESSION_REVOKED');
     if (adminApi.isAuthenticated)
       void loadServerContext().catch(handleLoadError);
     return () => {

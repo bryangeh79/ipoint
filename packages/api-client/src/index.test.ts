@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /* eslint-disable @typescript-eslint/no-base-to-string */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ApiClient, ApiError } from './index.js';
+import { AdminApiClient, ApiClient, ApiError } from './index.js';
 
 const BASE_URL = 'http://localhost:3000/api/v1';
 
@@ -485,4 +485,119 @@ describe('ApiClient', () => {
       expect(result.kind).toBe('offline');
     });
   });
+});
+
+describe('AdminApiClient', () => {
+  it('uses the exact P7-S2 login and MFA DTO contracts', async () => {
+    const core = createClient();
+    const client = new AdminApiClient(core);
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            code: 'MFA_REQUIRED',
+            mfa_challenge_id: 'challenge'.repeat(4),
+            expires_at: '2026-08-01T12:00:00.000Z',
+          }),
+          { status: 202, headers: { 'content-type': 'application/json' } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            accessToken: 'access-token',
+            refreshToken: 'refresh-token',
+            accessExpiresAt: '2026-08-01T12:15:00.000Z',
+            refreshExpiresAt: '2026-08-08T12:00:00.000Z',
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+
+    const challenge = await client.beginLogin({
+      email: 'admin@example.com',
+      password: 'Admin-Password-123!',
+    });
+    await client.completeMfaChallenge({
+      challenge_id: challenge.mfa_challenge_id,
+      code: '123456',
+    });
+
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(`${BASE_URL}/auth/admin/login`);
+    expect(JSON.parse(String(fetchSpy.mock.calls[1]?.[1]?.body))).toEqual({
+      challenge_id: 'challenge'.repeat(4),
+      code: '123456',
+    });
+    expect(core.isAuthenticated).toBe(true);
+  });
+
+  it('uses exact bootstrap, markets, selection and sessions paths', async () => {
+    const core = createClient();
+    core.setTokens({
+      accessToken: 'access-token',
+      accessExpiresAt: '2026-08-01T12:15:00.000Z',
+    });
+    const client = new AdminApiClient(core);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Response('{}', {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+
+    await client.bootstrap();
+    await client.markets();
+    await client.selectCurrentMarket({
+      market_id: 'market-1',
+      expected_context_version: 4,
+    });
+    await client.sessions();
+    await client.currentSession();
+    await client.revokeSession('session/unsafe');
+    await client.revokeAllSessions();
+
+    expect(fetchSpy.mock.calls.map(([url]) => String(url))).toEqual([
+      `${BASE_URL}/admin/bootstrap`,
+      `${BASE_URL}/admin/me/markets`,
+      `${BASE_URL}/admin/me/current-market`,
+      `${BASE_URL}/admin/sessions`,
+      `${BASE_URL}/admin/sessions/current`,
+      `${BASE_URL}/admin/sessions/session%2Funsafe`,
+      `${BASE_URL}/admin/sessions`,
+    ]);
+    expect(JSON.parse(String(fetchSpy.mock.calls[2]?.[1]?.body))).toEqual({
+      market_id: 'market-1',
+      expected_context_version: 4,
+    });
+  });
+
+  it.each([
+    'SESSION_IDLE_EXPIRED',
+    'SESSION_ABSOLUTE_EXPIRED',
+    'SESSION_FAMILY_EXPIRED',
+    'SESSION_REUSE_DETECTED',
+    'SESSION_REVOKED',
+  ])(
+    'preserves terminal session code %s without refresh replay',
+    async (code) => {
+      const core = createClient();
+      core.setTokens({
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        accessExpiresAt: '2026-08-01T12:15:00.000Z',
+      });
+      const expired = vi.fn();
+      core.onSessionExpired = expired;
+      const fetchSpy = mockFetch(401, { code, message: 'Session ended.' });
+
+      await expect(core.get('/admin/bootstrap')).rejects.toMatchObject({
+        body: { code },
+      });
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(expired).toHaveBeenCalledWith(code);
+      expect(core.isAuthenticated).toBe(false);
+    },
+  );
 });
