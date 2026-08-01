@@ -213,7 +213,7 @@ export class AdminRedemptionController {
   // ═══════════════════════════════════════════════════════════════════════
 
   @Post('market/:marketId/pickup-locations')
-  @RequirePermission('redemption.pickup.manage')
+  @RequirePermission('redemption.catalog.manage')
   createPickupLocation(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('marketId') marketId: string,
@@ -234,7 +234,7 @@ export class AdminRedemptionController {
   }
 
   @Put('pickup-locations/:locationId')
-  @RequirePermission('redemption.pickup.manage')
+  @RequirePermission('redemption.catalog.manage')
   updatePickupLocation(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('locationId') locationId: string,
@@ -253,7 +253,7 @@ export class AdminRedemptionController {
   }
 
   @Get('market/:marketId/pickup-locations')
-  @RequirePermission('redemption.pickup.manage')
+  @RequirePermission('redemption.catalog.manage')
   listPickupLocations(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('marketId') marketId: string,
@@ -272,7 +272,7 @@ export class AdminRedemptionController {
   }
 
   @Get('pickup-locations/:locationId')
-  @RequirePermission('redemption.pickup.manage')
+  @RequirePermission('redemption.catalog.manage')
   getPickupLocation(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('locationId') locationId: string,

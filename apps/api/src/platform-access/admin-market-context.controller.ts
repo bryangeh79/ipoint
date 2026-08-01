@@ -43,7 +43,7 @@ export class AdminMarketContextController {
 
   @Put('me/current-market')
   @UseGuards(RbacGuard)
-  @RequirePermission('admin.market.select')
+  @RequirePermission('admin.market.select', { marketScoped: false })
   selectCurrentMarket(
     @CurrentActor() actor: RequestActor,
     @Body(new ZodValidationPipe(selectCurrentMarketSchema))

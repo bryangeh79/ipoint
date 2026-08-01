@@ -30,7 +30,7 @@ export class AuditController {
 
   @Get()
   @UseGuards(AuthGuard, RbacGuard)
-  @RequirePermission('audit.view')
+  @RequirePermission('audit.read')
   query(
     @CurrentActor() actor: RequestActor | undefined,
     @Query(new ZodValidationPipe(auditQuerySchema)) query: AuditQuery,

@@ -69,7 +69,9 @@ export class AccessAdministrationController {
   }
 
   @Post('users')
-  @RequirePermission('admin.user.manage')
+  @RequirePermission('admin.user.manage', {
+    targetBodyFields: ['account_id'],
+  })
   createUser(
     @CurrentActor() actor: RequestActor,
     @Body(new ZodValidationPipe(createAdminUserSchema))
@@ -86,7 +88,9 @@ export class AccessAdministrationController {
   }
 
   @Patch('users/:adminUserId/status')
-  @RequirePermission('admin.user.manage')
+  @RequirePermission('admin.user.manage', {
+    targetParams: ['adminUserId'],
+  })
   changeStatus(
     @CurrentActor() actor: RequestActor,
     @Param('adminUserId') adminUserId: string,
@@ -111,7 +115,10 @@ export class AccessAdministrationController {
   }
 
   @Post('users/:adminUserId/roles')
-  @RequirePermission('rbac.role.assign')
+  @RequirePermission('rbac.role.assign', {
+    targetParams: ['adminUserId'],
+    targetBodyFields: ['role_id'],
+  })
   @HttpCode(200)
   async assignRole(
     @CurrentActor() actor: RequestActor,
@@ -131,7 +138,9 @@ export class AccessAdministrationController {
   }
 
   @Delete('users/:adminUserId/roles/:roleId')
-  @RequirePermission('rbac.role.assign')
+  @RequirePermission('rbac.role.assign', {
+    targetParams: ['adminUserId', 'roleId'],
+  })
   async revokeRole(
     @CurrentActor() actor: RequestActor,
     @Param('adminUserId') adminUserId: string,
@@ -157,7 +166,9 @@ export class AccessAdministrationController {
   }
 
   @Put('roles/:roleId/permissions')
-  @RequirePermission('rbac.permission.assign')
+  @RequirePermission('rbac.permission.assign', {
+    targetParams: ['roleId'],
+  })
   replaceRolePermissions(
     @CurrentActor() actor: RequestActor,
     @Param('roleId') roleId: string,
@@ -185,7 +196,10 @@ export class AccessAdministrationController {
   }
 
   @Post('users/:adminUserId/market-grants')
-  @RequirePermission('rbac.market.grant')
+  @RequirePermission('rbac.market.grant', {
+    targetParams: ['adminUserId'],
+    targetBodyFields: ['market_id'],
+  })
   @HttpCode(200)
   async grantMarket(
     @CurrentActor() actor: RequestActor,
@@ -205,7 +219,9 @@ export class AccessAdministrationController {
   }
 
   @Delete('users/:adminUserId/market-grants/:marketId')
-  @RequirePermission('rbac.market.grant')
+  @RequirePermission('rbac.market.grant', {
+    targetParams: ['adminUserId', 'marketId'],
+  })
   async revokeMarket(
     @CurrentActor() actor: RequestActor,
     @Param('adminUserId') adminUserId: string,
