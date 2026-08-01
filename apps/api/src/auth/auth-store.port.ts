@@ -16,11 +16,33 @@ export interface NewSession {
   accessExpiresAt: Date;
   refreshExpiresAt: Date;
   metadata: RequestMetadata;
+  actorPurpose?: 'ACCOUNT' | 'ADMIN';
+  adminUserId?: string;
+  idleExpiresAt?: Date;
+  absoluteExpiresAt?: Date;
+  familyCreatedAt?: Date;
+  familyMaxExpiresAt?: Date;
+  mfaRecoveryUsed?: boolean;
 }
 
 export type RotateSessionResult =
-  | { kind: 'ROTATED'; sessionId: string; accountId: string }
-  | { kind: 'NOT_FOUND' | 'EXPIRED' | 'INACTIVE' | 'REUSED' };
+  | {
+      kind: 'ROTATED';
+      sessionId: string;
+      accountId: string;
+      accessExpiresAt: Date;
+      refreshExpiresAt: Date;
+    }
+  | {
+      kind:
+        | 'NOT_FOUND'
+        | 'EXPIRED'
+        | 'IDLE_EXPIRED'
+        | 'ABSOLUTE_EXPIRED'
+        | 'FAMILY_EXPIRED'
+        | 'INACTIVE'
+        | 'REUSED';
+    };
 
 export interface NewOtp {
   id: string;
@@ -37,6 +59,7 @@ export interface AuthStorePort {
   setPasswordCredential(accountId: string, secretHash: string): Promise<void>;
   createSession(session: NewSession): Promise<string>;
   findAccessSession(accessTokenHash: string): Promise<SessionRecord | null>;
+  touchAdminSession(sessionId: string, now: Date): Promise<void>;
   rotateSession(
     refreshTokenHash: string,
     replacement: NewSession,
@@ -47,6 +70,11 @@ export interface AuthStorePort {
     reason: string,
     now: Date,
   ): Promise<boolean>;
+  revokeAdminSessions(
+    adminUserId: string,
+    reason: string,
+    now: Date,
+  ): Promise<number>;
   createOtp(otp: NewOtp): Promise<void>;
   findOtp(id: string): Promise<OtpRecord | null>;
   incrementOtpAttempts(id: string): Promise<number>;

@@ -165,23 +165,83 @@ export class AuthService {
     return tokens;
   }
 
-  async resolveActor(accessToken: string): Promise<RequestActor> {
-    const session = await this.store.findAccessSession(
-      hashOpaqueToken(accessToken),
-    );
-    if (
-      !session ||
-      session.revokedAt ||
-      session.expiresAt <= new Date() ||
-      session.status !== 'ACTIVE'
-    ) {
+  async resolveActor(
+    accessToken: string,
+    foregroundActivity = false,
+  ): Promise<RequestActor> {
+    const accessTokenHash = hashOpaqueToken(accessToken);
+    const session = await this.store.findAccessSession(accessTokenHash);
+    const now = new Date();
+    if (!session) {
       throw new AuthError('AUTH_SESSION_INVALID', 'The session is invalid.');
     }
+    if (session.revokedAt) {
+      throw new AuthError(
+        session.actorPurpose === 'ADMIN'
+          ? 'SESSION_REVOKED'
+          : 'AUTH_SESSION_INVALID',
+        'The session has been revoked.',
+      );
+    }
+    if (session.expiresAt <= now || session.status !== 'ACTIVE') {
+      throw new AuthError('AUTH_SESSION_INVALID', 'The session is invalid.');
+    }
+    if (session.actorPurpose === 'ADMIN') {
+      if (
+        !session.adminUserId ||
+        session.adminStatus !== 'ACTIVE' ||
+        session.adminArchivedAt ||
+        !session.hasActiveRole
+      ) {
+        await this.store.revokeAdminSessions(
+          session.adminUserId ?? '',
+          'ADMIN_ACCESS_REMOVED',
+          now,
+        );
+        throw new AuthError(
+          'ADMIN_ACCESS_REMOVED',
+          'Admin access is no longer available.',
+        );
+      }
+      if (session.idleExpiresAt && session.idleExpiresAt <= now) {
+        await this.store.revokeSession(accessTokenHash, 'IDLE_EXPIRED', now);
+        throw new AuthError(
+          'SESSION_IDLE_EXPIRED',
+          'The session expired due to inactivity.',
+        );
+      }
+      if (session.absoluteExpiresAt && session.absoluteExpiresAt <= now) {
+        await this.store.revokeSession(
+          accessTokenHash,
+          'ABSOLUTE_EXPIRED',
+          now,
+        );
+        throw new AuthError(
+          'SESSION_ABSOLUTE_EXPIRED',
+          'The session has expired.',
+        );
+      }
+      if (session.familyMaxExpiresAt && session.familyMaxExpiresAt <= now) {
+        await this.store.revokeSession(accessTokenHash, 'FAMILY_EXPIRED', now);
+        throw new AuthError(
+          'SESSION_FAMILY_EXPIRED',
+          'The session family has expired.',
+        );
+      }
+      if (foregroundActivity) {
+        await this.store.touchAdminSession(session.id, now);
+      }
+    }
     return {
-      type: session.adminUserId ? 'ADMIN_USER' : 'ACCOUNT',
+      type: session.actorPurpose === 'ADMIN' ? 'ADMIN_USER' : 'ACCOUNT',
       accountId: session.accountId,
       sessionId: session.id,
-      ...(session.adminUserId ? { adminUserId: session.adminUserId } : {}),
+      ...(session.actorPurpose === 'ADMIN' && session.adminUserId
+        ? {
+            adminUserId: session.adminUserId,
+            mfaRecoveryUsed: session.mfaRecoveryUsed,
+          }
+        : {}),
     };
   }
 
@@ -217,7 +277,15 @@ export class AuthService {
         details: { reason: result.kind },
       });
       throw new AuthError(
-        reuse ? 'AUTH_REFRESH_REUSED' : 'AUTH_SESSION_INVALID',
+        reuse
+          ? 'SESSION_REUSE_DETECTED'
+          : result.kind === 'IDLE_EXPIRED'
+            ? 'SESSION_IDLE_EXPIRED'
+            : result.kind === 'ABSOLUTE_EXPIRED'
+              ? 'SESSION_ABSOLUTE_EXPIRED'
+              : result.kind === 'FAMILY_EXPIRED'
+                ? 'SESSION_FAMILY_EXPIRED'
+                : 'AUTH_SESSION_INVALID',
         'The refresh session is invalid.',
       );
     }
@@ -226,6 +294,45 @@ export class AuthService {
       eventType: 'AUTH_REFRESH_ROTATED',
       result: 'SUCCESS',
       metadata,
+    });
+    return {
+      ...tokens,
+      accessExpiresAt: result.accessExpiresAt,
+      refreshExpiresAt: result.refreshExpiresAt,
+    };
+  }
+
+  async createAdminSession(
+    accountId: string,
+    adminUserId: string,
+    metadata: RequestMetadata,
+    mfaRecoveryUsed = false,
+  ): Promise<AuthTokens> {
+    const now = new Date();
+    const absoluteExpiresAt = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const familyMaxExpiresAt = new Date(
+      now.getTime() + 7 * 24 * 60 * 60 * 1000,
+    );
+    const tokens = this.generateTokens();
+    tokens.accessExpiresAt = new Date(
+      Math.min(tokens.accessExpiresAt.getTime(), absoluteExpiresAt.getTime()),
+    );
+    tokens.refreshExpiresAt = new Date(
+      Math.min(
+        tokens.refreshExpiresAt.getTime(),
+        absoluteExpiresAt.getTime(),
+        familyMaxExpiresAt.getTime(),
+      ),
+    );
+    await this.store.createSession({
+      ...this.newSession(accountId, randomUUID(), tokens, metadata),
+      actorPurpose: 'ADMIN',
+      adminUserId,
+      idleExpiresAt: new Date(now.getTime() + 30 * 60 * 1000),
+      absoluteExpiresAt,
+      familyCreatedAt: now,
+      familyMaxExpiresAt,
+      mfaRecoveryUsed,
     });
     return tokens;
   }

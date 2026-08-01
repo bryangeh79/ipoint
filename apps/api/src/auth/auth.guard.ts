@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from './auth.service.js';
+import { AuthError } from './auth.errors.js';
 import type { RequestActor } from './auth.types.js';
 
 export interface AuthenticatedRequest extends Request {
@@ -27,9 +28,18 @@ export class AuthGuard implements CanActivate {
       });
     }
     try {
-      request.actor = await this.auth.resolveActor(authorization.slice(7));
+      request.actor = await this.auth.resolveActor(
+        authorization.slice(7),
+        request.headers['x-ipoint-user-activity'] === 'foreground',
+      );
       return true;
-    } catch {
+    } catch (error) {
+      if (error instanceof AuthError) {
+        throw new UnauthorizedException({
+          code: error.code,
+          message: error.message,
+        });
+      }
       throw new UnauthorizedException({
         code: 'AUTH_SESSION_INVALID',
         message: 'Authentication is required.',
