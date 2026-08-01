@@ -1,0 +1,223 @@
+# Phase 7 Admin Operations — Data, Migration and State Machine Architecture
+
+> **Status: DRAFT / UNDER_COMMAND_CENTER_REVIEW / NOT_IMPLEMENTATION_AUTHORIZATION**
+>
+> P7-S1D is documentation only. This proposal creates no migration and authorizes no production code, schema, seed, test, CI, dependency, or frozen Phase 3–6 owner change. D-046 and its frozen P7-S0 documents remain controlling.
+
+## 1. Scope and non-negotiable rules
+
+- Base SHA: `f9f9b754085616914b064c982950219fe60f34fc`.
+- PostgreSQL remains source of truth; Drizzle schema must align with explicit, reviewable SQL migrations.
+- Future migrations start after the accepted `0000`–`0026` set, are centrally assigned, checksum-registered, forward-only, and owner-isolated. This document does **not** reserve a migration number.
+- Applied migration files are immutable. Recovery uses a later forward compensation/fix migration; no down migration rewrites financial, approval, security, or audit history.
+- Exact decimals use `numeric`, UTC uses `timestamptz(6)`, market-local scheduling resolves through the market IANA timezone, and critical request hashes are SHA-256 length 64.
+- No historical ledger, transaction, quote/order snapshot, used rule version, approval decision, or privileged audit row is updated or deleted to simulate rollback.
+- D-002 C-03 and D-046 apply literally: financial Maker/Checker is required for Manual MCP and Manual iPoint adjustments at every amount. The Phase 6 Redemption Refund workflow stays independent.
+- D-042 controls commission correction semantics: original Commission Ledger rows remain fully immutable; compensation is a new linked exact-opposite entry preserving the original `source_type`.
+
+## 2. Existing-data findings that constrain the proposal
+
+1. `sessions` already stores Account, token-family, access/refresh hashes, IP, User-Agent, created/last-seen/access-expiry/family-expiry, revocation and replacement linkage. It is the canonical session owner, but lacks issued Admin-purpose binding, authoritative idle/absolute/family ceilings, server Current Admin Market, context version, and reliable activity updates.
+2. Generic `otps` is not an enrolled Admin MFA model. No MFA factor, recovery-code, challenge, or step-up persistence exists.
+3. Normalized `roles`, `permissions`, `role_permissions`, `role_assignments`, and `market_access` already exist. P7 needs controlled catalog/template data and drift controls, not a second authorization model.
+4. `mcp_adjustment_requests` and `mcp_adjustment_decisions` already provide durable request/decision identity, payload hash, version, maker/checker inequality trigger, and owner ledger linkage. They require additive D-046 lifecycle, cap, evidence, replacement, failure, and audit fields—not replacement by a generic table.
+5. `member_wallet_entries` is the immutable iPoint owner ledger. There is no durable Manual iPoint adjustment request/decision model. The immediate Phase 3 Admin endpoint is prohibited by SEC-01.
+6. Reward, redemption, package, and commission versions use different lifecycle representations. Their historical owner rows/snapshots must remain intact; Phase 7 may standardize control semantics without merging the tables.
+7. Migration `0021` adds `redemption_refund_requests.refund_wallet_entry_id`, but `packages/database/schema/redemption.ts` and the service still conflate debit/refund linkage. SEC-02 therefore remains a Phase 6 hard gate.
+8. Dashboard truth can be computed from bounded indexed owner queries and short-lived cache. Persistent aggregate storage is not justified at planning time.
+
+## 3. Proposed migration map
+
+The following are **21 future migration proposals**, not authorized changes. “Immutable” means immutable after the stated lifecycle point; operational state changes remain explicit guarded transitions.
+
+| # | Proposed object | Owning phase/domain | Purpose | Required columns | Primary key | Foreign keys | Unique constraints | Check constraints | Immutable fields | Indexes | Effective-time behavior | Audit relationship | Data backfill | Roll-forward behavior | Compatibility risk | Migration order | Rollback policy |
+|---:|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| M01 | `admin_mfa_factors` | Auth / Platform Access, future authorized P7 identity stage | Bind encrypted TOTP factors to eligible Admins | `id`, `account_id`, `admin_user_id`, `factor_type`, encrypted secret fields (`ciphertext`,`nonce`,`auth_tag`,`key_id`,`algorithm`), `status`, `last_accepted_counter`, `created_at`,`confirmed_at`,`disabled_at`,`reset_at`,`version` | UUID `id` | Account, Admin User | One active primary TOTP per Admin (partial unique) | TOTP only for MVP; encrypted fields non-empty; counter non-negative; lifecycle timestamp consistency; version > 0 | Identity, factor type, crypto binding, created time; secret never plaintext | Admin/status; account/status | None; factor lifecycle only | Security events plus privileged reset audit; never secret material | None. Existing Admins become `MFA_ENROLLMENT_REQUIRED`; no synthetic factor | Add table, then keep sensitive capabilities blocked until enrollment acceptance | High security/key-management risk | 1 | Disable/revoke affected factors and re-enroll under a later migration; never decrypt/backfill plaintext |
+| M02 | `admin_mfa_recovery_codes` | Auth | One-time recovery material | `id`,`factor_id`,`code_hash`,`hash_algorithm`,`hash_version`,`created_at`,`consumed_at`,`revoked_at` | UUID `id` | MFA factor | Unique `(factor_id, code_hash)` | Hash length/algorithm; consumed and revoked mutually consistent | Hash and factor binding | Factor + unconsumed partial index | None | Recovery issued/consumed/rotated/revoked security events | None | Generate only after confirmed enrollment; old batches revoked before replacement | High if codes leak; no export | 2 after M01 | Revoke batch and issue a new batch; no hash restoration |
+| M03 | `admin_mfa_challenges` | Auth | Pre-auth/login, enrollment confirmation, recovery, and step-up challenge state | `id`,`challenge_hash`,`account_id`,`admin_user_id`,`factor_id`,`purpose`,`status`,`attempts`,`max_attempts`,`expires_at`,`consumed_at`,`request_hash`,`ip_address`,`user_agent`,`created_at`,`version` | UUID `id` | Account, Admin, optional factor | Unique challenge hash | Hash 64; attempts bounded; expiry after create; terminal timestamp consistency | Subject, purpose, request hash, created/expiry | Subject/status/expiry; challenge hash | Short-lived only | Security events for issue/success/failure/exhaustion/replay | None | New challenges only; generic OTP rows are not converted | Medium; dual login response compatibility | 3 | Expire outstanding challenges; clients restart login |
+| M04 | `admin_step_up_grants` | Auth / Platform Access | Server-bound short-lived authorization for sensitive action classes | `id`,`session_id`,`admin_user_id`,`factor_id`,`action_class`,`market_id`,`target_hash`,`issued_at`,`expires_at`,`used_at`,`revoked_at`,`version` | UUID `id` | Session, Admin, factor, optional Market | Unique active grant by session/action/market/target (partial) | Max accepted duration; used/revoked consistency; version > 0 | Session/Admin/factor/action/target binding | Session + expiry/status | Maximum ten minutes; never outlives session | Step-up issue/use/deny/expire security events | None | Capability remains blocked if no valid grant | Medium | 4 after M01/M03 and session changes | Revoke grants; require fresh step-up |
+| M05 | Additive `sessions` Admin-policy/context columns | Canonical Auth | Reuse existing session table for Admin purpose, deadlines, device projection source, and Current Admin Market | `actor_purpose`, `admin_user_id`, `idle_expires_at`, `absolute_expires_at`, `family_created_at`, `family_max_expires_at`, `current_admin_market_id`, `market_selected_at`, `context_version`, optional `activity_source` | Existing UUID | Admin User, Market | Existing token hashes; optional one current context per session is inherent | ADMIN purpose requires Admin ID and MFA-completed creation path; idle ≤ absolute ≤ family max; version > 0 | Purpose/Admin binding and original family creation; token hashes | Admin active sessions; family max; market context; expiry | D-046: 30-minute idle, 8-hour absolute, 7-day family maximum; selected market mutable with expected version | Security event on create/refresh/expiry/revoke/reuse/market switch | Existing sessions remain `ACCOUNT` and are not upgraded to Admin; force fresh Admin password+MFA login | Nullable add, staged writes, then constraints; derive device label from existing User-Agent/IP rather than persist trust | High auth compatibility; dedicated commit | 5 after MFA primitives | Revoke Admin-purpose sessions and issue fresh sessions; never convert them to Account sessions |
+| M06 | Controlled RBAC catalog/template data in existing `roles`, `permissions`, `role_permissions` | Platform Access | Seed six system templates and reconciled canonical permission catalog without role-only bypass | Existing columns; optionally additive `catalog_version`,`owner_domain`,`archived_at` on permissions if approved | Existing keys | Existing | Existing unique role/permission codes | Six exact role codes; deprecated aliases grant nothing; assignment conflict checks remain transactional | System code/owner/version once effective | Code/status/owner | Catalog version becomes effective only through accepted deployment | Privileged audit for template revision; route manifest is evidence | Map `VIEWER` to Support template only after explicit assignment review; do not auto-grant all new permissions to Super Admin | Idempotent inserts and explicit grants/revokes; run twice/drift proof | High privilege-expansion risk | 6 after M05; isolated permission migration/commit | Forward revoke erroneous grants and publish next template version; preserve assignment history |
+| M07 | `manual_adjustment_limit_versions` | Phase 7 policy / Finance controls | Market/domain-specific soft/hard caps and evidence escalation | `id`,`market_id`,`adjustment_domain`,`currency_or_unit`,`soft_cap`,`hard_cap`,`high_risk_reason_policy_version`,`effective_from`,`effective_until`,`status`,`created_by`,`reason`,`created_at` | UUID | Market, Admin | No overlapping effective range per market/domain/unit | Positive caps; soft ≤ hard; supported domain MCP/IPOINT; period valid | Effective version content | Market/domain/effective; GiST exclusion | Draft/scheduled/effective/expired; Malaysia initial 10,000/100,000; other markets absent/blocked | Privileged configuration audit | Insert Malaysia version only from accepted D-046 values; no other-market fallback | Add immutable rows; future supersession only | Medium; unit/currency ambiguity | 7 after RBAC | Supersede with corrected future version; never rewrite used snapshot |
+| M08 | `adjustment_evidence_references` | Phase 7 secure evidence infrastructure | Store protected opaque attachment references shared by MCP/iPoint workflows | `id`,`request_domain`,`request_id`,`market_id`,`opaque_storage_ref`,`evidence_type`,`scan_status`,`retention_policy_version`,`uploaded_by`,`created_at`,`verified_at`,`requested_by_checker_id` | UUID | Market, Admin; polymorphic request link enforced by service or separate nullable FKs if approved | Unique storage ref; optional request/type/ref uniqueness | Opaque ref only; status allowlist; no raw content; market/request consistency | Request/ref/uploader/create | Request/domain; market/time; scan status | None; retention policy version snapshot | Evidence view/upload/scan events; access itself audited | None; above-soft-cap remains blocked until secure storage accepted | Table can land disabled before provider acceptance | High privacy/retention risk; O-08 | 8 | Mark inaccessible/revoked under later policy; never delete financial request linkage |
+| M09 | Additive `mcp_adjustment_requests` lifecycle/evidence/replacement columns and enum values | Frozen Phase 1 MCP owner under separate authorization | Bring existing owner request to D-046 lifecycle | `reason_code`,`case_reference`,`prior_request_id`,`limit_version_id`,`limit_snapshot`,`evidence_required`,`submitted_at`,`approved_at`,`rejected_at`,`execution_started_at`,`executed_at`,`failed_at`,`failure_code`,`execution_attempt`,`checker_requested_evidence_at`; add `PENDING_CHECKER`,`EXECUTING`,`FAILED` while retaining legacy values | Existing UUID | Self prior request, limit version, ledger | Existing account+idempotency; one ledger link; optional one active replacement chain edge | Immutable financial identity/hash; rejected terminal; prior request differs; lifecycle timestamps/state; nonzero positive amount/direction | Account, market, maker, entry type, amount, reason/evidence snapshot, key/hash, prior after submission | Market/status/created; prior; ledger; pending checker | None; limit version snapshotted at submit | Existing audit plus transition events | Map legacy `PENDING_APPROVAL` to accepted read alias or forward enum/state transition strategy without rewriting decisions; do not fabricate evidence | Dual-read/dual-write compatibility, then constraints | High frozen-owner/enum/client risk | 9 after M07/M08 | Forward state adapter/fix; failed executions remain recorded; no request deletion |
+| M10 | Additive `mcp_adjustment_decisions` fields | Frozen Phase 1 MCP owner | Capture Checker revalidation and escalation evidence separately from execution | `request_version`,`permission_snapshot`,`market_grant_snapshot`,`limit_version_id`,`decision_reason`,`step_up_grant_id`,`created_at` (reuse `decided_at`) | Existing UUID | Existing request/checker/market; limit version; step-up grant | Existing one decision per request | Maker ≠ Checker; approved Checker role matches snapshotted cap route; request version > 0 | Decision/checker/time/snapshots | Checker/time; market/decision | None | Immutable decision and privileged audit link | Existing decisions preserved as legacy evidence; no inferred step-up | Add nullable, write new records, then require for new decisions | Medium | 10 after M09 | Add compensating audit annotation; never alter decision outcome |
+| M11 | `ipoint_adjustment_requests` | Phase 3 Wallet owner + separately authorized P7 integration | Durable Manual iPoint request lifecycle | `id`,`wallet_account_id`,`member_id`,`market_id`,`maker_admin_user_id`,`direction`,`amount`,`reason_code`,`explanation`,`case_reference`,`prior_request_id`,`limit_version_id`,`limit_snapshot`,`status`,`idempotency_key_hash`,`payload_hash`,`wallet_entry_id`,`correction_of_wallet_entry_id`,`version`,`submitted_at`,`approved_at`,`rejected_at`,`execution_started_at`,`executed_at`,`failed_at`,`failure_code`,`created_at`,`updated_at` | UUID | Wallet, Member, Market, Admin, self prior, limit version, wallet entries | Operation-scope key hash; one produced wallet entry; one active correction per approved policy | Amount >0; hash 64; maker identity; rejected terminal; replacement differs; lifecycle timestamps; correction cannot self-link; version >0 | Target/market/maker/direction/amount/reason/case/prior/hash after submit | Market/status/created; wallet/status; prior; produced/corrected entry | None; caps snapshotted | Transition audit and owner wallet reference | None. Existing immediate adjustments are not converted or claimed compliant | Land blocked; expose only after SEC-01 evidence and Phase 3 regression | Critical financial/frozen-owner risk | 11 after M07/M08 and owner authorization | Disable new submissions; retry/compensate through new rows only; never remove ledger effects |
+| M12 | `ipoint_adjustment_decisions` | Phase 3/P7 integration | Independent immutable Checker decision | `id`,`adjustment_request_id`,`market_id`,`checker_admin_user_id`,`decision`,`reason`,`request_version`,`limit_version_id`,`permission_snapshot`,`market_grant_snapshot`,`step_up_grant_id`,`decided_at` | UUID | Request, Market, Admin, limit, step-up | One decision per request | APPROVED/REJECTED; maker ≠ checker (DB trigger/check strategy); routing and version consistency | All fields | Request; checker/time; market/decision | None | Privileged decision audit | None | Table before endpoint; trigger and transaction revalidation mandatory | Critical | 12 after M11 | Append remediation audit/new replacement request; never update decision |
+| M13 | Additive `reward_rule_versions` lifecycle/idempotency/overlap hardening | Frozen Phase 3 Reward owner | Support P7-OD-04/05 draft→scheduled→active→expired without historical repricing | Proposed `version`,`status`,`idempotency_key_hash`,`payload_hash`,`reason`,`scheduled_local_date`,`resolved_effective_utc`,`created_request_id`; retain exact numeric/effective fields | Existing UUID | Existing Market/Admin | Key hash per market/operation; non-overlap per market/package/scope | 0–0.05 %/day, ≤6 input decimals; future market-local 00:00; valid period; market required for new P7 rows | Rate/scope/effective time after schedule | Market/status/effective; exclusion constraint on accepted scope | State derived/advanced by time; no immediate/same-day activation | Atomic privileged audit with version creation/schedule | Preserve all rows and plan/rule references; nullable legacy metadata; no global fallback for new P7 writes | Add columns then owner-specific exclusion/serialization after overlap audit | High due existing nullable market and plan binding conflict CG-02 | 13, separate Phase 3 owner authorization | Superseding future version; never edit consumed rules/rewards |
+| M14 | Additive `redemption_rate_versions` control metadata | Frozen Phase 6 Redemption owner | Make create/schedule idempotent/audited while preserving existing immutable rate rows | `version`,`status` or derived-state marker, `idempotency_key_hash`,`payload_hash`,`reason`,`created_request_id`; retain market/type/value/effective | Existing UUID | Existing Market; created_by should FK Admin when legacy compatibility permits | Existing GiST non-overlap; key hash per market/type | Malaysia 0.50–2.00 currency-per-point, ≤10 decimals; other markets require explicit approved bounds; future period | Entire row after creation | Market/type/effective | Draft/scheduled/active/expired; cancellation by superseding version, never update immutable row | Atomic privileged audit | Preserve all rows/quote/order snapshots; populate legacy version labels deterministically only if needed | Add nullable metadata for old rows; require on new API | High frozen Phase 6/CG-03 | 14 under Phase 6 owner | Publish future corrective version; no mutation/deletion |
+| M15 | Additive `service_fee_versions` control/audit metadata | Frozen Phase 1 Merchant Package owner | Preserve existing package lifecycle while adding safe stale/idempotency evidence | `version`,`idempotency_key_hash`,`payload_hash`,`created_by`,`reason`,`activated_at`,`expired_at`; reuse existing status/effective fields | Existing UUID | Profile, Market, Admin | Key hash per profile/operation; existing owner overlap/default constraints retained | >0 and ≤100, ≤6 decimals; valid period/status; expected version | Rate/profile/market/effective after schedule | Profile/market/status/effective | Draft/scheduled/active/expired; assignments do not auto-migrate | Atomic package audit | Existing versions/assignments remain; nullable legacy actor/hash metadata | Additive owner migration; new commands require fields | Medium | 15 | Future version or explicit assignment correction; no historic transaction/assignment rewrite |
+| M16 | Additive `commission_rate_version` control and market-key hardening | Frozen Phase 5 Commission owner | Prospective state lifecycle, idempotency, explicit unit/currency/range, canonical Market linkage | `market_id` (alongside legacy code during transition), `currency_code`,`unit`,`version`,`status`,`idempotency_key_hash`,`payload_hash`,`reason`,`created_request_id`; retain rate/generation/type/effective | Existing UUID | Market, Admin creator where valid | Existing GiST overlap plus key hash; canonical market mapping unique | Three D-042 source types; accepted generation mapping; percentage/fixed bounds; valid period | Source/generation/market/unit/value/effective after schedule | Market/source/generation/status/effective | Draft/scheduled/active/expired; future events only | Atomic privileged audit; ledger snapshots remain authoritative | Map legacy `MY` to Malaysia Market only through verified canonical mapping; preserve all ledger rate refs | Dual market-code/UUID reads until Phase 5 acceptance | Critical GATE-P5-01 risk | 16 under Phase 5 owner | Supersede; never rewrite Commission Ledger or consumed rate snapshots |
+| M17 | `agent_activation_fee_versions` | Frozen Phase 5 Agent owner | Market/currency-scoped activation fee versions | `id`,`market_id`,`currency_code`,`amount`,`version`,`status`,`effective_from`,`effective_until`,`idempotency_key_hash`,`payload_hash`,`created_by`,`reason`,`created_at` | UUID | Market, Admin | No overlap per market/currency; key hash | Amount >0 exact decimal; currency matches market; valid period; no other-market fallback | All fields after schedule | Market/status/effective | Draft/scheduled/active/expired; Malaysia RM388 future qualifying events | Atomic privileged audit | Insert accepted Malaysia future-effective version; do not infer other markets | Add table blocked behind GATE-P5-01 | High | 17 | Superseding future version only |
+| M18 | Additive `agent_activation` fee snapshot/link columns | Frozen Phase 5 Agent owner | Preserve activation-time fee truth | `fee_version_id`,`fee_amount_snapshot`,`fee_currency_snapshot`,`fee_effective_at`,`activation_idempotency_hash`,`version` | Existing UUID | Fee version | One activation per member/market already exists; optional unique processing hash | Snapshot fields all-null for legacy or all-present for new qualifying activation; currency/market match; version >0 | Snapshot after qualifying activation | Fee version; market/status | Snapshot at activation; never repriced | Activation/status/commission audit | Legacy activations stay explicitly `LEGACY_NO_FEE_SNAPSHOT`; no RM388 backfill unless authoritative source proves it | Require snapshot for new Malaysia activation only after gate acceptance | Critical | 18 after M17 | Correct via new lifecycle/audit record; never reprice activation |
+| M19 | `redemption_refund_requests` SEC-02 linkage/idempotency/schema alignment | Frozen Phase 6 Redemption owner | Distinguish original debit from exact-opposite refund credit and close Drizzle/runtime drift | Canonical `debit_wallet_entry_id`,`refund_wallet_entry_id`,`idempotency_key_hash`,`payload_hash`,`version`,`execution_started_at`,`completed_at`,`failed_at`,`failure_code`,`request_market_id`; reconcile legacy `wallet_entry_id` meaning | Existing UUID | Order, Admin maker/checker, both Wallet entries, Market | One completed refund per debit/order; one refund entry; key hash | Maker ≠ checker; links distinct; completed requires exact opposite credit; market/order/wallet consistency; lifecycle timestamps | Order/maker/amount/reason/hash/debit link after submit; decision immutable | Market/status/created; order; debit/refund entry | Existing Phase 6 lifecycle preserved; **not merged** with adjustment state machines | Redemption audit + platform privileged audit references | Verify each legacy row. Do not invent a refund entry; rows lacking one remain failed/blocked for remediation | Isolated Phase 6 migration/service/schema alignment and atomic owner command | Critical SEC-02 | 19, isolated Phase 6 gate | Forward compensation and state repair only after evidence; no deletion or fake linkage |
+| M20 | Additive `audit_logs` safe correlation/attribution columns | Platform Audit | Support investigation without exposing raw data | `correlation_id`,`idempotency_reference_hash`,`user_agent`,`session_id`,`workflow_state`,`domain_reference` (bounded/safe) | Existing UUID | Optional session | None beyond owner references | Hash lengths; bounded workflow/action values; no secrets | Existing audit content; new correlation fields after insert | Market/time; correlation; request; workflow | None | This is the canonical privileged audit relationship | No fabricated legacy metadata; null means unavailable | Add nullable columns; new writes populate through shared audit primitive | Medium write-path compatibility | 20 | Forward add corrected metadata; audit rows stay append-only |
+| M21 | `audit_view_access_events` | Phase 7 Audit Viewer / Platform Audit | Audit every audit/sensitive projection search or view | `id`,`viewer_admin_user_id`,`session_id`,`market_id`,`permission_code`,`reason`,`safe_filter_hash`,`resource_scope`,`result`,`request_id`,`correlation_id`,`ip_address`,`user_agent`,`occurred_at` | UUID | Admin, Session, Market | Optional request/action uniqueness for retry dedupe | Reason required for sensitive detail; safe hash length; allowlisted result/scope; no raw filter/evidence JSON | All fields append-only | Viewer/time; market/time; correlation/request | None | Self-auditing event, separate from returned source rows | None | Create before enabling viewer; failure to record fails closed for sensitive access | Medium recursion/volume risk | 21 after M20 | Append correction event; never update/delete source event |
+
+### 3.1 Dashboard aggregate storage decision
+
+**No persistent dashboard aggregate table or materialized view is proposed for MVP.** Start with bounded, indexed, selected-market owner queries and a short-lived cache keyed by market/metric/filter; return `asOf`, freshness, stale, and unavailable state. Cache is not source of truth. Only if measured query plans cannot satisfy ≤60-second queue/alert and ≤5-minute KPI freshness may a separately authorized future migration add metric-specific storage with source watermark, market/currency dimensions, rebuildability, and no financial recomputation.
+
+### 3.2 Migration sequencing and compatibility gates
+
+1. Auth security primitives (M01–M05) land in a dedicated Auth commit and remain dark until real DB/API/browser security evidence passes.
+2. RBAC catalog/template data (M06) is isolated from Auth and must pass seed-twice, drift, six-role, and negative crafted-request tests.
+3. Shared adjustment policy/evidence (M07–M08) precedes domain workflows.
+4. MCP owner conformance (M09–M10) is separate from iPoint SEC-01 integration (M11–M12). Neither shares a universal financial approval table.
+5. Each commercial owner migrates independently (M13–M18). No cross-owner “configuration engine” migration is allowed.
+6. SEC-02 remediation (M19) is an isolated Phase 6 owner migration and acceptance gate.
+7. Audit schema/view events (M20–M21) use a dedicated audit commit after write-path compatibility proof.
+8. Every future SQL migration has a matching Drizzle schema change and checksum entry; neither is created by P7-S1D.
+
+## 4. State machine definitions
+
+Exactly **10 state machines** are defined below. Domain-specific state is canonical; shared infrastructure may provide idempotency hashing, locks, evidence references, and audit envelopes only.
+
+### SM-01 — Manual MCP adjustment request
+
+- **States:** `DRAFT` → `SUBMITTED/PENDING_CHECKER` → `APPROVED` or `REJECTED`; approved → `EXECUTING` → `EXECUTED` or `FAILED`. Legacy states are compatibility aliases only until owner migration. `REJECTED` and `EXECUTED` are terminal. `FAILED` is terminal for an attempt but retryable through the same approved request when policy permits.
+- **Transitions:** Maker creates/edits Draft; Maker submits; Checker approves/rejects; executor claims Approved; owner ledger transaction completes/fails. Rejected replacement creates a new Draft with `priorRequestId`.
+- **Guards:** active Admin+MFA; Maker/Checker permissions; selected market/grant/resource equality; amount >0; limit version and cap routing; hard cap rejection; evidence/attachment policy; maker ≠ checker even for Super Admin; expected request version; target MCP account state/balance for debit; owner ledger invariants.
+- **Actors:** Finance Operator/Super Admin Maker; Finance Approver at/below soft cap or Super Admin above soft through hard cap Checker; canonical owner executor/system.
+- **Idempotency:** operation-scoped key hash+canonical payload hash for create, submit, decision, execute; same/same replays result, same/different returns `IDEMPOTENCY_REPLAY_MISMATCH`.
+- **Concurrency locks:** request row then MCP account row, deterministic order; expected version; owner ledger uniqueness.
+- **Audit events:** draft created, submitted, evidence requested/added, approved/rejected, execution started/succeeded/failed, replacement linked, correction linked.
+- **Terminal/retry:** rejected immutable; executed immutable; failed retains attempt/failure code. Retry reuses original execution key/payload and cannot create a second ledger effect.
+
+### SM-02 — Manual iPoint adjustment request (P7-OD-20 / SEC-01)
+
+- **States:** `DRAFT` → `SUBMITTED/PENDING_CHECKER` → `APPROVED` or `REJECTED`; approved → `EXECUTING` → `EXECUTED` or `FAILED`.
+- **Transitions/guards/actors:** same D-046 cap, evidence, identity, permission, MFA/step-up, market, version, rejection/replacement, and escalation rules as SM-01; target Wallet/Member/Market consistency and sufficient available balance for debit are revalidated inside execution.
+- **Idempotency:** separate create/submit/decision/execute scopes with key hash+payload hash; correction has a new request/key and links the original Wallet entry.
+- **Concurrency locks:** request row then `member_wallet_accounts` row; expected versions and `member_wallet_entries` unique idempotency/sequence constraints.
+- **Audit events:** same lifecycle set as SM-01 plus exact Wallet entry/projection references; no raw evidence.
+- **Terminal/retry:** rejected immutable and replaced only by new `priorRequestId`; executed immutable; failed retry uses the approved request and original payload. Execution delegates to the frozen Phase 3 wallet service and atomically commits ledger, projection, request state, and audit. Until SEC-01 acceptance, all commands return blocked prerequisite.
+
+### SM-03 — Redemption refund (existing Phase 6 workflow; SEC-02 hard gate)
+
+- **States:** preserve Phase 6 `PENDING_CHECKER` → `APPROVED` → `EXECUTING` → `COMPLETED` or `FAILED`, with `REJECTED` terminal. No Draft is added and this state machine is not normalized into SM-01/02.
+- **Transitions:** Phase 6 Maker creates; independent Checker approves/rejects; Phase 6 owner executes order/refund/inventory/Wallet correction atomically.
+- **Guards:** redemption permissions, MFA, selected market/grant/order equality, maker ≠ checker, order/refund state, original debit link, exact-opposite refund entry, inventory consistency, expected version, SEC-02 gate released.
+- **Actors:** authorized Phase 6 refund Maker/Checker and owner executor; Phase 7 may expose safe read-only status before release but no command.
+- **Idempotency/locks:** request and execution key hashes with payload comparison; lock refund request → order → inventory → Wallet account in owner-approved deterministic order.
+- **Audit events:** request, decision, execution start/complete/fail, order/inventory/wallet linkages, gate state.
+- **Terminal/retry:** rejected/completed terminal; failed retry is owner-defined using same key/payload. No direct DB workaround or fabricated wallet entry.
+
+### SM-04 — Admin session lifecycle
+
+- **States:** `ACTIVE`, `IDLE_EXPIRED`, `ABSOLUTE_EXPIRED`, `REVOKED`, `REUSE_REVOKED`. Family max expiry produces `ABSOLUTE_EXPIRED`/family-expired reason, not a silently refreshed Active session.
+- **Transitions:** successful password+MFA creates Active; qualifying foreground activity advances idle deadline within absolute/family ceilings; timeout transitions to expiry; logout/admin/account/password/MFA/role action revokes; refresh reuse revokes whole family.
+- **Guards:** immutable Admin actor-purpose binding; Account/Admin/role/factor still active; token hash/expiry; 30-minute idle, 8-hour absolute, 7-day family max; active Market grant per request.
+- **Actors:** Admin self, authorized Super Admin, Auth system/security response.
+- **Idempotency/locks:** revoke one/all/family commands idempotent; lock session/family in deterministic order; refresh rotation row-locks token then family.
+- **Audit events:** create, refresh, activity, logout, revoke one/all, idle/absolute/family expiry, reuse detected/revoked, context changed/invalidated.
+- **Terminal/retry:** all expired/revoked states terminal; client must perform fresh password+MFA login. No refresh revives a terminal session.
+
+### SM-05 — MFA factor lifecycle
+
+- **States:** `UNVERIFIED`, `ACTIVE`, `DISABLED`, `RESET` (persisted implementation may call terminal reset `REVOKED`, with safe API mapping).
+- **Transitions:** enrollment creates Unverified; valid non-replayed TOTP confirms Active; authorized self disable/security disable yields Disabled; assisted reset yields Reset and revokes recovery/session material; new enrollment creates a new factor.
+- **Guards:** eligible active Admin; encrypted secret present; confirmation challenge valid; one active primary factor; TOTP counter monotonic; disable/reset permission, fresh step-up, reason/case, required recovery control.
+- **Actors:** Admin self, authorized recovery admins, Auth security system.
+- **Idempotency/locks:** factor-version expected; enrollment/reset operation key+payload hash; lock Admin then factor; unique active factor constraint.
+- **Audit events:** enrollment created/confirmed/expired, challenge success/failure/replay, recovery consumed/rotated, disabled/reset, step-up issue/use/deny.
+- **Terminal/retry:** Reset terminal; Disabled may reactivate only through separately approved policy, otherwise re-enroll. Unverified expiry starts a new enrollment; secrets/codes are never returned again.
+
+### SM-06 — Reward rate version (P7-OD-04/05)
+
+- **States:** `DRAFT`, `SCHEDULED`, `ACTIVE`, `EXPIRED`.
+- **Transitions:** authorized creator drafts; schedule validates future market-local 00:00 and freezes content; system time activates; effective-until/superseding boundary expires.
+- **Guards:** reward permission+market grant; 0–0.05 %/day, ≤6 input decimals; valid IANA conversion; no same-day/immediate activation; no overlap; expected version; no history recalculation.
+- **Actors:** authorized configuration Admin; scheduler/time system for activation/expiry. No financial Maker/Checker.
+- **Idempotency/locks:** key/hash on create/schedule; market/package/scope advisory or exclusion/serializable protection.
+- **Audit events:** draft, schedule, activate, expire, conflict/denial with local and UTC instants.
+- **Terminal/retry:** Expired terminal; rejected scheduling leaves Draft repairable. Active cannot be edited; create a future version.
+
+### SM-07 — Redemption rate version (P7-OD-06)
+
+- **States:** `DRAFT`, `SCHEDULED`, `ACTIVE`, `EXPIRED` (state may be derived from immutable effective times).
+- **Transitions:** draft, schedule, time activation, expiry/supersession; “cancel” never updates an immutable effective row and must be represented by an accepted future superseding contract.
+- **Guards:** market permission/grant; Malaysia currency-per-point RM0.50–RM2.00, ≤10 decimals; other markets require all approved parameters; no overlap; quote/order snapshots unchanged.
+- **Actors/idempotency/locks/audit:** authorized Admin and system time; operation key/hash; existing GiST exclusion plus transaction; immutable privileged events.
+- **Terminal/retry:** Expired terminal. Constraint/serialization conflict is safe retry with same key; semantic/range failure is not retryable until payload changes.
+
+### SM-08 — Merchant package version (P7-OD-07/08)
+
+- **States:** `DRAFT`, `SCHEDULED`, `ACTIVE`, `EXPIRED` (legacy `CANCELLED` is a pre-activation terminal compatibility state only).
+- **Transitions:** create Draft; schedule; activate at effective time; expire/supersede. Existing Merchant Assignments do not move automatically.
+- **Guards:** standard package permission or Super Admin+dedicated special-percentage permission; market grant; >0 and ≤100%, ≤6 decimals; reason for special; overlap/default constraints; expected version.
+- **Actors/idempotency/locks/audit:** authorized package Admin/system time; key/hash; lock profile/version/assignment where relevant; atomic package audit.
+- **Terminal/retry:** Expired/Cancelled terminal. Assignment change is a separate explicit audited command, not a version transition.
+
+### SM-09 — Commission rate version (P7-OD-09; D-042)
+
+- **States:** `DRAFT`, `SCHEDULED`, `ACTIVE`, `EXPIRED`.
+- **Transitions:** draft, schedule, time activation, expiry/supersession.
+- **Guards:** GATE-P5-01 released; canonical market permission/grant; accepted source/generation/unit/range; no overlap; future qualifying events only; no Ledger rewrite.
+- **Actors/idempotency/locks/audit:** authorized Commission Admin/system time; operation key/hash; GiST/transaction protection; rate audit with future event snapshots.
+- **Terminal/retry:** Expired terminal; overlap/stale conflicts use stable retry semantics. A correction is **not** a rate transition: it creates a D-042 exact-opposite Commission Ledger entry.
+
+### SM-10 — Agent activation-fee version (P7-OD-AF-01)
+
+- **States:** `DRAFT`, `SCHEDULED`, `ACTIVE`, `EXPIRED`.
+- **Transitions:** create/schedule; time activation; future supersession/expiry.
+- **Guards:** GATE-P5-01 released; Malaysia RM388.00 MYR accepted; other markets require explicit approved amount/currency/bounds/compliance; no overlap; exact decimal; future effective; expected version.
+- **Actors/idempotency/locks/audit:** authorized Agent/Commission configuration Admin/system time; key/hash; market/currency exclusion or transaction lock; immutable audit.
+- **Terminal/retry:** Expired terminal. Existing activation snapshots are never repriced; missing other-market configuration returns capability unavailable.
+
+## 5. Universal Maker/Checker table decision
+
+**Decision: DO NOT CREATE a universal Maker/Checker table.** The architecture has not proven that a universal record can preserve owner-specific lifecycle, ledger atomicity, permissions, locks, correction semantics, or Phase 6 refund independence. The default and accepted proposal is:
+
+- domain-specific MCP request/decision records owned by Phase 1;
+- domain-specific iPoint request/decision records owned by Phase 3 plus the separately authorized P7 integration;
+- the independent existing Redemption Refund workflow owned by frozen Phase 6;
+- shared infrastructure primitives only for payload hashing, idempotency, evidence references, step-up grants, audit envelopes, and safe error contracts.
+
+No generic “financial approval engine” may execute owner ledgers or collapse independent statuses. A future universal proposal would require formal proof of domain-state preservation and separate Command Center approval.
+
+## 6. Error/state interaction rules
+
+- Invalid actor, MFA, permission, market, sensitive-view reason, cap, evidence, state, version, idempotency, and lock failures occur before owner mutation or fail atomically.
+- A critical command reports success only after domain effect, request state, and audit commit. Unknown outcomes instruct the UI to replay the **same** idempotency key.
+- Same key/same canonical payload returns the committed result; same key/different payload returns `IDEMPOTENCY_REPLAY_MISMATCH`.
+- Losing concurrent transitions return `ADJUSTMENT_ALREADY_DECIDED`, `CONCURRENCY_STALE_VERSION`, `CONCURRENCY_LOCKED`, or owner-specific stable conflict; no partial ledger/audit survives.
+- A blocked gate returns `CAPABILITY_UNAVAILABLE` with a safe `blockedPrerequisite` identifier such as `GATE-SEC-01`, `GATE-SEC-02`, `GATE-AUTH-01`, `GATE-RBAC-01`, or `GATE-P5-01`.
+
+## 7. Evidence index
+
+### Governance and frozen Phase 7 authority
+
+- `C:\AI_WORKSPACE\wt-p7-s1d\AGENTS.md`
+- `C:\AI_WORKSPACE\wt-p7-s1d\docs\00-master\PROJECT_MASTER_CONTROL.md`
+- `C:\AI_WORKSPACE\wt-p7-s1d\docs\00-master\DOCUMENT_AUTHORITY.md`
+- `C:\AI_WORKSPACE\wt-p7-s1d\docs\00-master\OPENCLAW_OPERATING_RULES.md`
+- `C:\AI_WORKSPACE\wt-p7-s1d\docs\00-master\BASELINE_ACKNOWLEDGMENT_V1.1.md`
+- `C:\AI_WORKSPACE\wt-p7-s1d\docs\00-master\DECISION_LOG.md` — D-002 C-03, D-006, D-028 through D-046; D-042 controls compensation semantics
+- `C:\AI_WORKSPACE\wt-p7-s1d\docs\00-master\PHASE_REGISTRY.md`
+- `C:\AI_WORKSPACE\wt-p7-s1d\docs\00-master\OPEN_QUESTIONS.md`
+- `C:\AI_WORKSPACE\wt-p7-s1d\docs\04-engineering\CODEX_WORKFLOW_RULES.md`
+- `C:\AI_WORKSPACE\wt-p7-s1d\docs\06-phase-reports\p7-s0\P7-S0_FROZEN_ADMIN_OPERATIONS_CONTRACT.md`
+- `C:\AI_WORKSPACE\wt-p7-s1d\docs\06-phase-reports\p7-s0\P7-S0_FINAL_DECISION_REGISTER.md`
+- `C:\AI_WORKSPACE\wt-p7-s1d\docs\06-phase-reports\p7-s0\P7-S0_CRITICAL_REMEDIATION_GATE_REGISTER.md`
+- `C:\AI_WORKSPACE\wt-p7-s1d\docs\06-phase-reports\p7-s0\P7-S0B_ADMIN_BACKEND_CAPABILITY_INVENTORY.md`
+- `C:\AI_WORKSPACE\wt-p7-s1d\docs\06-phase-reports\p7-s0\P7-S0D_GAP_MAKER_CHECKER_AUDIT_SECURITY_ANALYSIS.md`
+
+### P7-S1 planning worktrees
+
+- `C:\AI_WORKSPACE\wt-p7-s1a\docs\06-phase-reports\p7-s1\P7-S1_FINAL_PHASE_BRIEF.md`
+- `C:\AI_WORKSPACE\wt-p7-s1b\docs\06-phase-reports\p7-s1\P7-S1_DOMAIN_OWNERSHIP_AND_API_ARCHITECTURE.md`
+- `C:\AI_WORKSPACE\wt-p7-s1b\docs\06-phase-reports\p7-s1\P7-S1_CRITICAL_REMEDIATION_PLAN.md`
+- `C:\AI_WORKSPACE\wt-p7-s1c\docs\06-phase-reports\p7-s1\P7-S1_ADMIN_IDENTITY_RBAC_AND_MARKET_ARCHITECTURE.md`
+
+### Schema and migration evidence
+
+- `C:\AI_WORKSPACE\wt-p7-s1d\packages\database\schema\index.ts`
+- `C:\AI_WORKSPACE\wt-p7-s1d\packages\database\schema\redemption.ts`
+- `C:\AI_WORKSPACE\wt-p7-s1d\packages\database\migrations\checksums.json`
+- Full accepted migration set: `packages/database/migrations/0000_database_foundation.sql`, `0001_auth_session_access_expiry.sql`, `0002_phase_1_merchant_package_mcp.sql`, `0003_merchant_api_support.sql`, `0004_service_fee_package_management.sql`, `0005_mcp_ledger_recharge.sql`, `0006_mcp_adjustment_refund_governance.sql`, `0007_phase_2_member_schema_forward_migrations.sql`, `0008_phase_2_member_registration_auth.sql`, `0009_add_sessions_family_id_index.sql`, `0010_member_profile_phone_and_default_market_hardening.sql`, `0011_member_kyc_level_2_hardening.sql`, `0012_merchant_discovery_indexes.sql`, `0013_admin_member_notes.sql`, `0014_phase_3_reward_and_wallet_schema.sql`, `0015_phase_4_transaction_schema.sql`, `0016_phase_4_s3_audit_idempotency_nullable.sql`, `0017_phase_4_s6_correction_requests.sql`, `0018_phase_5_agent_commission_schema.sql`, `0019_phase_5_commission_outbox.sql`, `0020_phase_6_redemption_center_canonical.sql`, `0021_phase_6_redemption_contract_corrections.sql`, `0022_phase_6_inventory_direct_consumption.sql`, `0023_phase_6_final_contract_alignment.sql`, `0024_phase_6_terms_order_binding.sql`, `0025_phase_6_shipping_terms_constraints.sql`, `0026_phase_6_shipping_recovery_v2.sql`.
+- Runtime cross-check: `apps/api/src/merchant/mcp.service.ts`, `apps/api/src/admin-reward/admin-reward.service.ts`, `apps/api/src/wallet/wallet.service.ts`, `apps/api/src/redemption/redemption-refund.service.ts`, `apps/api/src/domain/commission/rate.service.ts`, and `packages/database/seeds/foundation.ts`.
+
+## 8. Authorization boundary
+
+This is a proposed architecture for Command Center review. It creates **zero migrations**. Every listed object, transition, backfill, permission seed, owner fix, and gate release requires a separate explicit authorization and owner-specific acceptance.
