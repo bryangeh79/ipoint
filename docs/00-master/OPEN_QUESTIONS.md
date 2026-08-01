@@ -67,7 +67,9 @@
 | **Description** | Agent fee currently RM388 (Malaysia baseline). Amounts and currency for other markets not decided. |
 | **Affected Phases** | Phase 6 (Agent & Commission) |
 | **Blocks Phase** | No (CONFIGURABLE; values not hard-coded) |
-| **Status** | **OPEN** |
+| **Status** | **RESOLVED (Malaysia) / OPEN (other markets)** |
+| **Resolution Decision ID** | D-046 |
+| **Resolution** | Malaysia Agent Activation Fee is RM388.00 MYR; G1 commission is RM88 and G2 commission is RM38 for future qualifying Malaysia events. Other-market fee amounts and currencies remain OPEN. |
 | **Decision needed by** | Before Phase 6 market expansion |
 
 ---
@@ -80,8 +82,10 @@
 | **Description** | Reward percentages: allowed minimum, maximum, and decimal precision not formally approved. |
 | **Affected Phases** | Phase 5 (iPoint Reward Engine) |
 | **Blocks Phase** | No (CONFIGURABLE; validation rules can be defined later) |
-| **Status** | **OPEN** |
-| **Decision needed by** | Before Phase 5 verification |
+| **Status** | **RESOLVED (Malaysia/initial MVP)** |
+| **Resolution Decision ID** | D-046 |
+| **Resolution** | Malaysia/initial MVP reward rate range is 0% to 0.05% per day with 6 decimal input precision. Any rate above 0.05% requires new governance. Other-market ranges remain governed by future decisions. |
+| **Decision needed by** | Resolved for Malaysia/initial MVP 2026-08-01; other markets require future decisions |
 
 ---
 
@@ -119,10 +123,12 @@
 |---|---|
 | **ID** | O-09 |
 | **Description** | Admin PWA supports viewing and lightweight approvals. Exact scope of PWA-approvable operations not defined. |
-| **Affected Phases** | Phase 8 (Admin Operations) |
+| **Affected Phases** | Phase 7 (Admin Operations) |
 | **Blocks Phase** | No |
-| **Status** | **OPEN** |
-| **Decision needed by** | Before Phase 8 UI design |
+| **Status** | **RESOLVED (Phase 7 MVP)** |
+| **Resolution Decision ID** | D-046 |
+| **Resolution** | Admin PWA is limited to read-only monitoring and safe navigation. No financial Maker/Checker approval, privileged mobile approval, or offline write queue is allowed; sensitive writes require the full online Admin Web. |
+| **Decision needed by** | Resolved for Phase 7 MVP 2026-08-01 |
 
 ---
 
@@ -146,3 +152,6 @@
 | O-04 (original) | MCP manual adjustment amount threshold | D-002 (C-03): No threshold; all adjustments require Maker/Checker | **RESOLVED** |
 | O-10 (original) | Receipt 60 minutes configurable | D-002 (C-04): MVP locked 60 min, Admin not adjustable | **RESOLVED** |
 | O-12 (original) | Redemption refund recalculates Reward Plan cap | D-002 (C-05): Refund only returns wallet points; Reward Plan unaffected | **RESOLVED** |
+| O-05 (Malaysia portion) | Malaysia Agent Activation Fee and G1/G2 amounts | D-046: RM388.00 MYR; G1 RM88; G2 RM38. Other markets remain OPEN. | **RESOLVED (Malaysia)** |
+| O-06 | Reward rate min/max and decimal precision | D-046: Malaysia/initial MVP 0% to 0.05% per day, 6 decimal input precision; above 0.05% requires new governance. | **RESOLVED (Malaysia/initial MVP)** |
+| O-09 | PWA admin approval operation scope | D-046: Read-only monitoring and safe navigation only; sensitive writes require full online Admin Web. | **RESOLVED (Phase 7 MVP)** |

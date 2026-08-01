@@ -1469,3 +1469,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | ChatGPT Command Center |
 | **Basis** | CI Run 30541203165. SHA `b4840498`. 5/5 Jobs SUCCESS. |
 | **Status** | ACCEPTED / COMPLETE / CLOSED / FROZEN |
+
+---
+
+## D-046 - Phase 7 P7-S0 Acceptance, Product Decision Freeze and Admin Operations Contract Baseline
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-046 |
+| **Date** | 2026-08-01 |
+| **Source** | ChatGPT Command Center - P7-S0 Decision Consolidation and D-046 Governance Freeze Order (2026-08-01) |
+| **Old Rule** | Phase 7 PLANNING AUTHORIZED; P7-S0 delivery complete but not yet accepted; P7-OD-01..22 were temporary decision references; Phase 7 contract not frozen |
+| **New Decision** | P7-S0 DELIVERY ACCEPTED; P7-S0 AUDIT COMPLETE; six documentation deliverables accepted (P7-S0A, P7-S0B, P7-S0C, P7-S0D, P7-S0E_BRYAN_OPEN_DECISIONS, P7-S0E_PHASE_7_CONTRACT_DRAFT) plus five consolidated authoritative documents (Final Decision Register, Frozen Admin Operations Contract, Acceptance and Gate Record, P7-S1+ Authorized Sequence Draft, Critical Remediation Gate Register). Final P7-S0 HEAD before governance: `0c84bf2ef23cc9db49475bb96081a669859090e6`. 22 P7 decisions (P7-OD-01..22) approved and frozen. Malaysia Agent Activation Fee confirmed RM388.00 MYR (G1 RM88, G2 RM38 for future qualifying Malaysia events). SEC-01 and SEC-02 accepted as verified Critical findings; SEC-02 requires isolated Phase 6 frozen-owner remediation before refund approval is enabled. Current immediate iPoint adjustment endpoint is prohibited from Phase 7 exposure. Phase 7 Admin Operations Contract FROZEN. P7-S1+ remains NOT AUTHORIZED. |
+| **Reason** | Command Center accepted P7-S0 audit delivery and froze Phase 7 product decisions and contract to enable controlled future implementation planning. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, docs/00-master/OPEN_QUESTIONS.md, docs/06-phase-reports/p7-s0/P7-S0_FINAL_DECISION_REGISTER.md, docs/06-phase-reports/p7-s0/P7-S0_FROZEN_ADMIN_OPERATIONS_CONTRACT.md, docs/06-phase-reports/p7-s0/P7-S0_ACCEPTANCE_AND_GATE_RECORD.md, docs/06-phase-reports/p7-s0/P7-S1_PLUS_AUTHORIZED_SEQUENCE_DRAFT.md, docs/06-phase-reports/p7-s0/P7-S0_CRITICAL_REMEDIATION_GATE_REGISTER.md |
+| **Affected Phases** | Phase 7, P7-S0, P7-S1+ (not authorized) |
+| **Migration** | NONE (governance and documentation only; no production code, migration, test, or CI modified) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | P7-S0 Decision Consolidation and D-046 Governance Freeze Order (2026-08-01) |
+| **Status** | **APPROVED / FROZEN** |

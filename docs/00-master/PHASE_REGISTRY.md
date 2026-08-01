@@ -14,7 +14,7 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Work** | **Phase 6 Full Execution** | Phase 6 P6-S0 through P6-S9 all AUTHORIZED under D-043. 30 Bryan Decisions approved. P6-S0 FROZEN. P6-S1 ongoing. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. |
+| **Current Authorized Work** | **Phase 7 P7-S0 ACCEPTED / COMPLETE / FROZEN** | Under D-046. P7-S1+ NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
 | **Phase 2** | **COMPLETE** | Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027. P2-S1 through P2-S9 all COMPLETE / APPROVED. Phase 3 NOT_AUTHORIZED. |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
@@ -71,8 +71,8 @@
 | **Phase 3** | iPoint Wallet Ledger + Reward Plan + 00:00 Daily Job | **COMPLETE / ACCEPTED / FROZEN** | Accepted under D-029. Final SHA 2ed57f4e. CI Run 30000394880. P3-S2+ NOT_AUTHORIZED. |
 | **Phase 4** | Transaction Engine | **COMPLETE / CLOSED** | All 8 sub-phases (P4-S1 through P4-S8) accepted. Phase 4 closed under D-037. Final HEAD `87ea05aa`. CI Run 30099595759. Phase branch: phase/4-transaction-engine. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. Phase 5 NOT_AUTHORIZED. |
 | **Phase 5** | Agent & Commission Engine | **ACCEPTED / COMPLETE / CLOSED / FROZEN** | Final Technical Baseline `93ad0850`. Accepted CI Run 30260182865. B 15/15, C 10/10, D 10/10, Total 35/35, Semantic Gate SUCCESS. Phase 5 formally closed at D-042. Main PR/Main Merge NOT_AUTHORIZED. Five-level team rewards DEFERRED. |
-| **Phase 6** | Redemption Center | **ACCEPTED / COMPLETE / CLOSED / FROZEN** | Final governance SHA `b4840498`. Accepted CI Run **30541203165** — 5/5 SUCCESS. D-045. P6-S0 through P6-S9 COMPLETE / ACCEPTED. Baseline modification prohibited. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. Phase 7 NOT_AUTHORIZED. |
-| **Phase 7** | Admin Operations | **NOT_AUTHORIZED** | Dashboards, rule management, Maker/Checker, risk, audit, reports |
+| **Phase 6** | Redemption Center | **ACCEPTED / COMPLETE / CLOSED / FROZEN** | Final governance SHA `b4840498`. Accepted CI Run **30541203165** — 5/5 SUCCESS. D-045. P6-S0 through P6-S9 COMPLETE / ACCEPTED. Baseline modification prohibited. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. Phase 7 was NOT_AUTHORIZED under D-045; current Phase 7 planning status is governed by D-046. |
+| **Phase 7** | Admin Operations | **PLANNING AUTHORIZED** | P7-S0 ACCEPTED / COMPLETE / FROZEN under D-046. P7-S1+ NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. |
 | **Phase 8** | Advertising & Content | **NOT_AUTHORIZED** | Merchant ad submission, admin review, MCP debit, member banners |
 | **Phase 9** | Reporting, Risk & Audit | **NOT_AUTHORIZED** | Reconciliation reports, risk flags, case workflow |
 | **Phase 10** | Full Integration & E2E | **NOT_AUTHORIZED** | Cross-market scenarios, failure recovery, UI consistency, regression |
@@ -159,31 +159,44 @@
 | **P6-S8** | Hardening & Admin Operations | **COMPLETE / ACCEPTED** | Admin RBAC, redemption.voucher.reveal, schema canonical column alignment. |
 | **P6-S9** | Final Integration, CI & Delivery | **COMPLETE / ACCEPTED** | CI Run 30541203165. Unit 150/150, Database 85/85, API 1164/1164, E2E ✅, Quality ✅. Final SHA `b4840498`. |
 
+## Phase 7 sub-phase status
+
+| Sub-phase | Scope | Status | Next gate |
+|---|---|---|---|
+| **P7-S0** | Governance audit, decision consolidation, and Admin Operations contract freeze | **ACCEPTED / COMPLETE / FROZEN** | D-046 (2026-08-01). Six audit deliverables plus five consolidated documents accepted; 22 P7 decisions frozen. |
+| **P7-S1** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
+| **P7-S2** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
+| **P7-S3** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
+| **P7-S4** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
+| **P7-S5** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
+| **P7-S6** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
+| **P7-S7** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
+| **P7-S8** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
+| **P7-S9** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
+| **P7-S10** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
+
 ## Current allowed actions
 
-- None currently authorized beyond Phase 6 governance closure
+- Governance and planning only as authorized under D-046
 
 ## Current prohibited actions
 
 - Modify Phase 6 frozen baseline (production code, migrations, tests, CI workflow)
 - Modify Phase 3/4/5 frozen code
+- Implement P7-S1+ or any other Phase 7 production scope
+- Modify any production code, migration, test, or CI workflow
 - Change LOCKED business rules
 - Implement DEFERRED modules (Five-level team rewards, Payout/Withdrawal, Wallet cash-out, Backorder/Waitlist)
 - Implement Agent Reapplication Policy (OPEN, not implemented)
 - Implement Merchant/Branch Attribution Change Policy (OPEN, not implemented)
 - Implement OPEN questions from OPEN_QUESTIONS.md
-- Push or merge Main
-- Open a Main PR (not yet authorized)
-- Production deployment
-- Begin Phase 7
+- Open or merge a Main PR (NOT_AUTHORIZED under D-046)
+- Deploy to production (NOT_AUTHORIZED under D-046)
 - Force push, reset, amend pushed history, or rewrite `main` history
 - Delete tests or lower TypeScript strictness
 - Delete, clean, stash, or batch-add untracked files
 - Modify Phase 3, 4, or 5 frozen code
 - Modify B, C, or D integration test code
-- Create Main PR before Phase 6 delivery complete
-- Merge to Main
-- Deploy production
 - Force push, rebase, or amend pushed history
 - Clean, stash, or batch-add untracked artifacts
 - Reduce TypeScript strictness
@@ -191,4 +204,4 @@
 
 ---
 
-*Last updated: 2026-07-27 | Updated by: OpenClaw | Based on decisions D-001 through D-043*
+*Last updated: 2026-08-01 | Updated by: OpenClaw | Based on decisions D-001 through D-046*
