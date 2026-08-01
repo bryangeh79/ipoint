@@ -1,0 +1,446 @@
+export const navigationGroups = [
+  'Overview',
+  'People',
+  'Commerce',
+  'Reviews',
+  'Network',
+  'Finance',
+  'Configuration',
+  'Redemption',
+  'Governance',
+  'Access Control',
+  'Security',
+  'Account',
+] as const;
+
+export type NavigationGroup = (typeof navigationGroups)[number];
+export type MarketClassification = 'none' | 'selected' | 'resource';
+export type MobilePolicy = 'full' | 'read-only' | 'desktop-only';
+export type RouteLoader = 'public' | 'bootstrap' | 'session';
+export type RouteErrorBoundary = 'authentication' | 'protected-route';
+
+export interface CapabilityGate {
+  capability: string;
+  blockedPrerequisite: string;
+}
+
+export interface AdminRouteDefinition {
+  id: string;
+  title: string;
+  path: string;
+  navigationGroup: NavigationGroup | 'Public access';
+  permission?: string;
+  market: MarketClassification;
+  mobilePolicy: MobilePolicy;
+  capabilityGate?: CapabilityGate;
+  loader: RouteLoader;
+  errorBoundary: RouteErrorBoundary;
+  breadcrumb: string;
+  navigation: boolean;
+}
+
+export const adminRouteManifest = [
+  route(
+    'login',
+    'Admin login',
+    '/admin/login',
+    'Public access',
+    undefined,
+    'none',
+    'full',
+    'public',
+    false,
+  ),
+  route(
+    'mfa-enroll',
+    'MFA enrollment',
+    '/admin/mfa/enroll',
+    'Public access',
+    'admin.mfa.self',
+    'none',
+    'full',
+    'public',
+    false,
+  ),
+  route(
+    'mfa-challenge',
+    'MFA challenge',
+    '/admin/mfa/challenge',
+    'Public access',
+    undefined,
+    'none',
+    'full',
+    'public',
+    false,
+  ),
+  route(
+    'mfa-recovery',
+    'MFA recovery',
+    '/admin/mfa/recovery',
+    'Public access',
+    'admin.mfa.self',
+    'none',
+    'full',
+    'public',
+    false,
+  ),
+  route(
+    'dashboard',
+    'Dashboard',
+    '/admin/:marketId/dashboard',
+    'Overview',
+    'dashboard.read',
+    'selected',
+    'read-only',
+  ),
+  route(
+    'members',
+    'Members',
+    '/admin/:marketId/members',
+    'People',
+    'member.read',
+    'selected',
+    'read-only',
+  ),
+  route(
+    'member-detail',
+    'Member detail',
+    '/admin/:marketId/members/:memberId',
+    'People',
+    'member.read',
+    'resource',
+    'read-only',
+    'bootstrap',
+    false,
+  ),
+  route(
+    'merchants',
+    'Merchants',
+    '/admin/:marketId/merchants',
+    'Commerce',
+    'merchant.view',
+    'selected',
+    'read-only',
+  ),
+  route(
+    'merchant-detail',
+    'Merchant detail',
+    '/admin/:marketId/merchants/:branchId',
+    'Commerce',
+    'merchant.view',
+    'resource',
+    'read-only',
+    'bootstrap',
+    false,
+  ),
+  route(
+    'member-kyc',
+    'Member KYC queue',
+    '/admin/:marketId/kyc/members',
+    'Reviews',
+    'member.kyc.read',
+    'selected',
+    'read-only',
+  ),
+  route(
+    'merchant-kyc',
+    'Merchant KYC queue',
+    '/admin/:marketId/kyc/merchants',
+    'Reviews',
+    'merchant.kyc.view',
+    'selected',
+    'read-only',
+  ),
+  route(
+    'agents',
+    'Agents',
+    '/admin/:marketId/agents',
+    'Network',
+    'agent.activation.read',
+    'selected',
+    'read-only',
+    'bootstrap',
+    true,
+    gate('agent.activation.manage', 'GATE-P5-01'),
+  ),
+  route(
+    'agent-detail',
+    'Agent detail',
+    '/admin/:marketId/agents/:agentId',
+    'Network',
+    'agent.activation.read',
+    'resource',
+    'read-only',
+    'bootstrap',
+    false,
+    gate('agent.activation.manage', 'GATE-P5-01'),
+  ),
+  route(
+    'mcp',
+    'MCP accounts and ledger',
+    '/admin/:marketId/mcp',
+    'Finance',
+    'merchant.mcp.view',
+    'selected',
+    'read-only',
+  ),
+  route(
+    'mcp-adjustments',
+    'MCP adjustment queue',
+    '/admin/:marketId/mcp-adjustments',
+    'Finance',
+    'merchant.mcp.adjust',
+    'resource',
+    'desktop-only',
+  ),
+  route(
+    'ipoint-wallets',
+    'iPoint wallet lookup',
+    '/admin/:marketId/ipoint-wallets',
+    'Finance',
+    'wallet.ipoint.read',
+    'resource',
+    'read-only',
+  ),
+  route(
+    'ipoint-adjustments',
+    'iPoint adjustment queue',
+    '/admin/:marketId/ipoint-adjustments',
+    'Finance',
+    'wallet.ipoint.adjust.maker',
+    'resource',
+    'desktop-only',
+    'bootstrap',
+    true,
+    gate('wallet.ipoint.adjust', 'GATE-SEC-01'),
+  ),
+  route(
+    'reward-rates',
+    'Reward rate management',
+    '/admin/:marketId/config/reward-rates',
+    'Configuration',
+    'reward.rule.read',
+    'selected',
+    'read-only',
+    'bootstrap',
+    true,
+    gate('reward.rule.schedule', 'CG-02'),
+  ),
+  route(
+    'redemption-rates',
+    'Redemption rate management',
+    '/admin/:marketId/config/redemption-rates',
+    'Configuration',
+    'redemption.rate.read',
+    'selected',
+    'read-only',
+    'bootstrap',
+    true,
+    gate('redemption.rate.schedule', 'SEC-03/15'),
+  ),
+  route(
+    'packages',
+    'Merchant package management',
+    '/admin/:marketId/config/packages',
+    'Configuration',
+    'merchant.package.read',
+    'resource',
+    'read-only',
+  ),
+  route(
+    'commissions',
+    'Commission configuration',
+    '/admin/:marketId/config/commissions',
+    'Configuration',
+    'commission.rate.read',
+    'selected',
+    'read-only',
+    'bootstrap',
+    true,
+    gate('commission.rate.schedule', 'GATE-P5-01'),
+  ),
+  route(
+    'redemption-orders',
+    'Redemption orders',
+    '/admin/:marketId/redemptions/orders',
+    'Redemption',
+    'redemption.order.read',
+    'resource',
+    'read-only',
+  ),
+  route(
+    'fulfilment-exceptions',
+    'Fulfilment exceptions',
+    '/admin/:marketId/redemptions/exceptions',
+    'Redemption',
+    'redemption.fulfilment.read',
+    'resource',
+    'read-only',
+    'bootstrap',
+    true,
+    gate('redemption.fulfilment.manage', 'SEC-03/15'),
+  ),
+  route(
+    'refunds',
+    'Refund queue',
+    '/admin/:marketId/redemptions/refunds',
+    'Redemption',
+    'redemption.refund.read',
+    'resource',
+    'read-only',
+    'bootstrap',
+    true,
+    gate('redemption.refund.approve', 'GATE-SEC-02'),
+  ),
+  route(
+    'audit',
+    'Audit viewer',
+    '/admin/:marketId/audit',
+    'Governance',
+    'audit.read',
+    'selected',
+    'read-only',
+  ),
+  route(
+    'reports',
+    'Basic reports',
+    '/admin/:marketId/reports',
+    'Governance',
+    'report.basic.read',
+    'selected',
+    'read-only',
+  ),
+  route(
+    'admin-users',
+    'Admin users',
+    '/admin/access/admin-users',
+    'Access Control',
+    'admin.user.read',
+    'none',
+    'read-only',
+  ),
+  route(
+    'roles',
+    'Roles and permissions',
+    '/admin/access/roles',
+    'Access Control',
+    'rbac.role.read',
+    'none',
+    'read-only',
+  ),
+  route(
+    'market-access',
+    'Market access',
+    '/admin/access/markets',
+    'Access Control',
+    'rbac.market.read',
+    'none',
+    'read-only',
+  ),
+  route(
+    'sessions',
+    'Sessions and security',
+    '/admin/security/sessions',
+    'Security',
+    'admin.session.read',
+    'none',
+    'full',
+    'session',
+  ),
+  route(
+    'settings',
+    'Settings',
+    '/admin/settings',
+    'Account',
+    'admin.profile.self',
+    'none',
+    'full',
+  ),
+] as const satisfies ReadonlyArray<AdminRouteDefinition>;
+
+export type AdminRoute = (typeof adminRouteManifest)[number];
+export type AdminRouteId =
+  | 'login'
+  | 'mfa-enroll'
+  | 'mfa-challenge'
+  | 'mfa-recovery'
+  | 'dashboard'
+  | 'members'
+  | 'member-detail'
+  | 'merchants'
+  | 'merchant-detail'
+  | 'member-kyc'
+  | 'merchant-kyc'
+  | 'agents'
+  | 'agent-detail'
+  | 'mcp'
+  | 'mcp-adjustments'
+  | 'ipoint-wallets'
+  | 'ipoint-adjustments'
+  | 'reward-rates'
+  | 'redemption-rates'
+  | 'packages'
+  | 'commissions'
+  | 'redemption-orders'
+  | 'fulfilment-exceptions'
+  | 'refunds'
+  | 'audit'
+  | 'reports'
+  | 'admin-users'
+  | 'roles'
+  | 'market-access'
+  | 'sessions'
+  | 'settings';
+
+export function routeById(id: AdminRouteId): AdminRoute {
+  const match = adminRouteManifest.find((candidate) => candidate.id === id);
+  if (!match) throw new Error(`Unknown Admin route: ${id}`);
+  return match as AdminRoute;
+}
+
+export function routePath(
+  id: AdminRouteId,
+  parameters: Readonly<Record<string, string>> = {},
+): string {
+  const definition = routeById(id);
+  return definition.path.replace(/:([A-Za-z]+)/gu, (_, key: string) => {
+    const value = parameters[key];
+    if (!value) throw new Error(`Missing route parameter: ${key}`);
+    return encodeURIComponent(value);
+  });
+}
+
+function gate(capability: string, blockedPrerequisite: string): CapabilityGate {
+  return { capability, blockedPrerequisite };
+}
+
+function route(
+  id: string,
+  title: string,
+  path: string,
+  navigationGroup: NavigationGroup | 'Public access',
+  permission: string | undefined,
+  market: MarketClassification,
+  mobilePolicy: MobilePolicy,
+  loader: RouteLoader = 'bootstrap',
+  navigation = true,
+  capabilityGate?: CapabilityGate,
+): AdminRouteDefinition {
+  return {
+    id,
+    title,
+    path,
+    navigationGroup,
+    ...(permission ? { permission } : {}),
+    market,
+    mobilePolicy,
+    ...(capabilityGate ? { capabilityGate } : {}),
+    loader,
+    errorBoundary:
+      navigationGroup === 'Public access'
+        ? 'authentication'
+        : 'protected-route',
+    breadcrumb: title,
+    navigation,
+  };
+}
