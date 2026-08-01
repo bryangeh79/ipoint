@@ -14,7 +14,7 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Work** | **Phase 7 P7-S0 ACCEPTED / COMPLETE / FROZEN** | Under D-046. P7-S1+ NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. |
+| **Current Authorized Work** | **Phase 7 Full Execution** | P7-S2 through P7-S10 AUTHORIZED under D-047; continuous execution; frozen-owner remediation authorized in exact scope; Main PR/Main Merge/Push Main/Production Deployment NOT_AUTHORIZED. |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
 | **Phase 2** | **COMPLETE** | Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027. P2-S1 through P2-S9 all COMPLETE / APPROVED. Phase 3 NOT_AUTHORIZED. |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
@@ -72,7 +72,7 @@
 | **Phase 4** | Transaction Engine | **COMPLETE / CLOSED** | All 8 sub-phases (P4-S1 through P4-S8) accepted. Phase 4 closed under D-037. Final HEAD `87ea05aa`. CI Run 30099595759. Phase branch: phase/4-transaction-engine. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. Phase 5 NOT_AUTHORIZED. |
 | **Phase 5** | Agent & Commission Engine | **ACCEPTED / COMPLETE / CLOSED / FROZEN** | Final Technical Baseline `93ad0850`. Accepted CI Run 30260182865. B 15/15, C 10/10, D 10/10, Total 35/35, Semantic Gate SUCCESS. Phase 5 formally closed at D-042. Main PR/Main Merge NOT_AUTHORIZED. Five-level team rewards DEFERRED. |
 | **Phase 6** | Redemption Center | **ACCEPTED / COMPLETE / CLOSED / FROZEN** | Final governance SHA `b4840498`. Accepted CI Run **30541203165** — 5/5 SUCCESS. D-045. P6-S0 through P6-S9 COMPLETE / ACCEPTED. Baseline modification prohibited. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. Phase 7 was NOT_AUTHORIZED under D-045; current Phase 7 planning status is governed by D-046. |
-| **Phase 7** | Admin Operations | **PLANNING AUTHORIZED** | P7-S0 ACCEPTED / COMPLETE / FROZEN under D-046. P7-S1+ NOT_AUTHORIZED. Main PR/Main Merge NOT_AUTHORIZED. Production deployment NOT_AUTHORIZED. |
+| **Phase 7** | Admin Operations | **FULL EXECUTION AUTHORIZED** | P7-S1 ACCEPTED / COMPLETE / FROZEN under D-047; P7-S2..P7-S10 AUTHORIZED; Main PR/Main Merge NOT_AUTHORIZED; Production deployment NOT_AUTHORIZED. |
 | **Phase 8** | Advertising & Content | **NOT_AUTHORIZED** | Merchant ad submission, admin review, MCP debit, member banners |
 | **Phase 9** | Reporting, Risk & Audit | **NOT_AUTHORIZED** | Reconciliation reports, risk flags, case workflow |
 | **Phase 10** | Full Integration & E2E | **NOT_AUTHORIZED** | Cross-market scenarios, failure recovery, UI consistency, regression |
@@ -164,44 +164,49 @@
 | Sub-phase | Scope | Status | Next gate |
 |---|---|---|---|
 | **P7-S0** | Governance audit, decision consolidation, and Admin Operations contract freeze | **ACCEPTED / COMPLETE / FROZEN** | D-046 (2026-08-01). Six audit deliverables plus five consolidated documents accepted; 22 P7 decisions frozen. |
-| **P7-S1** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
-| **P7-S2** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
-| **P7-S3** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
-| **P7-S4** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
-| **P7-S5** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
-| **P7-S6** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
-| **P7-S7** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
-| **P7-S8** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
-| **P7-S9** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
-| **P7-S10** | Future Phase 7 implementation scope | **NOT_AUTHORIZED** | Requires separate ChatGPT Command Center authorization. |
+| **P7-S1** | Phase 7 architecture baseline | **ACCEPTED / COMPLETE / FROZEN** | D-047 (2026-08-01). Nine architecture documents accepted at HEAD `38bb38c43faa5acf983e4c1a254d83b48969a085`. |
+| **P7-S2** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
+| **P7-S3** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
+| **P7-S4** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
+| **P7-S5** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
+| **P7-S6** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
+| **P7-S7** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
+| **P7-S8** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
+| **P7-S9** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
+| **P7-S10** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
+| **fix/p5-r1-agent-commission-owner** | Phase 5 Agent/Commission Owner Remediation | **AUTHORIZED** | Exact frozen-owner remediation scope authorized under D-047. |
+| **fix/p3-p7-sec01-ipoint-maker-checker** | SEC-01 iPoint Maker/Checker Remediation | **AUTHORIZED** | Exact frozen-owner remediation scope authorized under D-047. |
+| **fix/p6-r1-sec02-refund-ledger** | SEC-02 Phase 6 Refund Ledger Remediation | **AUTHORIZED** | Exact frozen-owner remediation scope authorized under D-047. |
+| **fix/p6-r2-admin-route-security** | Phase 6 Admin Route Security Remediation | **AUTHORIZED** | Exact frozen-owner remediation scope authorized under D-047. |
 
 ## Current allowed actions
 
-- Governance and planning only as authorized under D-046
+- Phase 7 implementation under the exact D-047 scope
+- P7-S2 through P7-S10 continuous execution under OpenClaw management
+- Exact frozen-owner remediations authorized under D-047
+- Forward-only database migrations required by authorized implementation sub-phases
+- Tests and minimal necessary CI changes for authorized Phase 7 implementation and remediation
 
 ## Current prohibited actions
 
-- Modify Phase 6 frozen baseline (production code, migrations, tests, CI workflow)
-- Modify Phase 3/4/5 frozen code
-- Implement P7-S1+ or any other Phase 7 production scope
-- Modify any production code, migration, test, or CI workflow
+- Open a Main PR, merge to `main`, or push to `main`
+- Deploy to production
+- Issue final Phase 7 acceptance, closure, or freeze (ChatGPT Command Center only)
+- Perform destructive database rollback or rewrite migration history
+- Delete, clean, stash, or batch-add untracked artifacts
+- Modify Phase 3-6 frozen code outside the exact D-047 authorized remediation scopes
 - Change LOCKED business rules
 - Implement DEFERRED modules (Five-level team rewards, Payout/Withdrawal, Wallet cash-out, Backorder/Waitlist)
 - Implement Agent Reapplication Policy (OPEN, not implemented)
 - Implement Merchant/Branch Attribution Change Policy (OPEN, not implemented)
 - Implement OPEN questions from OPEN_QUESTIONS.md
-- Open or merge a Main PR (NOT_AUTHORIZED under D-046)
-- Deploy to production (NOT_AUTHORIZED under D-046)
 - Force push, reset, amend pushed history, or rewrite `main` history
 - Delete tests or lower TypeScript strictness
-- Delete, clean, stash, or batch-add untracked files
-- Modify Phase 3, 4, or 5 frozen code
 - Modify B, C, or D integration test code
 - Force push, rebase, or amend pushed history
-- Clean, stash, or batch-add untracked artifacts
 - Reduce TypeScript strictness
 - Skip CI gates
 
 ---
 
-*Last updated: 2026-08-01 | Updated by: OpenClaw | Based on decisions D-001 through D-046*
+*Last updated: 2026-08-01 | Updated by: OpenClaw | Based on decisions D-001 through D-047*

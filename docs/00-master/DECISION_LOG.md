@@ -1488,3 +1488,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | ChatGPT Command Center |
 | **Basis** | P7-S0 Decision Consolidation and D-046 Governance Freeze Order (2026-08-01) |
 | **Status** | **APPROVED / FROZEN** |
+
+---
+
+## D-047 - P7-S1 Acceptance and Phase 7 Full Continuous Execution Authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-047 |
+| **Date** | 2026-08-01 |
+| **Source** | ChatGPT Command Center - Phase 7 Full Continuous Execution Authorization (2026-08-01) |
+| **Old Rule** | P7-S1 delivery complete but not yet accepted; P7-S2 through P7-S10 NOT_AUTHORIZED; frozen-owner remediation NOT_AUTHORIZED; production code, migrations, API, Admin Web, tests and CI changes NOT_AUTHORIZED |
+| **New Decision** | P7-S1 delivery ACCEPTED / COMPLETE / FROZEN at accepted P7-S1 HEAD 38bb38c43faa5acf983e4c1a254d83b48969a085. Nine P7-S1 architecture documents accepted. P7-S2 through P7-S10 AUTHORIZED for continuous execution under OpenClaw management without intermediate Command Center approval checkpoints. Exact frozen-owner remediation scopes authorized (Phase 5 Agent/Commission Owner Remediation; SEC-01 iPoint Maker/Checker Remediation; SEC-02 Phase 6 Refund Ledger Remediation; Phase 6 Admin Route Security Remediation). Forward-only production code, database migrations, API implementation, Admin Web implementation, tests and minimal necessary CI changes AUTHORIZED. OpenClaw may continue without requesting approval between sub-phases. Main PR, Main Merge, Push Main and Production Deployment remain PROHIBITED. Final Phase 7 acceptance, closure and freeze remain solely with ChatGPT Command Center. |
+| **Reason** | Command Center accepted the P7-S1 architecture baseline and authorized continuous execution of Phase 7 from P7-S2 through P7-S10 to complete the Admin Operations implementation. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, and all Phase 7 implementation artifacts produced under P7-S2 through P7-S10 |
+| **Affected Phases** | Phase 7 (P7-S2 through P7-S10), frozen-owner remediations |
+| **Migration** | Forward-only migrations AUTHORIZED as required by implementation sub-phases; destructive rollback prohibited |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | Phase 7 Full Continuous Execution Authorization (2026-08-01) |
+| **Status** | **APPROVED / AUTHORIZED** |
