@@ -68,10 +68,12 @@ export const adminMfaFactorStatus = pgEnum('admin_mfa_factor_status', [
   'DISABLED',
   'REVOKED',
 ]);
-export const adminMfaChallengePurpose = pgEnum(
-  'admin_mfa_challenge_purpose',
-  ['ENROLLMENT', 'LOGIN', 'RECOVERY', 'STEP_UP'],
-);
+export const adminMfaChallengePurpose = pgEnum('admin_mfa_challenge_purpose', [
+  'ENROLLMENT',
+  'LOGIN',
+  'RECOVERY',
+  'STEP_UP',
+]);
 export const adminMfaChallengeStatus = pgEnum('admin_mfa_challenge_status', [
   'PENDING',
   'CONSUMED',
@@ -406,7 +408,9 @@ export const sessions = pgTable(
     ),
     index('sessions_admin_active_idx')
       .on(table.adminUserId, table.absoluteExpiresAt)
-      .where(sql`${table.actorPurpose} = 'ADMIN' and ${table.revokedAt} is null`),
+      .where(
+        sql`${table.actorPurpose} = 'ADMIN' and ${table.revokedAt} is null`,
+      ),
   ],
 );
 
@@ -613,8 +617,12 @@ export const adminMfaFactors = pgTable(
   'admin_mfa_factors',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    accountId: uuid('account_id').notNull().references(() => accounts.id, { onDelete: 'restrict' }),
-    adminUserId: uuid('admin_user_id').notNull().references(() => adminUsers.id, { onDelete: 'restrict' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    adminUserId: uuid('admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
     factorType: text('factor_type').notNull().default('TOTP'),
     secretCiphertext: text('secret_ciphertext').notNull(),
     secretNonce: text('secret_nonce').notNull(),
@@ -633,12 +641,26 @@ export const adminMfaFactors = pgTable(
     version: integer('version').notNull().default(1),
   },
   (table) => [
-    uniqueIndex('admin_mfa_factors_active_unique').on(table.adminUserId).where(sql`${table.status} = 'ACTIVE'`),
-    index('admin_mfa_factors_admin_status_idx').on(table.adminUserId, table.status),
+    uniqueIndex('admin_mfa_factors_active_unique')
+      .on(table.adminUserId)
+      .where(sql`${table.status} = 'ACTIVE'`),
+    index('admin_mfa_factors_admin_status_idx').on(
+      table.adminUserId,
+      table.status,
+    ),
     check('admin_mfa_factors_totp_check', sql`${table.factorType} = 'TOTP'`),
-    check('admin_mfa_factors_crypto_check', sql`${table.algorithm} = 'AES-256-GCM' and char_length(${table.secretCiphertext}) > 0 and char_length(${table.secretNonce}) > 0 and char_length(${table.secretAuthTag}) > 0 and char_length(${table.keyId}) > 0`),
-    check('admin_mfa_factors_attempts_check', sql`${table.failedAttempts} >= 0`),
-    check('admin_mfa_factors_counter_check', sql`${table.lastAcceptedCounter} is null or ${table.lastAcceptedCounter} >= 0`),
+    check(
+      'admin_mfa_factors_crypto_check',
+      sql`${table.algorithm} = 'AES-256-GCM' and char_length(${table.secretCiphertext}) > 0 and char_length(${table.secretNonce}) > 0 and char_length(${table.secretAuthTag}) > 0 and char_length(${table.keyId}) > 0`,
+    ),
+    check(
+      'admin_mfa_factors_attempts_check',
+      sql`${table.failedAttempts} >= 0`,
+    ),
+    check(
+      'admin_mfa_factors_counter_check',
+      sql`${table.lastAcceptedCounter} is null or ${table.lastAcceptedCounter} >= 0`,
+    ),
     check('admin_mfa_factors_version_check', sql`${table.version} > 0`),
   ],
 );
@@ -647,7 +669,9 @@ export const adminMfaRecoveryCodes = pgTable(
   'admin_mfa_recovery_codes',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    factorId: uuid('factor_id').notNull().references(() => adminMfaFactors.id, { onDelete: 'restrict' }),
+    factorId: uuid('factor_id')
+      .notNull()
+      .references(() => adminMfaFactors.id, { onDelete: 'restrict' }),
     codeHash: text('code_hash').notNull(),
     hashAlgorithm: text('hash_algorithm').notNull().default('scrypt'),
     hashVersion: integer('hash_version').notNull().default(1),
@@ -656,10 +680,21 @@ export const adminMfaRecoveryCodes = pgTable(
     revokedAt: utcTimestamp('revoked_at'),
   },
   (table) => [
-    unique('admin_mfa_recovery_codes_unique').on(table.factorId, table.codeHash),
-    index('admin_mfa_recovery_codes_available_idx').on(table.factorId, table.createdAt).where(sql`${table.consumedAt} is null and ${table.revokedAt} is null`),
-    check('admin_mfa_recovery_codes_hash_check', sql`char_length(${table.codeHash}) >= 64`),
-    check('admin_mfa_recovery_codes_state_check', sql`${table.consumedAt} is null or ${table.revokedAt} is null`),
+    unique('admin_mfa_recovery_codes_unique').on(
+      table.factorId,
+      table.codeHash,
+    ),
+    index('admin_mfa_recovery_codes_available_idx')
+      .on(table.factorId, table.createdAt)
+      .where(sql`${table.consumedAt} is null and ${table.revokedAt} is null`),
+    check(
+      'admin_mfa_recovery_codes_hash_check',
+      sql`char_length(${table.codeHash}) >= 64`,
+    ),
+    check(
+      'admin_mfa_recovery_codes_state_check',
+      sql`${table.consumedAt} is null or ${table.revokedAt} is null`,
+    ),
   ],
 );
 
@@ -668,10 +703,18 @@ export const adminMfaChallenges = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     challengeHash: text('challenge_hash').notNull(),
-    accountId: uuid('account_id').notNull().references(() => accounts.id, { onDelete: 'restrict' }),
-    adminUserId: uuid('admin_user_id').notNull().references(() => adminUsers.id, { onDelete: 'restrict' }),
-    factorId: uuid('factor_id').references(() => adminMfaFactors.id, { onDelete: 'restrict' }),
-    sessionId: uuid('session_id').references(() => sessions.id, { onDelete: 'restrict' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    adminUserId: uuid('admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    factorId: uuid('factor_id').references(() => adminMfaFactors.id, {
+      onDelete: 'restrict',
+    }),
+    sessionId: uuid('session_id').references(() => sessions.id, {
+      onDelete: 'restrict',
+    }),
     purpose: adminMfaChallengePurpose('purpose').notNull(),
     status: adminMfaChallengeStatus('status').notNull().default('PENDING'),
     attempts: integer('attempts').notNull().default(0),
@@ -687,10 +730,24 @@ export const adminMfaChallenges = pgTable(
   },
   (table) => [
     unique('admin_mfa_challenges_hash_unique').on(table.challengeHash),
-    index('admin_mfa_challenges_subject_idx').on(table.adminUserId, table.purpose, table.status, table.expiresAt),
-    check('admin_mfa_challenges_hash_check', sql`char_length(${table.challengeHash}) = 64`),
-    check('admin_mfa_challenges_attempts_check', sql`${table.attempts} >= 0 and ${table.attempts} <= ${table.maxAttempts}`),
-    check('admin_mfa_challenges_expiry_check', sql`${table.expiresAt} > ${table.createdAt}`),
+    index('admin_mfa_challenges_subject_idx').on(
+      table.adminUserId,
+      table.purpose,
+      table.status,
+      table.expiresAt,
+    ),
+    check(
+      'admin_mfa_challenges_hash_check',
+      sql`char_length(${table.challengeHash}) = 64`,
+    ),
+    check(
+      'admin_mfa_challenges_attempts_check',
+      sql`${table.attempts} >= 0 and ${table.attempts} <= ${table.maxAttempts}`,
+    ),
+    check(
+      'admin_mfa_challenges_expiry_check',
+      sql`${table.expiresAt} > ${table.createdAt}`,
+    ),
     check('admin_mfa_challenges_version_check', sql`${table.version} > 0`),
   ],
 );
@@ -700,11 +757,19 @@ export const adminStepUpGrants = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     grantHash: text('grant_hash').notNull(),
-    sessionId: uuid('session_id').notNull().references(() => sessions.id, { onDelete: 'restrict' }),
-    adminUserId: uuid('admin_user_id').notNull().references(() => adminUsers.id, { onDelete: 'restrict' }),
-    factorId: uuid('factor_id').notNull().references(() => adminMfaFactors.id, { onDelete: 'restrict' }),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => sessions.id, { onDelete: 'restrict' }),
+    adminUserId: uuid('admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    factorId: uuid('factor_id')
+      .notNull()
+      .references(() => adminMfaFactors.id, { onDelete: 'restrict' }),
     actionClass: text('action_class').notNull(),
-    marketId: uuid('market_id').references(() => markets.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id').references(() => markets.id, {
+      onDelete: 'restrict',
+    }),
     targetHash: text('target_hash'),
     issuedAt: utcTimestamp('issued_at').notNull().defaultNow(),
     expiresAt: utcTimestamp('expires_at').notNull(),
@@ -714,9 +779,17 @@ export const adminStepUpGrants = pgTable(
   },
   (table) => [
     unique('admin_step_up_grants_hash_unique').on(table.grantHash),
-    index('admin_step_up_grants_session_idx').on(table.sessionId, table.expiresAt).where(sql`${table.usedAt} is null and ${table.revokedAt} is null`),
-    check('admin_step_up_grants_hash_check', sql`char_length(${table.grantHash}) = 64`),
-    check('admin_step_up_grants_expiry_check', sql`${table.expiresAt} > ${table.issuedAt} and ${table.expiresAt} <= ${table.issuedAt} + interval '10 minutes'`),
+    index('admin_step_up_grants_session_idx')
+      .on(table.sessionId, table.expiresAt)
+      .where(sql`${table.usedAt} is null and ${table.revokedAt} is null`),
+    check(
+      'admin_step_up_grants_hash_check',
+      sql`char_length(${table.grantHash}) = 64`,
+    ),
+    check(
+      'admin_step_up_grants_expiry_check',
+      sql`${table.expiresAt} > ${table.issuedAt} and ${table.expiresAt} <= ${table.issuedAt} + interval '10 minutes'`,
+    ),
     check('admin_step_up_grants_version_check', sql`${table.version} > 0`),
   ],
 );
