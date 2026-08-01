@@ -180,6 +180,12 @@ export class AdminAuthService {
     code: string,
     metadata: RequestMetadata = {},
   ): Promise<{ recoveryCodes: string[] }> {
+    const pending = await this.getChallenge(challenge, 'ENROLLMENT');
+    await this.enforceChallengeRateLimit(
+      challenge,
+      pending.adminUserId,
+      metadata,
+    );
     const verified = await this.verifyChallenge(
       challenge,
       code,
@@ -297,6 +303,12 @@ export class AdminAuthService {
     code: string,
     metadata: RequestMetadata = {},
   ): Promise<AuthTokens> {
+    const pending = await this.getChallenge(challenge, 'LOGIN');
+    await this.enforceChallengeRateLimit(
+      challenge,
+      pending.adminUserId,
+      metadata,
+    );
     const verified = await this.verifyChallenge(
       challenge,
       code,
@@ -445,6 +457,7 @@ export class AdminAuthService {
     metadata: RequestMetadata = {},
   ): Promise<{ stepUpToken: string; expiresAt: Date }> {
     const adminUserId = this.requireAdminActor(actor);
+    await this.enforceChallengeRateLimit(challenge, adminUserId, metadata);
     const verified = await this.verifyChallenge(
       challenge,
       code,
@@ -899,9 +912,9 @@ export class AdminAuthService {
       );
       await client.query(
         `UPDATE admin_mfa_factors
-         SET failed_attempts = $2,
-             failed_window_started_at = $3,
-             locked_until = CASE WHEN $2 >= 5 THEN $3 + interval '15 minutes' ELSE NULL END,
+         SET failed_attempts = $2::integer,
+             failed_window_started_at = $3::timestamptz,
+             locked_until = CASE WHEN $2::integer >= 5 THEN $3::timestamptz + interval '15 minutes' ELSE NULL END,
              version = version + 1 WHERE id = $1`,
         [
           row.factorId,
@@ -1023,6 +1036,29 @@ export class AdminAuthService {
           'DENIED',
           metadata,
           { purpose },
+        );
+        throw new AuthError('AUTH_RATE_LIMITED', 'Too many requests.');
+      }
+    }
+  }
+
+  private async enforceChallengeRateLimit(
+    challenge: string,
+    adminUserId: string,
+    metadata: RequestMetadata,
+  ): Promise<void> {
+    const keys = [
+      `admin-mfa:challenge:id:${hashOpaqueToken(challenge)}`,
+      `admin-mfa:challenge:admin:${adminUserId}`,
+      `admin-mfa:challenge:ip:${metadata.ipAddress ?? 'unknown'}`,
+    ];
+    for (const key of keys) {
+      if (!(await this.rateLimiter.consume(key, 5, 15 * 60))) {
+        await this.securityEvent(
+          undefined,
+          'ADMIN_MFA_CHALLENGE_RATE_LIMITED',
+          'DENIED',
+          metadata,
         );
         throw new AuthError('AUTH_RATE_LIMITED', 'Too many requests.');
       }

@@ -203,13 +203,6 @@ export class AuthService {
           'Admin access is no longer available.',
         );
       }
-      if (session.idleExpiresAt && session.idleExpiresAt <= now) {
-        await this.store.revokeSession(accessTokenHash, 'IDLE_EXPIRED', now);
-        throw new AuthError(
-          'SESSION_IDLE_EXPIRED',
-          'The session expired due to inactivity.',
-        );
-      }
       if (session.absoluteExpiresAt && session.absoluteExpiresAt <= now) {
         await this.store.revokeSession(
           accessTokenHash,
@@ -226,6 +219,13 @@ export class AuthService {
         throw new AuthError(
           'SESSION_FAMILY_EXPIRED',
           'The session family has expired.',
+        );
+      }
+      if (session.idleExpiresAt && session.idleExpiresAt <= now) {
+        await this.store.revokeSession(accessTokenHash, 'IDLE_EXPIRED', now);
+        throw new AuthError(
+          'SESSION_IDLE_EXPIRED',
+          'The session expired due to inactivity.',
         );
       }
       if (foregroundActivity) {

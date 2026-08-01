@@ -254,18 +254,6 @@ export class PostgresAuthStore implements AuthStorePort {
       }
       if (
         session.actor_purpose === 'ADMIN' &&
-        session.idle_expires_at! <= now
-      ) {
-        await client.query(
-          `UPDATE sessions SET revoked_at = COALESCE(revoked_at, $2), revoke_reason = 'IDLE_EXPIRED'
-           WHERE id = $1`,
-          [session.id, now],
-        );
-        await client.query('COMMIT');
-        return { kind: 'IDLE_EXPIRED' };
-      }
-      if (
-        session.actor_purpose === 'ADMIN' &&
         session.absolute_expires_at! <= now
       ) {
         await client.query(
@@ -287,6 +275,18 @@ export class PostgresAuthStore implements AuthStorePort {
         );
         await client.query('COMMIT');
         return { kind: 'FAMILY_EXPIRED' };
+      }
+      if (
+        session.actor_purpose === 'ADMIN' &&
+        session.idle_expires_at! <= now
+      ) {
+        await client.query(
+          `UPDATE sessions SET revoked_at = COALESCE(revoked_at, $2), revoke_reason = 'IDLE_EXPIRED'
+           WHERE id = $1`,
+          [session.id, now],
+        );
+        await client.query('COMMIT');
+        return { kind: 'IDLE_EXPIRED' };
       }
       if (session.expires_at <= now) {
         await client.query('ROLLBACK');
