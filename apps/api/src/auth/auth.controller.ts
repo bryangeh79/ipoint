@@ -1184,7 +1184,12 @@ export class AuthController {
         error.code === 'AUTH_INVALID_CREDENTIALS' ||
         error.code === 'AUTH_ACCOUNT_INACTIVE' ||
         error.code === 'AUTH_SESSION_INVALID' ||
-        error.code === 'AUTH_REFRESH_REUSED'
+        error.code === 'AUTH_REFRESH_REUSED' ||
+        error.code === 'SESSION_IDLE_EXPIRED' ||
+        error.code === 'SESSION_ABSOLUTE_EXPIRED' ||
+        error.code === 'SESSION_FAMILY_EXPIRED' ||
+        error.code === 'SESSION_REUSE_DETECTED' ||
+        error.code === 'SESSION_REVOKED'
       ) {
         throw new UnauthorizedException({
           code: error.code,

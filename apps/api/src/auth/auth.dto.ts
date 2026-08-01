@@ -85,6 +85,53 @@ export const passwordResetCompleteSchema = z
   })
   .strict();
 
+export const adminPasswordSchema = z
+  .object({
+    email: z.email().trim().toLowerCase(),
+    password: z.string().min(12).max(256),
+  })
+  .strict();
+
+export const adminMfaCodeSchema = z
+  .object({
+    challenge_id: z.string().trim().min(32).max(512),
+    code: z
+      .string()
+      .trim()
+      .regex(/^\d{6}$/u),
+  })
+  .strict();
+
+export const adminMfaRecoverySchema = z
+  .object({
+    challenge_id: z.string().trim().min(32).max(512),
+    recovery_code: z.string().trim().min(16).max(64),
+  })
+  .strict();
+
+export const adminStepUpStartSchema = z
+  .object({
+    action_class: z
+      .string()
+      .trim()
+      .min(3)
+      .max(128)
+      .regex(/^[A-Z0-9_:.]+$/u),
+    market_id: z.uuid().optional(),
+    target: z.string().trim().min(1).max(256).optional(),
+  })
+  .strict();
+
+export const adminMfaResetSchema = z
+  .object({
+    target_admin_user_id: z.uuid(),
+    confirming_admin_user_id: z.uuid(),
+    reason: z.string().trim().min(8).max(512),
+    case_reference: z.string().trim().min(3).max(128),
+    step_up_token: z.string().trim().min(32).max(512),
+  })
+  .strict();
+
 export type LoginDto = z.infer<typeof loginSchema>;
 export type RefreshDto = z.infer<typeof refreshSchema>;
 export type IssueOtpDto = z.infer<typeof issueOtpSchema>;
@@ -104,3 +151,8 @@ export type PasswordResetVerifyDto = z.infer<typeof passwordResetVerifySchema>;
 export type PasswordResetCompleteDto = z.infer<
   typeof passwordResetCompleteSchema
 >;
+export type AdminPasswordDto = z.infer<typeof adminPasswordSchema>;
+export type AdminMfaCodeDto = z.infer<typeof adminMfaCodeSchema>;
+export type AdminMfaRecoveryDto = z.infer<typeof adminMfaRecoverySchema>;
+export type AdminStepUpStartDto = z.infer<typeof adminStepUpStartSchema>;
+export type AdminMfaResetDto = z.infer<typeof adminMfaResetSchema>;

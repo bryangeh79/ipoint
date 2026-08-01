@@ -7,6 +7,12 @@ import {
   AUTH_STORE,
 } from './auth.constants.js';
 import { AuthGuard } from './auth.guard.js';
+import { AdminGuard } from './admin.guard.js';
+import { AdminAuthService } from './admin-auth.service.js';
+import {
+  AdminMfaController,
+  AdminSessionController,
+} from './admin-auth.controller.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService, type AuthSettings } from './auth.service.js';
 import { PostgresAuthStore } from './postgres-auth.store.js';
@@ -14,7 +20,7 @@ import { InMemoryRateLimiter } from './rate-limit.port.js';
 
 @Module({
   imports: [DatabaseModule],
-  controllers: [AuthController],
+  controllers: [AuthController, AdminMfaController, AdminSessionController],
   providers: [
     PostgresAuthStore,
     { provide: AUTH_STORE, useExisting: PostgresAuthStore },
@@ -55,8 +61,10 @@ import { InMemoryRateLimiter } from './rate-limit.port.js';
       }),
     },
     AuthService,
+    AdminAuthService,
     AuthGuard,
+    AdminGuard,
   ],
-  exports: [AuthService, AuthGuard],
+  exports: [AuthService, AdminAuthService, AuthGuard, AdminGuard],
 })
 export class AuthModule {}
