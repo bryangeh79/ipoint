@@ -111,6 +111,14 @@
   opacity: 0.55;
 }
 
+.admin-navigation--drawer {
+  position: static;
+  height: auto;
+  overflow: visible;
+  padding: 0;
+  border: 0;
+}
+
 .admin-topbar-context {
   display: flex;
   align-items: center;
@@ -219,6 +227,68 @@
 
 .admin-prerequisite span {
   font-weight: 700;
+}
+
+@media (max-width: 767px) {
+  .admin-app > .admin-navigation {
+    display: none;
+  }
+
+  .admin-app .ip-top-bar {
+    gap: var(--ip-space-1);
+    padding-inline: var(--ip-space-1);
+  }
+
+  .admin-topbar-context {
+    min-width: 0;
+    margin-left: auto;
+  }
+
+  .admin-topbar-context > .ip-badge {
+    display: none;
+  }
+
+  .admin-market-selector--compact .ip-form-field {
+    min-width: 0;
+  }
+
+  .admin-market-selector--compact label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .admin-market-selector--compact .ip-select {
+    width: clamp(108px, 34vw, 160px);
+    min-width: 0;
+    max-width: 160px;
+  }
+
+  .admin-recovery-codes {
+    columns: 1;
+  }
+}
+
+@media (max-width: 360px) {
+  .admin-wordmark {
+    font-size: var(--ip-font-size-body);
+  }
+
+  .admin-wordmark small {
+    display: none;
+  }
+
+  .admin-market-selector--compact .ip-select {
+    width: 104px;
+    font-size: var(--ip-font-size-caption);
+  }
+
+  .admin-auth-card {
+    padding: var(--ip-space-2);
+  }
 }
 
 .admin-not-found {

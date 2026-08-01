@@ -1,9 +1,23 @@
 {
   "name": "iPoint Admin",
   "short_name": "iPoint Admin",
-  "start_url": "/",
+  "id": "/admin/",
+  "description": "Secure, market-scoped iPoint operations workspace.",
+  "start_url": "/admin/login",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#ffffff",
   "theme_color": "#20b366",
-  "lang": "en"
+  "lang": "en",
+  "categories": ["business", "productivity"],
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/admin-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }

@@ -15,6 +15,10 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { adminApi } from './admin-api.js';
 import { useAdminSession } from './admin-session.js';
 import { routePath } from './route-manifest.js';
+import {
+  canPerformSensitiveAdminWrite,
+  useAdminWriteEnvironment,
+} from './pwa-policy.js';
 
 export function LoginScreen() {
   const session = useAdminSession();
@@ -364,6 +368,7 @@ export function MfaRecoveryScreen() {
 
 export function MarketSelector({ compact = false }: { compact?: boolean }) {
   const session = useAdminSession();
+  const environment = useAdminWriteEnvironment();
   const [error, setError] = useState<unknown>();
   const [pending, setPending] = useState(false);
   const id = useId();
@@ -389,7 +394,7 @@ export function MarketSelector({ compact = false }: { compact?: boolean }) {
         <Select
           id={id}
           value={session.markets?.currentMarketId ?? ''}
-          disabled={pending}
+          disabled={pending || !environment.online}
           onChange={async (event) => {
             const marketId = event.currentTarget.value;
             if (!marketId) return;
@@ -419,6 +424,8 @@ export function MarketSelector({ compact = false }: { compact?: boolean }) {
 export function SessionsScreen() {
   const session = useAdminSession();
   const navigate = useNavigate();
+  const environment = useAdminWriteEnvironment();
+  const writesAllowed = canPerformSensitiveAdminWrite(environment);
   const [items, setItems] =
     useState<Awaited<ReturnType<typeof adminApi.sessions>>['sessions']>();
   const [error, setError] = useState<unknown>();
@@ -444,6 +451,12 @@ export function SessionsScreen() {
       />
       {error ? <AuthError error={error} /> : null}
       {notice ? <Alert tone="success">{notice}</Alert> : null}
+      {!writesAllowed ? (
+        <Alert tone="warning" title="Read-only security view">
+          Session revocation requires the full online desktop Admin Web. No
+          request was queued.
+        </Alert>
+      ) : null}
       {!items ? (
         <p role="status">Loading sessions…</p>
       ) : items.length === 0 ? (
@@ -481,7 +494,7 @@ export function SessionsScreen() {
                     <Button
                       size="sm"
                       variant="secondary"
-                      disabled={Boolean(item.revokedAt)}
+                      disabled={Boolean(item.revokedAt) || !writesAllowed}
                       onClick={async () => {
                         try {
                           await adminApi.revokeSession(item.id);
@@ -508,6 +521,7 @@ export function SessionsScreen() {
       )}
       <Button
         variant="danger"
+        disabled={!writesAllowed}
         onClick={async () => {
           try {
             await adminApi.revokeAllSessions();

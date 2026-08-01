@@ -1,4 +1,13 @@
-import { AppShell, Badge, EmptyState, PageHeader, TopBar } from '@ipoint/ui';
+import {
+  Alert,
+  AppShell,
+  Badge,
+  Drawer,
+  EmptyState,
+  PageHeader,
+  TopBar,
+} from '@ipoint/ui';
+import { useEffect, useState } from 'react';
 import {
   Link,
   Navigate,
@@ -31,6 +40,7 @@ import {
   type AdminRoute,
 } from './route-manifest.js';
 import { ApiErrorState, ShellState } from './shell-states.js';
+import { useAdminWriteEnvironment } from './pwa-policy.js';
 
 const routeObjects: RouteObject[] = [
   { path: '/', element: <Navigate replace to="/admin/login" /> },
@@ -62,9 +72,20 @@ export function AdminApp() {
 function AdminShell() {
   const location = useLocation();
   const session = useAdminSession();
+  const environment = useAdminWriteEnvironment();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const publicRoute =
     location.pathname.startsWith('/admin/login') ||
     location.pathname.startsWith('/admin/mfa/');
+
+  useEffect(() => {
+    setDrawerOpen(false);
+    document.title = `${currentRouteTitle(location.pathname)} | iPoint Admin`;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById('main-content')?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [location.pathname]);
 
   return (
     <AppShell
@@ -72,6 +93,8 @@ function AdminShell() {
       topBar={
         <TopBar
           brand={<Wordmark />}
+          onMenuClick={publicRoute ? undefined : () => setDrawerOpen(true)}
+          navigationLabel="Open Admin navigation"
           actions={
             publicRoute ? (
               <Badge tone="warning">Protected</Badge>
@@ -92,6 +115,21 @@ function AdminShell() {
       }
       sideNavigation={publicRoute ? undefined : <AdminNavigation />}
     >
+      {!environment.online && !publicRoute ? (
+        <Alert tone="warning" title="Offline — read-only shell" role="status">
+          Current server data is unavailable and stale. No Admin write is queued
+          or replayed.
+        </Alert>
+      ) : null}
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Admin navigation"
+        description="Only routes allowed by effective server permissions are shown."
+        placement="left"
+      >
+        <AdminNavigation mobile onNavigate={() => setDrawerOpen(false)} />
+      </Drawer>
       <Outlet />
     </AppShell>
   );
@@ -142,7 +180,13 @@ function RouteErrorBoundary() {
   return <ApiErrorState error={useRouteError()} />;
 }
 
-function AdminNavigation() {
+function AdminNavigation({
+  mobile = false,
+  onNavigate,
+}: {
+  mobile?: boolean;
+  onNavigate?: () => void;
+}) {
   const session = useAdminSession();
   const location = useLocation();
   const marketId = session.bootstrap?.currentMarket?.id;
@@ -150,7 +194,10 @@ function AdminNavigation() {
     session.bootstrap?.effectivePermissions ?? [],
   );
   return (
-    <nav className="admin-navigation" aria-label="Admin navigation">
+    <nav
+      className={`admin-navigation${mobile ? ' admin-navigation--drawer' : ''}`}
+      aria-label={mobile ? 'Mobile Admin navigation' : 'Admin navigation'}
+    >
       {navigationGroups.map((group) => {
         const routes = visible.filter(
           (route) => route.navigationGroup === group,
@@ -176,6 +223,7 @@ function AdminNavigation() {
                       <Link
                         to={href}
                         aria-current={active ? 'page' : undefined}
+                        onClick={onNavigate}
                       >
                         {route.title}
                         {route.capabilityGate ? <span>Blocked</span> : null}
@@ -217,6 +265,14 @@ function navigationHref(
 
 function slug(value: string): string {
   return value.toLowerCase().replaceAll(' ', '-');
+}
+
+function currentRouteTitle(pathname: string): string {
+  return (
+    adminRouteManifest.find((route) =>
+      matchPath({ path: route.path, end: true }, pathname),
+    )?.title ?? 'Route not found'
+  );
 }
 
 function NotFound() {
