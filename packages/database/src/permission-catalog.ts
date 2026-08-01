@@ -24,8 +24,8 @@ export interface CanonicalPermissionDefinition {
   gate?: string;
 }
 
-const permission = (
-  code: string,
+const permission = <Code extends string>(
+  code: Code,
   description: string,
   owner: string,
   roles: readonly ControlledRoleCode[],
@@ -39,7 +39,7 @@ const permission = (
       | 'gate'
     >
   > = {},
-): CanonicalPermissionDefinition => ({
+): CanonicalPermissionDefinition & { code: Code } => ({
   code,
   description,
   owner,
@@ -553,7 +553,7 @@ export type CanonicalPermissionCode =
 
 export const canonicalPermissionCodes = canonicalPermissionCatalog.map(
   ({ code }) => code,
-) as CanonicalPermissionCode[];
+);
 
 export const roleTemplatePermissions = Object.fromEntries(
   controlledRoleCodes.map((roleCode) => [

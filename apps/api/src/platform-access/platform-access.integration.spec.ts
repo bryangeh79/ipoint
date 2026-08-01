@@ -4,15 +4,19 @@ import {
   accounts,
   adminUsers,
   auditLogs,
+  canonicalPermissionCodes,
+  controlledRoleCodes,
   entityTimelines,
   migrate,
   roles,
+  sessions,
 } from '@ipoint/database';
 import { asc, eq } from 'drizzle-orm';
 import type { ConfigService } from '../config/config.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { AccessAdministrationService } from './access-administration.service.js';
 import { AuditService } from './audit.service.js';
+import { AdminMarketContextService } from './admin-market-context.service.js';
 import { MarketService } from './market.service.js';
 import { RbacService } from './rbac.service.js';
 import { seedFoundation } from '@ipoint/database/seeds/foundation';
@@ -25,10 +29,13 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
   let marketsService: MarketService;
   let rbac: RbacService;
   let administration: AccessAdministrationService;
+  let marketContext: AdminMarketContextService;
   let actorAdminUserId: string;
   let subjectAdminUserId: string;
-  let viewerRoleId: string;
+  let supportRoleId: string;
   let marketId: string;
+  let subjectAccountId: string;
+  let subjectSessionId: string;
 
   beforeAll(async () => {
     database = new DatabaseService({ databaseUrl } as ConfigService);
@@ -38,6 +45,7 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
     marketsService = new MarketService(database, audit);
     rbac = new RbacService(database);
     administration = new AccessAdministrationService(database, audit);
+    marketContext = new AdminMarketContextService(database, audit);
 
     const accountRows = await database.db
       .insert(accounts)
@@ -65,15 +73,56 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
       .returning({ id: adminUsers.id });
     actorAdminUserId = adminRows[0]?.id ?? '';
     subjectAdminUserId = adminRows[1]?.id ?? '';
+    subjectAccountId = accountRows[1]?.id ?? '';
+    const sessionRows = await database.db
+      .insert(sessions)
+      .values({
+        accountId: subjectAccountId,
+        familyId: randomUUID(),
+        accessTokenHash: opaqueHash(),
+        refreshTokenHash: opaqueHash(),
+        accessExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      })
+      .returning({ id: sessions.id });
+    subjectSessionId = sessionRows[0]?.id ?? '';
     const roleRows = await database.db
       .select({ id: roles.id })
       .from(roles)
-      .where(eq(roles.code, 'VIEWER'));
-    viewerRoleId = roleRows[0]?.id ?? '';
+      .where(eq(roles.code, 'SUPPORT_READONLY_AUDITOR'));
+    supportRoleId = roleRows[0]?.id ?? '';
   });
 
   afterAll(async () => {
     await database.onApplicationShutdown();
+  });
+
+  it('persists the exact catalog/templates without Super Admin auto-expansion', async () => {
+    const counts = await database.pool.query<{
+      permissions: string;
+      roles: string;
+    }>(
+      `SELECT
+        (SELECT count(*) FROM permissions WHERE code = ANY($1::text[])) permissions,
+        (SELECT count(*) FROM roles WHERE code = ANY($2::text[]) AND archived_at IS NULL) roles`,
+      [canonicalPermissionCodes, controlledRoleCodes],
+    );
+    expect(counts.rows[0]).toEqual({ permissions: '66', roles: '6' });
+
+    const futureCode = `future.unreviewed.${randomUUID()}`;
+    await database.pool.query(
+      'INSERT INTO permissions (code, description) VALUES ($1, $2)',
+      [futureCode, 'Must not auto-expand a controlled role.'],
+    );
+    await seedFoundation(database.db);
+    const autoGrant = await database.pool.query(
+      `SELECT 1 FROM role_permissions rp
+       JOIN roles r ON r.id = rp.role_id
+       JOIN permissions p ON p.id = rp.permission_id
+       WHERE r.code = 'SUPER_ADMIN' AND p.code = $1`,
+      [futureCode],
+    );
+    expect(autoGrant.rowCount).toBe(0);
   });
 
   it('creates an inactive global market and audits the privileged action', async () => {
@@ -103,17 +152,17 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
     await expect(
       rbac.isAllowed({
         adminUserId: subjectAdminUserId,
-        permission: 'audit.view',
+        permission: 'audit.read',
       }),
     ).resolves.toBe(false);
-    await administration.assignRole(subjectAdminUserId, viewerRoleId, {
+    await administration.assignRole(subjectAdminUserId, supportRoleId, {
       adminUserId: actorAdminUserId,
       reason: 'Least privilege test',
     });
     await expect(
       rbac.isAllowed({
         adminUserId: subjectAdminUserId,
-        permission: 'audit.view',
+        permission: 'audit.read',
       }),
     ).resolves.toBe(true);
     await expect(
@@ -129,7 +178,7 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
     await expect(
       rbac.isAllowed({
         adminUserId: subjectAdminUserId,
-        permission: 'audit.view',
+        permission: 'audit.read',
       }),
     ).resolves.toBe(false);
     await database.db
@@ -137,24 +186,17 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
       .set({ status: 'ACTIVE' })
       .where(eq(adminUsers.id, subjectAdminUserId));
 
+    await marketsService.setStatus(marketId, 'ACTIVE', {
+      adminUserId: actorAdminUserId,
+      reason: 'Enable test market',
+    });
     await administration.grantMarketAccess(subjectAdminUserId, marketId, {
       adminUserId: actorAdminUserId,
     });
     await expect(
       rbac.isAllowed({
         adminUserId: subjectAdminUserId,
-        permission: 'audit.view',
-        marketId,
-      }),
-    ).resolves.toBe(false);
-    await marketsService.setStatus(marketId, 'ACTIVE', {
-      adminUserId: actorAdminUserId,
-      reason: 'Enable test market',
-    });
-    await expect(
-      rbac.isAllowed({
-        adminUserId: subjectAdminUserId,
-        permission: 'audit.view',
+        permission: 'audit.read',
         marketId,
       }),
     ).resolves.toBe(true);
@@ -176,10 +218,68 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
     await expect(
       rbac.isAllowed({
         adminUserId: subjectAdminUserId,
-        permission: 'audit.view',
+        permission: 'audit.read',
         marketId: otherMarket.id,
       }),
     ).resolves.toBe(false);
+  });
+
+  it('bootstraps, switches, audits, and invalidates Current Admin Market', async () => {
+    const actor = {
+      type: 'ADMIN_USER' as const,
+      accountId: subjectAccountId,
+      adminUserId: subjectAdminUserId,
+      sessionId: subjectSessionId,
+    };
+    await expect(marketContext.accessibleMarkets(actor)).resolves.toMatchObject(
+      {
+        currentMarketId: null,
+        contextVersion: 1,
+        items: expect.arrayContaining([
+          expect.objectContaining({ id: marketId, isSelected: false }),
+        ]),
+      },
+    );
+    await expect(marketContext.bootstrap(actor)).resolves.toMatchObject({
+      actor: { id: subjectAdminUserId },
+      currentMarket: null,
+      contextVersion: 1,
+    });
+    await expect(
+      marketContext.selectCurrentMarket(
+        actor,
+        { marketId, expectedContextVersion: 1 },
+        {
+          adminUserId: subjectAdminUserId,
+          requestId: 'p7-s2c-market-switch',
+        },
+      ),
+    ).resolves.toMatchObject({ marketId, contextVersion: 2 });
+    await expect(marketContext.bootstrap(actor)).resolves.toMatchObject({
+      currentMarket: { id: marketId, isSelected: true },
+      contextVersion: 2,
+    });
+    const switchAudit = await database.db
+      .select({ action: auditLogs.action })
+      .from(auditLogs)
+      .where(eq(auditLogs.requestId, 'p7-s2c-market-switch'));
+    expect(switchAudit).toEqual([{ action: 'admin.current_market.changed' }]);
+
+    await expect(
+      administration.revokeMarketAccess(subjectAdminUserId, marketId, {
+        adminUserId: actorAdminUserId,
+      }),
+    ).resolves.toBe(true);
+    await expect(marketContext.accessibleMarkets(actor)).resolves.toMatchObject(
+      {
+        currentMarketId: null,
+        contextVersion: 3,
+        items: [],
+      },
+    );
+    await administration.grantMarketAccess(subjectAdminUserId, marketId, {
+      adminUserId: actorAdminUserId,
+    });
   });
 
   it('revokes market and role access immediately', async () => {
@@ -191,7 +291,7 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
     await expect(
       rbac.isAllowed({
         adminUserId: subjectAdminUserId,
-        permission: 'audit.view',
+        permission: 'audit.read',
         marketId,
       }),
     ).resolves.toBe(false);
@@ -199,14 +299,14 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
       adminUserId: actorAdminUserId,
     });
     await expect(
-      administration.revokeRole(subjectAdminUserId, viewerRoleId, {
+      administration.revokeRole(subjectAdminUserId, supportRoleId, {
         adminUserId: actorAdminUserId,
       }),
     ).resolves.toBe(true);
     await expect(
       rbac.isAllowed({
         adminUserId: subjectAdminUserId,
-        permission: 'audit.view',
+        permission: 'audit.read',
       }),
     ).resolves.toBe(false);
   });
@@ -275,3 +375,7 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
     );
   });
 });
+
+function opaqueHash(): string {
+  return randomUUID().replaceAll('-', '').repeat(2);
+}

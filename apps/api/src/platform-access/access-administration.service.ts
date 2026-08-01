@@ -184,10 +184,10 @@ export class AccessAdministrationService {
       if (!updated) this.versionConflict();
       if (input.status !== 'ACTIVE') {
         await tx.execute(sql`
-          update sessions
+          update sessions s
           set revoked_at = ${now}, revoke_reason = ${`ADMIN_${input.status}`}
           where account_id = ${current.accountId}
-            and actor_purpose = 'ADMIN'
+            and coalesce(to_jsonb(s)->>'actor_purpose', 'ADMIN') = 'ADMIN'
             and revoked_at is null
         `);
       }
@@ -354,10 +354,10 @@ export class AccessAdministrationService {
           .limit(1);
         if (target[0]) {
           await tx.execute(sql`
-            update sessions
+            update sessions s
             set revoked_at = now(), revoke_reason = 'ADMIN_ACCESS_REMOVED'
             where account_id = ${target[0].accountId}
-              and actor_purpose = 'ADMIN'
+              and coalesce(to_jsonb(s)->>'actor_purpose', 'ADMIN') = 'ADMIN'
               and revoked_at is null
           `);
         }
