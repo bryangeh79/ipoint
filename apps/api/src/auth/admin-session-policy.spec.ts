@@ -140,6 +140,15 @@ describe('Admin session policy', () => {
     });
   });
 
+  it('enforces the outer refresh-family boundary', async () => {
+    session = activeAdminSession({
+      familyMaxExpiresAt: new Date(Date.now() - 1),
+    });
+    await expect(auth.resolveActor('access-token')).rejects.toMatchObject({
+      code: 'SESSION_FAMILY_EXPIRED',
+    });
+  });
+
   it('revokes every Admin session when eligibility is removed', async () => {
     session = activeAdminSession({ adminStatus: 'SUSPENDED' });
     await expect(auth.resolveActor('access-token')).rejects.toMatchObject({

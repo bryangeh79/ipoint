@@ -325,13 +325,34 @@ describe.skipIf(!databaseUrl)('Admin MFA and session HTTP integration', () => {
       })
       .expect(401);
 
+    const recoverySessionList = await supertest(server)
+      .get('/api/v1/admin/sessions')
+      .set('Authorization', `Bearer ${recovered.body.accessToken as string}`)
+      .expect(200);
+    const otherSession = (
+      recoverySessionList.body.sessions as Array<{
+        id: string;
+        current: boolean;
+        revokedAt: string | null;
+      }>
+    ).find((item) => !item.current && !item.revokedAt);
+    expect(otherSession).toBeTruthy();
+    await supertest(server)
+      .delete(`/api/v1/admin/sessions/${otherSession!.id}`)
+      .set('Authorization', `Bearer ${recovered.body.accessToken as string}`)
+      .expect(204);
+    await supertest(server)
+      .get('/api/v1/admin/sessions/current')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(401);
+
     await supertest(server)
       .delete('/api/v1/admin/sessions')
-      .set('Authorization', `Bearer ${accessToken}`)
+      .set('Authorization', `Bearer ${recovered.body.accessToken as string}`)
       .expect(200);
     const revoked = await supertest(server)
       .get('/api/v1/admin/sessions/current')
-      .set('Authorization', `Bearer ${accessToken}`)
+      .set('Authorization', `Bearer ${recovered.body.accessToken as string}`)
       .expect(401);
     expect(JSON.stringify(revoked.body)).toContain('SESSION_REVOKED');
 
