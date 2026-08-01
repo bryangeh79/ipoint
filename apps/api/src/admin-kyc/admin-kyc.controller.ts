@@ -51,13 +51,13 @@ import type {
 @ApiBearerAuth()
 @Controller('admin/kyc/cases')
 @UseGuards(AuthGuard, RbacGuard)
-@RequirePermission('member.kyc.review')
 export class AdminKycController {
   constructor(
     @Inject(AdminKycService) private readonly adminKyc: AdminKycService,
   ) {}
 
   @Get()
+  @RequirePermission('member.kyc.read')
   @ApiOperation({ summary: 'List market-authorized member KYC cases' })
   @ApiResponse({ status: 200, description: 'Paginated KYC cases.' })
   listCases(
@@ -75,6 +75,7 @@ export class AdminKycController {
   }
 
   @Get(':id')
+  @RequirePermission('member.kyc.read')
   @ApiOperation({ summary: 'Get a member KYC case with documents and history' })
   getCase(
     @CurrentActor() actor: RequestActor | undefined,
@@ -88,6 +89,7 @@ export class AdminKycController {
   }
 
   @Post(':id/start-review')
+  @RequirePermission('member.kyc.decide')
   @HttpCode(200)
   startReview(
     @CurrentActor() actor: RequestActor | undefined,
@@ -109,6 +111,7 @@ export class AdminKycController {
   }
 
   @Post(':id/request-more-info')
+  @RequirePermission('member.kyc.decide')
   @HttpCode(200)
   requestMoreInfo(
     @CurrentActor() actor: RequestActor | undefined,
@@ -131,6 +134,7 @@ export class AdminKycController {
   }
 
   @Post(':id/approve')
+  @RequirePermission('member.kyc.decide')
   @HttpCode(200)
   approve(
     @CurrentActor() actor: RequestActor | undefined,
@@ -152,6 +156,7 @@ export class AdminKycController {
   }
 
   @Post(':id/reject')
+  @RequirePermission('member.kyc.decide')
   @HttpCode(200)
   reject(
     @CurrentActor() actor: RequestActor | undefined,
@@ -173,6 +178,7 @@ export class AdminKycController {
   }
 
   @Post(':id/require-reverification')
+  @RequirePermission('member.kyc.decide')
   @HttpCode(200)
   requireReverification(
     @CurrentActor() actor: RequestActor | undefined,

@@ -75,7 +75,7 @@ export class AdminCommissionController {
   // ─── Search Ledger ────────────────────────────────────────────
 
   @Get('ledger')
-  @RequirePermission('commission.admin')
+  @RequirePermission('commission.read')
   @ApiOperation({
     summary: 'Admin search across all commission ledger entries',
   })
@@ -152,7 +152,7 @@ export class AdminCommissionController {
   // ─── Get Audit Log ────────────────────────────────────────────
 
   @Get('audit')
-  @RequirePermission('commission.admin')
+  @RequirePermission('commission.read')
   @ApiOperation({
     summary: 'Get status event history for a commission ledger entry',
   })
@@ -193,7 +193,7 @@ export class AdminCommissionController {
   // ─── Reprocess Commission ─────────────────────────────────────
 
   @Post('reprocess')
-  @RequirePermission('commission.admin')
+  @RequirePermission('commission.read')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Reprocess commission calculation for a source event',

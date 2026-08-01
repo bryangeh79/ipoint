@@ -166,7 +166,7 @@ export class PackageController {
 
   @Post('admin/markets/:marketId/special-percentages')
   @UseGuards(AuthGuard, RbacGuard)
-  @RequirePermission('merchant.package.manage', { marketScoped: true })
+  @RequirePermission('merchant.special_package.manage', { marketScoped: true })
   createSpecialPercentage(
     @Param('marketId', new ParseUUIDPipe()) marketId: string,
     @CurrentActor() actor: RequestActor | undefined,
@@ -187,7 +187,7 @@ export class PackageController {
 
   @Post('admin/markets/:marketId/merchants/:branchId/packages/assignments')
   @UseGuards(AuthGuard, RbacGuard)
-  @RequirePermission('merchant.package.manage', { marketScoped: true })
+  @RequirePermission('merchant.package.assign', { marketScoped: true })
   assign(
     @Param('marketId', new ParseUUIDPipe()) marketId: string,
     @Param('branchId', new ParseUUIDPipe()) branchId: string,
@@ -211,7 +211,7 @@ export class PackageController {
     'admin/markets/:marketId/merchants/:branchId/packages/assignments/:assignmentId/set-default',
   )
   @UseGuards(AuthGuard, RbacGuard)
-  @RequirePermission('merchant.package.manage', { marketScoped: true })
+  @RequirePermission('merchant.package.assign', { marketScoped: true })
   setDefault(
     @Param('marketId', new ParseUUIDPipe()) marketId: string,
     @Param('branchId', new ParseUUIDPipe()) branchId: string,

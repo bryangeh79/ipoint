@@ -6,51 +6,16 @@ import {
   serviceFeeProfiles,
   serviceFeeVersions,
 } from '../schema/index.js';
+import {
+  canonicalPermissionCatalog,
+  controlledRoleTemplates,
+  roleTemplatePermissions,
+} from '../src/permission-catalog.js';
+import { eq, inArray, sql } from 'drizzle-orm';
 
-export const foundationPermissions = [
-  ['market.view', 'View the global market registry'],
-  ['market.manage', 'Create and update market registry records'],
-  ['rbac.view', 'View roles, permissions, and access assignments'],
-  ['rbac.manage', 'Manage roles, permissions, and access assignments'],
-  ['audit.view', 'View audit logs and entity timelines'],
-  ['member.read', 'View members in authorized markets'],
-  ['member.status.manage', 'Manage member status in authorized markets'],
-  ['member.session.revoke', 'Revoke member sessions in authorized markets'],
-  [
-    'member.reverification.require',
-    'Require member KYC reverification in authorized markets',
-  ],
-  ['member.note.read', 'View member admin notes in authorized markets'],
-  ['member.note.create', 'Create member admin notes in authorized markets'],
-  ['merchant.view', 'View merchants in authorized markets'],
-  ['merchant.approve', 'Review merchant applications and KYC'],
-  ['merchant.kyc.view', 'View merchant KYC submissions'],
-  ['merchant.kyc.approve', 'Review merchant KYC submissions'],
-  ['merchant.suspend', 'Suspend and reactivate merchants'],
-  ['merchant.close', 'Review merchant closure requests'],
-  ['merchant.referral.correct', 'Correct merchant referral evidence'],
-  ['merchant.package.view', 'View merchant service-fee packages'],
-  ['merchant.package.manage', 'Manage service-fee profiles and versions'],
-  ['merchant.package.assign', 'Assign merchant service-fee packages'],
-  ['merchant.mcp.view', 'View merchant MCP accounts and ledgers'],
-  ['merchant.mcp.recharge.review', 'Review MCP recharge requests'],
-  ['merchant.mcp.refund.review', 'Review MCP refund requests'],
-  ['merchant.refund.manage', 'Manage merchant refund obligations'],
-  ['merchant.mcp.adjust', 'Create manual MCP adjustments'],
-  ['merchant.mcp.adjust.approve', 'Approve manual MCP adjustments'],
-  ['merchant.mcp.adjust.execute', 'Execute approved MCP adjustments'],
-  ['merchant.mcp.reverse', 'Create governed MCP reversal entries'],
-  ['redemption.catalog.manage', 'Manage redemption catalog items'],
-  ['redemption.rate.manage', 'Manage redemption rate versions'],
-  ['redemption.inventory.manage', 'Manage redemption inventory'],
-  ['redemption.pickup.manage', 'Manage redemption pickup locations'],
-  ['redemption.orders.view', 'View redemption orders'],
-  ['redemption.fulfilment.update', 'Update fulfilment status'],
-  ['redemption.refund.maker', 'Create refund requests as Maker'],
-  ['redemption.refund.checker', 'Approve/reject refund requests as Checker'],
-  ['redemption.voucher.reveal', 'Reveal voucher codes'],
-  ['redemption.audit.view', 'View redemption audit logs'],
-] as const;
+export const foundationPermissions = canonicalPermissionCatalog.map(
+  ({ code, description }) => [code, description] as const,
+);
 
 export const standardServiceFeeProfiles = [
   ['A', '2.500000'],
@@ -66,30 +31,24 @@ export async function seedFoundation(db: Database): Promise<void> {
     await tx
       .insert(permissions)
       .values(
-        foundationPermissions.map(([code, description]) => ({
+        canonicalPermissionCatalog.map(({ code, description }) => ({
           code,
           description,
         })),
       )
-      .onConflictDoNothing({ target: permissions.code });
+      .onConflictDoUpdate({
+        target: permissions.code,
+        set: { description: sql`excluded.description` },
+      });
 
     await tx
       .insert(roles)
-      .values([
-        {
-          code: 'SUPER_ADMIN',
-          name: 'Super Admin',
-          description: 'System role with all platform foundation permissions.',
+      .values(
+        controlledRoleTemplates.map((role) => ({
+          ...role,
           isSystem: true,
-        },
-        {
-          code: 'VIEWER',
-          name: 'Viewer',
-          description:
-            'System role with read-only platform foundation permissions.',
-          isSystem: true,
-        },
-      ])
+        })),
+      )
       .onConflictDoNothing({ target: roles.code });
 
     await tx
@@ -120,27 +79,58 @@ export async function seedFoundation(db: Database): Promise<void> {
       )
       .onConflictDoNothing();
 
-    const permissionRows = await tx.select().from(permissions);
+    const permissionRows = await tx
+      .select()
+      .from(permissions)
+      .where(
+        inArray(
+          permissions.code,
+          canonicalPermissionCatalog.map(({ code }) => code),
+        ),
+      );
     const roleRows = await tx.select().from(roles);
-    const superAdmin = roleRows.find((role) => role.code === 'SUPER_ADMIN');
-    const viewer = roleRows.find((role) => role.code === 'VIEWER');
-    if (!superAdmin || !viewer)
-      throw new Error('Foundation roles were not created.');
+    const controlledRoles = roleRows.filter((role) =>
+      controlledRoleTemplates.some((template) => template.code === role.code),
+    );
+    if (controlledRoles.length !== controlledRoleTemplates.length)
+      throw new Error('Controlled role templates were not created.');
+
+    await tx.delete(rolePermissions).where(
+      inArray(
+        rolePermissions.roleId,
+        controlledRoles.map(({ id }) => id),
+      ),
+    );
 
     await tx
       .insert(rolePermissions)
-      .values([
-        ...permissionRows.map((permission) => ({
-          roleId: superAdmin.id,
-          permissionId: permission.id,
-        })),
-        ...permissionRows
-          .filter((permission) => permission.code.endsWith('.view'))
-          .map((permission) => ({
-            roleId: viewer.id,
-            permissionId: permission.id,
-          })),
-      ])
+      .values(
+        controlledRoles.flatMap((role) =>
+          permissionRows
+            .filter((permissionRow) =>
+              roleTemplatePermissions[
+                role.code as keyof typeof roleTemplatePermissions
+              ].includes(
+                permissionRow.code as (typeof canonicalPermissionCatalog)[number]['code'],
+              ),
+            )
+            .map((permissionRow) => ({
+              roleId: role.id,
+              permissionId: permissionRow.id,
+            })),
+        ),
+      )
       .onConflictDoNothing();
+
+    const legacyViewer = roleRows.find((role) => role.code === 'VIEWER');
+    if (legacyViewer) {
+      await tx
+        .delete(rolePermissions)
+        .where(eq(rolePermissions.roleId, legacyViewer.id));
+      await tx
+        .update(roles)
+        .set({ archivedAt: new Date(), updatedAt: new Date() })
+        .where(eq(roles.id, legacyViewer.id));
+    }
   });
 }

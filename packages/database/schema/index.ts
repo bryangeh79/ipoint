@@ -382,6 +382,16 @@ export const sessions = pgTable(
     familyCreatedAt: utcTimestamp('family_created_at'),
     familyMaxExpiresAt: utcTimestamp('family_max_expires_at'),
     mfaRecoveryUsed: boolean('mfa_recovery_used').notNull().default(false),
+    currentAdminMarketId: uuid('current_admin_market_id').references(
+      () => markets.id,
+      { onDelete: 'restrict' },
+    ),
+    currentAdminMarketSelectedAt: utcTimestamp(
+      'current_admin_market_selected_at',
+    ),
+    marketContextVersion: integer('market_context_version')
+      .notNull()
+      .default(1),
   },
   (table) => [
     unique('sessions_access_token_hash_unique').on(table.accessTokenHash),
@@ -411,6 +421,18 @@ export const sessions = pgTable(
       .where(
         sql`${table.actorPurpose} = 'ADMIN' and ${table.revokedAt} is null`,
       ),
+    check(
+      'sessions_admin_market_context_check',
+      sql`(${table.currentAdminMarketId} is null and ${table.currentAdminMarketSelectedAt} is null) or (${table.currentAdminMarketId} is not null and ${table.currentAdminMarketSelectedAt} is not null)`,
+    ),
+    check(
+      'sessions_market_context_version_check',
+      sql`${table.marketContextVersion} > 0`,
+    ),
+    index('sessions_current_admin_market_idx').on(
+      table.currentAdminMarketId,
+      table.marketContextVersion,
+    ),
   ],
 );
 

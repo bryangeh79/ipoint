@@ -96,6 +96,15 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0016_phase_4_s3_audit_idempotency_nullable.sql',
       '0017_phase_4_s6_correction_requests.sql',
       '0018_phase_5_agent_commission_schema.sql',
+      '0019_phase_5_commission_outbox.sql',
+      '0020_phase_6_redemption_center_canonical.sql',
+      '0021_phase_6_redemption_contract_corrections.sql',
+      '0022_phase_6_inventory_direct_consumption.sql',
+      '0023_phase_6_final_contract_alignment.sql',
+      '0024_phase_6_terms_order_binding.sql',
+      '0025_phase_6_shipping_terms_constraints.sql',
+      '0026_phase_6_shipping_recovery_v2.sql',
+      '0028_admin_market_session_context.sql',
     ]);
 
     const auditReferenceColumn = await connection.pool.query<{
@@ -393,7 +402,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       `
       SELECT
         (SELECT count(*) FROM roles
-          WHERE code IN ('SUPER_ADMIN', 'VIEWER')) AS roles,
+          WHERE code = ANY($2::text[])) AS roles,
         (SELECT count(*) FROM permissions
           WHERE code = ANY($1::text[])) AS permissions,
         (SELECT count(*) FROM service_fee_profiles
@@ -403,10 +412,20 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
           WHERE v.market_id IS NULL AND p.market_id IS NULL
             AND p.code IN ('A', 'B', 'C', 'D', 'E', 'F')) AS versions
     `,
-      [foundationPermissions.map(([code]) => code)],
+      [
+        foundationPermissions.map(([code]) => code),
+        [
+          'SUPER_ADMIN',
+          'OPERATIONS_ADMIN',
+          'FINANCE_OPERATOR',
+          'FINANCE_APPROVER',
+          'KYC_REVIEWER',
+          'SUPPORT_READONLY_AUDITOR',
+        ],
+      ],
     );
     expect(counts.rows[0]).toEqual({
-      roles: '2',
+      roles: '6',
       permissions: String(foundationPermissions.length),
       profiles: '6',
       versions: '6',

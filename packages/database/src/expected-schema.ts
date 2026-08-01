@@ -44,6 +44,9 @@ export const expectedSchema = {
     'family_created_at',
     'family_max_expires_at',
     'mfa_recovery_used',
+    'current_admin_market_id',
+    'current_admin_market_selected_at',
+    'market_context_version',
   ],
   otps: [
     'id',

@@ -14,8 +14,10 @@ export interface MarketInput {
 
 export interface AdminActionContext {
   adminUserId: string;
+  sessionId?: string;
   requestId?: string;
   ipAddress?: string;
+  userAgent?: string;
   reason?: string;
 }
 

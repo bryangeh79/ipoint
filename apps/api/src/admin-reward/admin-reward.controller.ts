@@ -99,7 +99,7 @@ export class AdminRewardController {
   }
 
   @Post('rules')
-  @RequirePermission('reward.rule.create')
+  @RequirePermission('reward.rule.schedule')
   @HttpCode(201)
   @ApiOperation({ summary: 'Create a new reward rule version' })
   @ApiResponse({ status: 201, description: 'Rule version created.' })
