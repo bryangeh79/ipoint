@@ -34,6 +34,7 @@ export interface ApiErrorBody {
   message?: string | string[];
   errors?: unknown;
   requestId?: string;
+  details?: Readonly<Record<string, unknown>>;
 }
 
 interface ApiErrorEnvelope {
@@ -621,4 +622,311 @@ async function toApiError(response: Response): Promise<ApiError> {
     body = { message: response.statusText };
   }
   return new ApiError(response.status, body);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Phase 7 Admin Operations typed client                              */
+/* ------------------------------------------------------------------ */
+
+export interface AdminPasswordRequest {
+  email: string;
+  password: string;
+}
+
+export interface AdminLoginChallengeDto {
+  code: 'MFA_REQUIRED';
+  mfa_challenge_id: string;
+  expires_at: string;
+}
+
+export interface AdminMfaEnrollmentStartDto {
+  enrollment_challenge_id: string;
+  otpauth_uri: string;
+  expires_at: string;
+}
+
+export interface AdminMfaEnrollmentConfirmationDto {
+  recovery_codes: string[];
+}
+
+export interface AdminMfaCodeRequest {
+  challenge_id: string;
+  code: string;
+}
+
+export interface AdminMfaRecoveryRequest {
+  challenge_id: string;
+  recovery_code: string;
+}
+
+export interface AdminStepUpStartRequest {
+  action_class: string;
+  market_id?: string;
+  target?: string;
+}
+
+export interface AdminStepUpChallengeDto {
+  step_up_challenge_id: string;
+  expires_at: string;
+}
+
+export interface AdminStepUpVerificationDto {
+  step_up_token: string;
+  expires_at: string;
+}
+
+export interface AdminMfaResetRequest {
+  target_admin_user_id: string;
+  confirming_admin_user_id: string;
+  reason: string;
+  case_reference: string;
+  step_up_token: string;
+}
+
+export interface AdminMfaResetResultDto {
+  revokedSessions: number;
+}
+
+export interface AdminActorDto {
+  id: string;
+  accountId: string;
+  displayName: string;
+  status: 'ACTIVE' | 'SUSPENDED' | 'ARCHIVED';
+}
+
+export interface AdminRoleDto {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface AdminMarketDto {
+  id: string;
+  code: string;
+  name: string;
+  currencyCode: string;
+  timezone: string;
+  locale: string;
+  grantedAt: string;
+  isSelected: boolean;
+}
+
+export interface AdminBootstrapDto {
+  actor: AdminActorDto;
+  roles: AdminRoleDto[];
+  effectivePermissions: string[];
+  accessibleMarkets: AdminMarketDto[];
+  currentMarket: AdminMarketDto | null;
+  contextVersion: number;
+  availability: {
+    operationalWorkspace: 'AVAILABLE' | 'MARKET_SELECTION_UNAVAILABLE';
+  };
+  asOf: string;
+}
+
+export interface AdminMarketListDto {
+  items: AdminMarketDto[];
+  currentMarketId: string | null;
+  contextVersion: number;
+  asOf: string;
+}
+
+export interface SelectCurrentAdminMarketRequest {
+  market_id: string;
+  expected_context_version: number;
+}
+
+export interface CurrentAdminMarketDto {
+  marketId: string;
+  contextVersion: number;
+  selectedAt: string | null;
+}
+
+export interface AdminSessionDto {
+  id: string;
+  deviceLabel: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  lastActivityAt: string;
+  idleExpiresAt: string;
+  absoluteExpiresAt: string;
+  familyMaxExpiresAt: string;
+  current: boolean;
+  revokedAt: string | null;
+  revokeReason: string | null;
+}
+
+export interface AdminSessionPageDto {
+  sessions: AdminSessionDto[];
+}
+
+export interface CurrentAdminSessionDto {
+  valid: true;
+  session_id: string;
+  admin_user_id: string;
+  mfa_recovery_used: boolean;
+}
+
+export interface AdminSessionRevocationSummaryDto {
+  revokedCount: number;
+}
+
+/**
+ * Exact typed surface consumed by Admin Web. Paths and DTO field names mirror
+ * the accepted P7-S2 controllers; no shape probing or message parsing occurs.
+ */
+export class AdminApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  get isAuthenticated(): boolean {
+    return this.client.isAuthenticated;
+  }
+
+  get tokens(): AuthTokens | undefined {
+    return this.client.tokens;
+  }
+
+  set onSessionExpired(callback: (() => void) | null) {
+    this.client.onSessionExpired = callback;
+  }
+
+  clearSession(): void {
+    this.client.clearSession();
+  }
+
+  async beginLogin(
+    input: AdminPasswordRequest,
+  ): Promise<AdminLoginChallengeDto> {
+    return (
+      await this.client.post<AdminLoginChallengeDto>(
+        '/auth/admin/login',
+        input,
+        {
+          skipAuth: true,
+        },
+      )
+    ).data;
+  }
+
+  async startMfaEnrollment(
+    input: AdminPasswordRequest,
+  ): Promise<AdminMfaEnrollmentStartDto> {
+    return (
+      await this.client.post<AdminMfaEnrollmentStartDto>(
+        '/auth/admin/mfa/enrollment/start',
+        input,
+        { skipAuth: true },
+      )
+    ).data;
+  }
+
+  async confirmMfaEnrollment(
+    input: AdminMfaCodeRequest,
+  ): Promise<AdminMfaEnrollmentConfirmationDto> {
+    return (
+      await this.client.post<AdminMfaEnrollmentConfirmationDto>(
+        '/auth/admin/mfa/enrollment/confirm',
+        input,
+        { skipAuth: true },
+      )
+    ).data;
+  }
+
+  async completeMfaChallenge(input: AdminMfaCodeRequest): Promise<AuthTokens> {
+    const tokens = (
+      await this.client.post<AuthTokens>('/auth/admin/mfa/challenge', input, {
+        skipAuth: true,
+      })
+    ).data;
+    this.client.setTokens(tokens);
+    dispatchSessionEvent('session-restored');
+    return tokens;
+  }
+
+  async recoverWithMfa(input: AdminMfaRecoveryRequest): Promise<AuthTokens> {
+    const tokens = (
+      await this.client.post<AuthTokens>('/auth/admin/mfa/recovery', input, {
+        skipAuth: true,
+      })
+    ).data;
+    this.client.setTokens(tokens);
+    dispatchSessionEvent('session-restored');
+    return tokens;
+  }
+
+  async beginStepUp(
+    input: AdminStepUpStartRequest,
+  ): Promise<AdminStepUpChallengeDto> {
+    return (
+      await this.client.post<AdminStepUpChallengeDto>(
+        '/auth/admin/mfa/step-up/challenge',
+        input,
+      )
+    ).data;
+  }
+
+  async verifyStepUp(
+    input: AdminMfaCodeRequest,
+  ): Promise<AdminStepUpVerificationDto> {
+    return (
+      await this.client.post<AdminStepUpVerificationDto>(
+        '/auth/admin/mfa/step-up/verify',
+        input,
+      )
+    ).data;
+  }
+
+  async resetMfa(input: AdminMfaResetRequest): Promise<AdminMfaResetResultDto> {
+    return (
+      await this.client.post<AdminMfaResetResultDto>(
+        '/auth/admin/mfa/reset',
+        input,
+      )
+    ).data;
+  }
+
+  async bootstrap(): Promise<AdminBootstrapDto> {
+    return (await this.client.get<AdminBootstrapDto>('/admin/bootstrap')).data;
+  }
+
+  async markets(): Promise<AdminMarketListDto> {
+    return (await this.client.get<AdminMarketListDto>('/admin/me/markets'))
+      .data;
+  }
+
+  async selectCurrentMarket(
+    input: SelectCurrentAdminMarketRequest,
+  ): Promise<CurrentAdminMarketDto> {
+    return (
+      await this.client.put<CurrentAdminMarketDto>(
+        '/admin/me/current-market',
+        input,
+      )
+    ).data;
+  }
+
+  async sessions(): Promise<AdminSessionPageDto> {
+    return (await this.client.get<AdminSessionPageDto>('/admin/sessions')).data;
+  }
+
+  async currentSession(): Promise<CurrentAdminSessionDto> {
+    return (
+      await this.client.get<CurrentAdminSessionDto>('/admin/sessions/current')
+    ).data;
+  }
+
+  async revokeSession(sessionId: string): Promise<void> {
+    await this.client.delete<void>(
+      `/admin/sessions/${encodeURIComponent(sessionId)}`,
+    );
+  }
+
+  async revokeAllSessions(): Promise<AdminSessionRevocationSummaryDto> {
+    return (
+      await this.client.delete<AdminSessionRevocationSummaryDto>(
+        '/admin/sessions',
+      )
+    ).data;
+  }
 }

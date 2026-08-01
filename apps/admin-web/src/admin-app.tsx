@@ -8,6 +8,15 @@ import {
   useNavigate,
   type RouteObject,
 } from 'react-router-dom';
+import { AdminSessionProvider, useAdminSession } from './admin-session.js';
+import {
+  LoginScreen,
+  MarketSelector,
+  MfaChallengeScreen,
+  MfaEnrollmentScreen,
+  MfaRecoveryScreen,
+  SessionsScreen,
+} from './auth-screens.js';
 import { adminRouteManifest, type AdminRoute } from './route-manifest.js';
 
 const routeObjects: RouteObject[] = [
@@ -32,12 +41,17 @@ export function createAdminRouter() {
 }
 
 export function AdminApp() {
-  return <RouterProvider router={createAdminRouter()} />;
+  return (
+    <AdminSessionProvider>
+      <RouterProvider router={createAdminRouter()} />
+    </AdminSessionProvider>
+  );
 }
 
 function AdminShell() {
   const location = useLocation();
   const navigate = useNavigate();
+  const session = useAdminSession();
   const publicRoute =
     location.pathname.startsWith('/admin/login') ||
     location.pathname.startsWith('/admin/mfa/');
@@ -48,7 +62,22 @@ function AdminShell() {
       topBar={
         <TopBar
           brand={<Wordmark />}
-          actions={<Badge tone="warning">Foundation</Badge>}
+          actions={
+            publicRoute ? (
+              <Badge tone="warning">Protected</Badge>
+            ) : (
+              <div className="admin-topbar-context">
+                <MarketSelector compact />
+                <Badge
+                  tone={
+                    session.status === 'authenticated' ? 'success' : 'warning'
+                  }
+                >
+                  {session.bootstrap?.actor.displayName ?? 'Authenticating'}
+                </Badge>
+              </div>
+            )
+          }
         />
       }
       sideNavigation={
@@ -67,6 +96,11 @@ function AdminShell() {
 }
 
 function RoutePlaceholder({ route }: { route: AdminRoute }) {
+  if (route.id === 'login') return <LoginScreen />;
+  if (route.id === 'mfa-enroll') return <MfaEnrollmentScreen />;
+  if (route.id === 'mfa-challenge') return <MfaChallengeScreen />;
+  if (route.id === 'mfa-recovery') return <MfaRecoveryScreen />;
+  if (route.id === 'sessions') return <SessionsScreen />;
   return (
     <section aria-labelledby="admin-route-title">
       <PageHeader
@@ -74,6 +108,7 @@ function RoutePlaceholder({ route }: { route: AdminRoute }) {
         title={<span id="admin-route-title">{route.title}</span>}
         description="This routed shell is ready for server-authorized Admin context. Domain controls are intentionally not implemented here."
       />
+      <MarketSelector />
       <EmptyState
         title="Shell route ready"
         description={`Route ID: ${route.id}. Required state will be resolved by its ${route.loader} loader.`}

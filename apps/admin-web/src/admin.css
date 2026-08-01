@@ -47,6 +47,88 @@
   text-align: left;
 }
 
+.admin-topbar-context {
+  display: flex;
+  align-items: center;
+  gap: var(--ip-space-2);
+}
+
+.admin-market-selector--compact .ip-form-field {
+  display: flex;
+  align-items: center;
+  gap: var(--ip-space-1);
+}
+
+.admin-market-selector--compact label {
+  font-size: var(--ip-font-size-caption);
+}
+
+.admin-market-selector--compact .ip-select {
+  min-width: 180px;
+  min-height: 38px;
+  padding-block: var(--ip-space-0-5);
+}
+
+.admin-market-unavailable {
+  color: var(--ip-color-warning);
+  font-size: var(--ip-font-size-body-sm);
+  font-weight: 600;
+}
+
+.admin-auth-layout {
+  width: min(100%, 540px);
+  margin: 0 auto;
+}
+
+.admin-auth-card,
+.admin-auth-form {
+  display: grid;
+  gap: var(--ip-space-3);
+}
+
+.admin-auth-help {
+  margin: 0;
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-body-sm);
+  text-align: center;
+}
+
+.admin-auth-help a {
+  color: var(--ip-color-primary-active);
+  font-weight: 600;
+}
+
+.admin-secret-panel {
+  display: grid;
+  gap: var(--ip-space-1);
+  min-width: 0;
+  padding: var(--ip-space-2);
+  border: 1px solid var(--ip-color-border);
+  border-radius: var(--ip-radius-sm);
+  background: var(--ip-color-surface-muted);
+}
+
+.admin-secret-panel code {
+  overflow-wrap: anywhere;
+}
+
+.admin-secret-panel small,
+.admin-app td small {
+  display: block;
+  color: var(--ip-color-text-muted);
+}
+
+.admin-recovery-codes {
+  columns: 2;
+  margin: 0;
+  padding-left: var(--ip-space-3);
+}
+
+.admin-recovery-codes li {
+  margin-bottom: var(--ip-space-1);
+  break-inside: avoid;
+}
+
 .admin-not-found {
   min-height: 100dvh;
   display: grid;
