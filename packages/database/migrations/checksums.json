@@ -25,5 +25,6 @@
   "0023_phase_6_final_contract_alignment.sql": "299fc9d9a7696ac40d446e0e973c79a99c4cf5b0947dcfb45994d8b6e5dc7a8b",
   "0024_phase_6_terms_order_binding.sql": "75f97d00b47c4de6c01b4b6c106244bbacb582ec35bc4b689d87ec994731ba8b",
   "0025_phase_6_shipping_terms_constraints.sql": "0f202c034217d53dfa55601fc1bf7e9382a71b9d738c51e983babb48b98b2a39",
-  "0026_phase_6_shipping_recovery_v2.sql": "e2038e6c42de0ecbb2d18e500ddd1eb7d33a35f6b0a83cba60deb2e724c4afec"
+  "0026_phase_6_shipping_recovery_v2.sql": "e2038e6c42de0ecbb2d18e500ddd1eb7d33a35f6b0a83cba60deb2e724c4afec",
+  "0027_admin_mfa_session_policy.sql": "1484564d29a4eb0f1ef869d264b47db94a16e343f7e76b513a652964cf0c5976"
 }

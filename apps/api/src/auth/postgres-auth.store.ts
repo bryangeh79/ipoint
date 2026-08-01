@@ -2,7 +2,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   memberEmailOtps,
   accounts,
-  adminUsers,
   credentials,
   otps,
   members,
@@ -79,20 +78,33 @@ export class PostgresAuthStore implements AuthStorePort {
   }
 
   async createSession(session: NewSession): Promise<string> {
-    const rows = await this.database.db
-      .insert(sessions)
-      .values({
-        accountId: session.accountId,
-        familyId: session.familyId,
-        accessTokenHash: session.accessTokenHash,
-        refreshTokenHash: session.refreshTokenHash,
-        accessExpiresAt: session.accessExpiresAt,
-        expiresAt: session.refreshExpiresAt,
-        ipAddress: session.metadata.ipAddress,
-        userAgent: session.metadata.userAgent,
-      })
-      .returning({ id: sessions.id });
-    const id = rows[0]?.id;
+    const result = await this.database.pool.query<{ id: string }>(
+      `INSERT INTO sessions
+        (account_id, family_id, access_token_hash, refresh_token_hash,
+         access_expires_at, expires_at, ip_address, user_agent, actor_purpose,
+         admin_user_id, idle_expires_at, absolute_expires_at,
+         family_created_at, family_max_expires_at, mfa_recovery_used)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+       RETURNING id`,
+      [
+        session.accountId,
+        session.familyId,
+        session.accessTokenHash,
+        session.refreshTokenHash,
+        session.accessExpiresAt,
+        session.refreshExpiresAt,
+        session.metadata.ipAddress ?? null,
+        session.metadata.userAgent ?? null,
+        session.actorPurpose ?? 'ACCOUNT',
+        session.adminUserId ?? null,
+        session.idleExpiresAt ?? null,
+        session.absoluteExpiresAt ?? null,
+        session.familyCreatedAt ?? null,
+        session.familyMaxExpiresAt ?? null,
+        session.mfaRecoveryUsed ?? false,
+      ],
+    );
+    const id = result.rows[0]?.id;
     if (!id) throw new Error('Session insert did not return an id.');
     return id;
   }
@@ -100,22 +112,52 @@ export class PostgresAuthStore implements AuthStorePort {
   async findAccessSession(
     accessTokenHash: string,
   ): Promise<SessionRecord | null> {
-    const rows = await this.database.db
-      .select({
-        id: sessions.id,
-        accountId: sessions.accountId,
-        familyId: sessions.familyId,
-        status: accounts.status,
-        expiresAt: sessions.accessExpiresAt,
-        revokedAt: sessions.revokedAt,
-        adminUserId: adminUsers.id,
-      })
-      .from(sessions)
-      .innerJoin(accounts, eq(accounts.id, sessions.accountId))
-      .leftJoin(adminUsers, eq(adminUsers.accountId, sessions.accountId))
-      .where(eq(sessions.accessTokenHash, accessTokenHash))
-      .limit(1);
-    return rows[0] ?? null;
+    const result = await this.database.pool.query<SessionRecord>(
+      `SELECT s.id, s.account_id AS "accountId", s.family_id AS "familyId",
+              a.status, s.access_expires_at AS "expiresAt", s.revoked_at AS "revokedAt",
+              s.admin_user_id AS "adminUserId", s.actor_purpose AS "actorPurpose",
+              au.status AS "adminStatus", au.archived_at AS "adminArchivedAt",
+              s.idle_expires_at AS "idleExpiresAt",
+              s.absolute_expires_at AS "absoluteExpiresAt",
+              s.family_max_expires_at AS "familyMaxExpiresAt",
+              s.mfa_recovery_used AS "mfaRecoveryUsed",
+              EXISTS (
+                SELECT 1 FROM role_assignments ra
+                JOIN roles r ON r.id = ra.role_id AND r.archived_at IS NULL
+                WHERE ra.admin_user_id = s.admin_user_id
+                  AND ra.revoked_at IS NULL
+                  AND r.code = ANY($2::text[])
+              ) AS "hasActiveRole"
+       FROM sessions s
+       JOIN accounts a ON a.id = s.account_id
+       LEFT JOIN admin_users au ON au.id = s.admin_user_id
+       WHERE s.access_token_hash = $1
+       LIMIT 1`,
+      [
+        accessTokenHash,
+        [
+          'SUPER_ADMIN',
+          'OPERATIONS_ADMIN',
+          'FINANCE_OPERATOR',
+          'FINANCE_APPROVER',
+          'KYC_REVIEWER',
+          'SUPPORT_READONLY_AUDITOR',
+        ],
+      ],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  async touchAdminSession(sessionId: string, now: Date): Promise<void> {
+    await this.database.pool.query(
+      `UPDATE sessions
+       SET last_seen_at = $2,
+           idle_expires_at = LEAST($2 + interval '30 minutes', absolute_expires_at)
+       WHERE id = $1 AND actor_purpose = 'ADMIN' AND revoked_at IS NULL
+         AND idle_expires_at > $2 AND absolute_expires_at > $2
+         AND last_seen_at < $2 - interval '1 minute'`,
+      [sessionId, now],
+    );
   }
 
   async rotateSession(
@@ -133,11 +175,42 @@ export class PostgresAuthStore implements AuthStorePort {
         expires_at: Date;
         revoked_at: Date | null;
         status: AccountStatus;
+        actor_purpose: 'ACCOUNT' | 'ADMIN';
+        admin_user_id: string | null;
+        admin_status: 'ACTIVE' | 'SUSPENDED' | 'ARCHIVED' | null;
+        admin_archived_at: Date | null;
+        has_active_role: boolean;
+        idle_expires_at: Date | null;
+        absolute_expires_at: Date | null;
+        family_created_at: Date | null;
+        family_max_expires_at: Date | null;
+        mfa_recovery_used: boolean;
       }>(
-        `SELECT s.id, s.account_id, s.family_id, s.expires_at, s.revoked_at, a.status
+        `SELECT s.id, s.account_id, s.family_id, s.expires_at, s.revoked_at, a.status,
+                s.actor_purpose, s.admin_user_id, au.status AS admin_status,
+                au.archived_at AS admin_archived_at, s.idle_expires_at,
+                s.absolute_expires_at, s.family_created_at,
+                s.family_max_expires_at, s.mfa_recovery_used,
+                EXISTS (
+                  SELECT 1 FROM role_assignments ra
+                  JOIN roles r ON r.id = ra.role_id AND r.archived_at IS NULL
+                  WHERE ra.admin_user_id = s.admin_user_id AND ra.revoked_at IS NULL
+                    AND r.code = ANY($2::text[])
+                ) AS has_active_role
          FROM sessions s JOIN accounts a ON a.id = s.account_id
-         WHERE s.refresh_token_hash = $1 FOR UPDATE`,
-        [refreshTokenHash],
+         LEFT JOIN admin_users au ON au.id = s.admin_user_id
+         WHERE s.refresh_token_hash = $1 FOR UPDATE OF s`,
+        [
+          refreshTokenHash,
+          [
+            'SUPER_ADMIN',
+            'OPERATIONS_ADMIN',
+            'FINANCE_OPERATOR',
+            'FINANCE_APPROVER',
+            'KYC_REVIEWER',
+            'SUPPORT_READONLY_AUDITOR',
+          ],
+        ],
       );
       const session = current.rows[0];
       if (!session) {
@@ -155,27 +228,111 @@ export class PostgresAuthStore implements AuthStorePort {
         return { kind: 'REUSED' };
       }
       if (session.status !== 'ACTIVE') {
-        await client.query('ROLLBACK');
+        await client.query(
+          `UPDATE sessions SET revoked_at = COALESCE(revoked_at, $2),
+             revoke_reason = COALESCE(revoke_reason, 'ACCOUNT_INACTIVE')
+           WHERE account_id = $1`,
+          [session.account_id, now],
+        );
+        await client.query('COMMIT');
         return { kind: 'INACTIVE' };
+      }
+      if (
+        session.actor_purpose === 'ADMIN' &&
+        (session.admin_status !== 'ACTIVE' ||
+          session.admin_archived_at ||
+          !session.has_active_role)
+      ) {
+        await client.query(
+          `UPDATE sessions SET revoked_at = COALESCE(revoked_at, $2),
+             revoke_reason = COALESCE(revoke_reason, 'ADMIN_ACCESS_REMOVED')
+           WHERE admin_user_id = $1 AND actor_purpose = 'ADMIN'`,
+          [session.admin_user_id, now],
+        );
+        await client.query('COMMIT');
+        return { kind: 'INACTIVE' };
+      }
+      if (
+        session.actor_purpose === 'ADMIN' &&
+        session.absolute_expires_at! <= now
+      ) {
+        await client.query(
+          `UPDATE sessions SET revoked_at = COALESCE(revoked_at, $2), revoke_reason = 'ABSOLUTE_EXPIRED'
+           WHERE family_id = $1`,
+          [session.family_id, now],
+        );
+        await client.query('COMMIT');
+        return { kind: 'ABSOLUTE_EXPIRED' };
+      }
+      if (
+        session.actor_purpose === 'ADMIN' &&
+        session.family_max_expires_at! <= now
+      ) {
+        await client.query(
+          `UPDATE sessions SET revoked_at = COALESCE(revoked_at, $2), revoke_reason = 'FAMILY_EXPIRED'
+           WHERE family_id = $1`,
+          [session.family_id, now],
+        );
+        await client.query('COMMIT');
+        return { kind: 'FAMILY_EXPIRED' };
+      }
+      if (
+        session.actor_purpose === 'ADMIN' &&
+        session.idle_expires_at! <= now
+      ) {
+        await client.query(
+          `UPDATE sessions SET revoked_at = COALESCE(revoked_at, $2), revoke_reason = 'IDLE_EXPIRED'
+           WHERE id = $1`,
+          [session.id, now],
+        );
+        await client.query('COMMIT');
+        return { kind: 'IDLE_EXPIRED' };
       }
       if (session.expires_at <= now) {
         await client.query('ROLLBACK');
         return { kind: 'EXPIRED' };
       }
+      const accessExpiresAt = session.absolute_expires_at
+        ? new Date(
+            Math.min(
+              replacement.accessExpiresAt.getTime(),
+              session.absolute_expires_at.getTime(),
+            ),
+          )
+        : replacement.accessExpiresAt;
+      const refreshExpiresAt = session.absolute_expires_at
+        ? new Date(
+            Math.min(
+              replacement.refreshExpiresAt.getTime(),
+              session.absolute_expires_at.getTime(),
+              session.family_max_expires_at!.getTime(),
+            ),
+          )
+        : replacement.refreshExpiresAt;
       const inserted = await client.query<{ id: string }>(
         `INSERT INTO sessions
           (account_id, family_id, access_token_hash, refresh_token_hash,
-           access_expires_at, expires_at, ip_address, user_agent)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+           access_expires_at, expires_at, ip_address, user_agent, actor_purpose,
+           admin_user_id, idle_expires_at, absolute_expires_at,
+           family_created_at, family_max_expires_at, mfa_recovery_used)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                 $11, $12, $13, $14, $15) RETURNING id`,
         [
           session.account_id,
           session.family_id,
           replacement.accessTokenHash,
           replacement.refreshTokenHash,
-          replacement.accessExpiresAt,
-          replacement.refreshExpiresAt,
+          accessExpiresAt,
+          refreshExpiresAt,
           replacement.metadata.ipAddress ?? null,
           replacement.metadata.userAgent ?? null,
+          session.actor_purpose,
+          session.admin_user_id,
+          session.idle_expires_at,
+          session.absolute_expires_at,
+          session.family_created_at,
+          session.family_max_expires_at,
+          session.mfa_recovery_used,
         ],
       );
       const replacementId = inserted.rows[0]?.id;
@@ -190,6 +347,8 @@ export class PostgresAuthStore implements AuthStorePort {
         kind: 'ROTATED',
         sessionId: replacementId,
         accountId: session.account_id,
+        accessExpiresAt,
+        refreshExpiresAt,
       };
     } catch (error) {
       await client.query('ROLLBACK');
@@ -215,6 +374,24 @@ export class PostgresAuthStore implements AuthStorePort {
       )
       .returning({ id: sessions.id });
     return rows.length === 1;
+  }
+
+  async revokeAdminSessions(
+    adminUserId: string,
+    reason: string,
+    now: Date,
+  ): Promise<number> {
+    const result = await this.database.pool.query(
+      `UPDATE sessions SET revoked_at = $3, revoke_reason = $2
+       WHERE admin_user_id = $1 AND actor_purpose = 'ADMIN' AND revoked_at IS NULL`,
+      [adminUserId, reason, now],
+    );
+    await this.database.pool.query(
+      `UPDATE admin_step_up_grants SET revoked_at = $2
+       WHERE admin_user_id = $1 AND used_at IS NULL AND revoked_at IS NULL`,
+      [adminUserId, now],
+    );
+    return result.rowCount ?? 0;
   }
 
   async createOtp(otp: NewOtp): Promise<void> {

@@ -24,6 +24,7 @@ export interface RequestActor {
   accountId: string;
   sessionId: string;
   adminUserId?: string;
+  mfaRecoveryUsed?: boolean;
 }
 
 export interface AuthTokens {
@@ -49,6 +50,29 @@ export interface SessionRecord {
   expiresAt: Date;
   revokedAt: Date | null;
   adminUserId: string | null;
+  actorPurpose: 'ACCOUNT' | 'ADMIN';
+  adminStatus: 'ACTIVE' | 'SUSPENDED' | 'ARCHIVED' | null;
+  adminArchivedAt: Date | null;
+  hasActiveRole: boolean;
+  idleExpiresAt: Date | null;
+  absoluteExpiresAt: Date | null;
+  familyMaxExpiresAt: Date | null;
+  mfaRecoveryUsed: boolean;
+}
+
+export interface AdminSessionSummary {
+  id: string;
+  deviceLabel: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: Date;
+  lastActivityAt: Date;
+  idleExpiresAt: Date;
+  absoluteExpiresAt: Date;
+  familyMaxExpiresAt: Date;
+  current: boolean;
+  revokedAt: Date | null;
+  revokeReason: string | null;
 }
 
 export interface OtpRecord {
