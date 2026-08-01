@@ -47,6 +47,70 @@
   text-align: left;
 }
 
+.admin-navigation {
+  position: sticky;
+  top: 64px;
+  height: calc(100dvh - 64px);
+  overflow-y: auto;
+  padding: var(--ip-space-2);
+  border-right: 1px solid var(--ip-color-border);
+  background: var(--ip-color-surface);
+}
+
+.admin-navigation section + section {
+  margin-top: var(--ip-space-2);
+}
+
+.admin-navigation h2 {
+  margin: 0 0 var(--ip-space-0-5);
+  padding-inline: var(--ip-space-1);
+  color: var(--ip-color-text-subtle);
+  font-size: var(--ip-font-size-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-navigation ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-navigation a,
+.admin-navigation li > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  padding: var(--ip-space-1);
+  border-radius: var(--ip-radius-sm);
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-body-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.admin-navigation a:hover {
+  color: var(--ip-color-text);
+  background: var(--ip-color-surface-muted);
+}
+
+.admin-navigation a[aria-current='page'] {
+  color: var(--ip-color-primary-active);
+  background: var(--ip-color-primary-soft);
+}
+
+.admin-navigation a span {
+  color: var(--ip-color-warning);
+  font-size: var(--ip-font-size-caption);
+}
+
+.admin-navigation li > span[aria-disabled='true'] {
+  opacity: 0.55;
+}
+
 .admin-topbar-context {
   display: flex;
   align-items: center;
@@ -127,6 +191,34 @@
 .admin-recovery-codes li {
   margin-bottom: var(--ip-space-1);
   break-inside: avoid;
+}
+
+.admin-loading {
+  display: grid;
+  gap: var(--ip-space-3);
+  padding-block: var(--ip-space-4);
+}
+
+.admin-shell-state {
+  margin-top: var(--ip-space-3);
+}
+
+.admin-shell-state .ip-empty-state {
+  padding-block: var(--ip-space-4);
+}
+
+.admin-prerequisite {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--ip-space-1);
+  margin: 0;
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-body-sm);
+}
+
+.admin-prerequisite span {
+  font-weight: 700;
 }
 
 .admin-not-found {

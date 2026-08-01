@@ -415,7 +415,7 @@ function gate(capability: string, blockedPrerequisite: string): CapabilityGate {
 }
 
 function route(
-  id: string,
+  id: AdminRouteId,
   title: string,
   path: string,
   navigationGroup: NavigationGroup | 'Public access',
@@ -425,7 +425,7 @@ function route(
   loader: RouteLoader = 'bootstrap',
   navigation = true,
   capabilityGate?: CapabilityGate,
-): AdminRouteDefinition {
+): AdminRouteDefinition & { id: AdminRouteId } {
   return {
     id,
     title,

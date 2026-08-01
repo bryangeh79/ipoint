@@ -195,7 +195,17 @@ function mergeSignals(...signals: (AbortSignal | undefined)[]): {
 export function describeApiError(error: unknown): {
   title: string;
   detail: string;
-  kind: 'offline' | 'forbidden' | 'market' | 'expired' | 'validation' | 'error';
+  kind:
+    | 'offline'
+    | 'forbidden'
+    | 'market'
+    | 'expired'
+    | 'validation'
+    | 'suspended'
+    | 'conflict'
+    | 'stale'
+    | 'blocked'
+    | 'error';
 } {
   if (!(error instanceof ApiError)) {
     return { title: 'Unexpected error', detail: String(error), kind: 'error' };
@@ -203,17 +213,75 @@ export function describeApiError(error: unknown): {
   if (error.status === 0) {
     return { title: 'You are offline', detail: error.message, kind: 'offline' };
   }
-  if (error.status === 401) {
+  const code = error.body.code;
+  if (
+    code &&
+    [
+      'SESSION_IDLE_EXPIRED',
+      'SESSION_ABSOLUTE_EXPIRED',
+      'SESSION_FAMILY_EXPIRED',
+      'SESSION_REUSE_DETECTED',
+      'SESSION_REVOKED',
+      'ADMIN_AUTHENTICATION_REQUIRED',
+    ].includes(code)
+  ) {
     return { title: 'Session expired', detail: error.message, kind: 'expired' };
   }
-  if (error.isMarketAccessError) {
+  if (code === 'ADMIN_ACCOUNT_SUSPENDED') {
     return {
-      title: 'Market access denied',
+      title: 'Admin access suspended',
+      detail: error.message,
+      kind: 'suspended',
+    };
+  }
+  if (
+    code &&
+    [
+      'MARKET_ACCESS_DENIED',
+      'MARKET_SELECTION_REQUIRED',
+      'MARKET_CONTEXT_MISMATCH',
+      'RESOURCE_MARKET_MISMATCH',
+      'MARKET_INACTIVE',
+    ].includes(code)
+  ) {
+    return {
+      title:
+        code === 'MARKET_CONTEXT_MISMATCH'
+          ? 'Market context changed'
+          : 'Market access denied',
       detail: error.message,
       kind: 'market',
     };
   }
-  if (error.status === 403) {
+  if (code === 'CAPABILITY_UNAVAILABLE' || code === 'FEATURE_DEFERRED') {
+    return {
+      title: 'Capability unavailable',
+      detail: error.message,
+      kind: 'blocked',
+    };
+  }
+  if (code === 'DASHBOARD_DATA_STALE') {
+    return { title: 'Data is stale', detail: error.message, kind: 'stale' };
+  }
+  if (
+    error.status === 409 ||
+    code?.endsWith('_CONFLICT') ||
+    code === 'CONCURRENCY_STALE_VERSION'
+  ) {
+    return {
+      title: 'Server state changed',
+      detail: error.message,
+      kind: 'conflict',
+    };
+  }
+  if (error.status === 401) {
+    return {
+      title: 'Sign in required',
+      detail: error.message,
+      kind: 'expired',
+    };
+  }
+  if (error.status === 403 || code === 'PERMISSION_DENIED') {
     return {
       title: 'Permission denied',
       detail: error.message,
