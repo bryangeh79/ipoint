@@ -56,6 +56,12 @@ export function Dialog({
     lastFocusedRef.current = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      onClose();
+    };
+    document.addEventListener('keydown', handleEscape);
     const frame = requestAnimationFrame(() => {
       const target =
         initialFocusRef?.current ??
@@ -65,17 +71,13 @@ export function Dialog({
     });
     return () => {
       cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = previousOverflow;
       lastFocusedRef.current?.focus();
     };
-  }, [initialFocusRef, open]);
+  }, [initialFocusRef, onClose, open]);
 
   function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
-    if (event.key === 'Escape') {
-      event.stopPropagation();
-      onClose();
-      return;
-    }
     if (event.key !== 'Tab' || !panelRef.current) return;
     const items = Array.from(
       panelRef.current.querySelectorAll<HTMLElement>(focusableSelector),

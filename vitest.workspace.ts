@@ -16,6 +16,7 @@ export default defineConfig({
             'packages/database/tests/p5-s1-schema.test.ts',
             'apps/api/src/__tests__/app.e2e.spec.ts',
             'apps/member-web/**',
+            'apps/admin-web/**',
             '**/.git/**',
             '**/.acceptance-evidence/**',
             '**/.acceptance/**',
@@ -27,6 +28,7 @@ export default defineConfig({
         },
       },
       './apps/member-web/vitest.config.ts',
+      './apps/admin-web/vitest.config.ts',
     ],
   },
 });

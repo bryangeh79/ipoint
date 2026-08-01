@@ -34,6 +34,7 @@ export interface ApiErrorBody {
   message?: string | string[];
   errors?: unknown;
   requestId?: string;
+  details?: Readonly<Record<string, unknown>>;
 }
 
 interface ApiErrorEnvelope {
@@ -194,7 +195,17 @@ function mergeSignals(...signals: (AbortSignal | undefined)[]): {
 export function describeApiError(error: unknown): {
   title: string;
   detail: string;
-  kind: 'offline' | 'forbidden' | 'market' | 'expired' | 'validation' | 'error';
+  kind:
+    | 'offline'
+    | 'forbidden'
+    | 'market'
+    | 'expired'
+    | 'validation'
+    | 'suspended'
+    | 'conflict'
+    | 'stale'
+    | 'blocked'
+    | 'error';
 } {
   if (!(error instanceof ApiError)) {
     return { title: 'Unexpected error', detail: String(error), kind: 'error' };
@@ -202,17 +213,75 @@ export function describeApiError(error: unknown): {
   if (error.status === 0) {
     return { title: 'You are offline', detail: error.message, kind: 'offline' };
   }
-  if (error.status === 401) {
+  const code = error.body.code;
+  if (
+    code &&
+    [
+      'SESSION_IDLE_EXPIRED',
+      'SESSION_ABSOLUTE_EXPIRED',
+      'SESSION_FAMILY_EXPIRED',
+      'SESSION_REUSE_DETECTED',
+      'SESSION_REVOKED',
+      'ADMIN_AUTHENTICATION_REQUIRED',
+    ].includes(code)
+  ) {
     return { title: 'Session expired', detail: error.message, kind: 'expired' };
   }
-  if (error.isMarketAccessError) {
+  if (code === 'ADMIN_ACCOUNT_SUSPENDED') {
     return {
-      title: 'Market access denied',
+      title: 'Admin access suspended',
+      detail: error.message,
+      kind: 'suspended',
+    };
+  }
+  if (
+    code &&
+    [
+      'MARKET_ACCESS_DENIED',
+      'MARKET_SELECTION_REQUIRED',
+      'MARKET_CONTEXT_MISMATCH',
+      'RESOURCE_MARKET_MISMATCH',
+      'MARKET_INACTIVE',
+    ].includes(code)
+  ) {
+    return {
+      title:
+        code === 'MARKET_CONTEXT_MISMATCH'
+          ? 'Market context changed'
+          : 'Market access denied',
       detail: error.message,
       kind: 'market',
     };
   }
-  if (error.status === 403) {
+  if (code === 'CAPABILITY_UNAVAILABLE' || code === 'FEATURE_DEFERRED') {
+    return {
+      title: 'Capability unavailable',
+      detail: error.message,
+      kind: 'blocked',
+    };
+  }
+  if (code === 'DASHBOARD_DATA_STALE') {
+    return { title: 'Data is stale', detail: error.message, kind: 'stale' };
+  }
+  if (
+    error.status === 409 ||
+    code?.endsWith('_CONFLICT') ||
+    code === 'CONCURRENCY_STALE_VERSION'
+  ) {
+    return {
+      title: 'Server state changed',
+      detail: error.message,
+      kind: 'conflict',
+    };
+  }
+  if (error.status === 401) {
+    return {
+      title: 'Sign in required',
+      detail: error.message,
+      kind: 'expired',
+    };
+  }
+  if (error.status === 403 || code === 'PERMISSION_DENIED') {
     return {
       title: 'Permission denied',
       detail: error.message,
@@ -252,7 +321,7 @@ export class ApiClient {
   private refreshPromise: Promise<boolean> | null = null;
 
   /** Callback invoked when the session is cleared (e.g. refresh failure). */
-  public onSessionExpired: (() => void) | null = null;
+  public onSessionExpired: ((code?: string) => void) | null = null;
 
   constructor(
     private readonly baseUrl: string,
@@ -304,12 +373,12 @@ export class ApiClient {
     this._refreshToken = tokens.refreshToken ?? null;
   }
 
-  clearSession(): void {
+  clearSession(code?: string): void {
     this._accessToken = null;
     this._refreshToken = null;
     this.refreshPromise = null;
     dispatchSessionEvent('session-cleared');
-    this.onSessionExpired?.();
+    this.onSessionExpired?.(code);
   }
 
   /**
@@ -482,6 +551,11 @@ export class ApiClient {
 
     // ---- 401 handling with single-flight refresh ----
     if (response.status === 401 && !options?.skipAuth) {
+      const originalError = await toApiError(response.clone());
+      if (isTerminalAdminSessionCode(originalError.body.code)) {
+        this.clearSession(originalError.body.code);
+        throw originalError;
+      }
       const refreshed = await this.singleFlightRefresh();
       if (refreshed) {
         // Retry the original request exactly once with the new token
@@ -621,4 +695,324 @@ async function toApiError(response: Response): Promise<ApiError> {
     body = { message: response.statusText };
   }
   return new ApiError(response.status, body);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Phase 7 Admin Operations typed client                              */
+/* ------------------------------------------------------------------ */
+
+export interface AdminPasswordRequest {
+  email: string;
+  password: string;
+}
+
+export interface AdminLoginChallengeDto {
+  code: 'MFA_REQUIRED';
+  mfa_challenge_id: string;
+  expires_at: string;
+}
+
+export interface AdminMfaEnrollmentStartDto {
+  enrollment_challenge_id: string;
+  otpauth_uri: string;
+  expires_at: string;
+}
+
+export interface AdminMfaEnrollmentConfirmationDto {
+  recovery_codes: string[];
+}
+
+export interface AdminMfaCodeRequest {
+  challenge_id: string;
+  code: string;
+}
+
+export interface AdminMfaRecoveryRequest {
+  challenge_id: string;
+  recovery_code: string;
+}
+
+export interface AdminStepUpStartRequest {
+  action_class: string;
+  market_id?: string;
+  target?: string;
+}
+
+export interface AdminStepUpChallengeDto {
+  step_up_challenge_id: string;
+  expires_at: string;
+}
+
+export interface AdminStepUpVerificationDto {
+  step_up_token: string;
+  expires_at: string;
+}
+
+export interface AdminMfaResetRequest {
+  target_admin_user_id: string;
+  confirming_admin_user_id: string;
+  reason: string;
+  case_reference: string;
+  step_up_token: string;
+}
+
+export interface AdminMfaResetResultDto {
+  revokedSessions: number;
+}
+
+export interface AdminActorDto {
+  id: string;
+  accountId: string;
+  displayName: string;
+  status: 'ACTIVE' | 'SUSPENDED' | 'ARCHIVED';
+}
+
+export interface AdminRoleDto {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface AdminMarketDto {
+  id: string;
+  code: string;
+  name: string;
+  currencyCode: string;
+  timezone: string;
+  locale: string;
+  grantedAt: string;
+  isSelected: boolean;
+}
+
+export interface AdminBootstrapDto {
+  actor: AdminActorDto;
+  roles: AdminRoleDto[];
+  effectivePermissions: string[];
+  accessibleMarkets: AdminMarketDto[];
+  currentMarket: AdminMarketDto | null;
+  contextVersion: number;
+  availability: {
+    operationalWorkspace: 'AVAILABLE' | 'MARKET_SELECTION_UNAVAILABLE';
+  };
+  asOf: string;
+}
+
+export interface AdminMarketListDto {
+  items: AdminMarketDto[];
+  currentMarketId: string | null;
+  contextVersion: number;
+  asOf: string;
+}
+
+export interface SelectCurrentAdminMarketRequest {
+  market_id: string;
+  expected_context_version: number;
+}
+
+export interface CurrentAdminMarketDto {
+  marketId: string;
+  contextVersion: number;
+  selectedAt: string | null;
+}
+
+export interface AdminSessionDto {
+  id: string;
+  deviceLabel: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  lastActivityAt: string;
+  idleExpiresAt: string;
+  absoluteExpiresAt: string;
+  familyMaxExpiresAt: string;
+  current: boolean;
+  revokedAt: string | null;
+  revokeReason: string | null;
+}
+
+export interface AdminSessionPageDto {
+  sessions: AdminSessionDto[];
+}
+
+export interface CurrentAdminSessionDto {
+  valid: true;
+  session_id: string;
+  admin_user_id: string;
+  mfa_recovery_used: boolean;
+}
+
+export interface AdminSessionRevocationSummaryDto {
+  revokedCount: number;
+}
+
+/**
+ * Exact typed surface consumed by Admin Web. Paths and DTO field names mirror
+ * the accepted P7-S2 controllers; no shape probing or message parsing occurs.
+ */
+export class AdminApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  get isAuthenticated(): boolean {
+    return this.client.isAuthenticated;
+  }
+
+  get tokens(): AuthTokens | undefined {
+    return this.client.tokens;
+  }
+
+  set onSessionExpired(callback: ((code?: string) => void) | null) {
+    this.client.onSessionExpired = callback;
+  }
+
+  clearSession(code?: string): void {
+    this.client.clearSession(code);
+  }
+
+  async beginLogin(
+    input: AdminPasswordRequest,
+  ): Promise<AdminLoginChallengeDto> {
+    return (
+      await this.client.post<AdminLoginChallengeDto>(
+        '/auth/admin/login',
+        input,
+        {
+          skipAuth: true,
+        },
+      )
+    ).data;
+  }
+
+  async startMfaEnrollment(
+    input: AdminPasswordRequest,
+  ): Promise<AdminMfaEnrollmentStartDto> {
+    return (
+      await this.client.post<AdminMfaEnrollmentStartDto>(
+        '/auth/admin/mfa/enrollment/start',
+        input,
+        { skipAuth: true },
+      )
+    ).data;
+  }
+
+  async confirmMfaEnrollment(
+    input: AdminMfaCodeRequest,
+  ): Promise<AdminMfaEnrollmentConfirmationDto> {
+    return (
+      await this.client.post<AdminMfaEnrollmentConfirmationDto>(
+        '/auth/admin/mfa/enrollment/confirm',
+        input,
+        { skipAuth: true },
+      )
+    ).data;
+  }
+
+  async completeMfaChallenge(input: AdminMfaCodeRequest): Promise<AuthTokens> {
+    const tokens = (
+      await this.client.post<AuthTokens>('/auth/admin/mfa/challenge', input, {
+        skipAuth: true,
+      })
+    ).data;
+    this.client.setTokens(tokens);
+    dispatchSessionEvent('session-restored');
+    return tokens;
+  }
+
+  async recoverWithMfa(input: AdminMfaRecoveryRequest): Promise<AuthTokens> {
+    const tokens = (
+      await this.client.post<AuthTokens>('/auth/admin/mfa/recovery', input, {
+        skipAuth: true,
+      })
+    ).data;
+    this.client.setTokens(tokens);
+    dispatchSessionEvent('session-restored');
+    return tokens;
+  }
+
+  async beginStepUp(
+    input: AdminStepUpStartRequest,
+  ): Promise<AdminStepUpChallengeDto> {
+    return (
+      await this.client.post<AdminStepUpChallengeDto>(
+        '/auth/admin/mfa/step-up/challenge',
+        input,
+      )
+    ).data;
+  }
+
+  async verifyStepUp(
+    input: AdminMfaCodeRequest,
+  ): Promise<AdminStepUpVerificationDto> {
+    return (
+      await this.client.post<AdminStepUpVerificationDto>(
+        '/auth/admin/mfa/step-up/verify',
+        input,
+      )
+    ).data;
+  }
+
+  async resetMfa(input: AdminMfaResetRequest): Promise<AdminMfaResetResultDto> {
+    return (
+      await this.client.post<AdminMfaResetResultDto>(
+        '/auth/admin/mfa/reset',
+        input,
+      )
+    ).data;
+  }
+
+  async bootstrap(): Promise<AdminBootstrapDto> {
+    return (await this.client.get<AdminBootstrapDto>('/admin/bootstrap')).data;
+  }
+
+  async markets(): Promise<AdminMarketListDto> {
+    return (await this.client.get<AdminMarketListDto>('/admin/me/markets'))
+      .data;
+  }
+
+  async selectCurrentMarket(
+    input: SelectCurrentAdminMarketRequest,
+  ): Promise<CurrentAdminMarketDto> {
+    return (
+      await this.client.put<CurrentAdminMarketDto>(
+        '/admin/me/current-market',
+        input,
+      )
+    ).data;
+  }
+
+  async sessions(): Promise<AdminSessionPageDto> {
+    return (await this.client.get<AdminSessionPageDto>('/admin/sessions')).data;
+  }
+
+  async currentSession(): Promise<CurrentAdminSessionDto> {
+    return (
+      await this.client.get<CurrentAdminSessionDto>('/admin/sessions/current')
+    ).data;
+  }
+
+  async revokeSession(sessionId: string): Promise<void> {
+    await this.client.delete<void>(
+      `/admin/sessions/${encodeURIComponent(sessionId)}`,
+    );
+  }
+
+  async revokeAllSessions(): Promise<AdminSessionRevocationSummaryDto> {
+    return (
+      await this.client.delete<AdminSessionRevocationSummaryDto>(
+        '/admin/sessions',
+      )
+    ).data;
+  }
+}
+
+function isTerminalAdminSessionCode(code: string | undefined): boolean {
+  return Boolean(
+    code &&
+    [
+      'SESSION_IDLE_EXPIRED',
+      'SESSION_ABSOLUTE_EXPIRED',
+      'SESSION_FAMILY_EXPIRED',
+      'SESSION_REUSE_DETECTED',
+      'SESSION_REVOKED',
+    ].includes(code),
+  );
 }
