@@ -114,4 +114,20 @@ Each real-DB suite ran on a newly created isolated test DB on the iPoint Postgre
 - Executor provenance: `docs/00-master/EXECUTOR_PROVENANCE_REGISTER.md` (P7-S5A/B/C/FIX entries).
 - Status is NOT Command Center acceptance/closure/freeze.
 
+## 8. OpenClaw independent gate re-verification (2026-08-04, post-merge addendum)
+
+OpenClaw re-ran the combined §4 gate from the final integrated tree (phase HEAD `11088bab`) on freshly created isolated databases (`ipoint_gate_dash` / `ipoint_gate_mem` / `ipoint_gate_mer` / `ipoint_gate_kyc`, each DROP+CREATE before its suite; migrations applied in `beforeAll`):
+
+| Gate | Result |
+|---|---|
+| API typecheck / Admin Web typecheck / API Client typecheck | exit 0 x3 |
+| API Client tests | 49/49 |
+| Admin Web tests | 147/147 |
+| Dashboard integration (fresh DB) | 14/14 |
+| Member Operations integration (fresh DB) | 24/24 |
+| Merchant Operations integration (fresh DB) | 11/11 |
+| KYC ops suite (fresh DB) | 69/69 (33 unit + 36 integration) |
+
+Combined with the per-task counts already recorded (dashboard unit 16/16 + deterministic 3/3; member unit 18/18; merchant unit 6/6; client/web suites above), the Command Center §4 combined gate is independently confirmed.
+
 `P7-S5_DELIVERY_COMPLETE` / `P7-S5_OPENCLAW_INTERNAL_GATE_PASSED` / `CONTINUING_UNDER_D-047_AND_D-048`
