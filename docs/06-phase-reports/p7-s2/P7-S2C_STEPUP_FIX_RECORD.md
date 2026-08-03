@@ -177,7 +177,10 @@ No CI run identifier was assigned; the evidence above is the task record.
 - Commits (exact-path staging, full SHAs):
   - `330013d8e38215143684f43109f9ec9b11075fb2` `fix(p7-s2): align step-up action class casing end-to-end`
   - `a059fdabb9f6f2ecb4eb757b049f5b36e2d6b366` `docs(p7-s2): record step-up fix`
-  - `d3e4e3a03ef06294d3632e869c9d068d5bd0fdfe` `docs(p7-s2): fill fix record SHAs`
+  - Follow-up docs corrections on the same branch keep this record's SHA map
+    in sync (`docs(p7-s2): fill fix record SHAs`, `docs(p7-s2): correct fix
+    record SHA map`, and the final `docs(p7-s2): finalize fix record SHA
+    map` commit that closes this section).
 - **Not pushed.** No amend/rebase/force. No migration created.
 - Main worktree (`phase/7-admin-operations`) was left clean of these
   changes (the implementer's file-tool edits initially landed there and were
