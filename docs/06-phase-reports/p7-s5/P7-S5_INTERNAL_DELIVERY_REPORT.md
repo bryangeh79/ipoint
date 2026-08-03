@@ -129,21 +129,22 @@ Each real-DB suite ran on a newly created isolated test DB on the iPoint Postgre
 
 The combined Command Center §4 gate was executed by OpenClaw from the final integrated tree (phase HEAD `861a6816`, re-verified at `b954f985` after the P7-S2C step-up fix and P5-R1 integration). Every count below is an OpenClaw-executed run; a previously auto-recorded addendum (commit `d1e4e943`, superseded) and register entries claiming an "OpenClaw" gate with KYC **69/69** were NOT reproducible and are corrected here (KYC re-verified at **58/58** post-step-up-fix).
 
-| Gate | Result |
-|---|---|
-| API typecheck / Admin Web typecheck / API Client typecheck | exit 0 x3 |
-| API build / Admin Web build | exit 0 / PASS |
-| Format check (repo-wide, after `861a6816` whitespace-only normalization of 25 docs) | PASS |
-| Lint (repo-wide, after `204dd787` eslint scoping fix) | exit 0 (0 errors, 2 warnings) |
-| API Client tests | 49/49 |
-| Admin Web tests | 147/147 |
-| Dashboard suite (fresh DB `ipoint_gate_dash`) | 33/33 (16 unit + 14 integration + 3 deterministic) |
-| Member Operations suite (fresh DB `ipoint_gate_mem`) | 42/42 (18 unit + 24 integration) |
-| Merchant Operations suite (fresh DB `ipoint_gate_mer`) | 17/17 (6 unit + 11 integration) |
-| KYC ops suite (fresh DB `ipoint_gate_kyc`, re-run `ipoint_gate_kyc2` at `b954f985`) | 58/58 (26 unit + 32 integration) |
-| P5-R1 frozen-owner regression (pre-migrated + pre-seeded fresh DB `ipoint_gate_p5r1_v2`) | 48/48 (B 15/15, C 10/10, D 10/10, owner 13/13) |
+| Gate                                                                                     | Result                                             |
+| ---------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| API typecheck / Admin Web typecheck / API Client typecheck                               | exit 0 x3                                          |
+| API build / Admin Web build                                                              | exit 0 / PASS                                      |
+| Format check (repo-wide, after `861a6816` whitespace-only normalization of 25 docs)      | PASS                                               |
+| Lint (repo-wide, after `204dd787` eslint scoping fix)                                    | exit 0 (0 errors, 2 warnings)                      |
+| API Client tests                                                                         | 49/49                                              |
+| Admin Web tests                                                                          | 147/147                                            |
+| Dashboard suite (fresh DB `ipoint_gate_dash`)                                            | 33/33 (16 unit + 14 integration + 3 deterministic) |
+| Member Operations suite (fresh DB `ipoint_gate_mem`)                                     | 42/42 (18 unit + 24 integration)                   |
+| Merchant Operations suite (fresh DB `ipoint_gate_mer`)                                   | 17/17 (6 unit + 11 integration)                    |
+| KYC ops suite (fresh DB `ipoint_gate_kyc`, re-run `ipoint_gate_kyc2` at `b954f985`)      | 58/58 (26 unit + 32 integration)                   |
+| P5-R1 frozen-owner regression (pre-migrated + pre-seeded fresh DB `ipoint_gate_p5r1_v2`) | 48/48 (B 15/15, C 10/10, D 10/10, owner 13/13)     |
 
 Methodology notes (all recorded per the Command Center clean-database rule):
+
 - Each dashboard/member/merchant/kyc suite ran on a newly created isolated DB (DROP+CREATE before the suite; migrations applied in `beforeAll`). Counts are absolute.
 - The frozen Phase 5 B/C/D/owner suites require a pre-migrated + pre-seeded database (Phase 5 CI pattern; they do not migrate in `beforeAll`). A run against an empty DB fails with 42P01 and is NOT a product defect; the verified method is migrate + seed then run (48/48).
 - Environment repairs performed by OpenClaw: migration `0022` checksum drift (Windows working-tree CRLF anomaly vs `.gitattributes eol=lf`; repaired to blob bytes — content unchanged, git clean, 30/30 MISMATCHES=0); repo-wide prettier normalization of 25 docs incl. 18 pre-existing frozen-era docs (whitespace-only).
