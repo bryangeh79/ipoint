@@ -591,3 +591,124 @@
     justify-content: flex-start;
   }
 }
+
+/* ---------------------------------------------------------------- */
+/*  P7-S5B Admin Merchant Operations                                 */
+/*  Styles use the existing design tokens only (8pt spacing, green   */
+/*  primary, surface/border/text tokens). No new design language.    */
+/* ---------------------------------------------------------------- */
+
+.admin-merchants-panel,
+.admin-merchant-detail {
+  display: grid;
+  gap: var(--ip-space-3);
+}
+
+.admin-merchants-table .ip-table-scroll {
+  margin-block: var(--ip-space-2);
+}
+
+.admin-merchants-id {
+  display: block;
+  margin-top: 2px;
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-caption);
+  font-family: var(--ip-font-mono, monospace);
+}
+
+.admin-merchants-more {
+  display: flex;
+  justify-content: center;
+  padding-block: var(--ip-space-2);
+}
+
+.admin-merchant-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: var(--ip-space-3);
+}
+
+.admin-merchant-section {
+  min-width: 0;
+}
+
+.admin-merchant-section h2 {
+  margin: 0 0 var(--ip-space-1);
+  font-size: var(--ip-font-size-h3);
+}
+
+.admin-merchant-section h3 {
+  margin: 0 0 var(--ip-space-1);
+  font-size: var(--ip-font-size-body);
+}
+
+.admin-merchant-section__description {
+  margin: 0 0 var(--ip-space-2);
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-caption);
+}
+
+.admin-merchant-definition {
+  display: grid;
+  gap: var(--ip-space-1);
+  margin: 0;
+}
+
+.admin-merchant-definition > div {
+  display: grid;
+  grid-template-columns: minmax(9rem, 40%) 1fr;
+  gap: var(--ip-space-2);
+  align-items: baseline;
+  padding-block: var(--ip-space-0-5);
+  border-bottom: 1px solid var(--ip-color-border);
+}
+
+.admin-merchant-definition dt {
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-caption);
+}
+
+.admin-merchant-definition dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-merchant-empty-inline {
+  margin: var(--ip-space-2) 0 0;
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-caption);
+}
+
+.admin-merchant-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: var(--ip-space-3);
+  margin-top: var(--ip-space-2);
+}
+
+.admin-merchant-action-form {
+  display: grid;
+  gap: var(--ip-space-2);
+  align-content: start;
+  padding: var(--ip-space-2);
+  border: 1px solid var(--ip-color-border);
+  border-radius: var(--ip-radius-sm);
+}
+
+.admin-merchant-action-form__note {
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-caption);
+}
+
+/* 320px mobile: single column, no horizontal overflow. */
+@media (max-width: 480px) {
+  .admin-merchant-detail-grid,
+  .admin-merchant-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-merchant-definition > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}

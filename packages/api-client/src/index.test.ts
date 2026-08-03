@@ -5,6 +5,7 @@ import {
   AdminApiClient,
   AdminDashboardCatalogDto,
   AdminDashboardMetricDetailDto,
+  AdminMerchantApiClient,
   ApiClient,
   ApiError,
 } from './index.js';
@@ -723,4 +724,223 @@ describe('AdminApiClient', () => {
       expect(core.isAuthenticated).toBe(false);
     },
   );
+});
+
+describe('AdminMerchantApiClient (P7-S5B merchant operations)', () => {
+  const merchantApi = new AdminMerchantApiClient(createClient());
+  const MARKET = '11111111-1111-1111-1111-111111111111';
+  const BRANCH = '22222222-2222-2222-2222-222222222222';
+  const ACCOUNT = '33333333-3333-3333-3333-333333333333';
+
+  function lastCall(mock: ReturnType<typeof mockFetch>) {
+    return {
+      url: mock.mock.calls[0]?.[0] as string,
+      init: mock.mock.calls[0]?.[1] as RequestInit,
+    };
+  }
+
+  it('lists merchant applications with query parameters (owner queue)', async () => {
+    const mock = mockFetch(200, [{ application_id: 'app-1' }]);
+    const result = await merchantApi.merchantApplications(MARKET, {
+      status: 'SUBMITTED',
+      limit: 25,
+      offset: 50,
+    });
+    expect(result[0]?.application_id).toBe('app-1');
+    const { url, init } = lastCall(mock);
+    expect(url).toBe(
+      `${BASE_URL}/admin/markets/${MARKET}/merchants/applications?status=SUBMITTED&limit=25&offset=50`,
+    );
+    expect(init.method).toBe('GET');
+  });
+
+  it('lists merchants with search and paging (owner list)', async () => {
+    const mock = mockFetch(200, { items: [], limit: 10, offset: 0 });
+    const result = await merchantApi.merchantList(MARKET, {
+      query: 'kopitiam',
+      status: 'ACTIVE',
+      limit: 10,
+    });
+    expect(result.items).toEqual([]);
+    const { url } = lastCall(mock);
+    expect(url).toContain('/admin/markets/');
+    expect(url).toContain('merchants?query=kopitiam&status=ACTIVE&limit=10');
+  });
+
+  it('fetches the branch detail from the Phase 7 adapter', async () => {
+    const mock = mockFetch(200, {
+      branch_id: BRANCH,
+      market_id: MARKET,
+      profile: { display_name: 'Branch A' },
+      application: { status: 'SUBMITTED' },
+      kyc: { current: null, previous: null },
+      packages: { items: [] },
+      mcp: null,
+    });
+    const result = await merchantApi.merchantBranchDetail(MARKET, BRANCH);
+    expect(result.profile.display_name).toBe('Branch A');
+    expect(result.mcp).toBeNull();
+    const { url } = lastCall(mock);
+    expect(url).toBe(
+      `${BASE_URL}/admin/markets/${MARKET}/merchants/${BRANCH}/detail`,
+    );
+  });
+
+  it('reviews an application via the owner command with Idempotency-Key', async () => {
+    const mock = mockFetch(200, {
+      application_id: 'app-1',
+      branch_id: BRANCH,
+      application_status: 'APPROVED',
+      operational_status: 'PENDING_KYC',
+    });
+    const result = await merchantApi.reviewMerchantApplication(
+      MARKET,
+      BRANCH,
+      { decision: 'APPROVED', reason: 'All good' },
+      'idem-1',
+    );
+    expect(result.application_status).toBe('APPROVED');
+    const { init } = lastCall(mock);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(String(init.body))).toEqual({
+      decision: 'APPROVED',
+      reason: 'All good',
+    });
+    expect((init.headers as Headers).get('idempotency-key')).toBe('idem-1');
+  });
+
+  it('reads the KYC review detail (audit-of-view surface)', async () => {
+    const mock = mockFetch(200, {
+      submission_id: 'kyc-1',
+      status: 'UNDER_REVIEW',
+      data: {},
+      branch_id: BRANCH,
+      merchant_id: 'M-1',
+      market_id: MARKET,
+      previous: null,
+    });
+    const result = await merchantApi.merchantKycReviewDetail(MARKET, BRANCH);
+    expect(result.status).toBe('UNDER_REVIEW');
+    const { url } = lastCall(mock);
+    expect(url).toBe(
+      `${BASE_URL}/admin/markets/${MARKET}/merchants/${BRANCH}/kyc/review`,
+    );
+  });
+
+  it('reviews KYC with rejected fields for resubmission', async () => {
+    const mock = mockFetch(200, {
+      review_id: 'r-1',
+      submission_id: 'kyc-1',
+      branch_id: BRANCH,
+      kyc_status: 'RESUBMISSION_REQUIRED',
+      operational_status: 'PENDING_KYC',
+      reason: 'Fix documents',
+      rejected_fields: ['business_certification'],
+      reviewed_at: '2026-01-01T00:00:00.000Z',
+    });
+    const result = await merchantApi.reviewMerchantKyc(
+      MARKET,
+      BRANCH,
+      {
+        decision: 'RESUBMISSION_REQUIRED',
+        reason: 'Fix documents',
+        rejected_fields: ['business_certification'],
+      },
+      'idem-kyc',
+    );
+    expect(result.kyc_status).toBe('RESUBMISSION_REQUIRED');
+    const { init } = lastCall(mock);
+    expect(JSON.parse(String(init.body)).rejected_fields).toEqual([
+      'business_certification',
+    ]);
+    expect((init.headers as Headers).get('idempotency-key')).toBe('idem-kyc');
+  });
+
+  it('suspends and reactivates through owner commands', async () => {
+    const fetchMock = mockFetch(200, {
+      branch_id: BRANCH,
+      operational_status: 'SUSPENDED',
+    });
+    const suspended = await merchantApi.suspendMerchant(
+      MARKET,
+      BRANCH,
+      { reason: 'Compliance' },
+      'idem-suspend',
+    );
+    expect(suspended.operational_status).toBe('SUSPENDED');
+    expect(fetchMock.mock.calls[0]?.[0]).toContain('/suspend');
+
+    fetchMock.mockReset();
+    mockFetch(200, {
+      branch_id: BRANCH,
+      operational_status: 'ACTIVE',
+    });
+    const active = await merchantApi.reactivateMerchant(
+      MARKET,
+      BRANCH,
+      { reason: 'Resolved' },
+      'idem-reactivate',
+    );
+    expect(active.operational_status).toBe('ACTIVE');
+    expect(fetchMock.mock.calls[0]?.[0]).toContain('/reactivate');
+  });
+
+  it('closes a merchant through the owner command', async () => {
+    const mock = mockFetch(200, {
+      branch_id: BRANCH,
+      operational_status: 'CLOSED',
+    });
+    const result = await merchantApi.closeMerchant(
+      MARKET,
+      BRANCH,
+      { reason: 'Business ended' },
+      'idem-close',
+    );
+    expect(result.operational_status).toBe('CLOSED');
+    expect(mock.mock.calls[0]?.[0]).toBe(
+      `${BASE_URL}/admin/markets/${MARKET}/merchants/${BRANCH}/close`,
+    );
+  });
+
+  it('reads bounded MCP account, reconciliation, and ledger summaries', async () => {
+    const fetchMock = mockFetch(200, {
+      id: ACCOUNT,
+      branch_id: BRANCH,
+      market_id: MARKET,
+      available_balance: '1000.00000000',
+      total_balance: '1000.00000000',
+      status: 'ACTIVE',
+      version: 1,
+    });
+    const account = await merchantApi.merchantMcpAccount(MARKET, ACCOUNT);
+    expect(account.total_balance).toBe('1000.00000000');
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      `${BASE_URL}/admin/markets/${MARKET}/mcp/accounts/${ACCOUNT}`,
+    );
+
+    fetchMock.mockReset();
+    mockFetch(200, {
+      account_id: ACCOUNT,
+      stored: { total: '1000.00000000', available: '1000.00000000' },
+      computed: {
+        total: '1000.0000000000',
+        available: '1000.0000000000',
+        entries: 1,
+      },
+      matches: true,
+    });
+    const reconcile = await merchantApi.merchantMcpReconcile(MARKET, ACCOUNT);
+    expect(reconcile.matches).toBe(true);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      `${BASE_URL}/admin/markets/${MARKET}/mcp/accounts/${ACCOUNT}/reconcile`,
+    );
+
+    fetchMock.mockReset();
+    mockFetch(200, { items: [], limit: 10, offset: 0 });
+    await merchantApi.merchantMcpLedger(MARKET, ACCOUNT, {
+      limit: 10,
+      offset: 0,
+    });
+    expect(fetchMock.mock.calls[0]?.[0]).toContain('/ledger?limit=10&offset=0');
+  });
 });
