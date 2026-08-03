@@ -149,8 +149,10 @@ Verified against the frozen P5-S0 contract and D-042-A:
   idempotent via `canonical_processing_key` and atomic per source event
   (a mid-post failure rolls the whole posting back — B-14 machinery). If the
   posting fails, the endpoint now returns an explicit
-  `502 COMMISSION_POSTING_FAILED` with the activation id and retry
-  guidance — never a false success, never a partial posting.
+  `503 COMMISSION_POSTING_FAILED` with the activation id and retry
+  guidance — never a false success, never a partial posting. (503 aligns with
+  the P7-S1 error register `COMMISSION_POSTING_FAILED` row: downstream
+  posting prerequisite unavailable; `ServiceUnavailableException`.)
 - Retry path: the canonical reprocess command (now Super-Admin-gated and
   market-checked, §3) replays the same source reference idempotently.
 - Verified by test: ACTIVE commit + surfaced failure + no partial ledger rows

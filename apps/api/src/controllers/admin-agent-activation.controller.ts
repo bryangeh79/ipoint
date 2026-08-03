@@ -78,9 +78,9 @@ export class AdminAgentActivationController {
   @ApiOperation({ summary: 'Approve and activate agent application' })
   @ApiResponse({ status: 200, description: 'Agent activated.' })
   @ApiResponse({
-    status: 502,
+    status: 503,
     description:
-      'Activation committed but commission posting failed; retry idempotently via the reprocess command.',
+      'Activation committed but commission posting failed (downstream posting prerequisite unavailable); retry idempotently via the reprocess command.',
   })
   async approve(
     @Param('id') id: string,
