@@ -184,12 +184,16 @@ describe('AdminDashboardService freshness and unavailable behavior', () => {
 
   it('serves a cached entry as STALE when its asOf violates the freshness class', async () => {
     // M01 is a KPI (5m bound); an asOf 400s old violates the SLA.
+    // Deterministic at any wall clock (same pattern as the p7-s4c spec):
+    // computedAt is relative to the real Date.now() so the cache TTL (which
+    // evicts by the real wall clock) always serves the entry, while the
+    // injected now provider fixes `now` for the freshness evaluation.
     const staleAsOf = new Date(FIXED_NOW.getTime() - 400_000).toISOString();
     const cache = new DashboardMetricCache(16);
     cache.set('M01', MARKET.id, {
       value: { kind: 'COUNT', count: 3 },
       asOf: staleAsOf,
-      computedAt: FIXED_NOW.getTime(), // cache clock sees it as fresh
+      computedAt: Date.now() - 1_000, // fresh under the real TTL clock
     });
     const service = new AdminDashboardService(
       dbMock(),

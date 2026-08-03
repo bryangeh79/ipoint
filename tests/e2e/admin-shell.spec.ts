@@ -7,7 +7,7 @@ test('desktop Admin shell supports MFA, deep links, back, refresh and axe', asyn
   page,
 }) => {
   await mockAdminApi(page, [
-    'dashboard.read',
+    'dashboard.view',
     'admin.profile.self',
     'admin.session.read',
   ]);
@@ -58,7 +58,7 @@ test('320px mobile drawer restores focus and offline mode denies session writes'
   context,
 }) => {
   await page.setViewportSize({ width: 320, height: 700 });
-  await mockAdminApi(page, ['dashboard.read', 'admin.session.read']);
+  await mockAdminApi(page, ['dashboard.view', 'admin.session.read']);
   await page.goto('/admin/login');
   await authenticate(page);
 
