@@ -356,6 +356,29 @@ export const adminRouteManifest = [
     'none',
     'full',
   ),
+  /* P7-S5C KYC review case-detail routes (append-only). */
+  route(
+    'member-kyc-detail',
+    'Member KYC case',
+    '/admin/:marketId/kyc/members/:caseId',
+    'Reviews',
+    'member.kyc.read',
+    'resource',
+    'read-only',
+    'bootstrap',
+    false,
+  ),
+  route(
+    'merchant-kyc-detail',
+    'Merchant KYC submission',
+    '/admin/:marketId/kyc/merchants/:branchId',
+    'Reviews',
+    'merchant.kyc.view',
+    'resource',
+    'read-only',
+    'bootstrap',
+    false,
+  ),
 ] as const satisfies ReadonlyArray<AdminRouteDefinition>;
 
 export type AdminRoute = (typeof adminRouteManifest)[number];
@@ -390,7 +413,9 @@ export type AdminRouteId =
   | 'roles'
   | 'market-access'
   | 'sessions'
-  | 'settings';
+  | 'settings'
+  | 'member-kyc-detail'
+  | 'merchant-kyc-detail';
 
 export function routeById(id: AdminRouteId): AdminRoute {
   const match = adminRouteManifest.find((candidate) => candidate.id === id);

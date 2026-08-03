@@ -894,3 +894,118 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ── P7-S5C KYC review + privacy (appended section) ────────────────── */
+
+.admin-kyc-summary {
+  margin: 0;
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-body-sm);
+}
+
+.admin-kyc-link {
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.admin-kyc-link:hover {
+  text-decoration: underline;
+}
+
+.admin-kyc-section {
+  margin-top: var(--ip-space-3);
+}
+
+.admin-kyc-section h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--ip-space-2);
+  margin: 0 0 var(--ip-space-2);
+  font-size: var(--ip-font-size-body);
+}
+
+.admin-kyc-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--ip-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-kyc-facts div {
+  display: grid;
+  gap: 2px;
+}
+
+.admin-kyc-facts dt {
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-kyc-facts dd {
+  margin: 0;
+  font-size: var(--ip-font-size-body-sm);
+  overflow-wrap: anywhere;
+}
+
+.admin-kyc-muted {
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-body-sm);
+}
+
+.admin-kyc-evidence-locked,
+.admin-kyc-evidence-done {
+  padding: var(--ip-space-2);
+  border: 1px dashed var(--ip-color-border-strong);
+  border-radius: var(--ip-radius-sm);
+  font-size: var(--ip-font-size-body-sm);
+}
+
+.admin-kyc-actions {
+  display: grid;
+  gap: var(--ip-space-2);
+  margin-top: var(--ip-space-2);
+}
+
+.admin-kyc-action {
+  display: grid;
+  gap: var(--ip-space-1);
+}
+
+.admin-kyc-action__form {
+  display: grid;
+  gap: var(--ip-space-2);
+  padding: var(--ip-space-2);
+  border: 1px solid var(--ip-color-border);
+  border-radius: var(--ip-radius-sm);
+}
+
+.admin-kyc-action__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ip-space-2);
+}
+
+.admin-kyc-action-unavailable {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: var(--ip-space-1-5);
+  border: 1px solid var(--ip-color-border);
+  border-radius: var(--ip-radius-sm);
+  font-size: var(--ip-font-size-body-sm);
+}
+
+.admin-kyc-action-unavailable small {
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-caption);
+}
+
+@media (max-width: 767px) {
+  .admin-kyc-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
