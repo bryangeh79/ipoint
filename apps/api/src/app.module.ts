@@ -16,6 +16,7 @@ import { DiscoveryModule } from './discovery/discovery.module.js';
 import { AdminMemberModule } from './admin-member/admin-member.module.js';
 import { AdminRewardModule } from './admin-reward/admin-reward.module.js';
 import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module.js';
+import { AdminMerchantOpsModule } from './admin-merchant-ops/admin-merchant-ops.module.js';
 import { RewardModule } from './reward/reward.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
 import { DailyJobModule } from './daily-job/job.module.js';
@@ -79,6 +80,7 @@ import {
     AdminMemberModule,
     AdminRewardModule,
     AdminDashboardModule,
+    AdminMerchantOpsModule,
     RewardModule,
     WalletModule,
     DailyJobModule,
