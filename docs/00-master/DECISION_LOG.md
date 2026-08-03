@@ -1507,3 +1507,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | ChatGPT Command Center |
 | **Basis** | Phase 7 Full Continuous Execution Authorization (2026-08-01) |
 | **Status** | **APPROVED / AUTHORIZED** |
+
+---
+
+## D-048 - OpenClaw Managed Coding Subagent Fallback Authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-048 |
+| **Date** | 2026-08-02 |
+| **Source** | ChatGPT Command Center - Phase 7 Alternate Coding Subagent Execution Authorization (2026-08-02) |
+| **Old Rule** | Codex CLI is the sole engineering executor class for Phase 7; OpenClaw-managed subagent output is not accepted as engineering execution (D-005 precedent); P7-S4 through P7-S10 depend on Codex CLI availability |
+| **New Decision** | CODEX_QUOTA_LIMIT_ACKNOWLEDGED. Codex workspace credits are temporarily unavailable. D-047 full Phase 7 execution authorization remains ACTIVE. OpenClaw-managed independent Coding Subagents are AUTHORIZED as alternate executors for Phase 7. OpenClaw itself remains PROHIBITED from directly writing production code. No alternate OpenAI account or authentication bypass is authorized. Executor substitution does not reduce testing, review, security, financial or Git requirements. P7-S4 through P7-S10 remain continuously authorized (P7-S4 immediately dispatchable). Main PR, Main Merge, Push Main and Production Deployment remain PROHIBITED. Final Command Center acceptance is not delegated. Every task report must state the actual executor class (CODEX_CLI or OPENCLAW_MANAGED_CODING_SUBAGENT); no invented executor identity is permitted. OpenClaw maintains an Executor Provenance Register for every task and includes it in the final Phase 7 report. |
+| **Reason** | Codex workspace credits are temporarily unavailable; the D-047 continuous execution sequence continues without interruption using qualified independent Coding Subagents managed by OpenClaw. This authorization changes only the permitted executor pool; it does not change D-046 frozen business rules, D-047 Phase 7 scope, execution sequence, security requirements, financial invariants, test requirements, Git governance, main restrictions, or final acceptance authority. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, docs/00-master/EXECUTOR_PROVENANCE_REGISTER.md (new), and all Phase 7 implementation artifacts produced by alternate Coding Subagents under P7-S4 through P7-S10 |
+| **Affected Phases** | Phase 7 (P7-S4 through P7-S10), frozen-owner remediations (executor substitution only; scope unchanged) |
+| **Migration** | NONE (governance only; forward-only migration rules unchanged) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | D-048 Phase 7 Alternate Coding Subagent Execution Authorization (2026-08-02) |
+| **Status** | **APPROVED / AUTHORIZED** |

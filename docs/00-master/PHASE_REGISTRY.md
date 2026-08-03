@@ -15,6 +15,7 @@
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
 | **Current Authorized Work** | **Phase 7 Full Execution** | P7-S2 through P7-S10 AUTHORIZED under D-047; continuous execution; frozen-owner remediation authorized in exact scope; Main PR/Main Merge/Push Main/Production Deployment NOT_AUTHORIZED. |
+| **Executor Pool (Phase 7)** | **D-048 AUTHORIZED** | Codex CLI temporarily unavailable (workspace credits). OpenClaw-managed independent Coding Subagents AUTHORIZED as alternate executors for P7-S4..P7-S10 under D-048. OpenClaw remains PROHIBITED from directly writing production code. No alternate OpenAI account or authentication bypass. Testing/review/security/financial/Git requirements unchanged. Final Command Center acceptance not delegated. Executor class recorded per task in Executor Provenance Register. |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
 | **Phase 2** | **COMPLETE** | Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027. P2-S1 through P2-S9 all COMPLETE / APPROVED. Phase 3 NOT_AUTHORIZED. |
 | **Phase 1 Batch A** | **APPROVED** | P1-S2 through P1-S4 COMPLETE under D-011 |
@@ -167,7 +168,7 @@
 | **P7-S1** | Phase 7 architecture baseline | **ACCEPTED / COMPLETE / FROZEN** | D-047 (2026-08-01). Nine architecture documents accepted at HEAD `38bb38c43faa5acf983e4c1a254d83b48969a085`. |
 | **P7-S2** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
 | **P7-S3** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
-| **P7-S4** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
+| **P7-S4** | Dashboard and bounded operational read models | **AUTHORIZED** | Continuous execution under D-047; D-048 executor substitution applies. Dispatch split: P7-S4A (server read models), P7-S4B (admin web dashboard), P7-S4C (verification). |
 | **P7-S5** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
 | **P7-S6** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
 | **P7-S7** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
@@ -209,4 +210,4 @@
 
 ---
 
-*Last updated: 2026-08-01 | Updated by: OpenClaw | Based on decisions D-001 through D-047*
+*Last updated: 2026-08-03 | Updated by: OpenClaw | Based on decisions D-001 through D-048*
