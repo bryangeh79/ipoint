@@ -1,17 +1,17 @@
 # P7-S2C-STEPUP-FIX — Step-Up Action-Class Case Alignment
 
-| Field        | Value                                                             |
-| ------------ | ----------------------------------------------------------------- |
-| Task ID      | `P7-S2C-STEPUP-FIX`                                                |
-| Executor     | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer; D-048)            |
-| Governing    | D-048 continuing authority; P7-S2 delivery report §8 security      |
-| Branch       | `fix/p7-s2-stepup-action-class`                                    |
-| Worktree     | `.local/wt-p7-s2fix`                                               |
-| Base SHA     | `11088babd5c8c6be651418030fbfa95c06853539` (phase branch HEAD;     |
-|              | task-stated `06f00964a8f640da397064377a4731d3b01cb80e` is two      |
-|              | docs/merge commits behind and contained within this base)          |
-| Fix type     | Code-level normalization — **no migration created**                |
-| Status       | Implemented, tested, committed locally. **Not pushed.**            |
+| Field     | Value                                                          |
+| --------- | -------------------------------------------------------------- |
+| Task ID   | `P7-S2C-STEPUP-FIX`                                            |
+| Executor  | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer; D-048)        |
+| Governing | D-048 continuing authority; P7-S2 delivery report §8 security  |
+| Branch    | `fix/p7-s2-stepup-action-class`                                |
+| Worktree  | `.local/wt-p7-s2fix`                                           |
+| Base SHA  | `11088babd5c8c6be651418030fbfa95c06853539` (phase branch HEAD; |
+|           | task-stated `06f00964a8f640da397064377a4731d3b01cb80e` is two  |
+|           | docs/merge commits behind and contained within this base)      |
+| Fix type  | Code-level normalization — **no migration created**            |
+| Status    | Implemented, tested, committed locally. **Not pushed.**        |
 
 ## 1. Defect (root cause)
 
@@ -155,18 +155,18 @@ by the suites' `migrate()` bootstrap; fixture method = real HTTP
 enrollment/login/challenge flows plus direct account/role/permission rows
 (the same pattern the P7-S2A/P7-S5C specs use).
 
-| Command (fresh DB) | Result |
-| --- | --- |
-| `pnpm --filter @ipoint/api typecheck` | PASS, exit 0 |
-| `pnpm --filter @ipoint/api build` | PASS, exit 0 |
-| `pnpm exec eslint <8 changed paths>` | clean, exit 0 |
-| `pnpm exec prettier --check <8 changed paths>` | clean |
-| `vitest run src/auth/ src/platform-access/` | **136 passed / 4 failed / 0 skipped (140)** — the 4 failures are pre-existing `AUTH_REFRESH_REUSED` → `SESSION_REUSE_DETECTED` drift in the Phase-2 member-auth suites (`auth.integration.spec.ts`, `auth.http.integration.spec.ts`), present identically at the base SHA before this fix and outside this task's allowed paths |
-| P7-S2 core suites (`admin-auth.http.integration` 2, `platform-access.integration` 6, `p7-s2c-rbac.guard` 6, `p7-s2c-openapi` 16, `platform-access.spec` 3, `action-class.spec` 10) | **43/43 passed** |
-| `vitest run src/admin-kyc-ops/` | **69/69 passed** |
-| `pnpm --filter @ipoint/database test:integration` | **22/22 passed** |
-| `pnpm --filter @ipoint/database db:checksum` | **29/29 immutable checksums verified** |
-| `pnpm --filter @ipoint/database test` | 60/62 — 2 pre-existing failures (`tests/phase3-schema.test.ts`, `tests/schema.unit.test.ts`) assert the migration set ends at `0019`; stale since Phase 6/7 added `0020–0028`. Unrelated to this fix (database package untouched). |
+| Command (fresh DB)                                                                                                                                                                 | Result                                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @ipoint/api typecheck`                                                                                                                                              | PASS, exit 0                                                                                                                                                                                                                                                                                                                    |
+| `pnpm --filter @ipoint/api build`                                                                                                                                                  | PASS, exit 0                                                                                                                                                                                                                                                                                                                    |
+| `pnpm exec eslint <8 changed paths>`                                                                                                                                               | clean, exit 0                                                                                                                                                                                                                                                                                                                   |
+| `pnpm exec prettier --check <8 changed paths>`                                                                                                                                     | clean                                                                                                                                                                                                                                                                                                                           |
+| `vitest run src/auth/ src/platform-access/`                                                                                                                                        | **136 passed / 4 failed / 0 skipped (140)** — the 4 failures are pre-existing `AUTH_REFRESH_REUSED` → `SESSION_REUSE_DETECTED` drift in the Phase-2 member-auth suites (`auth.integration.spec.ts`, `auth.http.integration.spec.ts`), present identically at the base SHA before this fix and outside this task's allowed paths |
+| P7-S2 core suites (`admin-auth.http.integration` 2, `platform-access.integration` 6, `p7-s2c-rbac.guard` 6, `p7-s2c-openapi` 16, `platform-access.spec` 3, `action-class.spec` 10) | **43/43 passed**                                                                                                                                                                                                                                                                                                                |
+| `vitest run src/admin-kyc-ops/`                                                                                                                                                    | **69/69 passed**                                                                                                                                                                                                                                                                                                                |
+| `pnpm --filter @ipoint/database test:integration`                                                                                                                                  | **22/22 passed**                                                                                                                                                                                                                                                                                                                |
+| `pnpm --filter @ipoint/database db:checksum`                                                                                                                                       | **29/29 immutable checksums verified**                                                                                                                                                                                                                                                                                          |
+| `pnpm --filter @ipoint/database test`                                                                                                                                              | 60/62 — 2 pre-existing failures (`tests/phase3-schema.test.ts`, `tests/schema.unit.test.ts`) assert the migration set ends at `0019`; stale since Phase 6/7 added `0020–0028`. Unrelated to this fix (database package untouched).                                                                                              |
 
 No CI run identifier was assigned; the evidence above is the task record.
 
@@ -179,8 +179,8 @@ No CI run identifier was assigned; the evidence above is the task record.
   - `a059fdabb9f6f2ecb4eb757b049f5b36e2d6b366` `docs(p7-s2): record step-up fix`
   - Follow-up docs corrections on the same branch keep this record's SHA map
     in sync (`docs(p7-s2): fill fix record SHAs`, `docs(p7-s2): correct fix
-    record SHA map`, and the final `docs(p7-s2): finalize fix record SHA
-    map` commit that closes this section).
+record SHA map`, and the final `docs(p7-s2): finalize fix record SHA
+map` commit that closes this section).
 - **Not pushed.** No amend/rebase/force. No migration created.
 - Main worktree (`phase/7-admin-operations`) was left clean of these
   changes (the implementer's file-tool edits initially landed there and were
