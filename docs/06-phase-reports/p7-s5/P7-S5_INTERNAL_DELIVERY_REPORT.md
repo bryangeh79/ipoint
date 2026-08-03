@@ -125,20 +125,30 @@ Each real-DB suite ran on a newly created isolated test DB on the iPoint Postgre
 - Executor provenance: `docs/00-master/EXECUTOR_PROVENANCE_REGISTER.md` (P7-S5A/B/C/FIX entries).
 - Status is NOT Command Center acceptance/closure/freeze.
 
-## 8. OpenClaw independent gate re-verification (2026-08-04, post-merge addendum)
+## 8. Combined gate verification (OpenClaw-executed, 2026-08-04)
 
-OpenClaw re-ran the combined §4 gate from the final integrated tree (phase HEAD `11088bab`) on freshly created isolated databases (`ipoint_gate_dash` / `ipoint_gate_mem` / `ipoint_gate_mer` / `ipoint_gate_kyc`, each DROP+CREATE before its suite; migrations applied in `beforeAll`):
+The combined Command Center §4 gate was executed by OpenClaw from the final integrated tree (phase HEAD `861a6816`, re-verified at `b954f985` after the P7-S2C step-up fix and P5-R1 integration). Every count below is an OpenClaw-executed run; a previously auto-recorded addendum (commit `d1e4e943`, superseded) and register entries claiming an "OpenClaw" gate with KYC **69/69** were NOT reproducible and are corrected here (KYC re-verified at **58/58** post-step-up-fix).
 
-| Gate                                                       | Result                           |
-| ---------------------------------------------------------- | -------------------------------- |
-| API typecheck / Admin Web typecheck / API Client typecheck | exit 0 x3                        |
-| API Client tests                                           | 49/49                            |
-| Admin Web tests                                            | 147/147                          |
-| Dashboard integration (fresh DB)                           | 14/14                            |
-| Member Operations integration (fresh DB)                   | 24/24                            |
-| Merchant Operations integration (fresh DB)                 | 11/11                            |
-| KYC ops suite (fresh DB)                                   | 69/69 (33 unit + 36 integration) |
+| Gate | Result |
+|---|---|
+| API typecheck / Admin Web typecheck / API Client typecheck | exit 0 x3 |
+| API build / Admin Web build | exit 0 / PASS |
+| Format check (repo-wide, after `861a6816` whitespace-only normalization of 25 docs) | PASS |
+| Lint (repo-wide, after `204dd787` eslint scoping fix) | exit 0 (0 errors, 2 warnings) |
+| API Client tests | 49/49 |
+| Admin Web tests | 147/147 |
+| Dashboard suite (fresh DB `ipoint_gate_dash`) | 33/33 (16 unit + 14 integration + 3 deterministic) |
+| Member Operations suite (fresh DB `ipoint_gate_mem`) | 42/42 (18 unit + 24 integration) |
+| Merchant Operations suite (fresh DB `ipoint_gate_mer`) | 17/17 (6 unit + 11 integration) |
+| KYC ops suite (fresh DB `ipoint_gate_kyc`, re-run `ipoint_gate_kyc2` at `b954f985`) | 58/58 (26 unit + 32 integration) |
+| P5-R1 frozen-owner regression (pre-migrated + pre-seeded fresh DB `ipoint_gate_p5r1_v2`) | 48/48 (B 15/15, C 10/10, D 10/10, owner 13/13) |
 
-Combined with the per-task counts already recorded (dashboard unit 16/16 + deterministic 3/3; member unit 18/18; merchant unit 6/6; client/web suites above), the Command Center §4 combined gate is independently confirmed.
+Methodology notes (all recorded per the Command Center clean-database rule):
+- Each dashboard/member/merchant/kyc suite ran on a newly created isolated DB (DROP+CREATE before the suite; migrations applied in `beforeAll`). Counts are absolute.
+- The frozen Phase 5 B/C/D/owner suites require a pre-migrated + pre-seeded database (Phase 5 CI pattern; they do not migrate in `beforeAll`). A run against an empty DB fails with 42P01 and is NOT a product defect; the verified method is migrate + seed then run (48/48).
+- Environment repairs performed by OpenClaw: migration `0022` checksum drift (Windows working-tree CRLF anomaly vs `.gitattributes eol=lf`; repaired to blob bytes — content unchanged, git clean, 30/30 MISMATCHES=0); repo-wide prettier normalization of 25 docs incl. 18 pre-existing frozen-era docs (whitespace-only).
+- Browser E2E remains host/CI-only (sandbox cannot launch Chromium; apt read-only) — delivered specs are mock-based and ready for host/CI.
+
+Combined checks: all routes registered; no duplicate API prefixes; no lost imports/client methods; no duplicate CSS; no first-page Dashboard totals; no fabricated job values; no owner-domain logic duplicated in adapters; no frozen Phase 1–6 behavior changed outside the authorized remediation scopes (git history review + independent re-runs).
 
 `P7-S5_DELIVERY_COMPLETE` / `P7-S5_OPENCLAW_INTERNAL_GATE_PASSED` / `CONTINUING_UNDER_D-047_AND_D-048`
