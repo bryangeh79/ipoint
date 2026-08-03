@@ -9,6 +9,16 @@
  * - Two-person rule (maker/checker) enforced in the domain service
  * - All amounts returned as decimal strings with trailing zeros
  *
+ * ## P5-R1 (GATE-P5-01)
+ * - Single canonical mount: global prefix `api/v1` + `admin/commission`
+ *   (the legacy doubled `api/v1/api/v1/admin/...` mount is retired).
+ * - Every read is bounded to the server-derived Current Admin Market;
+ *   a client-supplied disagreeing market filter is rejected.
+ * - The reprocess command (a write) is gated by the strictest canonical
+ *   permission available (`commission.rate.manage`, Super Admin only) and is
+ *   bounded to the selected market. The legacy `commission.read` gate was a
+ *   write-via-read-permission defect and is retired.
+ *
  * @packageDocumentation
  */
 
@@ -26,6 +36,7 @@ import {
   Param,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -35,9 +46,13 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import type { Request } from 'express';
+import { eq } from 'drizzle-orm';
+import { agentActivations, markets, transactions } from '@ipoint/database';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentActor } from '../auth/current-actor.decorator.js';
 import type { RequestActor } from '../auth/auth.types.js';
+import { DatabaseService } from '../database/database.service.js';
 import { RbacGuard, RequirePermission } from '../platform-access/rbac.guard.js';
 import { CommissionQueryService } from '../domain/commission/query.service.js';
 import {
@@ -56,7 +71,7 @@ import {
 
 @ApiTags('Admin Commission')
 @ApiBearerAuth()
-@Controller('api/v1/admin/commission')
+@Controller('admin/commission')
 @UseGuards(AuthGuard, RbacGuard)
 export class AdminCommissionController {
   constructor(
@@ -70,6 +85,8 @@ export class AdminCommissionController {
     private readonly memberConsumption: MemberConsumptionCommissionService,
     @Inject(MerchantRecruitmentCommissionService)
     private readonly merchantRecruitment: MerchantRecruitmentCommissionService,
+    @Inject(DatabaseService)
+    private readonly database: DatabaseService,
   ) {}
 
   // ─── Search Ledger ────────────────────────────────────────────
@@ -77,7 +94,7 @@ export class AdminCommissionController {
   @Get('ledger')
   @RequirePermission('commission.read')
   @ApiOperation({
-    summary: 'Admin search across all commission ledger entries',
+    summary: 'Admin search across commission ledger entries (selected market)',
   })
   @ApiQuery({
     name: 'beneficiaryId',
@@ -87,7 +104,8 @@ export class AdminCommissionController {
   @ApiQuery({
     name: 'market',
     required: false,
-    description: 'Filter by market code (MY, SG)',
+    description:
+      'Filter by market code — must equal the server-selected Current Admin Market',
   })
   @ApiQuery({
     name: 'sourceType',
@@ -125,6 +143,7 @@ export class AdminCommissionController {
   })
   async searchLedger(
     @CurrentActor() _actor: RequestActor | undefined,
+    @Req() request: Request,
     @Query('beneficiaryId') beneficiaryId?: string,
     @Query('market') market?: string,
     @Query('sourceType') sourceType?: string,
@@ -134,19 +153,23 @@ export class AdminCommissionController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    // Admin auth is enforced by RbacGuard; the actor is not needed
-    // for data filtering since admin searches are unconstrained.
-
-    return this.query.adminSearch({
-      beneficiaryId,
-      market,
-      sourceType,
-      status,
-      from,
-      to,
-      limit: limit ? parseInt(limit, 10) : undefined,
-      offset: offset ? parseInt(offset, 10) : undefined,
-    });
+    // P5-R1: the search is server-bounded to the Current Admin Market.
+    const selectedMarket = await this.resolveSelectedMarketCode(request);
+    try {
+      return await this.query.adminSearch({
+        beneficiaryId,
+        market,
+        sourceType,
+        status,
+        from,
+        to,
+        limit: limit ? parseInt(limit, 10) : undefined,
+        offset: offset ? parseInt(offset, 10) : undefined,
+        selectedMarket,
+      });
+    } catch (error) {
+      throw this.mapMarketSearchError(error);
+    }
   }
 
   // ─── Get Audit Log ────────────────────────────────────────────
@@ -171,6 +194,7 @@ export class AdminCommissionController {
   })
   async getAuditLog(
     @CurrentActor() _actor: RequestActor | undefined,
+    @Req() request: Request,
     @Query('entryId') entryId: string,
   ) {
     if (!entryId) {
@@ -181,22 +205,27 @@ export class AdminCommissionController {
     }
 
     try {
-      return await this.query.getAuditLog(entryId);
+      const selectedMarket = await this.resolveSelectedMarketCode(request);
+      return await this.query.getAuditLog(entryId, selectedMarket);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      throw error;
+      throw this.mapMarketSearchError(error);
     }
   }
 
   // ─── Reprocess Commission ─────────────────────────────────────
 
   @Post('reprocess')
-  @RequirePermission('commission.read')
+  @RequirePermission('commission.rate.manage')
   @HttpCode(200)
   @ApiOperation({
     summary: 'Reprocess commission calculation for a source event',
+    description:
+      'Write command gated by commission.rate.manage (Super Admin). The ' +
+      'source event must belong to the server-selected Current Admin Market. ' +
+      'Idempotent via the canonical processing key (retry-safe).',
   })
   @ApiResponse({
     status: 200,
@@ -208,6 +237,7 @@ export class AdminCommissionController {
   })
   async reprocess(
     @CurrentActor() _actor: RequestActor | undefined,
+    @Req() request: Request,
     @Body()
     body: {
       /** The source type discriminator (e.g. AGENT_ACTIVATION, MEMBER_CONSUMPTION, MERCHANT_TRANSACTION). */
@@ -225,6 +255,14 @@ export class AdminCommissionController {
       });
     }
 
+    // P5-R1: the source event must belong to the selected market.
+    const selectedMarket = await this.resolveSelectedMarketCode(request);
+    await this.assertSourceInMarket(
+      sourceType,
+      sourceReference,
+      selectedMarket,
+    );
+
     switch (sourceType) {
       case 'AGENT_ACTIVATION':
         return this.agentUpgrade.processAgentUpgrade(sourceReference);
@@ -241,6 +279,105 @@ export class AdminCommissionController {
         });
     }
   }
+
+  // ─── Selected-market helpers ──────────────────────────────────
+
+  /**
+   * Resolve the server-selected Current Admin Market code from the
+   * RbacGuard-resolved context (never from client input).
+   */
+  private async resolveSelectedMarketCode(request: Request): Promise<string> {
+    const context = (
+      request as Request & {
+        adminMarketContext?: { marketId: string; contextVersion: number };
+      }
+    ).adminMarketContext;
+    if (!context?.marketId) {
+      throw new ForbiddenException({
+        code: 'MARKET_SELECTION_REQUIRED',
+        message: 'Select an authorized market to continue.',
+      });
+    }
+    const rows = await this.database.db
+      .select({ code: markets.code })
+      .from(markets)
+      .where(eq(markets.id, context.marketId))
+      .limit(1);
+    const code = rows[0]?.code;
+    if (!code) {
+      throw new ForbiddenException({
+        code: 'MARKET_SELECTION_REQUIRED',
+        message: 'The selected market is not available.',
+      });
+    }
+    return code;
+  }
+
+  /**
+   * Verify the source event (activation or transaction) belongs to the
+   * selected market before reprocessing.
+   */
+  private async assertSourceInMarket(
+    sourceType: string,
+    sourceReference: string,
+    selectedMarket: string,
+  ): Promise<void> {
+    let marketCode: string | null = null;
+    if (sourceType === 'AGENT_ACTIVATION') {
+      const rows = await this.database.db
+        .select({ market: agentActivations.market })
+        .from(agentActivations)
+        .where(eq(agentActivations.id, sourceReference))
+        .limit(1);
+      marketCode = rows[0]?.market ?? null;
+    } else {
+      const rows = await this.database.db
+        .select({ code: markets.code })
+        .from(transactions)
+        .innerJoin(markets, eq(markets.id, transactions.marketId))
+        .where(eq(transactions.id, sourceReference))
+        .limit(1);
+      marketCode = rows[0]?.code ?? null;
+    }
+
+    if (!marketCode) {
+      throw new NotFoundException({
+        code: 'COMMISSION_SOURCE_NOT_FOUND',
+        message: `Source ${sourceType} ${sourceReference} was not found.`,
+        details: { sourceType, sourceReference },
+      });
+    }
+
+    if (marketCode !== selectedMarket) {
+      throw new ForbiddenException({
+        code: 'COMMISSION_MARKET_CONTEXT_MISMATCH',
+        message: `Source ${sourceType} ${sourceReference} is in market ${marketCode}, not the selected market ${selectedMarket}.`,
+        details: { sourceType, sourceReference, marketCode, selectedMarket },
+      });
+    }
+  }
+
+  /**
+   * Map domain-level market search errors to HTTP exceptions.
+   */
+  private mapMarketSearchError(error: unknown): Error {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.startsWith('COMMISSION_SELECTED_MARKET_REQUIRED')) {
+      return new ForbiddenException({
+        code: 'MARKET_SELECTION_REQUIRED',
+        message: 'Select an authorized market to continue.',
+      });
+    }
+    if (message.startsWith('COMMISSION_MARKET_CONTEXT_MISMATCH')) {
+      return new ConflictException({
+        code: 'MARKET_CONTEXT_MISMATCH',
+        message: 'The selected market changed. Refresh and try again.',
+      });
+    }
+    return error instanceof Error
+      ? error
+      : new InternalServerErrorException(String(error));
+  }
 }
 
 /* ================================================================== */
@@ -249,7 +386,7 @@ export class AdminCommissionController {
 
 @ApiTags('Admin Commission Adjustments')
 @ApiBearerAuth()
-@Controller('api/v1/admin/commission-adjustments')
+@Controller('admin/commission-adjustments')
 @UseGuards(AuthGuard, RbacGuard)
 export class AdminAdjustmentController {
   constructor(

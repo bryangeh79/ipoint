@@ -10,6 +10,8 @@ import {
   NotFoundException,
   Param,
   Post,
+  Req,
+  ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -18,9 +20,13 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import type { Request } from 'express';
+import { eq } from 'drizzle-orm';
+import { markets } from '@ipoint/database';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentActor } from '../auth/current-actor.decorator.js';
 import type { RequestActor } from '../auth/auth.types.js';
+import { DatabaseService } from '../database/database.service.js';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
 import { RbacGuard, RequirePermission } from '../platform-access/rbac.guard.js';
 import { AgentActivationService } from '../domain/agent-activation/service.js';
@@ -37,11 +43,22 @@ import {
 
 // ---------------------------------------------------------------------------
 // Controller
+//
+// P5-R1 (GATE-P5-01):
+// - Single canonical mount: global prefix `api/v1` + `admin/agent-activations`
+//   (the legacy doubled `api/v1/api/v1/admin/...` mount is retired).
+// - RbacGuard enforces `agent.activation.manage` (market-scoped definition)
+//   and the server-owned Current Admin Market.
+// - Every command re-validates that the activation belongs to the selected
+//   market and records the executing admin (actor attribution).
+// - Commission posting failures are surfaced explicitly (never swallowed);
+//   the activation itself commits atomically and the posting can be retried
+//   idempotently via the canonical reprocess command.
 // ---------------------------------------------------------------------------
 
 @ApiTags('Admin Agent Activations')
 @ApiBearerAuth()
-@Controller('api/v1/admin/agent-activations')
+@Controller('admin/agent-activations')
 @UseGuards(AuthGuard, RbacGuard)
 export class AdminAgentActivationController {
   constructor(
@@ -49,6 +66,8 @@ export class AdminAgentActivationController {
     private readonly activation: AgentActivationService,
     @Inject(AgentUpgradeCommissionService)
     private readonly commission: AgentUpgradeCommissionService,
+    @Inject(DatabaseService)
+    private readonly database: DatabaseService,
   ) {}
 
   // ─── Approve and Activate ─────────────────────────────────────
@@ -58,17 +77,40 @@ export class AdminAgentActivationController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Approve and activate agent application' })
   @ApiResponse({ status: 200, description: 'Agent activated.' })
+  @ApiResponse({
+    status: 502,
+    description:
+      'Activation committed but commission posting failed; retry idempotently via the reprocess command.',
+  })
   async approve(
     @Param('id') id: string,
     @CurrentActor() actor: RequestActor | undefined,
+    @Req() request: Request,
   ) {
     const adminId = this.resolveAdminId(actor);
-    await this.activation.approveAndActivate(id, adminId);
-    // Trigger agent upgrade commission processing (idempotent, retryable)
-    await this.commission.processAgentUpgrade(id).catch(() => {
-      // Commission processing failure does not roll back activation.
-      // Admin can retry via POST /api/v1/admin/commission/reprocess.
-    });
+    const marketCode = await this.resolveMarketCode(request);
+
+    // Atomic activation transition (commits ACTIVE + audit together).
+    await this.activation.approveAndActivate(id, adminId, marketCode);
+
+    // Agent upgrade commission posting: idempotent via canonical processing
+    // key. A failure here must be surfaced (no partial/false success) and
+    // retried through the canonical reprocess command. It never rolls back
+    // the committed activation.
+    try {
+      await this.commission.processAgentUpgrade(id);
+    } catch (error) {
+      throw new ServiceUnavailableException({
+        code: 'COMMISSION_POSTING_FAILED',
+        message:
+          'Activation committed, but the agent upgrade commission posting failed. Retry with the reprocess command (same source reference is idempotent).',
+        details: {
+          activationId: id,
+          cause: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+
     return { success: true, activationId: id };
   }
 
@@ -83,9 +125,13 @@ export class AdminAgentActivationController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(rejectSchema)) input: RejectDto,
     @CurrentActor() actor: RequestActor | undefined,
+    @Req() request: Request,
   ) {
-    this.resolveAdminId(actor);
-    return this.handle(() => this.activation.reject(id, input.reason));
+    const adminId = this.resolveAdminId(actor);
+    return this.handle(async () => {
+      const marketCode = await this.resolveMarketCode(request);
+      await this.activation.reject(id, adminId, marketCode, input.reason);
+    });
   }
 
   // ─── Suspend ──────────────────────────────────────────────────
@@ -99,9 +145,13 @@ export class AdminAgentActivationController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(suspendSchema)) input: SuspendDto,
     @CurrentActor() actor: RequestActor | undefined,
+    @Req() request: Request,
   ) {
-    this.resolveAdminId(actor);
-    return this.handle(() => this.activation.suspend(id, input.reason));
+    const adminId = this.resolveAdminId(actor);
+    return this.handle(async () => {
+      const marketCode = await this.resolveMarketCode(request);
+      await this.activation.suspend(id, adminId, marketCode, input.reason);
+    });
   }
 
   // ─── Reactivate ───────────────────────────────────────────────
@@ -114,9 +164,13 @@ export class AdminAgentActivationController {
   reactivate(
     @Param('id') id: string,
     @CurrentActor() actor: RequestActor | undefined,
+    @Req() request: Request,
   ) {
-    this.resolveAdminId(actor);
-    return this.handle(() => this.activation.reactivate(id));
+    const adminId = this.resolveAdminId(actor);
+    return this.handle(async () => {
+      const marketCode = await this.resolveMarketCode(request);
+      await this.activation.reactivate(id, adminId, marketCode);
+    });
   }
 
   // ─── Deactivate ───────────────────────────────────────────────
@@ -130,9 +184,13 @@ export class AdminAgentActivationController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(deactivateSchema)) input: DeactivateDto,
     @CurrentActor() actor: RequestActor | undefined,
+    @Req() request: Request,
   ) {
-    this.resolveAdminId(actor);
-    return this.handle(() => this.activation.deactivate(id, input.reason));
+    const adminId = this.resolveAdminId(actor);
+    return this.handle(async () => {
+      const marketCode = await this.resolveMarketCode(request);
+      await this.activation.deactivate(id, adminId, marketCode, input.reason);
+    });
   }
 
   // ─── Helpers ──────────────────────────────────────────────────
@@ -148,6 +206,41 @@ export class AdminAgentActivationController {
       });
     }
     return actor.adminUserId;
+  }
+
+  /**
+   * Resolve the server-selected Current Admin Market code.
+   *
+   * The RbacGuard (market-scoped permission definition) resolves the
+   * selected market id and verifies the active grant; this helper only
+   * maps that server-owned id to its code. A client-provided market is
+   * never consulted.
+   */
+  private async resolveMarketCode(request: Request): Promise<string> {
+    const context = (
+      request as Request & {
+        adminMarketContext?: { marketId: string; contextVersion: number };
+      }
+    ).adminMarketContext;
+    if (!context?.marketId) {
+      throw new ForbiddenException({
+        code: 'MARKET_SELECTION_REQUIRED',
+        message: 'Select an authorized market to continue.',
+      });
+    }
+    const rows = await this.database.db
+      .select({ code: markets.code })
+      .from(markets)
+      .where(eq(markets.id, context.marketId))
+      .limit(1);
+    const code = rows[0]?.code;
+    if (!code) {
+      throw new ForbiddenException({
+        code: 'MARKET_SELECTION_REQUIRED',
+        message: 'The selected market is not available.',
+      });
+    }
+    return code;
   }
 
   /**
@@ -176,6 +269,9 @@ export class AdminAgentActivationController {
         case 'AGENT_ACTIVATION_MISSING_APPROVAL':
         case 'AGENT_ACTIVATION_FEE_NOT_CONFIGURED':
           throw new BadRequestException(body);
+        case 'AGENT_ACTIVATION_OWNERSHIP_MISMATCH':
+        case 'AGENT_ACTIVATION_MARKET_MISMATCH':
+          throw new ForbiddenException(body);
         case 'AGENT_ACTIVATION_INVALID_TRANSITION':
         case 'AGENT_ACTIVATION_INVALID_STATUS':
         case 'AGENT_ACTIVATION_ALREADY_ACTIVE':
