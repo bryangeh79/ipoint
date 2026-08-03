@@ -8,7 +8,7 @@
 | Worktree | `/workspace/.local/wt-p7-s4c` |
 | Branch | `task/p7-s4c-dashboard-acceptance` |
 | Starting SHA | `63f9f4560ee0fc4caa42cdc94237c28d85377c7c` (P7-S4A merged at `7336dd46`, P7-S4B merged at `75f0a4b5`, provenance at `63f9f456`) |
-| Commits | `6ada9c014d42618e9d7ef6f436d25e6abc8b82f0` — `test(p7-s4c): add dashboard verification coverage`; `<REPORT_SHA>` — `docs(p7-s4c): record dashboard verification report` (this report) |
+| Commits | `6ada9c014d42618e9d7ef6f436d25e6abc8b82f0` — `test(p7-s4c): add dashboard verification coverage`; `79de0aa855aea1685df7f30fbfa00b7a61f11119` — `docs(p7-s4c): record dashboard verification report` (this report); SHA map filled by a follow-up docs commit after the report SHA was known (same pattern as P7-S4A/P7-S4B) |
 | Deliverables under verification | P7-S4A (API read models, `a9188786`), P7-S4B (Admin Web UI, `de01500e`) |
 | Date | 2026-08-03 (Asia/Kuala_Lumpur) |
 | Pushed | **NO** (nothing pushed; OpenClaw reviews and pushes) |
