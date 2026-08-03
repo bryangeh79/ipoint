@@ -5,6 +5,9 @@ import {
   AdminApiClient,
   AdminDashboardCatalogDto,
   AdminDashboardMetricDetailDto,
+  AdminMemberOpsListPageDto,
+  AdminMemberOpsNotesPageDto,
+  AdminMemberOpsProfileDto,
   AdminMerchantApiClient,
   ApiClient,
   ApiError,
@@ -726,6 +729,209 @@ describe('AdminApiClient', () => {
   );
 });
 
+/* ------------------------------------------------------------------ */
+/*  P7-S5A Admin Member Operations client tests (append-only section)  */
+/* ------------------------------------------------------------------ */
+
+describe('AdminApiClient Member Operations (P7-S5A)', () => {
+  const listPageBody: AdminMemberOpsListPageDto = {
+    marketId: 'market-1',
+    members: [
+      {
+        publicMemberId: 'mem_1',
+        displayName: null,
+        email: 'a***@example.com',
+        status: 'ACTIVE',
+        kycLevel: 'LEVEL_1',
+        accountCountry: 'MY',
+        currentMarketId: 'market-1',
+        createdAt: '2026-08-01T00:00:00.000Z',
+      },
+    ],
+    total: 1,
+    page: 1,
+    pageSize: 20,
+  };
+
+  const profileBody: AdminMemberOpsProfileDto = {
+    publicMemberId: 'mem_1',
+    displayName: null,
+    email: 'a***@example.com',
+    status: 'ACTIVE',
+    kycLevel: 'LEVEL_1',
+    accountCountry: 'MY',
+    currentMarketId: 'market-1',
+    createdAt: '2026-08-01T00:00:00.000Z',
+    closedAt: null,
+    profile: {
+      fullName: 'J*** M****** D**',
+      phone: '********6789',
+      phoneVerificationStatus: 'VERIFIED',
+      birthDate: null,
+      address: null,
+      locale: 'en-MY',
+      language: 'en',
+    },
+    kyc: null,
+    marketPreferences: [
+      {
+        marketId: 'market-1',
+        marketCode: 'MA',
+        isEnabled: true,
+        isCurrent: true,
+        sortOrder: 0,
+        lastSelectedAt: null,
+      },
+    ],
+    notes: [],
+    statusHistory: [],
+  };
+
+  const notesPageBody: AdminMemberOpsNotesPageDto = {
+    notes: [
+      {
+        id: 'note-1',
+        adminUserId: 'admin-1',
+        marketId: 'market-1',
+        content: 'Follow up.',
+        isInternal: true,
+        createdAt: '2026-08-01T00:00:00.000Z',
+      },
+    ],
+    total: 1,
+    page: 1,
+    pageSize: 20,
+  };
+
+  it('uses the exact P7-S5A member operations paths with URL encoding', async () => {
+    const core = createClient();
+    core.setTokens({
+      accessToken: 'access-token',
+      accessExpiresAt: '2026-08-01T12:15:00.000Z',
+    });
+    const client = new AdminApiClient(core);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Response('{}', {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+
+    await client.memberOpsList({ page: 2, pageSize: 50, status: 'SUSPENDED' });
+    await client.memberOpsDetail('mem/unsafe');
+    await client.memberOpsSuspend('mem/unsafe', {
+      reason: 'r',
+      idempotencyKey: 'k1',
+    });
+    await client.memberOpsReactivate('mem_1', {
+      reason: 'r',
+      idempotencyKey: 'k1',
+    });
+    await client.memberOpsClose('mem_1', {
+      reason: 'r',
+      confirmationText: 'CONFIRM',
+      idempotencyKey: 'k1',
+    });
+    await client.memberOpsRevokeSessions('mem_1', {
+      reason: 'r',
+      idempotencyKey: 'k1',
+    });
+    await client.memberOpsRequireReverification('mem_1', {
+      reason: 'r',
+      idempotencyKey: 'k1',
+    });
+    await client.memberOpsAddNote('mem_1', {
+      content: 'n',
+      isInternal: true,
+      idempotencyKey: 'k1',
+    });
+    await client.memberOpsNotes('mem_1', { page: 1, pageSize: 10 });
+
+    expect(fetchSpy.mock.calls.map(([url]) => String(url))).toEqual([
+      `${BASE_URL}/admin/member-ops/members?page=2&pageSize=50&status=SUSPENDED`,
+      `${BASE_URL}/admin/member-ops/members/mem%2Funsafe`,
+      `${BASE_URL}/admin/member-ops/members/mem%2Funsafe/suspend`,
+      `${BASE_URL}/admin/member-ops/members/mem_1/reactivate`,
+      `${BASE_URL}/admin/member-ops/members/mem_1/close`,
+      `${BASE_URL}/admin/member-ops/members/mem_1/revoke-sessions`,
+      `${BASE_URL}/admin/member-ops/members/mem_1/require-reverification`,
+      `${BASE_URL}/admin/member-ops/members/mem_1/notes`,
+      `${BASE_URL}/admin/member-ops/members/mem_1/notes?page=1&pageSize=10`,
+    ]);
+    expect(JSON.parse(String(fetchSpy.mock.calls[3]?.[1]?.body))).toEqual({
+      reason: 'r',
+      idempotencyKey: 'k1',
+    });
+    expect(JSON.parse(String(fetchSpy.mock.calls[4]?.[1]?.body))).toEqual({
+      reason: 'r',
+      confirmationText: 'CONFIRM',
+      idempotencyKey: 'k1',
+    });
+  });
+
+  it('never sends a market query parameter on the member list', async () => {
+    const core = createClient();
+    core.setTokens({
+      accessToken: 'access-token',
+      accessExpiresAt: '2026-08-01T12:15:00.000Z',
+    });
+    const client = new AdminApiClient(core);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Response('{}', {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+    await client.memberOpsList({ page: 1 });
+    const url = String(fetchSpy.mock.calls[0]?.[0]);
+    expect(url).not.toMatch(/market/);
+    expect(url).toBe(`${BASE_URL}/admin/member-ops/members?page=1`);
+  });
+
+  it('round-trips the list, detail, and notes DTO shapes', async () => {
+    const core = createClient();
+    core.setTokens({
+      accessToken: 'access-token',
+      accessExpiresAt: '2026-08-01T12:15:00.000Z',
+    });
+    const client = new AdminApiClient(core);
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(listPageBody), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(profileBody), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(notesPageBody), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+
+    const list = await client.memberOpsList();
+    const detail = await client.memberOpsDetail('mem_1');
+    const notes = await client.memberOpsNotes('mem_1');
+
+    expect(list).toEqual(listPageBody);
+    expect(detail).toEqual(profileBody);
+    expect(notes).toEqual(notesPageBody);
+    // No client-supplied market header on any member ops request.
+    for (const call of fetchSpy.mock.calls) {
+      expect(call[1]).not.toHaveProperty('headers.x-market-id');
+    }
+  });
+});
+
 describe('AdminMerchantApiClient (P7-S5B merchant operations)', () => {
   const merchantApi = new AdminMerchantApiClient(createClient());
   const MARKET = '11111111-1111-1111-1111-111111111111';
@@ -942,207 +1148,5 @@ describe('AdminMerchantApiClient (P7-S5B merchant operations)', () => {
       offset: 0,
     });
     expect(fetchMock.mock.calls[0]?.[0]).toContain('/ledger?limit=10&offset=0');
-  });
-});
-
-/*  P7-S5A Admin Member Operations client tests (append-only section)  */
-/* ------------------------------------------------------------------ */
-
-describe('AdminApiClient Member Operations (P7-S5A)', () => {
-  const listPageBody: AdminMemberOpsListPageDto = {
-    marketId: 'market-1',
-    members: [
-      {
-        publicMemberId: 'mem_1',
-        displayName: null,
-        email: 'a***@example.com',
-        status: 'ACTIVE',
-        kycLevel: 'LEVEL_1',
-        accountCountry: 'MY',
-        currentMarketId: 'market-1',
-        createdAt: '2026-08-01T00:00:00.000Z',
-      },
-    ],
-    total: 1,
-    page: 1,
-    pageSize: 20,
-  };
-
-  const profileBody: AdminMemberOpsProfileDto = {
-    publicMemberId: 'mem_1',
-    displayName: null,
-    email: 'a***@example.com',
-    status: 'ACTIVE',
-    kycLevel: 'LEVEL_1',
-    accountCountry: 'MY',
-    currentMarketId: 'market-1',
-    createdAt: '2026-08-01T00:00:00.000Z',
-    closedAt: null,
-    profile: {
-      fullName: 'J*** M****** D**',
-      phone: '********6789',
-      phoneVerificationStatus: 'VERIFIED',
-      birthDate: null,
-      address: null,
-      locale: 'en-MY',
-      language: 'en',
-    },
-    kyc: null,
-    marketPreferences: [
-      {
-        marketId: 'market-1',
-        marketCode: 'MA',
-        isEnabled: true,
-        isCurrent: true,
-        sortOrder: 0,
-        lastSelectedAt: null,
-      },
-    ],
-    notes: [],
-    statusHistory: [],
-  };
-
-  const notesPageBody: AdminMemberOpsNotesPageDto = {
-    notes: [
-      {
-        id: 'note-1',
-        adminUserId: 'admin-1',
-        marketId: 'market-1',
-        content: 'Follow up.',
-        isInternal: true,
-        createdAt: '2026-08-01T00:00:00.000Z',
-      },
-    ],
-    total: 1,
-    page: 1,
-    pageSize: 20,
-  };
-
-  it('uses the exact P7-S5A member operations paths with URL encoding', async () => {
-    const core = createClient();
-    core.setTokens({
-      accessToken: 'access-token',
-      accessExpiresAt: '2026-08-01T12:15:00.000Z',
-    });
-    const client = new AdminApiClient(core);
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
-      async () =>
-        new Response('{}', {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-    );
-
-    await client.memberOpsList({ page: 2, pageSize: 50, status: 'SUSPENDED' });
-    await client.memberOpsDetail('mem/unsafe');
-    await client.memberOpsSuspend('mem/unsafe', {
-      reason: 'r',
-      idempotencyKey: 'k1',
-    });
-    await client.memberOpsReactivate('mem_1', {
-      reason: 'r',
-      idempotencyKey: 'k1',
-    });
-    await client.memberOpsClose('mem_1', {
-      reason: 'r',
-      confirmationText: 'CONFIRM',
-      idempotencyKey: 'k1',
-    });
-    await client.memberOpsRevokeSessions('mem_1', {
-      reason: 'r',
-      idempotencyKey: 'k1',
-    });
-    await client.memberOpsRequireReverification('mem_1', {
-      reason: 'r',
-      idempotencyKey: 'k1',
-    });
-    await client.memberOpsAddNote('mem_1', {
-      content: 'n',
-      isInternal: true,
-      idempotencyKey: 'k1',
-    });
-    await client.memberOpsNotes('mem_1', { page: 1, pageSize: 10 });
-
-    expect(fetchSpy.mock.calls.map(([url]) => String(url))).toEqual([
-      `${BASE_URL}/admin/member-ops/members?page=2&pageSize=50&status=SUSPENDED`,
-      `${BASE_URL}/admin/member-ops/members/mem%2Funsafe`,
-      `${BASE_URL}/admin/member-ops/members/mem%2Funsafe/suspend`,
-      `${BASE_URL}/admin/member-ops/members/mem_1/reactivate`,
-      `${BASE_URL}/admin/member-ops/members/mem_1/close`,
-      `${BASE_URL}/admin/member-ops/members/mem_1/revoke-sessions`,
-      `${BASE_URL}/admin/member-ops/members/mem_1/require-reverification`,
-      `${BASE_URL}/admin/member-ops/members/mem_1/notes`,
-      `${BASE_URL}/admin/member-ops/members/mem_1/notes?page=1&pageSize=10`,
-    ]);
-    expect(JSON.parse(String(fetchSpy.mock.calls[3]?.[1]?.body))).toEqual({
-      reason: 'r',
-      idempotencyKey: 'k1',
-    });
-    expect(JSON.parse(String(fetchSpy.mock.calls[4]?.[1]?.body))).toEqual({
-      reason: 'r',
-      confirmationText: 'CONFIRM',
-      idempotencyKey: 'k1',
-    });
-  });
-
-  it('never sends a market query parameter on the member list', async () => {
-    const core = createClient();
-    core.setTokens({
-      accessToken: 'access-token',
-      accessExpiresAt: '2026-08-01T12:15:00.000Z',
-    });
-    const client = new AdminApiClient(core);
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
-      async () =>
-        new Response('{}', {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-    );
-    await client.memberOpsList({ page: 1 });
-    const url = String(fetchSpy.mock.calls[0]?.[0]);
-    expect(url).not.toMatch(/market/);
-    expect(url).toBe(`${BASE_URL}/admin/member-ops/members?page=1`);
-  });
-
-  it('round-trips the list, detail, and notes DTO shapes', async () => {
-    const core = createClient();
-    core.setTokens({
-      accessToken: 'access-token',
-      accessExpiresAt: '2026-08-01T12:15:00.000Z',
-    });
-    const client = new AdminApiClient(core);
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(listPageBody), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(profileBody), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(notesPageBody), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-      );
-
-    const list = await client.memberOpsList();
-    const detail = await client.memberOpsDetail('mem_1');
-    const notes = await client.memberOpsNotes('mem_1');
-
-    expect(list).toEqual(listPageBody);
-    expect(detail).toEqual(profileBody);
-    expect(notes).toEqual(notesPageBody);
-    // No client-supplied market header on any member ops request.
-    for (const call of fetchSpy.mock.calls) {
-      expect(call[1]).not.toHaveProperty('headers.x-market-id');
-    }
   });
 });
