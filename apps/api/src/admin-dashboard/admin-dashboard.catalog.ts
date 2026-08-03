@@ -85,7 +85,7 @@ export const dashboardMetricCatalog: readonly DashboardMetricDefinition[] = [
     id: 'M06',
     name: 'Merchant KYC submissions pending review',
     definition:
-      'Count of distinct merchant branches in the selected market whose latest merchant KYC submission status is SUBMITTED or UNDER_REVIEW.',
+      'Count of distinct merchant branches in the selected market with a merchant KYC submission in SUBMITTED or UNDER_REVIEW status.',
     definitionVersion: 1,
     freshnessClass: 'QUEUE',
     currencyDimension: false,
