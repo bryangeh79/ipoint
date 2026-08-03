@@ -189,4 +189,70 @@
 
 ---
 
-*End of register — new entries appended above this line.*
+## P7-S5A — Selected-Market Member Operations
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S5A |
+| **Sub-phase** | P7-S5 (Member operations) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` |
+| **Model/provider identity** | OpenClaw managed subagent (deepseek runtime pool) |
+| **Session start time** | 2026-08-03 MYT |
+| **Worktree** | `.local/wt-p7-s5a` |
+| **Task branch** | `task/p7-s5a-member-ops` |
+| **Starting SHA** | `c6e530bfe3ce3548950dd1c1667163d582303585` |
+| **Allowed paths** | `apps/api/src/admin-member-ops/**` (new adapter), `apps/admin-web/src/**` (member pages + append-only wiring), `packages/api-client/src/index.ts` (append-only), `docs/06-phase-reports/p7-s5/**` |
+| **Commit SHA** | `4e6d216a…` (feat), `a43eb84c…` (docs) |
+| **Tests executed** | api typecheck; member-ops unit + integration (clean DB); admin-web typecheck/test; api-client typecheck/test; build; prettier/eslint |
+| **Test results** | **42/42** (18 unit + 24 integration on clean DB) as part of combined gate; typecheck/build exit 0; axe clean |
+| **Independent reviewer** | OpenClaw (diff review, delegation-to-owner verification, combined-gate re-run); Command Center integration review PASSED |
+| **Integration commit** | `7e03ad85…` (merge on phase branch) |
+| **Known limitations** | Shared-file appends with S5B required the `263c7cdf` api-client repair (recorded in P7-S5 report §3). Browser flows host/CI-only. |
+
+---
+
+## P7-S5B — Selected-Market Merchant Operations
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S5B |
+| **Sub-phase** | P7-S5 (Merchant operations) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` |
+| **Model/provider identity** | OpenClaw managed subagent (deepseek runtime pool) |
+| **Session start time** | 2026-08-03 MYT |
+| **Worktree** | `.local/wt-p7-s5b` |
+| **Task branch** | `task/p7-s5b-merchant-ops` (+ `task/p7-s5-wire-merchant-module`) |
+| **Starting SHA** | `c6e530bfe3ce3548950dd1c1667163d582303585` |
+| **Allowed paths** | `apps/api/src/admin-merchant-ops/**` (new adapter), `apps/admin-web/src/**` (merchant pages + append-only wiring), `packages/api-client/src/index.ts` (append-only), `docs/06-phase-reports/p7-s5/**` |
+| **Commit SHA** | `5e82f5a3…` (feat), `11a867d2…` (docs) |
+| **Tests executed** | api typecheck; merchant-ops unit + integration (clean DB); admin-web typecheck/test; api-client typecheck/test; build; prettier/eslint |
+| **Test results** | **17/17** (6 unit + 11 integration on clean DB) as part of combined gate; typecheck/build exit 0 |
+| **Independent reviewer** | OpenClaw (diff review, owner-route mapping verification — adapter adds only branch-detail composition; queues/actions via Phase 1 owner routes); Command Center integration review PASSED |
+| **Integration commit** | `04bfd41c…` (wire merge on phase branch) |
+| **Known limitations** | Controller prefix `admin/markets` (matches owner route family; cosmetic naming smell recorded). Browser flows host/CI-only. |
+
+---
+
+## P7-S5C — KYC Review, Privacy and Evidence Surface
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S5C (+ P7-S5C-FIX) |
+| **Sub-phase** | P7-S5 (KYC/privacy) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (initial + fix dispatch) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session start time** | 2026-08-03 MYT |
+| **Worktree** | `.local/wt-p7-s5c` |
+| **Task branch** | `task/p7-s5c-kyc-privacy` |
+| **Starting SHA** | `8777b20b03412b706ee19755afe74dabceef4f14` |
+| **Allowed paths** | `apps/api/src/admin-kyc-ops/**` (new adapter), `apps/admin-web/src/**` (KYC pages + append-only wiring), `packages/api-client/src/index.ts` (append-only), `docs/06-phase-reports/p7-s5/**` |
+| **Commit SHA** | `1343fe802d4c0efb09f9f26c1aaaec2a70617099` (feat), `1098cb9f…` (browser spec), `aee62f91…`/`61124bb6…` (docs), `7d45302c79b75cdab216dc19e4b93a4465f35219` (FIX: denied-audit filter), `9845f2e7…` (FIX docs), `5cc13ece…` (vitest hookTimeout infra) |
+| **Tests executed** | api typecheck; kyc-ops unit + integration (clean DB); admin-web typecheck/test; api-client typecheck/test; build; prettier/eslint; denied-audit filter unit + integration |
+| **Test results** | **69/69** (33 unit incl. 11 filter + 36 integration on clean DB); api-client 49/49; admin-web 147/147; typecheck/build exit 0; sensitive-field leakage scan clean |
+| **Independent reviewer** | OpenClaw (filter review — audit API shape, serialization parity, route mapping; combined-gate re-run) |
+| **Integration commit** | `bdef87f9947a2b02766f6953befd4e37d602be2a` (merge on phase branch) |
+| **Known limitations** | Browser flows host/CI-only. P7-S2C step-up action_class case mismatch flagged (fails closed; P7-S2 owner remediation queued). |
+
+---
+
+*End of register - new entries appended above this line.*
