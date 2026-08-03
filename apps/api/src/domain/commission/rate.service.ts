@@ -17,11 +17,12 @@
  * - AGENT_UPGRADE: rate_type = FIXED (fixed amount)
  * - MEMBER_CONSUMPTION: rate_type = PERCENTAGE
  * - MERCHANT_RECRUITMENT: rate_type = PERCENTAGE
+ * - AGENT_ACTIVATION_FEE: rate_type = FIXED (versioned activation fee, P5-R1)
  *
- * ## Generation Values
- * - 0: Single-generation types (MEMBER_CONSUMPTION, MERCHANT_RECRUITMENT)
- * - 1: Generation 1 (AGENT_UPGRADE direct referrer)
- * - 2: Generation 2 (AGENT_UPGRADE indirect referrer)
+ * ## Generation Values (P5-R1 reconciled with P5-S0 contract)
+ * - 0: Single-generation types (MERCHANT_RECRUITMENT, AGENT_ACTIVATION_FEE)
+ * - 1: Generation 1 (AGENT_UPGRADE / MEMBER_CONSUMPTION direct referrer)
+ * - 2: Generation 2 (AGENT_UPGRADE / MEMBER_CONSUMPTION indirect referrer)
  *
  * ## Decimal Handling
  * - rate_value stored as NUMERIC(38,10) — decimal strings throughout
@@ -45,6 +46,8 @@ const COMMISSION_TYPE_RATE_TYPE: Record<string, string> = {
   AGENT_UPGRADE: 'FIXED',
   MEMBER_CONSUMPTION: 'PERCENTAGE',
   MERCHANT_RECRUITMENT: 'PERCENTAGE',
+  /** Versioned agent activation fee (P5-R1 / GATE-P5-01). */
+  AGENT_ACTIVATION_FEE: 'FIXED',
 } as const;
 
 /** Valid commission type values. */
@@ -56,11 +59,24 @@ const VALID_RATE_TYPES = ['PERCENTAGE', 'FIXED'];
 /** Valid generation values. */
 const VALID_GENERATIONS = [0, 1, 2];
 
-/** Commission types mapped to their permitted generation sets. */
+/**
+ * Commission types mapped to their permitted generation sets.
+ *
+ * P5-R1 reconciliation (4.4) against the frozen P5-S0 contract
+ * ("generation INT 1 or 2, 0 for single-gen types"):
+ * - AGENT_UPGRADE: G1/G2 → 1, 2
+ * - MEMBER_CONSUMPTION: G1/G2 → 1, 2 (legacy validation erroneously
+ *   allowed only 0, which the seed and the member-consumption service
+ *   never use — fixed here)
+ * - MERCHANT_RECRUITMENT: single generation → 0 (the service resolves
+ *   generation 0; the legacy seed row at generation 1 is never read)
+ * - AGENT_ACTIVATION_FEE: single generation → 0
+ */
 const COMMISSION_GENERATIONS: Record<string, number[]> = {
   AGENT_UPGRADE: [1, 2],
-  MEMBER_CONSUMPTION: [0],
+  MEMBER_CONSUMPTION: [1, 2],
   MERCHANT_RECRUITMENT: [0],
+  AGENT_ACTIVATION_FEE: [0],
 } as const;
 
 /* ------------------------------------------------------------------ */

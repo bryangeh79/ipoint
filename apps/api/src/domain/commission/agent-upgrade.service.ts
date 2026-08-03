@@ -55,11 +55,6 @@ const CALCULATION_SCALE = 10;
 /** Rounding mode per D-24 frozen. */
 const ROUNDING_MODE = 'HALF_UP';
 
-/** Default currency for MY market. */
-const DEFAULT_CURRENCY: Record<string, string> = {
-  MY: 'MYR',
-};
-
 /* ------------------------------------------------------------------ */
 /*  Database Type                                                       */
 /* ------------------------------------------------------------------ */
@@ -132,7 +127,9 @@ export class AgentUpgradeCommissionService {
 
     const effectiveTime = activatedAt.toISOString();
     const marketCode = market as string;
-    const currency = DEFAULT_CURRENCY[marketCode] ?? 'MYR';
+    // P5-R1: currency comes from the activation's fee snapshot (set at APPLY
+    // time), never from a hard-coded market map. MY applies snapshot MYR.
+    const currency = activation.currency ?? 'MYR';
     const sourceType = 'AGENT_ACTIVATION';
     const sourceReference = activationId;
 
