@@ -55,7 +55,7 @@ no direct domain-table writes in production code; nothing pushed.
 
 | Worktree        | Branch                     | Starting SHA                               | Delivered commits |
 | --------------- | -------------------------- | ------------------------------------------ | ----------------: |
-| `wt-p7-s5c`     | `task/p7-s5c-kyc-privacy`  | `8777b20b03412b706ee19755afe74dabceef4f14` |                 5 |
+| `wt-p7-s5c`     | `task/p7-s5c-kyc-privacy`  | `8777b20b03412b706ee19755afe74dabceef4f14` |                 6 |
 
 No push was performed; OpenClaw reviews and pushes.
 
@@ -63,9 +63,10 @@ No push was performed; OpenClaw reviews and pushes.
 
 1. `1343fe802d4c0efb09f9f26c1aaaec2a70617099` — `feat(admin): add selected-market kyc review and evidence controls` (code + tests; 30 files, +7781/−5)
 2. `1098cb9f86329bed259491f6df06da944a6a249d` — `test(admin): add mock-based kyc review browser verification spec` (ready-to-run Playwright spec, unexecuted in sandbox)
-3. `aee62f91` — `docs(p7-s5c): record internal delivery report` (this report)
+3. `aee62f916903e1ff0a2f1198f225dfcb37567576` — `docs(p7-s5c): record internal delivery report` (this report)
 4. `7d45302c79b75cdab216dc19e4b93a4465f35219` — `fix(p7-s5c): commit and verify denied-access audit filter` (defect fix: filter + unit/integration tests, see §2a)
-5. `<COMMIT_5_SHA>` — `docs(p7-s5c): record denied-audit filter fix` (this §2a update)
+5. `9845f2e74083785f4be4ea2811c007947dd8dcb4` — `docs(p7-s5c): record denied-audit filter fix` (this §2a update)
+6. `5cc13ece68d6943842727fc4bd75fb7ebb9e635c` — `test(admin-api): extend vitest hook timeout for db-heavy suites` (hook-timeout resolution, §2b)
 
 ## 2a. Defect fix (P7-S5C-FIX) — denied-access audit filter
 
@@ -255,7 +256,10 @@ counts and requires a clean schema; procedure: recreate DB, then run once).
 | Command | Result |
 | ------- | ------ |
 | `pnpm --filter @ipoint/api typecheck` | PASS, exit 0 |
+| `pnpm --filter @ipoint/api build` | PASS, exit 0 |
 | `DATABASE_URL=postgres://ipoint:ipoint-local-only@172.23.0.3:5432/ipoint_p7s5c_test pnpm --filter @ipoint/api exec vitest run src/admin-kyc-ops/` | **69/69 passed** (33 unit + 36 real-DB integration on a freshly recreated DB), exit 0 |
+| Full api directory parallel run (fresh DB, full env, hook-timeout fix in place) | **0 hook timeouts**; 8 files / 43 tests failed — all pre-existing drift or shared-DB parallel interference, none S5C (§2b); the S5C `admin-kyc-ops` suite passed in the final run |
+| Pre-S5C baseline (`8777b20b`) full api directory parallel run (same env, same node_modules) | 18 hook timeouts; 22 files / 28 tests failed — proves the flake pre-exists S5C (§2b) |
 | `pnpm --filter @ipoint/admin-web typecheck` | PASS, exit 0 |
 | `pnpm --filter @ipoint/admin-web test` | **147/147 passed** (19 files; 109 pre-existing + 38 new incl. axe), exit 0 |
 | `pnpm --filter @ipoint/admin-web build` | PASS (**1625 modules transformed**), exit 0 |
@@ -265,6 +269,7 @@ counts and requires a clean schema; procedure: recreate DB, then run once).
 | `pnpm exec eslint apps/api/src/admin-kyc-ops apps/api/src/app.module.ts` | clean, exit 0 |
 | `pnpm exec eslint packages/api-client/src/index.ts packages/api-client/src/index.test.ts` | clean, exit 0 |
 | `pnpm exec eslint apps/admin-web/src/kyc-model.ts` | 0 errors (repo ignores `apps/admin-web/src/**` by design — same as P7-S4B/S5A) |
+| `pnpm exec playwright test --config=apps/admin-web/playwright.admin.config.ts` | **BLOCKED in sandbox**, exit 1: every spec (incl. 4 `kyc.e2e.spec.ts` cases) failed at `browserType.launch` — `Host system is missing dependencies to run browsers` (`playwright install-deps` / `apt-get install libx11-6 libxext6 libxcb1`). Not claimed as passed; spec is mock-based and host/CI-ready |
 | axe (component-level, jsdom) | zero serious/critical on loaded member/merchant KYC queue + detail paths |
 
 Coverage delivered (mapped to P7-S0 §6.4 / P7-AC-10): market isolation
@@ -326,22 +331,71 @@ executed** here; no browser run is claimed as passed.
   unchanged).
 - `jiti/` tooling cache left untracked (same pattern as P7-S4A/S4B/S5A).
 
+## 2b. Hook-timeout investigation (open test-infra issue — resolved)
+
+**Symptom**: the full api test directory run in parallel (`pnpm --filter
+@ipoint/api exec vitest run`, all 83 files) was flaky: 15–24 suites failed
+with `Error: Hook timed out in 10000ms.` in their `beforeAll` (Nest
+`AppModule` compile + `migrate` + `seedFoundation` on the shared Postgres
+plus `vi.stubEnv`). The two KYC spec files passed alone but the combined
+parallel run exceeded vitest's default 10s hook budget.
+
+**Root cause — pre-existing, not introduced by S5C**: reproduced on the
+pre-S5C baseline (`8777b20b`, via a detached worktree with the same
+node_modules): the baseline full-directory parallel run produced **18 hook
+timeouts** and 22 failed files / 28 failed tests. The DB-heavy Nest
+integration suites (admin-dashboard, auth, kyc, merchant, redemption,
+transaction, and the P7-S5A/S5B/S5C ops suites) all boot a full `AppModule`
+and run migrations in `beforeAll`; under parallel load that legitimately
+outlasts the 10s default. S5C only adds one more heavy suite to the same
+pool — it is a victim of the pre-existing condition, not its cause.
+
+**Fix (sanctioned, not a requirements reduction)**: raised `hookTimeout` to
+`60_000` in `apps/api/vitest.config.ts` (commit 6, `5cc13ece`). A timeout
+increase changes no assertion, skips no test, and lowers no coverage — it
+only gives the legitimately long DB-heavy hooks their full budget. The
+change is 8 lines, documented in the config itself.
+
+**Post-fix verification (fresh DB per the clean-DB rule)**:
+
+| Run | Result |
+| --- | --- |
+| Full api directory, pre-fix (S5C HEAD, env complete) | 15 hook timeouts; 20 files / 13 tests failed |
+| Full api directory, post-fix run 1 | **0 hook timeouts**; 10 files / 47 tests failed (all suites now run to completion) |
+| Full api directory, post-fix run 2 | **0 hook timeouts**; 8 files / 43 tests failed |
+| Full api directory, post-fix final (HEAD `5cc13ece`) | **0 hook timeouts**; 8 files / 43 tests failed; S5C `admin-kyc-ops` suite itself passed |
+
+**What the remaining failures are (all pre-existing, none S5C)**: with the
+hook budget fixed, the suites that previously timed out now run to
+completion and expose (a) pre-existing test/implementation drift — e.g.
+`auth.integration.spec.ts` expects `AUTH_REFRESH_REUSED` but the auth
+service (changed in P7-S2A `b9384e95`) throws `SESSION_REUSE_DETECTED`; the
+auth failure reproduces identically when the suite runs ALONE; (b) env-
+dependent suites that require `REDIS_URL`/`AUTH_OTP_PEPPER` exported (e.g.
+redemption/transaction suites — they fail standalone too without those
+vars, so the command must export them, which the scoped runs do); and (c)
+shared-DB parallel interference — every integration suite runs against the
+same `ipoint_p7s5c_test` database, and the market fixtures (MA/MB) and
+fixed requestIds collide across concurrently-running suites (e.g.
+`admin-kyc-ops` "lists only the selected market" expects exactly 3 rows and
+occasionally sees other suites' rows; the identical assertion in the
+S5A/S5B suites flakes the same way in the same parallel run). The same
+failure classes appear on the pre-S5C baseline run, so none of them is a
+P7-S5C regression. The authoritative S5C verification remains the scoped
+fresh-DB run (§9): 69/69.
+
 ## 11. Git state
 
 - Worktree: `/workspace/.local/wt-p7-s5c` (branch `task/p7-s5c-kyc-privacy`).
 - Starting SHA: `8777b20b03412b706ee19755afe74dabceef4f14`.
-- Commits: 5 (code+tests, browser spec, delivery report, P7-S5C-FIX
-  filter+tests, then this report update). No amend, no rebase, no reset, no
-  force, NO PUSH.
+- Commits: 6 (code+tests, browser spec, delivery report, P7-S5C-FIX
+  filter+tests, report update, hook-timeout fix). No amend, no rebase, no
+  reset, no force, NO PUSH.
 - Exact-path staging only; the 102 historical untracked artifacts in the
   main checkout were untouched; `jiti/` remains untracked (same pattern as
-  P7-S4A/S4B/S5A). `apps/api/vitest.config.ts` carries a pre-existing
-  uncommitted worktree-only hook-timeout tuning (`hookTimeout: 60_000` for
-  the DB-heavy integration suites) left over from the original S5C run; it
-  is outside this fix's allowed paths and remains uncommitted — a clean
-  checkout running the full api suite may hit vitest's 10s default hook
-  budget under parallel load (documented in the diff itself as an
-  environment/suite-load fix).
+  P7-S4A/S4B/S5A). `apps/api/vitest.config.ts` carries the committed
+  hook-timeout tuning (`hookTimeout: 60_000`, commit `5cc13ece`) for the
+  DB-heavy integration suites — see §2b.
 
 ## 12. Internal gate result
 
@@ -354,4 +408,9 @@ owner code byte-identical (`git diff` shows zero changes under `admin-kyc/`,
 `kyc/`, `admin-member/`, `merchant/`, `packages/database/`); raw evidence
 gating (permission + reason + step-up + audit-of-view) proven server-side;
 denied-sensitive-access audit (P7-S5C-FIX) committed and tracked in HEAD;
-commits scoped exactly; nothing pushed.
+the open test-infra flake (vitest 10s hook timeout on the full parallel api
+directory run) is resolved and committed (`hookTimeout: 60_000`, §2b) — the
+flake was proven pre-existing on the pre-S5C baseline, and the remaining
+full-directory failures are pre-existing drift / shared-DB parallel
+interference, none S5C (authoritative S5C evidence is the scoped fresh-DB
+run above); commits scoped exactly; nothing pushed.
