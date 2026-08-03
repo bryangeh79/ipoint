@@ -192,7 +192,7 @@ counts and requires a clean schema; procedure: recreate DB, then run once).
 | `DATABASE_URL=postgres://ipoint:ipoint-local-only@172.23.0.3:5432/ipoint_p7s5c_test pnpm --filter @ipoint/api exec vitest run src/admin-kyc-ops/` | **54/54 passed** (22 unit + 32 real-DB integration on a freshly recreated DB), exit 0 |
 | `pnpm --filter @ipoint/admin-web typecheck` | PASS, exit 0 |
 | `pnpm --filter @ipoint/admin-web test` | **147/147 passed** (19 files; 109 pre-existing + 38 new incl. axe), exit 0 |
-| `pnpm --filter @ipoint/admin-web build` | PASS (**1616 modules transformed**), exit 0 |
+| `pnpm --filter @ipoint/admin-web build` | PASS (**1625 modules transformed**), exit 0 |
 | `pnpm --filter @ipoint/api-client typecheck` | PASS, exit 0 |
 | `pnpm --filter @ipoint/api-client test` | **49/49 passed** (41 pre-existing + 8 new), exit 0 |
 | `pnpm exec prettier --check` on all changed paths | clean |
@@ -273,7 +273,7 @@ executed** here; no browser run is claimed as passed.
 ## 12. Internal gate result
 
 `OPENCLAW_INTERNAL_GATE_PASSED` — API adapter unit + real-DB integration
-54/54 on a clean dedicated DB, Admin Web 147/147 + build 1616 modules,
+54/54 on a clean dedicated DB, Admin Web 147/147 + build 1625 modules,
 API client 49/49, all typechecks, prettier, and eslint (API + client) green;
 axe zero serious/critical on covered paths; frozen Phase 1/2 owner code
 byte-identical (`git diff` shows zero changes under `admin-kyc/`, `kyc/`,
