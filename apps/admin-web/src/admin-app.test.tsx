@@ -10,6 +10,10 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminApp, createAdminMemoryRouter } from './admin-app.js';
 import { adminApi } from './admin-api.js';
+import {
+  dashboardCatalogFixture,
+  dashboardDrillDownFixture,
+} from './test/dashboard-fixtures.js';
 
 const marketA = '11111111-1111-4111-8111-111111111111';
 const marketB = '22222222-2222-4222-8222-222222222222';
@@ -31,7 +35,7 @@ describe('Admin routed shell components', () => {
   });
 
   it('completes password plus MFA and opens the protected dashboard', async () => {
-    mockAdminApi(['dashboard.read']);
+    mockAdminApi(['dashboard.view']);
     const router = createAdminMemoryRouter(['/admin/login']);
     render(<AdminApp router={router} />);
     await signIn();
@@ -78,7 +82,7 @@ describe('Admin routed shell components', () => {
   });
 
   it('renders permission denied for a crafted deep link without permission', async () => {
-    mockAdminApi(['dashboard.read']);
+    mockAdminApi(['dashboard.view']);
     render(
       <AdminApp
         router={createAdminMemoryRouter([`/admin/${marketA}/merchants`])}
@@ -111,7 +115,7 @@ describe('Admin routed shell components', () => {
   });
 
   it('shows only navigation allowed by effective permissions', async () => {
-    mockAdminApi(['dashboard.read']);
+    mockAdminApi(['dashboard.view']);
     render(<AdminApp router={createAdminMemoryRouter(['/admin/login'])} />);
     await signInAndVerify();
     expect(
@@ -151,7 +155,7 @@ describe('Admin routed shell components', () => {
     'SESSION_FAMILY_EXPIRED',
     'SESSION_REVOKED',
   ])('returns to login for terminal session state %s', async (code) => {
-    mockAdminApi(['dashboard.read']);
+    mockAdminApi(['dashboard.view']);
     render(<AdminApp router={createAdminMemoryRouter(['/admin/login'])} />);
     await signInAndVerify();
     act(() => adminApi.clearSession(code));
@@ -311,6 +315,32 @@ function mockAdminApi(
         });
       }
       if (url.endsWith('/admin/sessions')) return json({ sessions: [] });
+      if (url.endsWith('/admin/dashboard/metrics') && method === 'GET') {
+        return json(dashboardCatalogFixture());
+      }
+      const metricDetail = /\/admin\/dashboard\/metrics\/(M\d{2})$/u.exec(url);
+      if (metricDetail && method === 'GET') {
+        const metric = dashboardCatalogFixture().items.find(
+          (item) => item.id === metricDetail[1],
+        );
+        if (!metric || metric.state !== 'FRESH') {
+          return json(
+            {
+              code: 'DASHBOARD_DATA_UNAVAILABLE',
+              message: 'This metric is currently unavailable.',
+            },
+            503,
+          );
+        }
+        return json({
+          ...metric,
+          marketId: currentMarketId,
+          drillDown: dashboardDrillDownFixture(
+            metric.id,
+            currentMarketId ?? undefined,
+          ),
+        });
+      }
       throw new Error(`Unexpected Admin API request: ${method} ${url}`);
     });
 }
