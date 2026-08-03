@@ -845,6 +845,118 @@ export interface AdminSessionRevocationSummaryDto {
   revokedCount: number;
 }
 
+/* ------------------------------------------------------------------ */
+/*  P7-S4A Admin Dashboard read-model DTOs                            */
+/* ------------------------------------------------------------------ */
+
+/** Server-owned metric ids; the client never invents new ones. */
+export type AdminDashboardMetricId =
+  | 'M01'
+  | 'M02'
+  | 'M03'
+  | 'M04'
+  | 'M05'
+  | 'M06'
+  | 'M07'
+  | 'M08'
+  | 'M09'
+  | 'M10'
+  | 'M11'
+  | 'M12'
+  | 'M13'
+  | 'M14';
+
+export type AdminDashboardFreshnessState = 'FRESH' | 'STALE' | 'UNAVAILABLE';
+
+export type AdminDashboardUnavailableReason =
+  | 'NO_DURABLE_SOURCE'
+  | 'SOURCE_QUERY_FAILED'
+  | 'SOURCE_PERMISSION_DENIED';
+
+export type AdminDashboardFreshnessClass = 'QUEUE' | 'KPI';
+
+export interface AdminDashboardJobRunSnapshot {
+  jobType: string;
+  localBusinessDate: string;
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  startedAt: string | null;
+  completedAt: string | null;
+  totalEntitlements: number;
+  processedCount: number;
+  failedCount: number;
+}
+
+export type AdminDashboardMetricValue =
+  | { kind: 'COUNT'; count: number }
+  | { kind: 'BREAKDOWN'; breakdown: Record<string, number> }
+  | { kind: 'QUEUE_SUMMARY'; counts: Record<string, number> }
+  | {
+      kind: 'JOB_STATUS';
+      latestRun: AdminDashboardJobRunSnapshot | null;
+      statusCounts: Record<string, number>;
+    }
+  | {
+      kind: 'CURRENCY_TOTALS';
+      totals: Array<{
+        currency: string;
+        count: number;
+        totalAmount: string;
+      }>;
+    }
+  | { kind: 'BALANCE'; currency: string; totalAvailableBalance: string };
+
+export interface AdminDashboardMetricState {
+  id: AdminDashboardMetricId;
+  name: string;
+  definition: string;
+  definitionVersion: number;
+  freshnessClass: AdminDashboardFreshnessClass;
+  currencyDimension: boolean;
+  permission: string;
+  source: string;
+  state: AdminDashboardFreshnessState;
+  unavailableReason?: AdminDashboardUnavailableReason;
+  /** Source-query time of this metric (not the cache-read time). */
+  asOf: string;
+  value?: AdminDashboardMetricValue;
+}
+
+/** GET /admin/dashboard/metrics — selected-market catalog with state. */
+export interface AdminDashboardCatalogDto {
+  asOf: string;
+  marketId: string;
+  items: AdminDashboardMetricState[];
+}
+
+export interface AdminDashboardDrillDownReference {
+  metricId: AdminDashboardMetricId;
+  marketId: string;
+  marketScope: 'SELECTED';
+  permission: string;
+  /** Masked drill-down is required for sensitive/financial metrics. */
+  masking: boolean;
+  metricFilter: string | null;
+  timeBoundary: { from: string | null; to: string | null } | null;
+}
+
+/** GET /admin/dashboard/metrics/:metricId — single metric with drill-down. */
+export interface AdminDashboardMetricDetailDto {
+  id: AdminDashboardMetricId;
+  name: string;
+  definition: string;
+  definitionVersion: number;
+  freshnessClass: AdminDashboardFreshnessClass;
+  currencyDimension: boolean;
+  permission: string;
+  source: string;
+  state: AdminDashboardFreshnessState;
+  unavailableReason?: AdminDashboardUnavailableReason;
+  asOf: string;
+  marketId: string;
+  value?: AdminDashboardMetricValue;
+  drillDown: AdminDashboardDrillDownReference;
+}
+
 /**
  * Exact typed surface consumed by Admin Web. Paths and DTO field names mirror
  * the accepted P7-S2 controllers; no shape probing or message parsing occurs.
@@ -999,6 +1111,32 @@ export class AdminApiClient {
     return (
       await this.client.delete<AdminSessionRevocationSummaryDto>(
         '/admin/sessions',
+      )
+    ).data;
+  }
+
+  /* ---- P7-S4A dashboard read models ---- */
+
+  /**
+   * Selected-market dashboard metric catalog with per-metric state.
+   * The market comes from the server-selected Current Admin Market; no
+   * client-supplied market id is sent (a mismatch returns 409).
+   */
+  async dashboardMetrics(): Promise<AdminDashboardCatalogDto> {
+    return (
+      await this.client.get<AdminDashboardCatalogDto>(
+        '/admin/dashboard/metrics',
+      )
+    ).data;
+  }
+
+  /** One selected-market dashboard metric with its drill-down reference. */
+  async dashboardMetricDetail(
+    metricId: string,
+  ): Promise<AdminDashboardMetricDetailDto> {
+    return (
+      await this.client.get<AdminDashboardMetricDetailDto>(
+        `/admin/dashboard/metrics/${encodeURIComponent(metricId)}`,
       )
     ).data;
   }

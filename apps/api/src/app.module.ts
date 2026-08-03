@@ -15,6 +15,7 @@ import { AdminKycModule } from './admin-kyc/admin-kyc.module.js';
 import { DiscoveryModule } from './discovery/discovery.module.js';
 import { AdminMemberModule } from './admin-member/admin-member.module.js';
 import { AdminRewardModule } from './admin-reward/admin-reward.module.js';
+import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module.js';
 import { RewardModule } from './reward/reward.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
 import { DailyJobModule } from './daily-job/job.module.js';
@@ -77,6 +78,7 @@ import {
     DiscoveryModule,
     AdminMemberModule,
     AdminRewardModule,
+    AdminDashboardModule,
     RewardModule,
     WalletModule,
     DailyJobModule,
