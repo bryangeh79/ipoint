@@ -53,9 +53,9 @@ no direct domain-table writes in production code; nothing pushed.
 
 ## 2. Branch and worktree map
 
-| Worktree        | Branch                     | Starting SHA                               | Delivered commits |
-| --------------- | -------------------------- | ------------------------------------------ | ----------------: |
-| `wt-p7-s5c`     | `task/p7-s5c-kyc-privacy`  | `8777b20b03412b706ee19755afe74dabceef4f14` |                 6 |
+| Worktree    | Branch                    | Starting SHA                               | Delivered commits |
+| ----------- | ------------------------- | ------------------------------------------ | ----------------: |
+| `wt-p7-s5c` | `task/p7-s5c-kyc-privacy` | `8777b20b03412b706ee19755afe74dabceef4f14` |                 6 |
 
 No push was performed; OpenClaw reviews and pushes.
 
@@ -99,7 +99,7 @@ apps/api/src/admin-kyc-ops/` resolves within HEAD.
   filter does not catch.
 - Route-pattern mapping produces the same action codes the adapter uses for
   SUCCESS audit-of-view (`member/merchant.kyc.ops.queue.view/.view/
-  .evidence.view`; decide actions → `.decide`). Intentional divergence,
+.evidence.view`; decide actions → `.decide`). Intentional divergence,
   documented: DENIED merchant rows use the `merchant_branch` entity (branch
   id from the URL — no DB lookup at denial time) while SUCCESS rows use
   `merchant_kyc_submission`; `merchant_branch` is a first-class audit entity
@@ -140,14 +140,14 @@ and the frozen Phase 1 merchant KYC endpoints were NOT modified.
 
 Evidence from inspection of the frozen surfaces (read-only):
 
-| Capability | Owner surface exists? | Decision |
-| --- | --- | --- |
-| Member KYC queue | `GET /admin/kyc/cases` (`member.kyc.read`) | Owner list accepts the market filter from the **client query** (`marketId`); the P7-S2 `RbacGuard.assertMarketConsistency` never inspects query parameters, and the owner list only requires a grant on the case market — never equality with the server-owned Current Admin Market. **Adapter forces `marketId = server market`** and makes a client market param structurally impossible (`.omit({ marketId: true })` → 400). |
-| Member KYC case detail | `GET /admin/kyc/cases/:id` (`member.kyc.read`) | Owner asserts only a market grant; returns **unmasked** `legalFullName` / `dateOfBirth` / `residentialAddress` to every reader incl. Support. §6.4 requires Support-role masked identity/contact summaries. **Adapter enforces market equality and masks identity/contact fields on the plain detail; raw evidence is served only via the dedicated evidence endpoint.** |
-| Member KYC actions (5) | `POST .../start-review\|request-more-info\|approve\|reject\|require-reverification` (`member.kyc.decide`) | Owner commands reused **unchanged** (state machine, idempotency, atomic audit). Adapter only pre-validates selected-market equality then delegates the exact DTO + Idempotency-Key. |
-| Merchant KYC queue | `GET /admin/markets/:marketId/merchants/kyc` (`merchant.kyc.view`, marketScoped) | Owner route already market-scoped; the adapter still provides the server-market queue (`listKycQueue`) so the UI never sends a market id and the response carries the server market envelope. |
-| Merchant KYC evidence/detail | `GET .../merchants/:branchId/kyc/review` (`merchant.kyc.approve`) | Owner `getKycForReview` returns the FULL snapshot and has a review-start side effect — wrong for Support reads. The adapter's masked detail is a **read-only projection** over immutable owner rows applying the owner's exported `maskMerchantKycSnapshot` verbatim (S5B precedent: read-only projections); full evidence is delegated to `getKycForReview` behind `merchant.kyc.evidence.view`. |
-| Merchant KYC review decision | `POST .../merchants/:branchId/kyc/review` (`merchant.kyc.approve`) | Owner `reviewKyc` reused **unchanged** (decision + rejected fields, idempotency, atomic audit + operational-status evaluation). |
+| Capability                   | Owner surface exists?                                                                                     | Decision                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Member KYC queue             | `GET /admin/kyc/cases` (`member.kyc.read`)                                                                | Owner list accepts the market filter from the **client query** (`marketId`); the P7-S2 `RbacGuard.assertMarketConsistency` never inspects query parameters, and the owner list only requires a grant on the case market — never equality with the server-owned Current Admin Market. **Adapter forces `marketId = server market`** and makes a client market param structurally impossible (`.omit({ marketId: true })` → 400). |
+| Member KYC case detail       | `GET /admin/kyc/cases/:id` (`member.kyc.read`)                                                            | Owner asserts only a market grant; returns **unmasked** `legalFullName` / `dateOfBirth` / `residentialAddress` to every reader incl. Support. §6.4 requires Support-role masked identity/contact summaries. **Adapter enforces market equality and masks identity/contact fields on the plain detail; raw evidence is served only via the dedicated evidence endpoint.**                                                        |
+| Member KYC actions (5)       | `POST .../start-review\|request-more-info\|approve\|reject\|require-reverification` (`member.kyc.decide`) | Owner commands reused **unchanged** (state machine, idempotency, atomic audit). Adapter only pre-validates selected-market equality then delegates the exact DTO + Idempotency-Key.                                                                                                                                                                                                                                             |
+| Merchant KYC queue           | `GET /admin/markets/:marketId/merchants/kyc` (`merchant.kyc.view`, marketScoped)                          | Owner route already market-scoped; the adapter still provides the server-market queue (`listKycQueue`) so the UI never sends a market id and the response carries the server market envelope.                                                                                                                                                                                                                                   |
+| Merchant KYC evidence/detail | `GET .../merchants/:branchId/kyc/review` (`merchant.kyc.approve`)                                         | Owner `getKycForReview` returns the FULL snapshot and has a review-start side effect — wrong for Support reads. The adapter's masked detail is a **read-only projection** over immutable owner rows applying the owner's exported `maskMerchantKycSnapshot` verbatim (S5B precedent: read-only projections); full evidence is delegated to `getKycForReview` behind `merchant.kyc.evidence.view`.                               |
+| Merchant KYC review decision | `POST .../merchants/:branchId/kyc/review` (`merchant.kyc.approve`)                                        | Owner `reviewKyc` reused **unchanged** (decision + rejected fields, idempotency, atomic audit + operational-status evaluation).                                                                                                                                                                                                                                                                                                 |
 
 Owner-reuse evidence: `git diff` against HEAD shows **zero changes** under
 `apps/api/src/admin-kyc/`, `apps/api/src/kyc/`, `apps/api/src/admin-member/`,
@@ -164,20 +164,20 @@ Admin Market and rejects client disagreement (409 `MARKET_CONTEXT_MISMATCH`);
 the adapter re-validates case/submission market equality before any owner
 delegation.
 
-| Path | Method | Permission (canonical) | Behaviour |
-| ---- | ------ | ---------------------- | --------- |
-| `/api/v1/admin/kyc-ops/members` | GET | `member.kyc.read` | Selected-market paged queue (masked summaries); owner list forced to server market |
-| `/api/v1/admin/kyc-ops/members/:id` | GET | `member.kyc.read` | Masked case detail (identity/contact masked for every role) + audit-of-view `member.kyc.ops.view` |
-| `/api/v1/admin/kyc-ops/members/:id/evidence` | GET | `member.kyc.evidence.view` (step-up + reason enforced by the guard) | Full minimum evidence (owner response verbatim) + audit-of-view `member.kyc.ops.evidence.view` |
-| `/api/v1/admin/kyc-ops/members/:id/start-review` | POST | `member.kyc.decide` | Owner command untouched (Idempotency-Key required) |
-| `/api/v1/admin/kyc-ops/members/:id/request-more-info` | POST | `member.kyc.decide` | Owner command untouched |
-| `/api/v1/admin/kyc-ops/members/:id/approve` | POST | `member.kyc.decide` | Owner command untouched |
-| `/api/v1/admin/kyc-ops/members/:id/reject` | POST | `member.kyc.decide` | Owner command untouched |
-| `/api/v1/admin/kyc-ops/members/:id/require-reverification` | POST | `member.kyc.decide` | Owner command untouched |
-| `/api/v1/admin/kyc-ops/merchants` | GET | `merchant.kyc.view` | Selected-market submissions queue (masked; owner `listKycQueue`) |
-| `/api/v1/admin/kyc-ops/merchants/:branchId` | GET | `merchant.kyc.view` | Masked submission detail (owner mask helper) + audit-of-view `merchant.kyc.ops.view` |
-| `/api/v1/admin/kyc-ops/merchants/:branchId/evidence` | GET | `merchant.kyc.evidence.view` (step-up + reason) | Owner `getKycForReview` verbatim + audit-of-view `merchant.kyc.ops.evidence.view` |
-| `/api/v1/admin/kyc-ops/merchants/:branchId/review` | POST | `merchant.kyc.approve` | Owner `reviewKyc` untouched (decision/reason/rejected_fields + Idempotency-Key) |
+| Path                                                       | Method | Permission (canonical)                                              | Behaviour                                                                                         |
+| ---------------------------------------------------------- | ------ | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `/api/v1/admin/kyc-ops/members`                            | GET    | `member.kyc.read`                                                   | Selected-market paged queue (masked summaries); owner list forced to server market                |
+| `/api/v1/admin/kyc-ops/members/:id`                        | GET    | `member.kyc.read`                                                   | Masked case detail (identity/contact masked for every role) + audit-of-view `member.kyc.ops.view` |
+| `/api/v1/admin/kyc-ops/members/:id/evidence`               | GET    | `member.kyc.evidence.view` (step-up + reason enforced by the guard) | Full minimum evidence (owner response verbatim) + audit-of-view `member.kyc.ops.evidence.view`    |
+| `/api/v1/admin/kyc-ops/members/:id/start-review`           | POST   | `member.kyc.decide`                                                 | Owner command untouched (Idempotency-Key required)                                                |
+| `/api/v1/admin/kyc-ops/members/:id/request-more-info`      | POST   | `member.kyc.decide`                                                 | Owner command untouched                                                                           |
+| `/api/v1/admin/kyc-ops/members/:id/approve`                | POST   | `member.kyc.decide`                                                 | Owner command untouched                                                                           |
+| `/api/v1/admin/kyc-ops/members/:id/reject`                 | POST   | `member.kyc.decide`                                                 | Owner command untouched                                                                           |
+| `/api/v1/admin/kyc-ops/members/:id/require-reverification` | POST   | `member.kyc.decide`                                                 | Owner command untouched                                                                           |
+| `/api/v1/admin/kyc-ops/merchants`                          | GET    | `merchant.kyc.view`                                                 | Selected-market submissions queue (masked; owner `listKycQueue`)                                  |
+| `/api/v1/admin/kyc-ops/merchants/:branchId`                | GET    | `merchant.kyc.view`                                                 | Masked submission detail (owner mask helper) + audit-of-view `merchant.kyc.ops.view`              |
+| `/api/v1/admin/kyc-ops/merchants/:branchId/evidence`       | GET    | `merchant.kyc.evidence.view` (step-up + reason)                     | Owner `getKycForReview` verbatim + audit-of-view `merchant.kyc.ops.evidence.view`                 |
+| `/api/v1/admin/kyc-ops/merchants/:branchId/review`         | POST   | `merchant.kyc.approve`                                              | Owner `reviewKyc` untouched (decision/reason/rejected_fields + Idempotency-Key)                   |
 
 Error contract: adapter market mismatch → 409 `MARKET_CONTEXT_MISMATCH`;
 owner `AdminKycError` mapped exactly as the frozen owner controller maps it
@@ -206,21 +206,21 @@ imported as-is.
 
 ## 7. UI delivery (`apps/admin-web/src/**`)
 
-| Path | Purpose |
-| ---- | ------- |
-| `kyc-model.ts` | pure presentation model: status labels/tones, review-action availability (status + permission + write environment), evidence-gate copy, hrefs, stable error copy |
-| `kyc-states.tsx` | queue skeleton, status badges, locked-evidence notice, unavailable-action affordance |
-| `kyc-evidence-panel.tsx` | the only place raw evidence is requested: recorded reason prompt → server 403 triggers the MFA step-up challenge/verify flow → retry with fresh grant token; audit confirmation surfaced; never persists evidence beyond the current view |
-| `kyc-member-queue-page.tsx` | `/admin/:marketId/kyc/members` — status filter, paging, masked rows, loading/empty/error/denied/conflict states |
-| `kyc-member-detail-page.tsx` | case detail — masked identity summary, document metadata table, history, review actions (reason + idempotency), gated evidence panel |
-| `kyc-merchant-queue-page.tsx` | `/admin/:marketId/kyc/merchants` — status filter, offset paging, masked rows |
-| `kyc-merchant-detail-page.tsx` | submission detail — masked snapshot, review decision metadata, review actions (incl. rejected fields for resubmission), gated evidence panel |
-| `kyc.e2e.spec.ts` | ready-to-run mock-based Playwright verification (queues, masked detail, evidence reveal, denied state, 320px reflow + axe) |
-| `admin-app.tsx` | append-only route wiring: four new cases at the END of the route switch (`member-kyc`, `merchant-kyc`, `member-kyc-detail`, `merchant-kyc-detail`) |
-| `route-manifest.ts` | two new append-only case-detail routes (`member-kyc-detail`, `merchant-kyc-detail`); route-count test updated 31 → 33 |
-| `admin-api.ts` | append-only `adminKycOpsApi` export |
-| `admin.css` | KYC styles on design tokens only (appended section) |
-| `test/kyc-fixtures.ts`, `test/kyc-mock.ts` | shared fixtures + shell/kyc fetch mock (mutable case store, evidence gating simulation) |
+| Path                                       | Purpose                                                                                                                                                                                                                                   |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `kyc-model.ts`                             | pure presentation model: status labels/tones, review-action availability (status + permission + write environment), evidence-gate copy, hrefs, stable error copy                                                                          |
+| `kyc-states.tsx`                           | queue skeleton, status badges, locked-evidence notice, unavailable-action affordance                                                                                                                                                      |
+| `kyc-evidence-panel.tsx`                   | the only place raw evidence is requested: recorded reason prompt → server 403 triggers the MFA step-up challenge/verify flow → retry with fresh grant token; audit confirmation surfaced; never persists evidence beyond the current view |
+| `kyc-member-queue-page.tsx`                | `/admin/:marketId/kyc/members` — status filter, paging, masked rows, loading/empty/error/denied/conflict states                                                                                                                           |
+| `kyc-member-detail-page.tsx`               | case detail — masked identity summary, document metadata table, history, review actions (reason + idempotency), gated evidence panel                                                                                                      |
+| `kyc-merchant-queue-page.tsx`              | `/admin/:marketId/kyc/merchants` — status filter, offset paging, masked rows                                                                                                                                                              |
+| `kyc-merchant-detail-page.tsx`             | submission detail — masked snapshot, review decision metadata, review actions (incl. rejected fields for resubmission), gated evidence panel                                                                                              |
+| `kyc.e2e.spec.ts`                          | ready-to-run mock-based Playwright verification (queues, masked detail, evidence reveal, denied state, 320px reflow + axe)                                                                                                                |
+| `admin-app.tsx`                            | append-only route wiring: four new cases at the END of the route switch (`member-kyc`, `merchant-kyc`, `member-kyc-detail`, `merchant-kyc-detail`)                                                                                        |
+| `route-manifest.ts`                        | two new append-only case-detail routes (`member-kyc-detail`, `merchant-kyc-detail`); route-count test updated 31 → 33                                                                                                                     |
+| `admin-api.ts`                             | append-only `adminKycOpsApi` export                                                                                                                                                                                                       |
+| `admin.css`                                | KYC styles on design tokens only (appended section)                                                                                                                                                                                       |
+| `test/kyc-fixtures.ts`, `test/kyc-mock.ts` | shared fixtures + shell/kyc fetch mock (mutable case store, evidence gating simulation)                                                                                                                                                   |
 
 Required UI states covered and tested: permission-denied (route-level and
 evidence-level), conflict (market mismatch + state conflict), disabled (no
@@ -253,24 +253,24 @@ worktree). Dedicated test database `ipoint_p7s5c_test` at `172.23.0.3:5432`
 (dropped/recreated before each integration run — the suite asserts exact row
 counts and requires a clean schema; procedure: recreate DB, then run once).
 
-| Command | Result |
-| ------- | ------ |
-| `pnpm --filter @ipoint/api typecheck` | PASS, exit 0 |
-| `pnpm --filter @ipoint/api build` | PASS, exit 0 |
-| `DATABASE_URL=postgres://ipoint:ipoint-local-only@172.23.0.3:5432/ipoint_p7s5c_test pnpm --filter @ipoint/api exec vitest run src/admin-kyc-ops/` | **69/69 passed** (33 unit + 36 real-DB integration on a freshly recreated DB), exit 0 |
-| Full api directory parallel run (fresh DB, full env, hook-timeout fix in place) | **0 hook timeouts**; 8 files / 43 tests failed — all pre-existing drift or shared-DB parallel interference, none S5C (§2b); the S5C `admin-kyc-ops` suite passed in the final run |
-| Pre-S5C baseline (`8777b20b`) full api directory parallel run (same env, same node_modules) | 18 hook timeouts; 22 files / 28 tests failed — proves the flake pre-exists S5C (§2b) |
-| `pnpm --filter @ipoint/admin-web typecheck` | PASS, exit 0 |
-| `pnpm --filter @ipoint/admin-web test` | **147/147 passed** (19 files; 109 pre-existing + 38 new incl. axe), exit 0 |
-| `pnpm --filter @ipoint/admin-web build` | PASS (**1625 modules transformed**), exit 0 |
-| `pnpm --filter @ipoint/api-client typecheck` | PASS, exit 0 |
-| `pnpm --filter @ipoint/api-client test` | **49/49 passed** (41 pre-existing + 8 new), exit 0 |
-| `pnpm exec prettier --check` on all changed paths | clean |
-| `pnpm exec eslint apps/api/src/admin-kyc-ops apps/api/src/app.module.ts` | clean, exit 0 |
-| `pnpm exec eslint packages/api-client/src/index.ts packages/api-client/src/index.test.ts` | clean, exit 0 |
-| `pnpm exec eslint apps/admin-web/src/kyc-model.ts` | 0 errors (repo ignores `apps/admin-web/src/**` by design — same as P7-S4B/S5A) |
-| `pnpm exec playwright test --config=apps/admin-web/playwright.admin.config.ts` | **BLOCKED in sandbox**, exit 1: every spec (incl. 4 `kyc.e2e.spec.ts` cases) failed at `browserType.launch` — `Host system is missing dependencies to run browsers` (`playwright install-deps` / `apt-get install libx11-6 libxext6 libxcb1`). Not claimed as passed; spec is mock-based and host/CI-ready |
-| axe (component-level, jsdom) | zero serious/critical on loaded member/merchant KYC queue + detail paths |
+| Command                                                                                                                                           | Result                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @ipoint/api typecheck`                                                                                                             | PASS, exit 0                                                                                                                                                                                                                                                                                               |
+| `pnpm --filter @ipoint/api build`                                                                                                                 | PASS, exit 0                                                                                                                                                                                                                                                                                               |
+| `DATABASE_URL=postgres://ipoint:ipoint-local-only@172.23.0.3:5432/ipoint_p7s5c_test pnpm --filter @ipoint/api exec vitest run src/admin-kyc-ops/` | **69/69 passed** (33 unit + 36 real-DB integration on a freshly recreated DB), exit 0                                                                                                                                                                                                                      |
+| Full api directory parallel run (fresh DB, full env, hook-timeout fix in place)                                                                   | **0 hook timeouts**; 8 files / 43 tests failed — all pre-existing drift or shared-DB parallel interference, none S5C (§2b); the S5C `admin-kyc-ops` suite passed in the final run                                                                                                                          |
+| Pre-S5C baseline (`8777b20b`) full api directory parallel run (same env, same node_modules)                                                       | 18 hook timeouts; 22 files / 28 tests failed — proves the flake pre-exists S5C (§2b)                                                                                                                                                                                                                       |
+| `pnpm --filter @ipoint/admin-web typecheck`                                                                                                       | PASS, exit 0                                                                                                                                                                                                                                                                                               |
+| `pnpm --filter @ipoint/admin-web test`                                                                                                            | **147/147 passed** (19 files; 109 pre-existing + 38 new incl. axe), exit 0                                                                                                                                                                                                                                 |
+| `pnpm --filter @ipoint/admin-web build`                                                                                                           | PASS (**1625 modules transformed**), exit 0                                                                                                                                                                                                                                                                |
+| `pnpm --filter @ipoint/api-client typecheck`                                                                                                      | PASS, exit 0                                                                                                                                                                                                                                                                                               |
+| `pnpm --filter @ipoint/api-client test`                                                                                                           | **49/49 passed** (41 pre-existing + 8 new), exit 0                                                                                                                                                                                                                                                         |
+| `pnpm exec prettier --check` on all changed paths                                                                                                 | clean                                                                                                                                                                                                                                                                                                      |
+| `pnpm exec eslint apps/api/src/admin-kyc-ops apps/api/src/app.module.ts`                                                                          | clean, exit 0                                                                                                                                                                                                                                                                                              |
+| `pnpm exec eslint packages/api-client/src/index.ts packages/api-client/src/index.test.ts`                                                         | clean, exit 0                                                                                                                                                                                                                                                                                              |
+| `pnpm exec eslint apps/admin-web/src/kyc-model.ts`                                                                                                | 0 errors (repo ignores `apps/admin-web/src/**` by design — same as P7-S4B/S5A)                                                                                                                                                                                                                             |
+| `pnpm exec playwright test --config=apps/admin-web/playwright.admin.config.ts`                                                                    | **BLOCKED in sandbox**, exit 1: every spec (incl. 4 `kyc.e2e.spec.ts` cases) failed at `browserType.launch` — `Host system is missing dependencies to run browsers` (`playwright install-deps` / `apt-get install libx11-6 libxext6 libxcb1`). Not claimed as passed; spec is mock-based and host/CI-ready |
+| axe (component-level, jsdom)                                                                                                                      | zero serious/critical on loaded member/merchant KYC queue + detail paths                                                                                                                                                                                                                                   |
 
 Coverage delivered (mapped to P7-S0 §6.4 / P7-AC-10): market isolation
 server-side (queue + detail + actions across two markets with two grants);
@@ -358,11 +358,11 @@ change is 8 lines, documented in the config itself.
 
 **Post-fix verification (fresh DB per the clean-DB rule)**:
 
-| Run | Result |
-| --- | --- |
-| Full api directory, pre-fix (S5C HEAD, env complete) | 15 hook timeouts; 20 files / 13 tests failed |
-| Full api directory, post-fix run 1 | **0 hook timeouts**; 10 files / 47 tests failed (all suites now run to completion) |
-| Full api directory, post-fix run 2 | **0 hook timeouts**; 8 files / 43 tests failed |
+| Run                                                  | Result                                                                                  |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Full api directory, pre-fix (S5C HEAD, env complete) | 15 hook timeouts; 20 files / 13 tests failed                                            |
+| Full api directory, post-fix run 1                   | **0 hook timeouts**; 10 files / 47 tests failed (all suites now run to completion)      |
+| Full api directory, post-fix run 2                   | **0 hook timeouts**; 8 files / 43 tests failed                                          |
 | Full api directory, post-fix final (HEAD `5cc13ece`) | **0 hook timeouts**; 8 files / 43 tests failed; S5C `admin-kyc-ops` suite itself passed |
 
 **What the remaining failures are (all pre-existing, none S5C)**: with the

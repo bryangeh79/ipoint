@@ -1,10 +1,10 @@
 # P7-S4A Internal Delivery Report (Continuation)
 
-| Status          | Value                           |
-| --------------- | ------------------------------- |
-| Delivery        | `DELIVERY_COMPLETE`             |
-| Internal gate   | `OPENCLAW_INTERNAL_GATE_PASSED` |
-| Phase authority | `CONTINUING_UNDER_D-047` via `D-048 §5` |
+| Status          | Value                                                             |
+| --------------- | ----------------------------------------------------------------- |
+| Delivery        | `DELIVERY_COMPLETE`                                               |
+| Internal gate   | `OPENCLAW_INTERNAL_GATE_PASSED`                                   |
+| Phase authority | `CONTINUING_UNDER_D-047` via `D-048 §5`                           |
 | Executor class  | `OPENCLAW_MANAGED_CODING_SUBAGENT` (written handoff continuation) |
 
 ## 1. Scope delivered
@@ -28,8 +28,8 @@ client surface authorized by D-047/P7-S4:
 
 ## 2. Branch and worktree map
 
-| Worktree    | Branch                     | Starting SHA                                                   | Delivered commits |
-| ----------- | -------------------------- | -------------------------------------------------------------- | ----------------: |
+| Worktree    | Branch                              | Starting SHA                               | Delivered commits |
+| ----------- | ----------------------------------- | ------------------------------------------ | ----------------: |
 | `wt-p7-s4a` | `task/p7-s4a-dashboard-read-models` | `301f6a7a6d077dbbd51892d8a35c5ff0b82a3a93` |                 2 |
 
 No push was performed; OpenClaw reviews and pushes.
@@ -54,27 +54,27 @@ No push was performed; OpenClaw reviews and pushes.
 
 - Same guard/market contract; adds `marketId` + `drillDown` reference.
 - `422 DASHBOARD_METRIC_UNDEFINED` for unknown ids; `503
-  DASHBOARD_DATA_UNAVAILABLE` for `NO_DURABLE_SOURCE` (M10) and other
+DASHBOARD_DATA_UNAVAILABLE` for `NO_DURABLE_SOURCE` (M10) and other
   unavailable states.
 
 ### Metric catalog (M01–M14)
 
-| Id  | Metric                          | Source permission (if any)      |
-| --- | ------------------------------- | ------------------------------- |
-| M01 | Members                         | —                               |
-| M02 | Active members                  | —                               |
-| M03 | Suspended/closed members        | —                               |
-| M04 | Merchant branches breakdown     | —                               |
-| M05 | Merchant applications pending   | —                               |
-| M06 | Merchant KYC submissions        | —                               |
-| M07 | Member KYC cases                | —                               |
-| M08 | Agent activations               | —                               |
-| M09 | MCP adjustments pending checker | `merchant.mcp.view`             |
-| M10 | (blocked — no durable source)   | — (always `UNAVAILABLE`)        |
-| M11 | Redemption queue summary        | —                               |
-| M12 | Reward job status               | `reward.job.read`               |
-| M13 | Today's confirmed transactions  | —                               |
-| M14 | MCP available balance           | `merchant.mcp.view`             |
+| Id  | Metric                          | Source permission (if any) |
+| --- | ------------------------------- | -------------------------- |
+| M01 | Members                         | —                          |
+| M02 | Active members                  | —                          |
+| M03 | Suspended/closed members        | —                          |
+| M04 | Merchant branches breakdown     | —                          |
+| M05 | Merchant applications pending   | —                          |
+| M06 | Merchant KYC submissions        | —                          |
+| M07 | Member KYC cases                | —                          |
+| M08 | Agent activations               | —                          |
+| M09 | MCP adjustments pending checker | `merchant.mcp.view`        |
+| M10 | (blocked — no durable source)   | — (always `UNAVAILABLE`)   |
+| M11 | Redemption queue summary        | —                          |
+| M12 | Reward job status               | `reward.job.read`          |
+| M13 | Today's confirmed transactions  | —                          |
+| M14 | MCP available balance           | `merchant.mcp.view`        |
 
 ## 5. Failures found and fixed (continuation)
 
@@ -99,8 +99,7 @@ found and fixed (all in test fixtures except where noted):
    returned no row and the order referenced an empty id. Wallet is now
    selected first, inserted only when missing.
 5. **Admin sessions** — `auth.login` creates ACCOUNT-purpose sessions, so the
-   dashboard RbacGuard (which needs `actor.adminUserId`) always denied with
-   403. Fixtures now use `auth.createAdminSession(...)`.
+   dashboard RbacGuard (which needs `actor.adminUserId`) always denied with 403. Fixtures now use `auth.createAdminSession(...)`.
 6. **Template role codes** — `postgres-auth.store.findAccessSession` only
    sets `hasActiveRole` for the six template role codes, and `seedFoundation`
    pre-loads those roles with their canonical permission sets. `createAdmin`
@@ -111,9 +110,8 @@ found and fixed (all in test fixtures except where noted):
    `member_market_preferences` rows). The member is now created with
    `withPreference: false`.
 8. **Service SQL bug (production code, `apps/api/src/admin-dashboard/**`)** —
-   `countMembers` used `m.status = ANY($2::text[])`, which fails with
-   `operator does not exist: member_status = text` (M02/M03 always
-   `UNAVAILABLE`). Fixed to `m.status::text = ANY($2::text[])`.
+`countMembers`used`m.status = ANY($2::text[])`, which fails with
+`operator does not exist: member_status = text`(M02/M03 always`UNAVAILABLE`). Fixed to `m.status::text = ANY($2::text[])`.
 9. **Isolation test contradiction** — it asserted M09 = FRESH 0 while the
    gating design makes M09/M14 `SOURCE_PERMISSION_DENIED` without
    `merchant.mcp.view`. The isolation admin now holds
@@ -151,17 +149,17 @@ Environment: Linux sandbox; `DATABASE_URL=postgresql://ipoint:ipoint-local-only@
 apply in `beforeAll`). Root `/workspace/node_modules` symlinks are broken, so
 all commands ran with cwd inside `/workspace/.local/wt-p7-s4a`.
 
-| Command | Result |
-| ------- | ------ |
-| `pnpm --filter @ipoint/api exec vitest run src/admin-dashboard/admin-dashboard.spec.ts` | 16 passed / 0 failed / 0 skipped, exit 0 |
-| `pnpm --filter @ipoint/api exec vitest run src/admin-dashboard/admin-dashboard.integration.spec.ts` | 14 passed / 0 failed / 0 skipped, exit 0 |
-| `pnpm --filter @ipoint/api typecheck` | exit 0 |
-| `pnpm --filter @ipoint/api build` | exit 0 |
-| `pnpm --filter @ipoint/api openapi:validate` | ✅ all runtime validations passed (204 paths, 0 schema/operationId errors) — requires `REDEMPTION_VOUCHER_ENCRYPTION_KEY` env (script provides no default; pre-existing gap, script not in allowed paths) |
-| `pnpm --filter @ipoint/api-client typecheck` | exit 0 |
-| `pnpm --filter @ipoint/api-client test` | 29 passed / 0 failed, exit 0 |
-| `pnpm exec prettier --check` on changed paths | clean |
-| `pnpm exec eslint` on changed paths | exit 0 |
+| Command                                                                                             | Result                                                                                                                                                                                                    |
+| --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @ipoint/api exec vitest run src/admin-dashboard/admin-dashboard.spec.ts`             | 16 passed / 0 failed / 0 skipped, exit 0                                                                                                                                                                  |
+| `pnpm --filter @ipoint/api exec vitest run src/admin-dashboard/admin-dashboard.integration.spec.ts` | 14 passed / 0 failed / 0 skipped, exit 0                                                                                                                                                                  |
+| `pnpm --filter @ipoint/api typecheck`                                                               | exit 0                                                                                                                                                                                                    |
+| `pnpm --filter @ipoint/api build`                                                                   | exit 0                                                                                                                                                                                                    |
+| `pnpm --filter @ipoint/api openapi:validate`                                                        | ✅ all runtime validations passed (204 paths, 0 schema/operationId errors) — requires `REDEMPTION_VOUCHER_ENCRYPTION_KEY` env (script provides no default; pre-existing gap, script not in allowed paths) |
+| `pnpm --filter @ipoint/api-client typecheck`                                                        | exit 0                                                                                                                                                                                                    |
+| `pnpm --filter @ipoint/api-client test`                                                             | 29 passed / 0 failed, exit 0                                                                                                                                                                              |
+| `pnpm exec prettier --check` on changed paths                                                       | clean                                                                                                                                                                                                     |
+| `pnpm exec eslint` on changed paths                                                                 | exit 0                                                                                                                                                                                                    |
 
 Environment limitations:
 

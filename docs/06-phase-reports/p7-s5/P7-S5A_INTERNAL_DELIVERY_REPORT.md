@@ -87,9 +87,9 @@ rows, session revocation, KYC reverification transition, idempotency replay).
 
 ## 3. Branch and worktree map
 
-| Worktree          | Branch                     | Starting SHA                               | Delivered commits |
-| ----------------- | -------------------------- | ------------------------------------------ | ----------------: |
-| `wt-p7-s5a`       | `task/p7-s5a-member-ops`   | `c6e530bfe3ce3548950dd1c1667163d582303585` |                 2 |
+| Worktree    | Branch                   | Starting SHA                               | Delivered commits |
+| ----------- | ------------------------ | ------------------------------------------ | ----------------: |
+| `wt-p7-s5a` | `task/p7-s5a-member-ops` | `c6e530bfe3ce3548950dd1c1667163d582303585` |                 2 |
 
 No push was performed; OpenClaw reviews and pushes.
 
@@ -100,17 +100,17 @@ No push was performed; OpenClaw reviews and pushes.
 
 ## 5. API delivery (`apps/api/src/admin-member-ops/**`, new)
 
-| Path | Method | Permission | Behaviour |
-| ---- | ------ | ---------- | --------- |
-| `/api/v1/admin/member-ops/members` | GET | `member.read` | Selected-market paged list; market = server Current Admin Market; no client market param exists |
-| `/api/v1/admin/member-ops/members/:publicMemberId` | GET | `member.read` | Masked detail; market equality enforced; audit-of-view (`member.ops.view`) written |
-| `/api/v1/admin/member-ops/members/:publicMemberId/suspend` | POST | `member.status.manage` | Owner suspend (reason + idempotency; sessions revoked; history + audit) |
-| `/api/v1/admin/member-ops/members/:publicMemberId/reactivate` | POST | `member.status.manage` | Owner reactivate |
-| `/api/v1/admin/member-ops/members/:publicMemberId/close` | POST | `member.status.manage` | Owner close (literal `CONFIRM`, terminal) |
-| `/api/v1/admin/member-ops/members/:publicMemberId/revoke-sessions` | POST | `member.session.revoke` | Owner session revocation |
-| `/api/v1/admin/member-ops/members/:publicMemberId/require-reverification` | POST | `member.reverification.require` | Owner KYC reverification (approved case only) |
-| `/api/v1/admin/member-ops/members/:publicMemberId/notes` | POST | `member.note.create` | Owner note create |
-| `/api/v1/admin/member-ops/members/:publicMemberId/notes` | GET | `member.note.read` | Owner notes list (paged, newest first) |
+| Path                                                                      | Method | Permission                      | Behaviour                                                                                       |
+| ------------------------------------------------------------------------- | ------ | ------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `/api/v1/admin/member-ops/members`                                        | GET    | `member.read`                   | Selected-market paged list; market = server Current Admin Market; no client market param exists |
+| `/api/v1/admin/member-ops/members/:publicMemberId`                        | GET    | `member.read`                   | Masked detail; market equality enforced; audit-of-view (`member.ops.view`) written              |
+| `/api/v1/admin/member-ops/members/:publicMemberId/suspend`                | POST   | `member.status.manage`          | Owner suspend (reason + idempotency; sessions revoked; history + audit)                         |
+| `/api/v1/admin/member-ops/members/:publicMemberId/reactivate`             | POST   | `member.status.manage`          | Owner reactivate                                                                                |
+| `/api/v1/admin/member-ops/members/:publicMemberId/close`                  | POST   | `member.status.manage`          | Owner close (literal `CONFIRM`, terminal)                                                       |
+| `/api/v1/admin/member-ops/members/:publicMemberId/revoke-sessions`        | POST   | `member.session.revoke`         | Owner session revocation                                                                        |
+| `/api/v1/admin/member-ops/members/:publicMemberId/require-reverification` | POST   | `member.reverification.require` | Owner KYC reverification (approved case only)                                                   |
+| `/api/v1/admin/member-ops/members/:publicMemberId/notes`                  | POST   | `member.note.create`            | Owner note create                                                                               |
+| `/api/v1/admin/member-ops/members/:publicMemberId/notes`                  | GET    | `member.note.read`              | Owner notes list (paged, newest first)                                                          |
 
 Error contract preserved from the owner: `ADMIN_MEMBER_NOT_FOUND` → 404,
 `ADMIN_MEMBER_MARKET_ACCESS_DENIED` → 403, all other owner codes → 409;
@@ -128,16 +128,16 @@ Files: `admin-member-ops.module.ts`, `admin-member-ops.controller.ts`,
 
 ## 6. UI delivery (`apps/admin-web/src/**`)
 
-| Path | Purpose |
-| ---- | ------- |
-| `member-ops-model.ts` | pure presentation model: status labels/tones, action availability (status + permission + write environment), reverification capability gate, href builder, stable error copy |
-| `member-ops-states.tsx` | list skeleton, status badge, suspended/closed notice, unavailable-owner-capability action state |
-| `member-list-page.tsx` | list: search (Enter), status filter, refresh, paging, masked rows, loading/empty/error/denied/conflict states |
-| `member-detail-page.tsx` | detail: masked profile summary, status + history table, action forms (reason + idempotency key; CONFIRM gate for close; reused key on retry, new key after success), notes create + list, feedback alerts, read-only-PWA gating |
-| `admin-app.tsx` | append-only route wiring: `members` → `MemberListPage`, `member-detail` → `MemberDetailPage` (two new cases at the END of the switch; no existing case reordered) |
-| `admin.css` | member-ops styles on design tokens only (appended section) |
-| `test/member-ops-fixtures.ts`, `test/member-ops-mock.ts` | shared fixtures + shell/member-ops fetch mock |
-| `member-ops-model.test.ts`, `member-list-page.test.tsx`, `member-detail-page.test.tsx` | 26 new model/component tests incl. axe |
+| Path                                                                                   | Purpose                                                                                                                                                                                                                         |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `member-ops-model.ts`                                                                  | pure presentation model: status labels/tones, action availability (status + permission + write environment), reverification capability gate, href builder, stable error copy                                                    |
+| `member-ops-states.tsx`                                                                | list skeleton, status badge, suspended/closed notice, unavailable-owner-capability action state                                                                                                                                 |
+| `member-list-page.tsx`                                                                 | list: search (Enter), status filter, refresh, paging, masked rows, loading/empty/error/denied/conflict states                                                                                                                   |
+| `member-detail-page.tsx`                                                               | detail: masked profile summary, status + history table, action forms (reason + idempotency key; CONFIRM gate for close; reused key on retry, new key after success), notes create + list, feedback alerts, read-only-PWA gating |
+| `admin-app.tsx`                                                                        | append-only route wiring: `members` → `MemberListPage`, `member-detail` → `MemberDetailPage` (two new cases at the END of the switch; no existing case reordered)                                                               |
+| `admin.css`                                                                            | member-ops styles on design tokens only (appended section)                                                                                                                                                                      |
+| `test/member-ops-fixtures.ts`, `test/member-ops-mock.ts`                               | shared fixtures + shell/member-ops fetch mock                                                                                                                                                                                   |
+| `member-ops-model.test.ts`, `member-list-page.test.tsx`, `member-detail-page.test.tsx` | 26 new model/component tests incl. axe                                                                                                                                                                                          |
 
 Required UI states covered and tested: permission-denied, suspended/closed
 member display, conflict/stale (market mismatch + status conflict), offline
@@ -170,20 +170,20 @@ worktree). Dedicated test database `ipoint_p7s5a_test` at
 suite asserts exact row counts and requires a clean schema; procedure:
 recreate DB, then run once).
 
-| Command | Result |
-| ------- | ------ |
-| `pnpm --filter @ipoint/api typecheck` | PASS, exit 0 |
-| `DATABASE_URL=postgres://ipoint:ipoint-local-only@172.23.0.3:5432/ipoint_p7s5a_test pnpm --filter @ipoint/api exec vitest run src/admin-member-ops/` | **42/42 passed** (18 unit + 24 real-DB integration), exit 0 |
-| `pnpm --filter @ipoint/admin-web typecheck` | PASS, exit 0 |
-| `pnpm --filter @ipoint/admin-web test` | **87/87 passed** (11 files; 60 pre-existing + 27 new incl. axe), exit 0 |
-| `pnpm --filter @ipoint/admin-web build` | PASS; **1614 modules transformed**, exit 0 |
-| `pnpm --filter @ipoint/api-client typecheck` | PASS, exit 0 |
-| `pnpm --filter @ipoint/api-client test` | **32/32 passed** (27 pre-existing + 5 new), exit 0 |
-| `pnpm exec prettier --check` on all changed paths | clean |
-| `pnpm exec eslint apps/api/src/admin-member-ops apps/api/src/app.module.ts` | clean, exit 0 |
-| `pnpm exec eslint packages/api-client/src/index.ts packages/api-client/src/index.test.ts` | clean, exit 0 |
-| `pnpm exec eslint apps/admin-web/src/member-list-page.tsx` | file ignored by pre-existing repo eslint ignore pattern (`apps/admin-web/src/**` excluded by design — same as P7-S4B); 0 errors |
-| axe (component-level, jsdom) | zero serious/critical on loaded member list and detail paths |
+| Command                                                                                                                                              | Result                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @ipoint/api typecheck`                                                                                                                | PASS, exit 0                                                                                                                    |
+| `DATABASE_URL=postgres://ipoint:ipoint-local-only@172.23.0.3:5432/ipoint_p7s5a_test pnpm --filter @ipoint/api exec vitest run src/admin-member-ops/` | **42/42 passed** (18 unit + 24 real-DB integration), exit 0                                                                     |
+| `pnpm --filter @ipoint/admin-web typecheck`                                                                                                          | PASS, exit 0                                                                                                                    |
+| `pnpm --filter @ipoint/admin-web test`                                                                                                               | **87/87 passed** (11 files; 60 pre-existing + 27 new incl. axe), exit 0                                                         |
+| `pnpm --filter @ipoint/admin-web build`                                                                                                              | PASS; **1614 modules transformed**, exit 0                                                                                      |
+| `pnpm --filter @ipoint/api-client typecheck`                                                                                                         | PASS, exit 0                                                                                                                    |
+| `pnpm --filter @ipoint/api-client test`                                                                                                              | **32/32 passed** (27 pre-existing + 5 new), exit 0                                                                              |
+| `pnpm exec prettier --check` on all changed paths                                                                                                    | clean                                                                                                                           |
+| `pnpm exec eslint apps/api/src/admin-member-ops apps/api/src/app.module.ts`                                                                          | clean, exit 0                                                                                                                   |
+| `pnpm exec eslint packages/api-client/src/index.ts packages/api-client/src/index.test.ts`                                                            | clean, exit 0                                                                                                                   |
+| `pnpm exec eslint apps/admin-web/src/member-list-page.tsx`                                                                                           | file ignored by pre-existing repo eslint ignore pattern (`apps/admin-web/src/**` excluded by design — same as P7-S4B); 0 errors |
+| axe (component-level, jsdom)                                                                                                                         | zero serious/critical on loaded member list and detail paths                                                                    |
 
 Coverage delivered (mapped to P7-S0 §17): market isolation server-side
 (list/detail/notes/writes across two markets with two grants), permission

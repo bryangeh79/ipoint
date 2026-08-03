@@ -152,18 +152,18 @@
 
 The following are **OPEN**, not approved implementation behavior. Unavailable capabilities must be represented explicitly and no fallback may be invented.
 
-| Open item | Status | Required treatment |
-|---|---|---|
-| Agent course verification automation | OPEN | Display existing evidence/state only; no invented quiz, attendance, certificate, or automatic verifier. |
-| Agent reapplication policy | OPEN | No automatic eligibility, cooldown, reset, or lifecycle consequence. |
-| Merchant/branch attribution reassignment | OPEN | Existing attribution is read-only; no reassignment command or batch correction. |
-| Per-market legal KYC retention periods | OPEN | Retention and deletion behavior remain blocked pending market legal policy. |
-| Inactive-user automatic consequences | OPEN | No automatic suspension, balance, reward, agent, or commission consequence. |
-| New-market compliance requirements | OPEN | No market launch or fallback policy without explicit compliance configuration. |
-| Advanced exports | OPEN / DEFERRED | No async export, raw export, warehouse, or broad data extraction in Phase 7 MVP. |
-| Global Admin dashboard | OPEN / DEFERRED | No global mode; selected-market operational views only. |
-| Financial approvals through PWA | OPEN / DEFERRED | Explicitly unavailable in MVP. |
-| Phase 8-12 modules | OPEN / NOT AUTHORIZED | No implementation or implied availability under D-046. |
+| Open item                                | Status                | Required treatment                                                                                      |
+| ---------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------- |
+| Agent course verification automation     | OPEN                  | Display existing evidence/state only; no invented quiz, attendance, certificate, or automatic verifier. |
+| Agent reapplication policy               | OPEN                  | No automatic eligibility, cooldown, reset, or lifecycle consequence.                                    |
+| Merchant/branch attribution reassignment | OPEN                  | Existing attribution is read-only; no reassignment command or batch correction.                         |
+| Per-market legal KYC retention periods   | OPEN                  | Retention and deletion behavior remain blocked pending market legal policy.                             |
+| Inactive-user automatic consequences     | OPEN                  | No automatic suspension, balance, reward, agent, or commission consequence.                             |
+| New-market compliance requirements       | OPEN                  | No market launch or fallback policy without explicit compliance configuration.                          |
+| Advanced exports                         | OPEN / DEFERRED       | No async export, raw export, warehouse, or broad data extraction in Phase 7 MVP.                        |
+| Global Admin dashboard                   | OPEN / DEFERRED       | No global mode; selected-market operational views only.                                                 |
+| Financial approvals through PWA          | OPEN / DEFERRED       | Explicitly unavailable in MVP.                                                                          |
+| Phase 8-12 modules                       | OPEN / NOT AUTHORIZED | No implementation or implied availability under D-046.                                                  |
 
 ## 4. Freeze and authorization statement
 

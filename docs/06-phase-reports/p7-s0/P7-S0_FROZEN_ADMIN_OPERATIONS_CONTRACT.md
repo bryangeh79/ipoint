@@ -65,14 +65,14 @@ Frozen owner remediation is required for correctness, ledger, market authorizati
 
 ### 3.1 MVP roles
 
-| Role | Core purpose | Default prohibitions |
-|---|---|---|
-| Super Admin | Platform governance and exceptional approved operations | No same-person approval bypass; no automatic raw KYC access; no global write mode |
-| Operations Admin | Daily member, merchant, fulfilment, and operational queues | No finance approvals, RBAC governance, or exceptional commercial authority by default |
-| Finance Operator | Financial read/reconciliation and adjustment Maker | Cannot check own request or receive Checker authority by role combination |
-| Finance Approver | Independent adjustment Checker | Cannot make the request it checks; escalation caps still apply |
-| KYC Reviewer | Minimum-evidence member/merchant KYC review | No finance, ledger, package/rate, or unrelated status authority |
-| Support / Read-only Auditor | Masked operational lookup and read-only audit | No writes, raw ledgers, raw KYC documents, secret reveal, or export |
+| Role                        | Core purpose                                               | Default prohibitions                                                                  |
+| --------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Super Admin                 | Platform governance and exceptional approved operations    | No same-person approval bypass; no automatic raw KYC access; no global write mode     |
+| Operations Admin            | Daily member, merchant, fulfilment, and operational queues | No finance approvals, RBAC governance, or exceptional commercial authority by default |
+| Finance Operator            | Financial read/reconciliation and adjustment Maker         | Cannot check own request or receive Checker authority by role combination             |
+| Finance Approver            | Independent adjustment Checker                             | Cannot make the request it checks; escalation caps still apply                        |
+| KYC Reviewer                | Minimum-evidence member/merchant KYC review                | No finance, ledger, package/rate, or unrelated status authority                       |
+| Support / Read-only Auditor | Masked operational lookup and read-only audit              | No writes, raw ledgers, raw KYC documents, secret reveal, or export                   |
 
 There is no Department hierarchy and no custom role designer in MVP. System roles are controlled templates. Every protected action requires authenticated Admin status, accepted MFA, a specific Action Permission, and—when market-scoped—an active Market Access grant.
 

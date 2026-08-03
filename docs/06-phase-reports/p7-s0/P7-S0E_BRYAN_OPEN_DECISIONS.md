@@ -6,30 +6,30 @@
 
 ## Decision register summary
 
-| ID | Area | MVP blocking? | Recommendation summary |
-|---|---|---:|---|
-| P7-OD-01 | Final simplified Admin roles | Yes | Adopt evaluated six-role set |
-| P7-OD-02 | Super Admin global mode | Yes for global UI; no for selected-market MVP | Require selected market in MVP |
-| P7-OD-03 | Maker/Checker beyond manual adjustments | Confirmation only | Retain locked limited scope |
-| P7-OD-04 | Reward-rate activation timing | Yes for editor | Future market-local 00:00 only |
-| P7-OD-05 | Reward-rate range/precision | Yes for editor | Conservative per-market policy with explicit unit |
-| P7-OD-06 | Redemption-rate range/precision | Yes for editor | Per-market bounds; 10-decimal technical ceiling |
-| P7-OD-07 | Special package authority | Yes | Super Admin-only MVP permission |
-| P7-OD-08 | Package effect on assignments | Yes | Future assignments only by default |
-| P7-OD-09 | Commission future-only behavior | Confirmation only | Retain frozen future-only behavior |
-| P7-OD-10 | Adjustment max/escalation | Yes | Configurable soft cap; MC always required |
-| P7-OD-11 | Adjustment evidence | Yes | Mandatory attachment for all requests |
-| P7-OD-12 | Admin MFA | Critical prerequisite | Require MFA for every Admin |
-| P7-OD-13 | Session duration/revocation | Yes | 30m idle, 8h absolute, 7d refresh maximum |
-| P7-OD-14 | Basic exports | No | Include bounded masked CSV only |
-| P7-OD-15 | KYC/sensitive masking | Yes | Deny-by-default role-based masks |
-| P7-OD-16 | Dashboard freshness | Yes | Queues <=60s; aggregates <=5m |
-| P7-OD-17 | Support ledger visibility | Yes | No raw financial ledger by default |
-| P7-OD-18 | Rejected adjustment handling | Yes | Recreate with linkage; never edit |
-| P7-OD-19 | Redemption refund ledger gap | Critical prerequisite for refund approval | Separate Phase 6 remediation now |
-| P7-OD-20 | Compliant iPoint adjustment workflow | Critical prerequisite for feature | Authorize isolated Phase 3/7 remediation |
-| P7-OD-21 | Dead/unsafe Phase 5/6 controller ownership | Yes for those capabilities | Repair under frozen owner authorization |
-| P7-OD-22 | Admin PWA approval scope | Yes for PWA claim | Read-only MVP; no privileged mobile approvals |
+| ID       | Area                                       |                                 MVP blocking? | Recommendation summary                            |
+| -------- | ------------------------------------------ | --------------------------------------------: | ------------------------------------------------- |
+| P7-OD-01 | Final simplified Admin roles               |                                           Yes | Adopt evaluated six-role set                      |
+| P7-OD-02 | Super Admin global mode                    | Yes for global UI; no for selected-market MVP | Require selected market in MVP                    |
+| P7-OD-03 | Maker/Checker beyond manual adjustments    |                             Confirmation only | Retain locked limited scope                       |
+| P7-OD-04 | Reward-rate activation timing              |                                Yes for editor | Future market-local 00:00 only                    |
+| P7-OD-05 | Reward-rate range/precision                |                                Yes for editor | Conservative per-market policy with explicit unit |
+| P7-OD-06 | Redemption-rate range/precision            |                                Yes for editor | Per-market bounds; 10-decimal technical ceiling   |
+| P7-OD-07 | Special package authority                  |                                           Yes | Super Admin-only MVP permission                   |
+| P7-OD-08 | Package effect on assignments              |                                           Yes | Future assignments only by default                |
+| P7-OD-09 | Commission future-only behavior            |                             Confirmation only | Retain frozen future-only behavior                |
+| P7-OD-10 | Adjustment max/escalation                  |                                           Yes | Configurable soft cap; MC always required         |
+| P7-OD-11 | Adjustment evidence                        |                                           Yes | Mandatory attachment for all requests             |
+| P7-OD-12 | Admin MFA                                  |                         Critical prerequisite | Require MFA for every Admin                       |
+| P7-OD-13 | Session duration/revocation                |                                           Yes | 30m idle, 8h absolute, 7d refresh maximum         |
+| P7-OD-14 | Basic exports                              |                                            No | Include bounded masked CSV only                   |
+| P7-OD-15 | KYC/sensitive masking                      |                                           Yes | Deny-by-default role-based masks                  |
+| P7-OD-16 | Dashboard freshness                        |                                           Yes | Queues <=60s; aggregates <=5m                     |
+| P7-OD-17 | Support ledger visibility                  |                                           Yes | No raw financial ledger by default                |
+| P7-OD-18 | Rejected adjustment handling               |                                           Yes | Recreate with linkage; never edit                 |
+| P7-OD-19 | Redemption refund ledger gap               |     Critical prerequisite for refund approval | Separate Phase 6 remediation now                  |
+| P7-OD-20 | Compliant iPoint adjustment workflow       |             Critical prerequisite for feature | Authorize isolated Phase 3/7 remediation          |
+| P7-OD-21 | Dead/unsafe Phase 5/6 controller ownership |                    Yes for those capabilities | Repair under frozen owner authorization           |
+| P7-OD-22 | Admin PWA approval scope                   |                             Yes for PWA claim | Read-only MVP; no privileged mobile approvals     |
 
 ## P7-OD-01 — Final simplified Admin role set
 

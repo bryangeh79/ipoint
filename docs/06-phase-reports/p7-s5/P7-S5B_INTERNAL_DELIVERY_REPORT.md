@@ -1,11 +1,11 @@
 # P7-S5B Internal Delivery Report — Admin Merchant Operations
 
-| Status          | Value                              |
-| --------------- | ---------------------------------- |
-| Delivery        | `DELIVERY_COMPLETE`                |
-| Internal gate   | `OPENCLAW_INTERNAL_GATE_PASSED`    |
+| Status          | Value                                |
+| --------------- | ------------------------------------ |
+| Delivery        | `DELIVERY_COMPLETE`                  |
+| Internal gate   | `OPENCLAW_INTERNAL_GATE_PASSED`      |
 | Phase authority | `CONTINUING_UNDER_D-047` via `D-048` |
-| Executor class  | `OPENCLAW_MANAGED_CODING_SUBAGENT` |
+| Executor class  | `OPENCLAW_MANAGED_CODING_SUBAGENT`   |
 
 ## 1. Scope delivered
 
@@ -36,9 +36,9 @@ no direct domain-table writes in production code; nothing pushed.
 
 ## 2. Branch and worktree map
 
-| Worktree        | Branch                     | Starting SHA                               | Delivered commits |
-| --------------- | -------------------------- | ------------------------------------------ | ----------------: |
-| `wt-p7-s5b`     | `task/p7-s5b-merchant-ops` | `c6e530bfe3ce3548950dd1c1667163d582303585` |                 2 |
+| Worktree    | Branch                     | Starting SHA                               | Delivered commits |
+| ----------- | -------------------------- | ------------------------------------------ | ----------------: |
+| `wt-p7-s5b` | `task/p7-s5b-merchant-ops` | `c6e530bfe3ce3548950dd1c1667163d582303585` |                 2 |
 
 No push was performed; OpenClaw reviews and pushes.
 
@@ -56,15 +56,15 @@ Evidence from the frozen Phase 1 surface
 (`apps/api/src/merchant/merchant.controller.ts`, `package.controller.ts`,
 `mcp.controller.ts`, read-only):
 
-| Capability | Owner surface exists? | Decision |
-| --- | --- | --- |
-| Application queue | `GET admin/markets/:marketId/merchants/applications` (`merchant.view`, marketScoped) | Consume owner endpoint directly (client `merchantApplications`) |
-| Merchant list | `GET admin/markets/:marketId/merchants` (`merchant.view`, marketScoped) | Consume owner endpoint directly (client `merchantList`) |
-| Application review | `POST .../merchants/:branchId/application/review` (`merchant.approve`) | Consume owner command directly (client `reviewMerchantApplication`) |
-| KYC review detail/action | `GET/POST .../merchants/:branchId/kyc/review` (`merchant.kyc.approve`, audits `MERCHANT_KYC_REVIEW_STARTED`) | Consume owner surface directly (client `merchantKycReviewDetail` / `reviewMerchantKyc`) |
-| Suspend / Reactivate / Close | `POST .../suspend|reactivate|close` (`merchant.suspend` / `merchant.close`) | Consume owner commands directly (client `suspendMerchant` / `reactivateMerchant` / `closeMerchant`) |
-| MCP account/ledger/reconcile | `GET admin/markets/:marketId/mcp/accounts/:accountId[/ledger|/reconcile]` (`merchant.mcp.view`) | Consume owner read surfaces directly (client `merchantMcpAccount` / `merchantMcpLedger` / `merchantMcpReconcile`) |
-| **Branch detail (profile/application/KYC/package/MCP in one admin read)** | **Does NOT exist.** Owner profile/application/KYC/MCP reads are merchant-owned (`MerchantOwnershipGuard` requires an account actor) and package history has no admin read at all | **Adapter created** (`GET admin/markets/:marketId/merchants/:branchId/detail`) |
+| Capability                                                                | Owner surface exists?                                                                                                                                                            | Decision                                                                                |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Application queue                                                         | `GET admin/markets/:marketId/merchants/applications` (`merchant.view`, marketScoped)                                                                                             | Consume owner endpoint directly (client `merchantApplications`)                         |
+| Merchant list                                                             | `GET admin/markets/:marketId/merchants` (`merchant.view`, marketScoped)                                                                                                          | Consume owner endpoint directly (client `merchantList`)                                 |
+| Application review                                                        | `POST .../merchants/:branchId/application/review` (`merchant.approve`)                                                                                                           | Consume owner command directly (client `reviewMerchantApplication`)                     |
+| KYC review detail/action                                                  | `GET/POST .../merchants/:branchId/kyc/review` (`merchant.kyc.approve`, audits `MERCHANT_KYC_REVIEW_STARTED`)                                                                     | Consume owner surface directly (client `merchantKycReviewDetail` / `reviewMerchantKyc`) |
+| Suspend / Reactivate / Close                                              | `POST .../suspend                                                                                                                                                                | reactivate                                                                              | close` (`merchant.suspend`/`merchant.close`)                                                                      | Consume owner commands directly (client `suspendMerchant` / `reactivateMerchant` / `closeMerchant`) |
+| MCP account/ledger/reconcile                                              | `GET admin/markets/:marketId/mcp/accounts/:accountId[/ledger                                                                                                                     | /reconcile]` (`merchant.mcp.view`)                                                      | Consume owner read surfaces directly (client `merchantMcpAccount` / `merchantMcpLedger` / `merchantMcpReconcile`) |
+| **Branch detail (profile/application/KYC/package/MCP in one admin read)** | **Does NOT exist.** Owner profile/application/KYC/MCP reads are merchant-owned (`MerchantOwnershipGuard` requires an account actor) and package history has no admin read at all | **Adapter created** (`GET admin/markets/:marketId/merchants/:branchId/detail`)          |
 
 Why the contract needs no wrapper: the owner admin endpoints already enforce
 the selected-market contract via the canonical `RbacGuard`
@@ -160,19 +160,19 @@ Environment: Linux sandbox; worktree `/workspace/.local/wt-p7-s5b`
 the worktree). Test DB: `ipoint_p7s5b_test` at `172.23.0.3:5432`
 (drop/recreated before each full integration run).
 
-| Command | Result |
-| --- | --- |
-| `pnpm --filter @ipoint/api typecheck` | PASS, exit 0 |
-| `DATABASE_URL=... pnpm --filter @ipoint/api exec vitest run src/admin-merchant-ops/admin-merchant-ops.spec.ts` | **6/6 passed**, exit 0 |
-| `DATABASE_URL=... pnpm --filter @ipoint/api exec vitest run src/admin-merchant-ops/admin-merchant-ops.integration.spec.ts` (clean DB) | **11/11 passed**, exit 0 |
-| `pnpm --filter @ipoint/api-client typecheck` | PASS, exit 0 |
-| `pnpm --filter @ipoint/api-client test` | **38/38 passed** (27 existing + 11 new), exit 0 |
-| `pnpm --filter @ipoint/admin-web typecheck` | PASS, exit 0 |
-| `pnpm --filter @ipoint/admin-web test` | **87/87 passed** (11 files; 60 existing + 26 new + 1 added merchant-model file set), exit 0 |
-| `pnpm --filter @ipoint/admin-web build` | PASS; **1614 modules transformed** |
-| `pnpm exec prettier --check` on all changed paths | clean |
-| `pnpm exec eslint apps/api/src/admin-merchant-ops packages/api-client/src/index.ts packages/api-client/src/index.test.ts` | clean, exit 0 (admin-web `src/**` excluded by pre-existing repo policy, as in P7-S4B) |
-| axe (component-level, jsdom) | zero serious/critical on merchants and detail pages |
+| Command                                                                                                                               | Result                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `pnpm --filter @ipoint/api typecheck`                                                                                                 | PASS, exit 0                                                                                |
+| `DATABASE_URL=... pnpm --filter @ipoint/api exec vitest run src/admin-merchant-ops/admin-merchant-ops.spec.ts`                        | **6/6 passed**, exit 0                                                                      |
+| `DATABASE_URL=... pnpm --filter @ipoint/api exec vitest run src/admin-merchant-ops/admin-merchant-ops.integration.spec.ts` (clean DB) | **11/11 passed**, exit 0                                                                    |
+| `pnpm --filter @ipoint/api-client typecheck`                                                                                          | PASS, exit 0                                                                                |
+| `pnpm --filter @ipoint/api-client test`                                                                                               | **38/38 passed** (27 existing + 11 new), exit 0                                             |
+| `pnpm --filter @ipoint/admin-web typecheck`                                                                                           | PASS, exit 0                                                                                |
+| `pnpm --filter @ipoint/admin-web test`                                                                                                | **87/87 passed** (11 files; 60 existing + 26 new + 1 added merchant-model file set), exit 0 |
+| `pnpm --filter @ipoint/admin-web build`                                                                                               | PASS; **1614 modules transformed**                                                          |
+| `pnpm exec prettier --check` on all changed paths                                                                                     | clean                                                                                       |
+| `pnpm exec eslint apps/api/src/admin-merchant-ops packages/api-client/src/index.ts packages/api-client/src/index.test.ts`             | clean, exit 0 (admin-web `src/**` excluded by pre-existing repo policy, as in P7-S4B)       |
+| axe (component-level, jsdom)                                                                                                          | zero serious/critical on merchants and detail pages                                         |
 
 ### Playwright browser verification (exact limitation)
 

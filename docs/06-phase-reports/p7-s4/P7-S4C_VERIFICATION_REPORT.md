@@ -1,17 +1,17 @@
 # P7-S4C Dashboard Verification Report (Independent)
 
-| Field | Value |
-|---|---|
-| Task ID | P7-S4C |
-| Executor class | `OPENCLAW_MANAGED_CODING_SUBAGENT` (under D-048, continuing D-047 P7-S4) |
-| Role | Independent verification of P7-S4 (Dashboard and bounded operational read models) |
-| Worktree | `/workspace/.local/wt-p7-s4c` |
-| Branch | `task/p7-s4c-dashboard-acceptance` |
-| Starting SHA | `63f9f4560ee0fc4caa42cdc94237c28d85377c7c` (P7-S4A merged at `7336dd46`, P7-S4B merged at `75f0a4b5`, provenance at `63f9f456`) |
-| Commits | `6ada9c014d42618e9d7ef6f436d25e6abc8b82f0` — `test(p7-s4c): add dashboard verification coverage`; `79de0aa855aea1685df7f30fbfa00b7a61f11119` — `docs(p7-s4c): record dashboard verification report` (this report); SHA map filled by a follow-up docs commit after the report SHA was known (same pattern as P7-S4A/P7-S4B) |
-| Deliverables under verification | P7-S4A (API read models, `a9188786`), P7-S4B (Admin Web UI, `de01500e`) |
-| Date | 2026-08-03 (Asia/Kuala_Lumpur) |
-| Pushed | **NO** (nothing pushed; OpenClaw reviews and pushes) |
+| Field                           | Value                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Task ID                         | P7-S4C                                                                                                                                                                                                                                                                                                                      |
+| Executor class                  | `OPENCLAW_MANAGED_CODING_SUBAGENT` (under D-048, continuing D-047 P7-S4)                                                                                                                                                                                                                                                    |
+| Role                            | Independent verification of P7-S4 (Dashboard and bounded operational read models)                                                                                                                                                                                                                                           |
+| Worktree                        | `/workspace/.local/wt-p7-s4c`                                                                                                                                                                                                                                                                                               |
+| Branch                          | `task/p7-s4c-dashboard-acceptance`                                                                                                                                                                                                                                                                                          |
+| Starting SHA                    | `63f9f4560ee0fc4caa42cdc94237c28d85377c7c` (P7-S4A merged at `7336dd46`, P7-S4B merged at `75f0a4b5`, provenance at `63f9f456`)                                                                                                                                                                                             |
+| Commits                         | `6ada9c014d42618e9d7ef6f436d25e6abc8b82f0` — `test(p7-s4c): add dashboard verification coverage`; `79de0aa855aea1685df7f30fbfa00b7a61f11119` — `docs(p7-s4c): record dashboard verification report` (this report); SHA map filled by a follow-up docs commit after the report SHA was known (same pattern as P7-S4A/P7-S4B) |
+| Deliverables under verification | P7-S4A (API read models, `a9188786`), P7-S4B (Admin Web UI, `de01500e`)                                                                                                                                                                                                                                                     |
+| Date                            | 2026-08-03 (Asia/Kuala_Lumpur)                                                                                                                                                                                                                                                                                              |
+| Pushed                          | **NO** (nothing pushed; OpenClaw reviews and pushes)                                                                                                                                                                                                                                                                        |
 
 ## 1. Scope and method
 
@@ -44,14 +44,14 @@ recreated ipoint_dashboard_test (clean)     # 0 tables in fresh db
 
 Then (all with `DATABASE_URL=postgresql://ipoint:ipoint-local-only@172.23.0.3:5432/ipoint_dashboard_test`):
 
-| Command | Result |
-|---|---|
-| `pnpm --filter @ipoint/api exec vitest run src/admin-dashboard/admin-dashboard.integration.spec.ts` | **14 passed / 0 failed / 0 skipped**, exit 0 |
-| `pnpm --filter @ipoint/api exec vitest run src/admin-dashboard/admin-dashboard.spec.ts` | **15 passed / 1 failed / 0 skipped** — see DEFECT D1 (pre-existing wall-clock-dependent test; NOT a production regression) |
-| `pnpm --filter @ipoint/api exec vitest run src/__tests__/admin-dashboard.p7-s4c.spec.ts` (NEW deterministic coverage) | **3 passed / 0 failed**, exit 0 |
-| `pnpm --filter @ipoint/api typecheck` | exit 0 |
-| `pnpm --filter @ipoint/api build` | exit 0 |
-| `pnpm --filter @ipoint/api-client test` | **29 passed / 0 failed**, exit 0 |
+| Command                                                                                                               | Result                                                                                                                     |
+| --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @ipoint/api exec vitest run src/admin-dashboard/admin-dashboard.integration.spec.ts`                   | **14 passed / 0 failed / 0 skipped**, exit 0                                                                               |
+| `pnpm --filter @ipoint/api exec vitest run src/admin-dashboard/admin-dashboard.spec.ts`                               | **15 passed / 1 failed / 0 skipped** — see DEFECT D1 (pre-existing wall-clock-dependent test; NOT a production regression) |
+| `pnpm --filter @ipoint/api exec vitest run src/__tests__/admin-dashboard.p7-s4c.spec.ts` (NEW deterministic coverage) | **3 passed / 0 failed**, exit 0                                                                                            |
+| `pnpm --filter @ipoint/api typecheck`                                                                                 | exit 0                                                                                                                     |
+| `pnpm --filter @ipoint/api build`                                                                                     | exit 0                                                                                                                     |
+| `pnpm --filter @ipoint/api-client test`                                                                               | **29 passed / 0 failed**, exit 0                                                                                           |
 
 The 16/16 unit expectation of the task brief cannot be reproduced on
 2026-08-03T12:53Z because of D1 (test-only defect, exact evidence below). All
@@ -195,7 +195,7 @@ All integration checks run against the real HTTP app + real PostgreSQL:
   and `GET /api/v1/admin/dashboard/metrics/:metricId` exercised via
   supertest (200/401/403/409/422/503 all observed).
 - OpenAPI parity: `REDEMPTION_VOUCHER_ENCRYPTION_KEY=<64-hex>
-  pnpm --filter @ipoint/api openapi:validate` →
+pnpm --filter @ipoint/api openapi:validate` →
   `✅ All runtime OpenAPI validations passed` (204 paths, 0 schema errors, 0
   duplicate operationIds). Independent probe (compiled, decorator-metadata
   preserved) dumped the two dashboard paths:
@@ -213,8 +213,8 @@ All integration checks run against the real HTTP app + real PostgreSQL:
   branch is HTTP-proven; STALE at HTTP level remains indirectly covered).
 - RBAC + market: `401` unauthenticated; `403 PERMISSION_DENIED` for
   non-admin and for an admin without `dashboard.view`; `409
-  MARKET_SELECTION_REQUIRED` without a selected market; `409
-  MARKET_CONTEXT_MISMATCH` for a client-supplied `x-market-id` differing from
+MARKET_SELECTION_REQUIRED` without a selected market; `409
+MARKET_CONTEXT_MISMATCH` for a client-supplied `x-market-id` differing from
   the server-selected Current Admin Market; full canonical flow
   login → bootstrap → select market → catalog (200, 14 items).
 - No write side effects: integration test asserts transactions /
@@ -223,11 +223,11 @@ All integration checks run against the real HTTP app + real PostgreSQL:
 
 ### 4.8 UI verification — PASS
 
-| Command | Result |
-|---|---|
-| `pnpm --filter @ipoint/admin-web typecheck` | exit 0 |
-| `pnpm --filter @ipoint/admin-web test` | **60 passed / 0 failed** (8 files), exit 0 |
-| `pnpm --filter @ipoint/admin-web build` | PASS (vite build; `✓ built in 23.43s`) |
+| Command                                     | Result                                     |
+| ------------------------------------------- | ------------------------------------------ |
+| `pnpm --filter @ipoint/admin-web typecheck` | exit 0                                     |
+| `pnpm --filter @ipoint/admin-web test`      | **60 passed / 0 failed** (8 files), exit 0 |
+| `pnpm --filter @ipoint/admin-web build`     | PASS (vite build; `✓ built in 23.43s`)     |
 
 Compliance evidence (code review + the 38 P7-S4B dashboard tests):
 
@@ -332,11 +332,11 @@ dispatch the flip to `dashboard.view` before running the root e2e suite
 
 ## 3. Defects found
 
-| ID | Severity | Location | Description | Action |
-|---|---|---|---|---|
-| D1 | Medium (test-only, time-dependent flakiness) | `apps/api/src/admin-dashboard/admin-dashboard.spec.ts:183-209` (test body lines 185-209; FIXED_NOW constant at line 183) | "serves a cached entry as STALE when its asOf violates the freshness class" sets `computedAt: FIXED_NOW.getTime()` with a hard-coded `2026-08-03T12:00:00.000Z`. `DashboardMetricCache.get()` (cache.ts:51) evicts by the real wall clock (`Date.now()`), so once the wall clock drifts > KPI TTL (5 min) past the constant the entry is evicted, the source-query path runs, and the assertion fails (`FRESH` instead of `STALE`). Reproduced today (wall clock 53.5 min past the constant): 15/16 with this single failure. It passed during P7-S4A only because the run happened near the constant. This is a pre-existing test defect in delivered P7-S4A code, NOT a production regression. | REPORTED, NOT FIXED (file outside allowed paths). Recommended fix for OpenClaw dispatch: derive `computedAt`/`asOf` from `Date.now()` at run time (e.g. `computedAt: Date.now() - 1_000`, `asOf: new Date(Date.now() - 400_000)`) or inject a wall-clock provider into `DashboardMetricCache`. Deterministic replacement coverage already added in `apps/api/src/__tests__/admin-dashboard.p7-s4c.spec.ts` (3/3 passing). |
-| D2 | Low (documentation wording vs implementation) | `apps/api/src/admin-dashboard/admin-dashboard.catalog.ts:88` (M06) vs `admin-dashboard.service.ts:269-275` | M06 definition says "whose **latest** merchant KYC submission status is SUBMITTED or UNDER_REVIEW", but the SQL counts distinct branches with **any** submission in those statuses (a branch with a newer APPROVED submission and an older SUBMITTED one is still counted). Fixture values are unaffected. | REPORTED, NOT FIXED (production code). Align the definition text (e.g. "with a merchant KYC submission in SUBMITTED/UNDER_REVIEW") or add a latest-submission predicate — a documentation-only change is sufficient for the current contract. |
-| D3 | Info (coverage gap, mitigated) | HTTP-level `503 DASHBOARD_DATA_STALE` | Only the (flaky) unit test covered the STALE path; the HTTP 503 mapping is exercised for UNAVAILABLE (same switch branch in `admin-dashboard.controller.ts:147-148`). The new deterministic spec covers the service-level STALE rejection and asOf provenance. | Mitigated by the new test; no further action required. |
+| ID  | Severity                                      | Location                                                                                                                 | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Action                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Medium (test-only, time-dependent flakiness)  | `apps/api/src/admin-dashboard/admin-dashboard.spec.ts:183-209` (test body lines 185-209; FIXED_NOW constant at line 183) | "serves a cached entry as STALE when its asOf violates the freshness class" sets `computedAt: FIXED_NOW.getTime()` with a hard-coded `2026-08-03T12:00:00.000Z`. `DashboardMetricCache.get()` (cache.ts:51) evicts by the real wall clock (`Date.now()`), so once the wall clock drifts > KPI TTL (5 min) past the constant the entry is evicted, the source-query path runs, and the assertion fails (`FRESH` instead of `STALE`). Reproduced today (wall clock 53.5 min past the constant): 15/16 with this single failure. It passed during P7-S4A only because the run happened near the constant. This is a pre-existing test defect in delivered P7-S4A code, NOT a production regression. | REPORTED, NOT FIXED (file outside allowed paths). Recommended fix for OpenClaw dispatch: derive `computedAt`/`asOf` from `Date.now()` at run time (e.g. `computedAt: Date.now() - 1_000`, `asOf: new Date(Date.now() - 400_000)`) or inject a wall-clock provider into `DashboardMetricCache`. Deterministic replacement coverage already added in `apps/api/src/__tests__/admin-dashboard.p7-s4c.spec.ts` (3/3 passing). |
+| D2  | Low (documentation wording vs implementation) | `apps/api/src/admin-dashboard/admin-dashboard.catalog.ts:88` (M06) vs `admin-dashboard.service.ts:269-275`               | M06 definition says "whose **latest** merchant KYC submission status is SUBMITTED or UNDER_REVIEW", but the SQL counts distinct branches with **any** submission in those statuses (a branch with a newer APPROVED submission and an older SUBMITTED one is still counted). Fixture values are unaffected.                                                                                                                                                                                                                                                                                                                                                                                       | REPORTED, NOT FIXED (production code). Align the definition text (e.g. "with a merchant KYC submission in SUBMITTED/UNDER_REVIEW") or add a latest-submission predicate — a documentation-only change is sufficient for the current contract.                                                                                                                                                                             |
+| D3  | Info (coverage gap, mitigated)                | HTTP-level `503 DASHBOARD_DATA_STALE`                                                                                    | Only the (flaky) unit test covered the STALE path; the HTTP 503 mapping is exercised for UNAVAILABLE (same switch branch in `admin-dashboard.controller.ts:147-148`). The new deterministic spec covers the service-level STALE rejection and asOf provenance.                                                                                                                                                                                                                                                                                                                                                                                                                                   | Mitigated by the new test; no further action required.                                                                                                                                                                                                                                                                                                                                                                    |
 
 ## 4. Environment limitations
 

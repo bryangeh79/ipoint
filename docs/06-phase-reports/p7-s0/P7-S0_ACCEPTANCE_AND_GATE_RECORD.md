@@ -4,16 +4,16 @@
 
 ## 1. Acceptance record
 
-| Record | Accepted outcome |
-|---|---|
-| P7-S0 delivery | ACCEPTED |
-| Audit | COMPLETE |
-| Historical documentation deliverables | Six P7-S0 audit/planning documents accepted as the evidence set |
-| Final P7-S0 HEAD before governance consolidation | `0c84bf2ef23cc9db49475bb96081a669859090e6` |
-| P7 decisions | All 22 P7-OD decisions APPROVED |
-| Malaysia Agent Activation Fee | Confirmed at `RM388.00` in MYR for Malaysia, subject to future versioned implementation semantics |
-| Phase 7 contract | FROZEN under D-046 |
-| P7-S1+ | NOT AUTHORIZED |
+| Record                                           | Accepted outcome                                                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| P7-S0 delivery                                   | ACCEPTED                                                                                          |
+| Audit                                            | COMPLETE                                                                                          |
+| Historical documentation deliverables            | Six P7-S0 audit/planning documents accepted as the evidence set                                   |
+| Final P7-S0 HEAD before governance consolidation | `0c84bf2ef23cc9db49475bb96081a669859090e6`                                                        |
+| P7 decisions                                     | All 22 P7-OD decisions APPROVED                                                                   |
+| Malaysia Agent Activation Fee                    | Confirmed at `RM388.00` in MYR for Malaysia, subject to future versioned implementation semantics |
+| Phase 7 contract                                 | FROZEN under D-046                                                                                |
+| P7-S1+                                           | NOT AUTHORIZED                                                                                    |
 
 ## 2. Accepted six-document evidence set
 
@@ -59,15 +59,15 @@ This acceptance is governance-only. It does not authorize P7-S1, P7-S2, P7-S3, P
 
 ## 6. Gate state at freeze
 
-| Gate | State |
-|---|---|
-| P7-S0 documentation and audit | ACCEPTED / COMPLETE |
-| 22 P7 decisions | APPROVED / FROZEN |
-| Malaysia Agent Activation Fee | APPROVED / FROZEN RULE; implementation not authorized |
-| SEC-01 compliant iPoint Adjustment | BLOCKED / REMEDIATION NOT AUTHORIZED |
-| SEC-02 refund wallet ledger | HARD GATE / REMEDIATION NOT AUTHORIZED |
-| Admin MFA | PREREQUISITE / IMPLEMENTATION NOT AUTHORIZED |
-| RBAC/permission remediation | PREREQUISITE / IMPLEMENTATION NOT AUTHORIZED |
-| Phase 5 route/market remediation | PREREQUISITE BY CAPABILITY / IMPLEMENTATION NOT AUTHORIZED |
-| Phase 7 contract | FINAL / ACCEPTED / FROZEN UNDER D-046 |
-| P7-S1+ implementation | NOT AUTHORIZED |
+| Gate                               | State                                                      |
+| ---------------------------------- | ---------------------------------------------------------- |
+| P7-S0 documentation and audit      | ACCEPTED / COMPLETE                                        |
+| 22 P7 decisions                    | APPROVED / FROZEN                                          |
+| Malaysia Agent Activation Fee      | APPROVED / FROZEN RULE; implementation not authorized      |
+| SEC-01 compliant iPoint Adjustment | BLOCKED / REMEDIATION NOT AUTHORIZED                       |
+| SEC-02 refund wallet ledger        | HARD GATE / REMEDIATION NOT AUTHORIZED                     |
+| Admin MFA                          | PREREQUISITE / IMPLEMENTATION NOT AUTHORIZED               |
+| RBAC/permission remediation        | PREREQUISITE / IMPLEMENTATION NOT AUTHORIZED               |
+| Phase 5 route/market remediation   | PREREQUISITE BY CAPABILITY / IMPLEMENTATION NOT AUTHORIZED |
+| Phase 7 contract                   | FINAL / ACCEPTED / FROZEN UNDER D-046                      |
+| P7-S1+ implementation              | NOT AUTHORIZED                                             |
