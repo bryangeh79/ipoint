@@ -14,6 +14,7 @@ import { KycModule } from './kyc/kyc.module.js';
 import { AdminKycModule } from './admin-kyc/admin-kyc.module.js';
 import { DiscoveryModule } from './discovery/discovery.module.js';
 import { AdminMemberModule } from './admin-member/admin-member.module.js';
+import { AdminMemberOpsModule } from './admin-member-ops/admin-member-ops.module.js';
 import { AdminRewardModule } from './admin-reward/admin-reward.module.js';
 import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module.js';
 import { RewardModule } from './reward/reward.module.js';
@@ -77,6 +78,7 @@ import {
     AdminKycModule,
     DiscoveryModule,
     AdminMemberModule,
+    AdminMemberOpsModule,
     AdminRewardModule,
     AdminDashboardModule,
     RewardModule,

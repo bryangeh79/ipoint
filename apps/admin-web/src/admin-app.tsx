@@ -45,6 +45,8 @@ import { useAdminWriteEnvironment } from './pwa-policy.js';
 import { DashboardPage } from './dashboard-page.js';
 import { MerchantsPage } from './merchants-page.js';
 import { MerchantDetailPage } from './merchant-detail-page.js';
+import { MemberListPage } from './member-list-page.js';
+import { MemberDetailPage } from './member-detail-page.js';
 
 const routeObjects: RouteObject[] = [
   { path: '/', element: <Navigate replace to="/admin/login" /> },
@@ -178,6 +180,9 @@ function RouteContent({ route }: { route: AdminRoute }) {
   // P7-S5B merchant operations (append-only at the end of the route switch).
   if (route.id === 'merchants') return <MerchantsPage />;
   if (route.id === 'merchant-detail') return <MerchantDetailPage />;
+  /* P7-S5A Member Operations (append-only route cases). */
+  if (route.id === 'members') return <MemberListPage />;
+  if (route.id === 'member-detail') return <MemberDetailPage />;
   return (
     <section aria-labelledby="admin-route-title">
       <PageHeader
