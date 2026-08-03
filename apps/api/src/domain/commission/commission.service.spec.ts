@@ -314,27 +314,50 @@ describe('CommissionQueryService', () => {
 
     it('searches by beneficiary_id', async () => {
       chain.setResult([adminRow({ beneficiaryId: MEMBER_A })]);
-      const r = await svc().adminSearch({ beneficiaryId: MEMBER_A });
+      const r = await svc().adminSearch({
+        beneficiaryId: MEMBER_A,
+        selectedMarket: 'MY',
+      });
       expect(r.entries).toHaveLength(1);
     });
 
     it('searches by market', async () => {
-      chain.setResult([adminRow({ market: 'SG' })]);
-      const r = await svc().adminSearch({ market: 'sg' });
+      chain.setResult([adminRow({ market: 'MY' })]);
+      const r = await svc().adminSearch({ market: 'MY', selectedMarket: 'MY' });
       expect(r.entries).toHaveLength(1);
-      expect(r.entries[0]!.market).toBe('SG');
+      expect(r.entries[0]!.market).toBe('MY');
+    });
+
+    it('rejects a client market filter that disagrees with the selected market', async () => {
+      // P5-R1: client market values are never authority.
+      await expect(
+        svc().adminSearch({ market: 'SG', selectedMarket: 'MY' }),
+      ).rejects.toThrow(/COMMISSION_MARKET_CONTEXT_MISMATCH/);
+    });
+
+    it('requires the server-derived selected market', async () => {
+      // P5-R1: admin search is always bounded to the Current Admin Market.
+      await expect(svc().adminSearch({})).rejects.toThrow(
+        /COMMISSION_SELECTED_MARKET_REQUIRED/,
+      );
     });
 
     it('searches by source_type', async () => {
       chain.setResult([adminRow({ sourceType: 'MEMBER_CONSUMPTION' })]);
-      const r = await svc().adminSearch({ sourceType: 'MEMBER_CONSUMPTION' });
+      const r = await svc().adminSearch({
+        sourceType: 'MEMBER_CONSUMPTION',
+        selectedMarket: 'MY',
+      });
       expect(r.entries).toHaveLength(1);
       expect(r.entries[0]!.sourceType).toBe('MEMBER_CONSUMPTION');
     });
 
     it('searches by status', async () => {
       chain.setResult([adminRow({ postingStatus: 'EARNED' })]);
-      const r = await svc().adminSearch({ status: 'EARNED' });
+      const r = await svc().adminSearch({
+        status: 'EARNED',
+        selectedMarket: 'MY',
+      });
       expect(r.entries).toHaveLength(1);
       expect(r.entries[0]!.postingStatus).toBe('EARNED');
     });
@@ -344,6 +367,7 @@ describe('CommissionQueryService', () => {
       const r = await svc().adminSearch({
         from: '2026-07-01T00:00:00Z',
         to: '2026-07-31T00:00:00Z',
+        selectedMarket: 'MY',
       });
       expect(r.entries).toHaveLength(1);
       expect(r.total).toBe(0);
@@ -361,7 +385,10 @@ describe('CommissionQueryService', () => {
           },
         ],
       ]);
-      const r = await svc().adminSearch({ beneficiaryId: MEMBER_A });
+      const r = await svc().adminSearch({
+        beneficiaryId: MEMBER_A,
+        selectedMarket: 'MY',
+      });
       expect(r.entries).toHaveLength(1);
       expect(r.entries[0]!.beneficiary).not.toBeNull();
       expect(r.entries[0]!.beneficiary!.publicMemberId).toBe('PUB-MEM-001');
@@ -391,24 +418,24 @@ describe('CommissionQueryService', () => {
     it('returns status event history for a ledger entry', async () => {
       chain.setSequence([
         // Entry existence check
-        [{ id: 'ledger-1' }],
+        [{ id: 'ledger-1', market: 'MY' }],
         // Status events
         [makeEventRow()],
       ]);
-      const r = await svc().getAuditLog('ledger-1');
+      const r = await svc().getAuditLog('ledger-1', 'MY');
       expect(r).toHaveLength(1);
       expect(r[0]!.entryId).toBe('ledger-1');
     });
 
     it('events ordered by event_sequence', async () => {
       chain.setSequence([
-        [{ id: 'ledger-1' }],
+        [{ id: 'ledger-1', market: 'MY' }],
         [
           makeEventRow({ eventSequence: 1n, toStatus: 'EARNED' }),
           makeEventRow({ eventSequence: 2n, toStatus: 'EARNED' }),
         ],
       ]);
-      const r = await svc().getAuditLog('ledger-1');
+      const r = await svc().getAuditLog('ledger-1', 'MY');
       expect(r).toHaveLength(2);
       expect(r[0]!.eventSequence).toBe(1);
       expect(r[1]!.eventSequence).toBe(2);
@@ -416,7 +443,7 @@ describe('CommissionQueryService', () => {
 
     it('includes from_status, to_status, changed_by, changed_at', async () => {
       chain.setSequence([
-        [{ id: 'ledger-1' }],
+        [{ id: 'ledger-1', market: 'MY' }],
         [
           makeEventRow({
             fromStatus: null,
@@ -426,7 +453,7 @@ describe('CommissionQueryService', () => {
           }),
         ],
       ]);
-      const r = await svc().getAuditLog('ledger-1');
+      const r = await svc().getAuditLog('ledger-1', 'MY');
       expect(r[0]!.fromStatus).toBeNull();
       expect(r[0]!.toStatus).toBe('EARNED');
       expect(r[0]!.changedBy).toBe(ADMIN_2);
@@ -436,7 +463,7 @@ describe('CommissionQueryService', () => {
 
     it('throws NotFoundException for non-existent entry', async () => {
       chain.setResult([]);
-      await expect(svc().getAuditLog('missing-id')).rejects.toThrow(
+      await expect(svc().getAuditLog('missing-id', 'MY')).rejects.toThrow(
         /not found/i,
       );
     });
@@ -995,16 +1022,74 @@ describe('CommissionRateService', () => {
       ).rejects.toThrow(RateManagementError);
     });
 
-    it('validates generation (0, 1, 2)', async () => {
+    it('validates generation against the canonical P5-S0 mapping (P5-R1)', async () => {
+      // P5-R1 reconciliation: G1/G2 member consumption uses generations 1/2
+      // (seed + service); generation 0 is only for single-generation types
+      // (MERCHANT_RECRUITMENT, AGENT_ACTIVATION_FEE). The legacy validation
+      // that allowed only generation 0 for MEMBER_CONSUMPTION is retired.
+      const created = await svc().createRate(
+        ADMIN_1,
+        'MEMBER_CONSUMPTION',
+        1,
+        'MY',
+        '5.00',
+        'PERCENTAGE',
+        '2026-07-01T00:00:00Z',
+      );
+      expect(created.generation).toBe(1);
+    });
+
+    it('rejects generation 0 for MEMBER_CONSUMPTION (G1/G2 only)', async () => {
       await expect(
         svc().createRate(
           ADMIN_1,
           'MEMBER_CONSUMPTION',
-          1, // MEMBER_CONSUMPTION only allows 0
+          0,
           'MY',
           '5.00',
           'PERCENTAGE',
           '2026-07-01T00:00:00Z',
+        ),
+      ).rejects.toThrow(RateManagementError);
+    });
+
+    it('accepts the versioned activation fee (AGENT_ACTIVATION_FEE, generation 0)', async () => {
+      const created = await svc().createRate(
+        ADMIN_1,
+        'AGENT_ACTIVATION_FEE',
+        0,
+        'MY',
+        '388.00',
+        'FIXED',
+        '2026-07-25T00:00:00Z',
+      );
+      expect(created.commissionType).toBe('AGENT_ACTIVATION_FEE');
+    });
+
+    it('rejects generation 1 for AGENT_ACTIVATION_FEE (single-generation)', async () => {
+      await expect(
+        svc().createRate(
+          ADMIN_1,
+          'AGENT_ACTIVATION_FEE',
+          1,
+          'MY',
+          '388.00',
+          'FIXED',
+          '2026-07-25T00:00:00Z',
+        ),
+      ).rejects.toThrow(RateManagementError);
+    });
+
+    it('rejects generation 1 for single-generation MERCHANT_RECRUITMENT', async () => {
+      await expect(
+        svc().createRate(
+          ADMIN_1,
+          'MERCHANT_RECRUITMENT',
+          1,
+          'MY',
+          '0.005',
+          'PERCENTAGE',
+          '2026-07-25T00:00:00Z',
         ),
       ).rejects.toThrow(RateManagementError);
     });
