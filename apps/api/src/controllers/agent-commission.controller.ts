@@ -40,7 +40,7 @@ import { members } from '@ipoint/database';
 
 @ApiTags('Agent Commission')
 @ApiBearerAuth()
-@Controller('api/v1/commission')
+@Controller('commission')
 @UseGuards(AuthGuard)
 export class AgentCommissionController {
   constructor(
