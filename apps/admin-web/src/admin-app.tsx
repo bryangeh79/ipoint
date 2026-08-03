@@ -43,6 +43,8 @@ import {
 import { ApiErrorState, ShellState } from './shell-states.js';
 import { useAdminWriteEnvironment } from './pwa-policy.js';
 import { DashboardPage } from './dashboard-page.js';
+import { MerchantsPage } from './merchants-page.js';
+import { MerchantDetailPage } from './merchant-detail-page.js';
 
 const routeObjects: RouteObject[] = [
   { path: '/', element: <Navigate replace to="/admin/login" /> },
@@ -173,6 +175,9 @@ function RouteContent({ route }: { route: AdminRoute }) {
   if (route.id === 'mfa-recovery') return <MfaRecoveryScreen />;
   if (route.id === 'sessions') return <SessionsScreen />;
   if (route.id === 'dashboard') return <DashboardPage />;
+  // P7-S5B merchant operations (append-only at the end of the route switch).
+  if (route.id === 'merchants') return <MerchantsPage />;
+  if (route.id === 'merchant-detail') return <MerchantDetailPage />;
   return (
     <section aria-labelledby="admin-route-title">
       <PageHeader

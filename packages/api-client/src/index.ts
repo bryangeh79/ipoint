@@ -1154,3 +1154,455 @@ function isTerminalAdminSessionCode(code: string | undefined): boolean {
     ].includes(code),
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  P7-S5B selected-market Admin Merchant Operations                   */
+/*                                                                     */
+/*  Append-only section (do not move or merge). DTOs mirror the        */
+/*  accepted Phase 1 owner endpoints and the Phase 7 branch-detail     */
+/*  adapter (`apps/api/src/admin-merchant-ops`). The market in every   */
+/*  URL path is validated server-side against the server-owned Current */
+/*  Admin Market by the canonical RbacGuard (mismatch returns 409      */
+/*  MARKET_CONTEXT_MISMATCH); the client never invents a market.       */
+/*  Approved status actions require an Idempotency-Key header and are  */
+/*  passed through untouched (owner semantics).                        */
+/* ------------------------------------------------------------------ */
+
+export type AdminMerchantApplicationQueueStatus =
+  | 'SUBMITTED'
+  | 'UNDER_REVIEW'
+  | 'RESUBMISSION_REQUIRED'
+  | 'APPROVED'
+  | 'REJECTED';
+
+export interface AdminMerchantApplicationQueueQuery {
+  status?: AdminMerchantApplicationQueueStatus;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AdminMerchantApplicationQueueItemDto {
+  application_id: string;
+  branch_id: string;
+  merchant_id: string;
+  display_name: string;
+  application_status: string;
+  operational_status: string;
+  updated_at: string;
+}
+
+export type AdminMerchantApplicationQueueDto =
+  AdminMerchantApplicationQueueItemDto[];
+
+export type AdminMerchantListStatus =
+  | 'PENDING_APPLICATION'
+  | 'PENDING_KYC'
+  | 'PENDING_MCP'
+  | 'ACTIVE'
+  | 'SUSPENDED'
+  | 'CLOSURE_PENDING'
+  | 'CLOSED';
+
+export interface AdminMerchantListQuery {
+  query?: string;
+  status?: AdminMerchantListStatus;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AdminMerchantListItemDto {
+  branch_id: string;
+  merchant_id: string;
+  name: string;
+  status: string;
+  market_id: string;
+  created_at: string;
+  application_status: string | null;
+  kyc_status: string | null;
+  mcp_account_id: string | null;
+  available_balance: string | null;
+}
+
+export interface AdminMerchantListDto {
+  items: AdminMerchantListItemDto[];
+  limit: number;
+  offset: number;
+}
+
+export type AdminMerchantReviewDecision =
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'RESUBMISSION_REQUIRED';
+
+export interface AdminMerchantApplicationReviewInput {
+  decision: AdminMerchantReviewDecision;
+  reason: string;
+}
+
+export interface AdminMerchantApplicationReviewResultDto {
+  application_id: string;
+  branch_id: string;
+  application_status: string;
+  operational_status: string;
+}
+
+export interface AdminMerchantKycReviewDetailDto {
+  submission_id: string;
+  submission_version: number;
+  status: string;
+  submitted_at: string;
+  data: Record<string, unknown>;
+  review: {
+    review_id: string;
+    reviewer_id: string;
+    decision: string;
+    reason: string;
+    rejected_fields: string[];
+    reviewed_at: string;
+  } | null;
+  branch_id: string;
+  merchant_id: string;
+  market_id: string;
+  previous: Record<string, unknown> | null;
+}
+
+export interface AdminMerchantKycReviewInput {
+  decision: AdminMerchantReviewDecision;
+  reason: string;
+  rejected_fields?: string[];
+}
+
+export interface AdminMerchantKycReviewResultDto {
+  review_id: string;
+  submission_id: string;
+  branch_id: string;
+  kyc_status: string;
+  operational_status: string;
+  reason: string;
+  rejected_fields: string[];
+  reviewed_at: string;
+}
+
+export interface AdminMerchantStatusActionInput {
+  reason: string;
+}
+
+export interface AdminMerchantStatusActionResultDto {
+  branch_id: string;
+  operational_status: string;
+}
+
+export interface AdminMerchantMcpAccountDto {
+  id: string;
+  branch_id: string;
+  market_id: string;
+  available_balance: string;
+  total_balance: string;
+  status: string;
+  version: number;
+}
+
+export interface AdminMerchantMcpReconciliationDto {
+  account_id: string;
+  stored: { total: string; available: string };
+  computed: { total: string; available: string; entries: number };
+  matches: boolean;
+}
+
+export interface AdminMerchantMcpLedgerEntryDto {
+  id: string;
+  sequence: string;
+  entryType: string;
+  direction: string;
+  amount: string;
+  balanceDelta: string;
+  availableDelta: string;
+  sourceType: string;
+  sourceId: string | null;
+  reason: string | null;
+  effectiveAt: string;
+  createdAt: string;
+  [key: string]: unknown;
+}
+
+export interface AdminMerchantMcpLedgerPageDto {
+  items: AdminMerchantMcpLedgerEntryDto[];
+  limit: number;
+  offset: number;
+}
+
+export interface AdminMerchantLedgerQuery {
+  limit?: number;
+  offset?: number;
+}
+
+export interface AdminMerchantMcpSummaryDto {
+  account: AdminMerchantMcpAccountDto;
+  reconciliation: AdminMerchantMcpReconciliationDto | null;
+  recent_ledger: AdminMerchantMcpLedgerPageDto | null;
+}
+
+export interface AdminMerchantPackageHistoryItemDto {
+  assignment_id: string;
+  service_fee_profile_id: string | null;
+  service_fee_profile_code: string | null;
+  service_fee_profile_name: string | null;
+  service_fee_version_id: string | null;
+  rate: string | null;
+  effective_from: string | null;
+  effective_to: string | null;
+  special_percentage_id: string | null;
+  special_percentage_rate: string | null;
+  special_percentage_description: string | null;
+  status: string;
+  is_default: boolean;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminMerchantPackageHistoryDto {
+  items: AdminMerchantPackageHistoryItemDto[];
+  limit: number;
+  offset: number;
+}
+
+export interface AdminMerchantBranchDetailDto {
+  branch_id: string;
+  merchant_id: string;
+  market_id: string;
+  profile: {
+    branch_id: string;
+    merchant_id: string;
+    market_id: string;
+    display_name: string;
+    primary_email: string;
+    phone: string | null;
+    address: string | null;
+    about: string | null;
+    business_hours: string | null;
+    website: string | null;
+    whatsapp: string | null;
+    socials: Record<string, unknown> | null;
+    logo_object_key: string | null;
+    banner_object_key: string | null;
+    gallery: Array<{ id: string; object_key: string; position: number }>;
+  };
+  application: {
+    application_id: string;
+    status: string;
+    operational_status: string;
+    submissions: Array<{
+      id: string;
+      version: number;
+      submitted_at: string;
+    }>;
+    reviews: Array<{
+      id: string;
+      decision: string;
+      reason: string;
+      decided_at: string;
+    }>;
+  };
+  kyc: {
+    current: Record<string, unknown> | null;
+    previous: Record<string, unknown> | null;
+  };
+  packages: AdminMerchantPackageHistoryDto;
+  mcp: AdminMerchantMcpSummaryDto | null;
+}
+
+/**
+ * P7-S5B selected-market Admin Merchant Operations client.
+ *
+ * Self-contained addition to the Admin client surface: queues, list,
+ * branch detail, approved status actions (owner commands), and bounded MCP
+ * summaries. Actions send the Idempotency-Key header the owner commands
+ * require; all responses are typed against the owner/adapter contracts.
+ */
+export class AdminMerchantApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Owner queue: merchant applications pending review (selected market). */
+  async merchantApplications(
+    marketId: string,
+    query: AdminMerchantApplicationQueueQuery = {},
+  ): Promise<AdminMerchantApplicationQueueDto> {
+    const search = new URLSearchParams();
+    if (query.status) search.set('status', query.status);
+    if (query.limit !== undefined) search.set('limit', String(query.limit));
+    if (query.offset !== undefined) search.set('offset', String(query.offset));
+    const suffix = search.size > 0 ? `?${search.toString()}` : '';
+    return (
+      await this.client.get<AdminMerchantApplicationQueueDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/merchants/applications${suffix}`,
+      )
+    ).data;
+  }
+
+  /** Owner list: selected-market merchants (deterministic offset paging). */
+  async merchantList(
+    marketId: string,
+    query: AdminMerchantListQuery = {},
+  ): Promise<AdminMerchantListDto> {
+    const search = new URLSearchParams();
+    if (query.query) search.set('query', query.query);
+    if (query.status) search.set('status', query.status);
+    if (query.limit !== undefined) search.set('limit', String(query.limit));
+    if (query.offset !== undefined) search.set('offset', String(query.offset));
+    const suffix = search.size > 0 ? `?${search.toString()}` : '';
+    return (
+      await this.client.get<AdminMerchantListDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/merchants${suffix}`,
+      )
+    ).data;
+  }
+
+  /**
+   * Phase 7 branch-detail adapter read: profile, application, owner-masked
+   * KYC, package history (read-only), and MCP summary.
+   */
+  async merchantBranchDetail(
+    marketId: string,
+    branchId: string,
+  ): Promise<AdminMerchantBranchDetailDto> {
+    return (
+      await this.client.get<AdminMerchantBranchDetailDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/merchants/${encodeURIComponent(branchId)}/detail`,
+      )
+    ).data;
+  }
+
+  /** Owner command: decide a merchant application (Idempotency-Key). */
+  async reviewMerchantApplication(
+    marketId: string,
+    branchId: string,
+    input: AdminMerchantApplicationReviewInput,
+    idempotencyKey: string,
+  ): Promise<AdminMerchantApplicationReviewResultDto> {
+    return (
+      await this.client.post<AdminMerchantApplicationReviewResultDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/merchants/${encodeURIComponent(branchId)}/application/review`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  /** Owner surface: KYC review detail (audits MERCHANT_KYC_REVIEW_STARTED). */
+  async merchantKycReviewDetail(
+    marketId: string,
+    branchId: string,
+  ): Promise<AdminMerchantKycReviewDetailDto> {
+    return (
+      await this.client.get<AdminMerchantKycReviewDetailDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/merchants/${encodeURIComponent(branchId)}/kyc/review`,
+      )
+    ).data;
+  }
+
+  /** Owner command: decide a merchant KYC review (Idempotency-Key). */
+  async reviewMerchantKyc(
+    marketId: string,
+    branchId: string,
+    input: AdminMerchantKycReviewInput,
+    idempotencyKey: string,
+  ): Promise<AdminMerchantKycReviewResultDto> {
+    return (
+      await this.client.post<AdminMerchantKycReviewResultDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/merchants/${encodeURIComponent(branchId)}/kyc/review`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  /** Owner command: suspend (preserves MCP; Idempotency-Key). */
+  async suspendMerchant(
+    marketId: string,
+    branchId: string,
+    input: AdminMerchantStatusActionInput,
+    idempotencyKey: string,
+  ): Promise<AdminMerchantStatusActionResultDto> {
+    return (
+      await this.client.post<AdminMerchantStatusActionResultDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/merchants/${encodeURIComponent(branchId)}/suspend`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  /** Owner command: reactivate a suspended merchant (Idempotency-Key). */
+  async reactivateMerchant(
+    marketId: string,
+    branchId: string,
+    input: AdminMerchantStatusActionInput,
+    idempotencyKey: string,
+  ): Promise<AdminMerchantStatusActionResultDto> {
+    return (
+      await this.client.post<AdminMerchantStatusActionResultDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/merchants/${encodeURIComponent(branchId)}/reactivate`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  /** Owner command: close a merchant (Idempotency-Key). */
+  async closeMerchant(
+    marketId: string,
+    branchId: string,
+    input: AdminMerchantStatusActionInput,
+    idempotencyKey: string,
+  ): Promise<AdminMerchantStatusActionResultDto> {
+    return (
+      await this.client.post<AdminMerchantStatusActionResultDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/merchants/${encodeURIComponent(branchId)}/close`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  /** Owner read: selected-market MCP account summary. */
+  async merchantMcpAccount(
+    marketId: string,
+    accountId: string,
+  ): Promise<AdminMerchantMcpAccountDto> {
+    return (
+      await this.client.get<AdminMerchantMcpAccountDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/mcp/accounts/${encodeURIComponent(accountId)}`,
+      )
+    ).data;
+  }
+
+  /** Owner read: MCP reconciliation summary (stored vs computed). */
+  async merchantMcpReconcile(
+    marketId: string,
+    accountId: string,
+  ): Promise<AdminMerchantMcpReconciliationDto> {
+    return (
+      await this.client.get<AdminMerchantMcpReconciliationDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/mcp/accounts/${encodeURIComponent(accountId)}/reconcile`,
+      )
+    ).data;
+  }
+
+  /** Owner read: bounded MCP ledger page (no raw export). */
+  async merchantMcpLedger(
+    marketId: string,
+    accountId: string,
+    query: AdminMerchantLedgerQuery = {},
+  ): Promise<AdminMerchantMcpLedgerPageDto> {
+    const search = new URLSearchParams();
+    if (query.limit !== undefined) search.set('limit', String(query.limit));
+    if (query.offset !== undefined) search.set('offset', String(query.offset));
+    const suffix = search.size > 0 ? `?${search.toString()}` : '';
+    return (
+      await this.client.get<AdminMerchantMcpLedgerPageDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/mcp/accounts/${encodeURIComponent(accountId)}/ledger${suffix}`,
+      )
+    ).data;
+  }
+}
