@@ -14,6 +14,7 @@ import {
 import { and, eq, isNull } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import { DatabaseService } from '../database/database.service.js';
+import { normalizeActionClass } from '../auth/auth.constants.js';
 
 @Injectable()
 export class RbacService {
@@ -110,6 +111,10 @@ export class RbacService {
     target?: string;
   }): Promise<boolean> {
     if (!input.token) return false;
+    // The grant row is written by the step-up verify flow using the
+    // canonical (lowercase) action class. Normalize the permission the same
+    // way so the lookup can never diverge by case from the stored value.
+    const actionClass = normalizeActionClass(input.permission);
     try {
       const result = await this.database.pool.query(
         `UPDATE admin_step_up_grants
@@ -123,7 +128,7 @@ export class RbacService {
           hash(input.token),
           input.sessionId,
           input.adminUserId,
-          input.permission,
+          actionClass,
           input.marketId ?? null,
           input.target ? hash(input.target) : null,
         ],

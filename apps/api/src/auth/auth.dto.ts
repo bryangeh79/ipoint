@@ -116,7 +116,13 @@ export const adminStepUpStartSchema = z
       .trim()
       .min(3)
       .max(128)
-      .regex(/^[A-Z0-9_:.]+$/u),
+      .regex(/^[A-Za-z0-9_:.-]+$/u)
+      // Canonical catalog permission codes are lowercase (for example
+      // `member.kyc.evidence.view` or `audit.sensitive-diff.view`); legacy
+      // UPPER_CASE purpose-style codes (for example `ADMIN_MFA_RESET`) are
+      // tolerated and normalized here so the step-up grant is always minted
+      // against the canonical action class the RbacGuard consumes.
+      .transform((value) => value.toLowerCase()),
     market_id: z.uuid().optional(),
     target: z.string().trim().min(1).max(256).optional(),
   })

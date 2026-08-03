@@ -6,6 +6,7 @@ import {
   AUTH_RATE_LIMITER,
   AUTH_SETTINGS,
   AUTH_STORE,
+  normalizeActionClass,
 } from './auth.constants.js';
 import {
   decryptTotpSecret,
@@ -417,8 +418,13 @@ export class AdminAuthService {
     const factor = await this.activeFactor(adminUserId);
     const token = createOpaqueToken();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    // Single source of truth for the step-up action class: the value stored
+    // in the challenge context (and later copied into
+    // `admin_step_up_grants.action_class`) is always the canonical lowercase
+    // catalog permission code, matching the RbacGuard's grant lookup.
+    const actionClass = normalizeActionClass(input.actionClass);
     const requestContext = {
-      actionClass: input.actionClass,
+      actionClass,
       marketId: input.marketId ?? null,
       targetHash: input.target ? hashOpaqueToken(input.target) : null,
     };
@@ -445,7 +451,7 @@ export class AdminAuthService {
       'ADMIN_MFA_STEP_UP_ISSUED',
       'SUCCESS',
       metadata,
-      { actionClass: input.actionClass },
+      { actionClass },
     );
     return { stepUpChallenge: token, expiresAt };
   }
@@ -474,6 +480,13 @@ export class AdminAuthService {
       );
     }
     const context = verified.requestContext;
+    // Normalize again defensively: the challenge context is written by
+    // `beginStepUp`, which already stores the canonical form, but the grant
+    // row must never carry a case that the RbacGuard cannot consume.
+    const rawActionClass = context['actionClass'];
+    const actionClass = normalizeActionClass(
+      typeof rawActionClass === 'string' ? rawActionClass : '',
+    );
     const token = createOpaqueToken();
     const session = await this.database.pool.query<{
       absolute_expires_at: Date;
@@ -497,7 +510,7 @@ export class AdminAuthService {
         actor.sessionId,
         adminUserId,
         verified.factorId,
-        String(context['actionClass']),
+        actionClass,
         context['marketId'] ?? null,
         context['targetHash'] ?? null,
         expiresAt,
@@ -508,7 +521,7 @@ export class AdminAuthService {
       'ADMIN_MFA_STEP_UP_VERIFIED',
       'SUCCESS',
       metadata,
-      { actionClass: context['actionClass'] },
+      { actionClass },
     );
     return { stepUpToken: token, expiresAt };
   }
@@ -615,7 +628,7 @@ export class AdminAuthService {
     await this.consumeStepUpGrant(
       actor,
       input.stepUpToken,
-      'ADMIN_MFA_RESET',
+      'admin.mfa.reset',
       input.targetAdminUserId,
     );
     const client = await this.database.pool.connect();
@@ -974,6 +987,7 @@ export class AdminAuthService {
     actionClass: string,
     target: string,
   ): Promise<void> {
+    const normalizedActionClass = normalizeActionClass(actionClass);
     const result = await this.database.pool.query(
       `UPDATE admin_step_up_grants SET used_at = now(), version = version + 1
        WHERE grant_hash = $1 AND session_id = $2 AND admin_user_id = $3
@@ -983,7 +997,7 @@ export class AdminAuthService {
         hashOpaqueToken(token),
         actor.sessionId,
         actor.adminUserId,
-        actionClass,
+        normalizedActionClass,
         hashOpaqueToken(target),
       ],
     );
