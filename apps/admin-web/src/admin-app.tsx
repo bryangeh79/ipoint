@@ -47,6 +47,10 @@ import { MerchantsPage } from './merchants-page.js';
 import { MerchantDetailPage } from './merchant-detail-page.js';
 import { MemberListPage } from './member-list-page.js';
 import { MemberDetailPage } from './member-detail-page.js';
+import { MemberKycQueuePage } from './kyc-member-queue-page.js';
+import { MemberKycDetailPage } from './kyc-member-detail-page.js';
+import { MerchantKycQueuePage } from './kyc-merchant-queue-page.js';
+import { MerchantKycDetailPage } from './kyc-merchant-detail-page.js';
 
 const routeObjects: RouteObject[] = [
   { path: '/', element: <Navigate replace to="/admin/login" /> },
@@ -183,6 +187,11 @@ function RouteContent({ route }: { route: AdminRoute }) {
   /* P7-S5A Member Operations (append-only route cases). */
   if (route.id === 'members') return <MemberListPage />;
   if (route.id === 'member-detail') return <MemberDetailPage />;
+  /* P7-S5C KYC review + privacy (append-only at the end of the route switch). */
+  if (route.id === 'member-kyc') return <MemberKycQueuePage />;
+  if (route.id === 'member-kyc-detail') return <MemberKycDetailPage />;
+  if (route.id === 'merchant-kyc') return <MerchantKycQueuePage />;
+  if (route.id === 'merchant-kyc-detail') return <MerchantKycDetailPage />;
   return (
     <section aria-labelledby="admin-route-title">
       <PageHeader

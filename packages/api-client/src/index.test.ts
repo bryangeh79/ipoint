@@ -5,6 +5,12 @@ import {
   AdminApiClient,
   AdminDashboardCatalogDto,
   AdminDashboardMetricDetailDto,
+  AdminKycOpsApiClient,
+  AdminKycOpsCaseDetailDto,
+  AdminKycOpsListPageDto,
+  AdminKycOpsMerchantDetailDto,
+  AdminKycOpsMerchantQueueDto,
+  AdminKycOpsMerchantReviewResultDto,
   AdminMemberOpsListPageDto,
   AdminMemberOpsNotesPageDto,
   AdminMemberOpsProfileDto,
@@ -1148,5 +1154,343 @@ describe('AdminMerchantApiClient (P7-S5B merchant operations)', () => {
       offset: 0,
     });
     expect(fetchMock.mock.calls[0]?.[0]).toContain('/ledger?limit=10&offset=0');
+  });
+});
+
+/* ────────────────────────────────────────────────────────────────────────
+ * P7-S5C Admin KYC Operations client tests (append-only block)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+describe('AdminKycOpsApiClient (P7-S5C KYC review + privacy)', () => {
+  const CASE = '33333333-3333-4333-8333-333333333333';
+  const BRANCH = '44444444-4444-4444-8444-444444444444';
+
+  function kycOpsClient(): AdminKycOpsApiClient {
+    return new AdminKycOpsApiClient(new ApiClient(BASE_URL));
+  }
+
+  it('lists member KYC cases with query parameters and no client market', async () => {
+    const client = kycOpsClient();
+    const page: AdminKycOpsListPageDto = {
+      items: [
+        {
+          id: CASE,
+          marketId: '11111111-1111-4111-8111-111111111111',
+          status: 'SUBMITTED',
+          levelRequested: 'LEVEL_2',
+          member: {
+            publicMemberId: 'mem_public_1',
+            displayName: null,
+            email: 'j***@example.com',
+            accountCountry: 'MY',
+            status: 'ACTIVE',
+            kycLevel: 'LEVEL_1',
+          },
+          submittedAt: '2026-08-01T00:00:00.000Z',
+          reviewedAt: null,
+          updatedAt: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+      page: 1,
+      pageSize: 20,
+      total: 1,
+      marketId: '11111111-1111-4111-8111-111111111111',
+    };
+    const fetchMock = mockFetch(200, page);
+    const result = await client.memberKycList({ status: 'SUBMITTED', page: 1 });
+    expect(result.total).toBe(1);
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toContain('/admin/kyc-ops/members?status=SUBMITTED');
+    // The client never sends a market parameter.
+    expect(String(url)).not.toMatch(/[?&]market/);
+  });
+
+  it('reads the masked member case detail from the adapter path', async () => {
+    const client = kycOpsClient();
+    const fetchMock = mockFetch(200, {
+      id: CASE,
+      marketId: '11111111-1111-4111-8111-111111111111',
+      status: 'SUBMITTED',
+      levelRequested: 'LEVEL_2',
+      member: {
+        publicMemberId: 'mem_public_1',
+        displayName: null,
+        email: 'j***@example.com',
+        accountCountry: 'MY',
+        status: 'ACTIVE',
+        kycLevel: 'LEVEL_1',
+      },
+      submittedAt: '2026-08-01T00:00:00.000Z',
+      reviewedAt: null,
+      updatedAt: '2026-08-01T00:00:00.000Z',
+      version: 1,
+      legalFullName: 'J*** M*** D***',
+      identificationType: 'NATIONAL_ID',
+      identificationNumber: '****1234',
+      dateOfBirth: null,
+      nationality: 'MY',
+      residentialAddress: null,
+      accountCountrySnapshot: 'MY',
+      submissionMarketId: '11111111-1111-4111-8111-111111111111',
+      consentVersion: 'test-v1',
+      reviewedByAdminUserId: null,
+      decisionReason: null,
+      reverificationRequiredAt: null,
+      createdAt: '2026-08-01T00:00:00.000Z',
+      documents: [],
+      history: [],
+      evidenceAccess: {
+        masked: true,
+        rawDocumentContent: false,
+        audited: true,
+      },
+    } satisfies AdminKycOpsCaseDetailDto);
+    const detail = await client.memberKycDetail(CASE);
+    expect(detail.legalFullName).toBe('J*** M*** D***');
+    expect(detail.evidenceAccess.masked).toBe(true);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      `${BASE_URL}/admin/kyc-ops/members/${CASE}`,
+    );
+  });
+
+  it('sends the recorded reason and step-up token as headers on evidence views', async () => {
+    const client = kycOpsClient();
+    const fetchMock = mockFetch(200, {
+      id: CASE,
+      marketId: '11111111-1111-4111-8111-111111111111',
+      status: 'SUBMITTED',
+      levelRequested: 'LEVEL_2',
+      member: {
+        publicMemberId: 'mem_public_1',
+        displayName: null,
+        email: 'j***@example.com',
+        accountCountry: 'MY',
+        status: 'ACTIVE',
+        kycLevel: 'LEVEL_1',
+      },
+      submittedAt: '2026-08-01T00:00:00.000Z',
+      reviewedAt: null,
+      updatedAt: '2026-08-01T00:00:00.000Z',
+      version: 1,
+      legalFullName: 'Jane Mildred Doe',
+      identificationType: 'NATIONAL_ID',
+      identificationNumber: '****1234',
+      dateOfBirth: '1990-01-02',
+      nationality: 'MY',
+      residentialAddress: { line1: '1 Test Street' },
+      accountCountrySnapshot: 'MY',
+      submissionMarketId: '11111111-1111-4111-8111-111111111111',
+      consentVersion: 'test-v1',
+      reviewedByAdminUserId: null,
+      decisionReason: null,
+      reverificationRequiredAt: null,
+      createdAt: '2026-08-01T00:00:00.000Z',
+      documents: [],
+      history: [],
+      evidenceAccess: {
+        masked: false,
+        rawDocumentContent: false,
+        audited: true,
+      },
+    } satisfies AdminKycOpsCaseDetailDto);
+    const evidence = await client.memberKycEvidence(CASE, {
+      reason: 'Identity verification review',
+      stepUpToken: 'grant-token',
+    });
+    expect(evidence.evidenceAccess.masked).toBe(false);
+    expect(evidence.dateOfBirth).toBe('1990-01-02');
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('x-sensitive-access-reason')).toBe(
+      'Identity verification review',
+    );
+    expect(headers.get('x-step-up-token')).toBe('grant-token');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/evidence');
+  });
+
+  it('invokes the member review action with the Idempotency-Key header', async () => {
+    const client = kycOpsClient();
+    const fetchMock = mockFetch(200, {
+      id: CASE,
+      marketId: '11111111-1111-4111-8111-111111111111',
+      status: 'UNDER_REVIEW',
+      levelRequested: 'LEVEL_2',
+      member: {
+        publicMemberId: 'mem_public_1',
+        displayName: null,
+        email: 'j***@example.com',
+        accountCountry: 'MY',
+        status: 'ACTIVE',
+        kycLevel: 'LEVEL_1',
+      },
+      submittedAt: '2026-08-01T00:00:00.000Z',
+      reviewedAt: null,
+      updatedAt: '2026-08-01T00:00:00.000Z',
+      version: 1,
+      legalFullName: 'Jane Mildred Doe',
+      identificationType: 'NATIONAL_ID',
+      identificationNumber: '****1234',
+      dateOfBirth: '1990-01-02',
+      nationality: 'MY',
+      residentialAddress: { line1: '1 Test Street' },
+      accountCountrySnapshot: 'MY',
+      submissionMarketId: '11111111-1111-4111-8111-111111111111',
+      consentVersion: 'test-v1',
+      reviewedByAdminUserId: null,
+      decisionReason: 'Documents verified',
+      reverificationRequiredAt: null,
+      createdAt: '2026-08-01T00:00:00.000Z',
+      documents: [],
+      history: [],
+      evidenceAccess: {
+        masked: false,
+        rawDocumentContent: false,
+        audited: false,
+      },
+    } satisfies AdminKycOpsCaseDetailDto);
+    const result = await client.memberKycAction(
+      CASE,
+      'start-review',
+      { reason: 'Starting document review' },
+      'idem-1',
+    );
+    expect(result.status).toBe('UNDER_REVIEW');
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/kyc-ops/members/${CASE}/start-review`,
+    );
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('idempotency-key')).toBe('idem-1');
+  });
+
+  it('lists merchant KYC submissions with paging and no client market', async () => {
+    const client = kycOpsClient();
+    const queue: AdminKycOpsMerchantQueueDto = {
+      items: [
+        {
+          submission_id: 'sub-1',
+          branch_id: BRANCH,
+          merchant_id: 'MERCH-1',
+          display_name: 'Acme Sdn Bhd',
+          status: 'SUBMITTED',
+          submission_version: 1,
+          submitted_at: '2026-08-01T00:00:00.000Z',
+          reviewed_at: null,
+        },
+      ],
+      marketId: '11111111-1111-4111-8111-111111111111',
+      limit: 50,
+      offset: 0,
+    };
+    const fetchMock = mockFetch(200, queue);
+    const result = await client.merchantKycList({ status: 'SUBMITTED' });
+    expect(result.items[0]?.display_name).toBe('Acme Sdn Bhd');
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toContain('/admin/kyc-ops/merchants?status=SUBMITTED');
+    expect(String(url)).not.toMatch(/[?&]market/);
+  });
+
+  it('reads merchant masked detail and evidence with reason headers', async () => {
+    const client = kycOpsClient();
+    mockFetch(200, {
+      branch_id: BRANCH,
+      merchant_id: 'MERCH-1',
+      market_id: '11111111-1111-4111-8111-111111111111',
+      display_name: 'Acme Sdn Bhd',
+      current: {
+        submission_id: 'sub-1',
+        submission_version: 1,
+        status: 'SUBMITTED',
+        submitted_at: '2026-08-01T00:00:00.000Z',
+        data: { business_certification: { registration_number: '***2345' } },
+        review: null,
+      },
+      previous: null,
+      evidenceAccess: {
+        masked: true,
+        rawDocumentContent: false,
+        audited: true,
+      },
+    } satisfies AdminKycOpsMerchantDetailDto);
+    const detail = await client.merchantKycDetail(BRANCH);
+    expect(detail.evidenceAccess.masked).toBe(true);
+
+    const fetchMock = mockFetch(200, {
+      branch_id: BRANCH,
+      merchant_id: 'MERCH-1',
+      market_id: '11111111-1111-4111-8111-111111111111',
+      display_name: 'Acme Sdn Bhd',
+      current: {
+        submission_id: 'sub-1',
+        submission_version: 1,
+        status: 'UNDER_REVIEW',
+        submitted_at: '2026-08-01T00:00:00.000Z',
+        data: {
+          business_certification: { registration_number: '202001012345' },
+        },
+        review: null,
+      },
+      previous: null,
+      evidenceAccess: {
+        masked: false,
+        rawDocumentContent: false,
+        audited: true,
+      },
+    } satisfies AdminKycOpsMerchantDetailDto);
+    const evidence = await client.merchantKycEvidence(BRANCH, {
+      reason: 'Business verification review',
+      stepUpToken: 'grant-token',
+    });
+    expect(evidence.evidenceAccess.masked).toBe(false);
+    const lastCall = fetchMock.mock.calls.at(-1) ?? [];
+    const [url, init] = lastCall;
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/kyc-ops/merchants/${BRANCH}/evidence`,
+    );
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('x-sensitive-access-reason')).toBe(
+      'Business verification review',
+    );
+    expect(headers.get('x-step-up-token')).toBe('grant-token');
+  });
+
+  it('decides a merchant KYC submission with the Idempotency-Key header', async () => {
+    const client = kycOpsClient();
+    const fetchMock = mockFetch(200, {
+      review_id: 'review-1',
+      submission_id: 'sub-1',
+      branch_id: BRANCH,
+      kyc_status: 'APPROVED',
+      operational_status: 'ACTIVE',
+      reason: 'Documents verified',
+      rejected_fields: [],
+      reviewed_at: '2026-08-01T01:00:00.000Z',
+    } satisfies AdminKycOpsMerchantReviewResultDto);
+    const result = await client.merchantKycReview(
+      BRANCH,
+      { decision: 'APPROVED', reason: 'Documents verified' },
+      'idem-review',
+    );
+    expect(result.kyc_status).toBe('APPROVED');
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/kyc-ops/merchants/${BRANCH}/review`,
+    );
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('idempotency-key')).toBe('idem-review');
+    expect(JSON.parse(String((init as RequestInit | undefined)?.body))).toEqual(
+      { decision: 'APPROVED', reason: 'Documents verified' },
+    );
+  });
+
+  it('propagates server evidence-gating errors as ApiError', async () => {
+    const client = kycOpsClient();
+    mockFetch(422, { code: 'SENSITIVE_VIEW_REASON_REQUIRED' });
+    await expect(
+      client.memberKycEvidence(CASE, { reason: 'short' }),
+    ).rejects.toMatchObject({
+      status: 422,
+      body: { code: 'SENSITIVE_VIEW_REASON_REQUIRED' },
+    });
   });
 });

@@ -1887,3 +1887,342 @@ export class AdminMerchantApiClient {
     ).data;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  P7-S5C Admin KYC Operations typed client (append-only section)     */
+/* ------------------------------------------------------------------ */
+
+export type AdminKycOpsStatus =
+  | 'NOT_STARTED'
+  | 'DRAFT'
+  | 'SUBMITTED'
+  | 'UNDER_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'MORE_INFO_REQUIRED'
+  | 'REVERIFICATION_REQUIRED';
+
+export interface AdminKycOpsListQuery {
+  status?: AdminKycOpsStatus;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminKycOpsMemberSummaryDto {
+  publicMemberId: string;
+  displayName: string | null;
+  email: string;
+  accountCountry: string;
+  status: string;
+  kycLevel: string;
+}
+
+export interface AdminKycOpsCaseListItemDto {
+  id: string;
+  marketId: string;
+  status: AdminKycOpsStatus;
+  levelRequested: string;
+  member: AdminKycOpsMemberSummaryDto;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  updatedAt: string;
+}
+
+export interface AdminKycOpsListPageDto {
+  items: AdminKycOpsCaseListItemDto[];
+  page: number;
+  pageSize: number;
+  total: number;
+  /** Server-owned Current Admin Market the queue was bounded to. */
+  marketId: string;
+}
+
+export interface AdminKycOpsDocumentDto {
+  id: string;
+  documentType: string;
+  mimeType: string;
+  size: number;
+  checksum: string;
+  scanStatus: string;
+  createdAt: string;
+}
+
+export interface AdminKycOpsHistoryEntryDto {
+  id: string;
+  eventType: string;
+  actorType: string;
+  actorId: string | null;
+  summary: string;
+  metadata: Record<string, unknown>;
+  occurredAt: string;
+}
+
+export interface AdminKycOpsEvidenceAccessDto {
+  /** True when the response is the masked summary (evidence not revealed). */
+  masked: boolean;
+  /** Raw document content is never served on this surface. */
+  rawDocumentContent: false;
+  /** Every sensitive evidence view is audited server-side. */
+  audited: boolean;
+}
+
+export interface AdminKycOpsCaseDetailDto extends AdminKycOpsCaseListItemDto {
+  version: number;
+  legalFullName: string | null;
+  identificationType: string | null;
+  identificationNumber: string | null;
+  dateOfBirth: string | null;
+  nationality: string | null;
+  residentialAddress: Record<string, unknown> | null;
+  accountCountrySnapshot: string | null;
+  submissionMarketId: string | null;
+  consentVersion: string | null;
+  reviewedByAdminUserId: string | null;
+  decisionReason: string | null;
+  reverificationRequiredAt: string | null;
+  createdAt: string;
+  documents: AdminKycOpsDocumentDto[];
+  history: AdminKycOpsHistoryEntryDto[];
+  evidenceAccess: AdminKycOpsEvidenceAccessDto;
+}
+
+export interface AdminKycOpsEvidenceRequest {
+  /** Recorded sensitive-access reason (server requires 8..500 chars). */
+  reason: string;
+  /** Fresh step-up grant token from /auth/admin/mfa/step-up/verify. */
+  stepUpToken?: string;
+}
+
+export type AdminKycOpsActionId =
+  | 'start-review'
+  | 'request-more-info'
+  | 'approve'
+  | 'reject'
+  | 'require-reverification';
+
+export interface AdminKycOpsActionRequest {
+  reason: string;
+}
+
+export type AdminKycOpsMerchantQueueStatus =
+  | 'SUBMITTED'
+  | 'UNDER_REVIEW'
+  | 'RESUBMISSION_REQUIRED';
+
+export interface AdminKycOpsMerchantQueueQuery {
+  status?: AdminKycOpsMerchantQueueStatus;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AdminKycOpsMerchantQueueItemDto {
+  submission_id: string;
+  branch_id: string;
+  merchant_id: string;
+  display_name: string;
+  status: string;
+  submission_version: number;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+}
+
+export interface AdminKycOpsMerchantQueueDto {
+  items: AdminKycOpsMerchantQueueItemDto[];
+  /** Server-owned Current Admin Market the queue was bounded to. */
+  marketId: string;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminKycOpsMerchantReviewInfoDto {
+  review_id: string;
+  reviewer_id: string;
+  decision: string;
+  reason: string;
+  rejected_fields: string[];
+  reviewed_at: string | null;
+}
+
+export interface AdminKycOpsMerchantSubmissionDetailDto {
+  submission_id: string;
+  submission_version: number;
+  status: string;
+  submitted_at: string | null;
+  /** Masked (masked summary) or full (evidence) owner snapshot. */
+  data: Record<string, unknown>;
+  review: AdminKycOpsMerchantReviewInfoDto | null;
+}
+
+export interface AdminKycOpsMerchantDetailDto {
+  branch_id: string;
+  merchant_id: string;
+  market_id: string;
+  display_name: string;
+  current: AdminKycOpsMerchantSubmissionDetailDto;
+  previous: AdminKycOpsMerchantSubmissionDetailDto | null;
+  evidenceAccess: AdminKycOpsEvidenceAccessDto;
+}
+
+export type AdminKycOpsMerchantReviewDecision =
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'RESUBMISSION_REQUIRED';
+
+export interface AdminKycOpsMerchantReviewInput {
+  decision: AdminKycOpsMerchantReviewDecision;
+  reason: string;
+  rejected_fields?: string[];
+}
+
+export interface AdminKycOpsMerchantReviewResultDto {
+  review_id: string;
+  submission_id: string;
+  branch_id: string;
+  kyc_status: string;
+  operational_status: string;
+  reason: string;
+  rejected_fields: string[];
+  reviewed_at: string | null;
+}
+
+/**
+ * P7-S5C Admin KYC Operations client.
+ *
+ * Selected-market KYC review surface: member KYC queues/detail/actions and
+ * merchant KYC queues/detail/review plus the §6.4 evidence endpoints. No
+ * market id is ever sent by the client — the adapter derives the market
+ * exclusively from the server-owned Current Admin Market. Evidence requests
+ * carry the recorded sensitive-access reason and a fresh step-up token as
+ * headers; raw document content is never requested or returned.
+ */
+export class AdminKycOpsApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Selected-market member KYC queue (masked summaries). */
+  async memberKycList(
+    query: AdminKycOpsListQuery = {},
+  ): Promise<AdminKycOpsListPageDto> {
+    const search = new URLSearchParams();
+    if (query.status) search.set('status', query.status);
+    if (query.dateFrom) search.set('dateFrom', query.dateFrom);
+    if (query.dateTo) search.set('dateTo', query.dateTo);
+    if (query.page !== undefined) search.set('page', String(query.page));
+    if (query.pageSize !== undefined)
+      search.set('pageSize', String(query.pageSize));
+    const suffix = search.size > 0 ? `?${search.toString()}` : '';
+    return (
+      await this.client.get<AdminKycOpsListPageDto>(
+        `/admin/kyc-ops/members${suffix}`,
+      )
+    ).data;
+  }
+
+  /** Member KYC case detail — masked identity/contact summary. */
+  async memberKycDetail(caseId: string): Promise<AdminKycOpsCaseDetailDto> {
+    return (
+      await this.client.get<AdminKycOpsCaseDetailDto>(
+        `/admin/kyc-ops/members/${encodeURIComponent(caseId)}`,
+      )
+    ).data;
+  }
+
+  /**
+   * Sensitive member KYC evidence. Requires the dedicated permission; the
+   * server records the reason and step-up grant and audits every view.
+   */
+  async memberKycEvidence(
+    caseId: string,
+    input: AdminKycOpsEvidenceRequest,
+  ): Promise<AdminKycOpsCaseDetailDto> {
+    const headers: Record<string, string> = {
+      'x-sensitive-access-reason': input.reason,
+    };
+    if (input.stepUpToken) headers['x-step-up-token'] = input.stepUpToken;
+    return (
+      await this.client.get<AdminKycOpsCaseDetailDto>(
+        `/admin/kyc-ops/members/${encodeURIComponent(caseId)}/evidence`,
+        { headers },
+      )
+    ).data;
+  }
+
+  /** Member KYC review action via the frozen owner command. */
+  async memberKycAction(
+    caseId: string,
+    action: AdminKycOpsActionId,
+    input: AdminKycOpsActionRequest,
+    idempotencyKey: string,
+  ): Promise<AdminKycOpsCaseDetailDto> {
+    return (
+      await this.client.post<AdminKycOpsCaseDetailDto>(
+        `/admin/kyc-ops/members/${encodeURIComponent(caseId)}/${action}`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  /** Selected-market merchant KYC submissions queue (masked). */
+  async merchantKycList(
+    query: AdminKycOpsMerchantQueueQuery = {},
+  ): Promise<AdminKycOpsMerchantQueueDto> {
+    const search = new URLSearchParams();
+    if (query.status) search.set('status', query.status);
+    if (query.limit !== undefined) search.set('limit', String(query.limit));
+    if (query.offset !== undefined) search.set('offset', String(query.offset));
+    const suffix = search.size > 0 ? `?${search.toString()}` : '';
+    return (
+      await this.client.get<AdminKycOpsMerchantQueueDto>(
+        `/admin/kyc-ops/merchants${suffix}`,
+      )
+    ).data;
+  }
+
+  /** Merchant KYC submission detail — masked summary. */
+  async merchantKycDetail(
+    branchId: string,
+  ): Promise<AdminKycOpsMerchantDetailDto> {
+    return (
+      await this.client.get<AdminKycOpsMerchantDetailDto>(
+        `/admin/kyc-ops/merchants/${encodeURIComponent(branchId)}`,
+      )
+    ).data;
+  }
+
+  /**
+   * Sensitive merchant KYC evidence. Requires the dedicated permission; the
+   * server records the reason and step-up grant and audits every view.
+   */
+  async merchantKycEvidence(
+    branchId: string,
+    input: AdminKycOpsEvidenceRequest,
+  ): Promise<AdminKycOpsMerchantDetailDto> {
+    const headers: Record<string, string> = {
+      'x-sensitive-access-reason': input.reason,
+    };
+    if (input.stepUpToken) headers['x-step-up-token'] = input.stepUpToken;
+    return (
+      await this.client.get<AdminKycOpsMerchantDetailDto>(
+        `/admin/kyc-ops/merchants/${encodeURIComponent(branchId)}/evidence`,
+        { headers },
+      )
+    ).data;
+  }
+
+  /** Merchant KYC review decision via the frozen owner command. */
+  async merchantKycReview(
+    branchId: string,
+    input: AdminKycOpsMerchantReviewInput,
+    idempotencyKey: string,
+  ): Promise<AdminKycOpsMerchantReviewResultDto> {
+    return (
+      await this.client.post<AdminKycOpsMerchantReviewResultDto>(
+        `/admin/kyc-ops/merchants/${encodeURIComponent(branchId)}/review`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+}

@@ -7,10 +7,10 @@ import {
 import { hasEffectivePermission } from './route-guards.js';
 
 describe('P7-S3A Admin route manifest', () => {
-  it('defines exactly 31 unique stable routes with guard metadata', () => {
-    expect(adminRouteManifest).toHaveLength(31);
-    expect(new Set(adminRouteManifest.map(({ id }) => id)).size).toBe(31);
-    expect(new Set(adminRouteManifest.map(({ path }) => path)).size).toBe(31);
+  it('defines exactly 33 unique stable routes with guard metadata', () => {
+    expect(adminRouteManifest).toHaveLength(33);
+    expect(new Set(adminRouteManifest.map(({ id }) => id)).size).toBe(33);
+    expect(new Set(adminRouteManifest.map(({ path }) => path)).size).toBe(33);
     for (const route of adminRouteManifest) {
       expect(route.path).toMatch(/^\/admin\//u);
       expect(route.loader).toMatch(/^(public|bootstrap|session)$/u);
@@ -47,6 +47,19 @@ describe('P7-S3A Admin route manifest', () => {
       routePath('member-detail', { marketId: 'my', memberId: 'A/B' }),
     ).toBe('/admin/my/members/A%2FB');
     expect(() => routePath('dashboard')).toThrow('Missing route parameter');
+    // P7-S5C KYC case-detail deep links (append-only routes).
+    expect(
+      routePath('member-kyc-detail', {
+        marketId: 'my',
+        caseId: '33333333-3333-4333-8333-333333333333',
+      }),
+    ).toBe('/admin/my/kyc/members/33333333-3333-4333-8333-333333333333');
+    expect(
+      routePath('merchant-kyc-detail', {
+        marketId: 'my',
+        branchId: '44444444-4444-4444-8444-444444444444',
+      }),
+    ).toBe('/admin/my/kyc/merchants/44444444-4444-4444-8444-444444444444');
   });
 
   it('requires the exact effective permission without role inference', () => {
