@@ -1140,6 +1140,130 @@ export class AdminApiClient {
       )
     ).data;
   }
+
+  /* ---- P7-S5A selected-market Member Operations ---- */
+
+  /**
+   * Selected-market member list. The market is the server-selected Current
+   * Admin Market; no market id is ever sent by the client (a mismatch or a
+   * client market query parameter is rejected server-side).
+   */
+  async memberOpsList(
+    query: AdminMemberOpsListQuery = {},
+  ): Promise<AdminMemberOpsListPageDto> {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value === undefined || value === null || value === '') continue;
+      params.set(key, String(value));
+    }
+    const suffix = params.size > 0 ? `?${params.toString()}` : '';
+    return (
+      await this.client.get<AdminMemberOpsListPageDto>(
+        `/admin/member-ops/members${suffix}`,
+      )
+    ).data;
+  }
+
+  /** Masked selected-market member detail (audit-of-view on the server). */
+  async memberOpsDetail(
+    publicMemberId: string,
+  ): Promise<AdminMemberOpsProfileDto> {
+    return (
+      await this.client.get<AdminMemberOpsProfileDto>(
+        `/admin/member-ops/members/${encodeURIComponent(publicMemberId)}`,
+      )
+    ).data;
+  }
+
+  async memberOpsSuspend(
+    publicMemberId: string,
+    input: AdminMemberOpsReasonRequest,
+  ): Promise<AdminMemberOpsProfileDto> {
+    return (
+      await this.client.post<AdminMemberOpsProfileDto>(
+        `/admin/member-ops/members/${encodeURIComponent(publicMemberId)}/suspend`,
+        input,
+      )
+    ).data;
+  }
+
+  async memberOpsReactivate(
+    publicMemberId: string,
+    input: AdminMemberOpsReasonRequest,
+  ): Promise<AdminMemberOpsProfileDto> {
+    return (
+      await this.client.post<AdminMemberOpsProfileDto>(
+        `/admin/member-ops/members/${encodeURIComponent(publicMemberId)}/reactivate`,
+        input,
+      )
+    ).data;
+  }
+
+  async memberOpsClose(
+    publicMemberId: string,
+    input: AdminMemberOpsCloseRequest,
+  ): Promise<AdminMemberOpsProfileDto> {
+    return (
+      await this.client.post<AdminMemberOpsProfileDto>(
+        `/admin/member-ops/members/${encodeURIComponent(publicMemberId)}/close`,
+        input,
+      )
+    ).data;
+  }
+
+  async memberOpsRevokeSessions(
+    publicMemberId: string,
+    input: AdminMemberOpsReasonRequest,
+  ): Promise<AdminMemberOpsProfileDto> {
+    return (
+      await this.client.post<AdminMemberOpsProfileDto>(
+        `/admin/member-ops/members/${encodeURIComponent(publicMemberId)}/revoke-sessions`,
+        input,
+      )
+    ).data;
+  }
+
+  async memberOpsRequireReverification(
+    publicMemberId: string,
+    input: AdminMemberOpsReasonRequest,
+  ): Promise<AdminMemberOpsProfileDto> {
+    return (
+      await this.client.post<AdminMemberOpsProfileDto>(
+        `/admin/member-ops/members/${encodeURIComponent(publicMemberId)}/require-reverification`,
+        input,
+      )
+    ).data;
+  }
+
+  async memberOpsAddNote(
+    publicMemberId: string,
+    input: AdminMemberOpsNoteCreateRequest,
+  ): Promise<AdminMemberOpsProfileDto> {
+    return (
+      await this.client.post<AdminMemberOpsProfileDto>(
+        `/admin/member-ops/members/${encodeURIComponent(publicMemberId)}/notes`,
+        input,
+      )
+    ).data;
+  }
+
+  /** Masked member notes list, paged, newest first. */
+  async memberOpsNotes(
+    publicMemberId: string,
+    query: { page?: number; pageSize?: number } = {},
+  ): Promise<AdminMemberOpsNotesPageDto> {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value === undefined || value === null) continue;
+      params.set(key, String(value));
+    }
+    const suffix = params.size > 0 ? `?${params.toString()}` : '';
+    return (
+      await this.client.get<AdminMemberOpsNotesPageDto>(
+        `/admin/member-ops/members/${encodeURIComponent(publicMemberId)}/notes${suffix}`,
+      )
+    ).data;
+  }
 }
 
 function isTerminalAdminSessionCode(code: string | undefined): boolean {
@@ -1153,4 +1277,162 @@ function isTerminalAdminSessionCode(code: string | undefined): boolean {
       'SESSION_REVOKED',
     ].includes(code),
   );
+}
+
+/* ------------------------------------------------------------------ */
+/*  P7-S5A Admin Member Operations DTOs (append-only section)          */
+/*  Selected-market surface over the frozen Phase 2 Admin Member       */
+/*  owner commands. Field names mirror the accepted owner contracts.   */
+/*  No wallet, ledger, or balance fields exist on this surface.        */
+/* ------------------------------------------------------------------ */
+
+export type AdminMemberOpsStatus =
+  | 'PENDING_EMAIL_VERIFICATION'
+  | 'ACTIVE'
+  | 'SUSPENDED'
+  | 'CLOSED';
+
+export type AdminMemberOpsKycLevel = 'NONE' | 'LEVEL_1' | 'LEVEL_2';
+
+export type AdminMemberOpsKycStatus =
+  | 'NOT_STARTED'
+  | 'DRAFT'
+  | 'SUBMITTED'
+  | 'UNDER_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'MORE_INFO_REQUIRED'
+  | 'REVERIFICATION_REQUIRED';
+
+export type AdminMemberOpsSort =
+  | 'createdAt:desc'
+  | 'createdAt:asc'
+  | 'publicMemberId:asc'
+  | 'publicMemberId:desc';
+
+/** Query shape for the selected-market member list. No market field exists. */
+export interface AdminMemberOpsListQuery {
+  page?: number;
+  pageSize?: number;
+  query?: string;
+  status?: AdminMemberOpsStatus;
+  accountCountry?: string;
+  kycLevel?: AdminMemberOpsKycLevel;
+  kycStatus?: AdminMemberOpsKycStatus;
+  createdAfter?: string;
+  createdBefore?: string;
+  sort?: AdminMemberOpsSort;
+}
+
+/** Masked list row (email masked server-side). */
+export interface AdminMemberOpsListItemDto {
+  publicMemberId: string;
+  displayName: string | null;
+  email: string;
+  status: AdminMemberOpsStatus;
+  kycLevel: AdminMemberOpsKycLevel;
+  accountCountry: string;
+  currentMarketId: string;
+  createdAt: string;
+}
+
+/** GET /admin/member-ops/members — selected-market paged list. */
+export interface AdminMemberOpsListPageDto {
+  marketId: string;
+  members: AdminMemberOpsListItemDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminMemberOpsNoteDto {
+  id: string;
+  adminUserId: string;
+  marketId: string;
+  content: string;
+  isInternal: boolean;
+  createdAt: string;
+}
+
+export interface AdminMemberOpsStatusHistoryEntryDto {
+  id: string;
+  fromStatus: AdminMemberOpsStatus | null;
+  toStatus: AdminMemberOpsStatus;
+  actorType: string;
+  actorId: string | null;
+  reason: string | null;
+  occurredAt: string;
+}
+
+/**
+ * Masked selected-market member detail. All sensitive fields are masked by
+ * the owner service; wallet/ledger/balance is never present.
+ */
+export interface AdminMemberOpsProfileDto {
+  publicMemberId: string;
+  displayName: string | null;
+  email: string;
+  status: AdminMemberOpsStatus;
+  kycLevel: AdminMemberOpsKycLevel;
+  accountCountry: string;
+  currentMarketId: string;
+  createdAt: string;
+  closedAt: string | null;
+  profile: {
+    fullName: string | null;
+    phone: string | null;
+    phoneVerificationStatus: string;
+    birthDate: string | null;
+    address: Record<string, unknown> | null;
+    locale: string | null;
+    language: string | null;
+  };
+  kyc: {
+    caseId: string;
+    marketId: string;
+    status: AdminMemberOpsKycStatus;
+    levelRequested: string;
+    legalFullName: string | null;
+    identificationType: string | null;
+    identificationNumber: string | null;
+    submittedAt: string | null;
+    reviewedAt: string | null;
+    reverificationRequiredAt: string | null;
+  } | null;
+  marketPreferences: Array<{
+    marketId: string;
+    marketCode: string;
+    isEnabled: boolean;
+    isCurrent: boolean;
+    sortOrder: number;
+    lastSelectedAt: string | null;
+  }>;
+  notes: AdminMemberOpsNoteDto[];
+  statusHistory: AdminMemberOpsStatusHistoryEntryDto[];
+}
+
+/** GET /admin/member-ops/members/:id/notes — masked notes, newest first. */
+export interface AdminMemberOpsNotesPageDto {
+  notes: AdminMemberOpsNoteDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** Shared body for reason-backed owner commands (suspend/reactivate/…). */
+export interface AdminMemberOpsReasonRequest {
+  reason: string;
+  idempotencyKey: string;
+}
+
+/** Close requires the exact literal confirmation the owner schema demands. */
+export interface AdminMemberOpsCloseRequest extends AdminMemberOpsReasonRequest {
+  confirmationText: 'CONFIRM';
+}
+
+/** Create-note body (isInternal defaults false on the server). */
+export interface AdminMemberOpsNoteCreateRequest {
+  content: string;
+  isInternal: boolean;
+  idempotencyKey: string;
 }

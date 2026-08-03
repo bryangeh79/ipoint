@@ -43,6 +43,8 @@ import {
 import { ApiErrorState, ShellState } from './shell-states.js';
 import { useAdminWriteEnvironment } from './pwa-policy.js';
 import { DashboardPage } from './dashboard-page.js';
+import { MemberListPage } from './member-list-page.js';
+import { MemberDetailPage } from './member-detail-page.js';
 
 const routeObjects: RouteObject[] = [
   { path: '/', element: <Navigate replace to="/admin/login" /> },
@@ -173,6 +175,9 @@ function RouteContent({ route }: { route: AdminRoute }) {
   if (route.id === 'mfa-recovery') return <MfaRecoveryScreen />;
   if (route.id === 'sessions') return <SessionsScreen />;
   if (route.id === 'dashboard') return <DashboardPage />;
+  /* P7-S5A Member Operations (append-only route cases). */
+  if (route.id === 'members') return <MemberListPage />;
+  if (route.id === 'member-detail') return <MemberDetailPage />;
   return (
     <section aria-labelledby="admin-route-title">
       <PageHeader
