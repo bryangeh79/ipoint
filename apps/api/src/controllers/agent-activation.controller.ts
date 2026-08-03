@@ -51,7 +51,7 @@ import {
 
 @ApiTags('Agent Activation')
 @ApiBearerAuth()
-@Controller('api/v1/agent')
+@Controller('agent')
 @UseGuards(AuthGuard)
 export class AgentActivationController {
   constructor(
@@ -81,13 +81,17 @@ export class AgentActivationController {
   @ApiOperation({ summary: 'Confirm payment for agent activation' })
   @ApiResponse({ status: 200, description: 'Payment confirmed.' })
   async confirmPayment(
+    @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(confirmPaymentSchema))
     input: ConfirmPaymentDto,
   ) {
+    // P5-R1: the authenticated member must own the activation.
+    const memberId = await this.resolveMemberId(actor);
     return this.handle(() =>
       this.activation.confirmPayment(
         input.activationId,
         input.paymentReference,
+        memberId,
       ),
     );
   }
@@ -99,9 +103,14 @@ export class AgentActivationController {
   @ApiOperation({ summary: 'Enroll in agent training course' })
   @ApiResponse({ status: 200, description: 'Course enrollment recorded.' })
   async enrollCourse(
+    @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(enrollCourseSchema)) input: EnrollCourseDto,
   ) {
-    return this.handle(() => this.activation.enrollCourse(input.activationId));
+    // P5-R1: the authenticated member must own the activation.
+    const memberId = await this.resolveMemberId(actor);
+    return this.handle(() =>
+      this.activation.enrollCourse(input.activationId, memberId),
+    );
   }
 
   // ─── Complete Course ──────────────────────────────────────────
@@ -111,11 +120,14 @@ export class AgentActivationController {
   @ApiOperation({ summary: 'Complete agent training course' })
   @ApiResponse({ status: 200, description: 'Course completion recorded.' })
   async completeCourse(
+    @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(completeCourseSchema))
     input: CompleteCourseDto,
   ) {
+    // P5-R1: the authenticated member must own the activation.
+    const memberId = await this.resolveMemberId(actor);
     return this.handle(() =>
-      this.activation.completeCourse(input.activationId),
+      this.activation.completeCourse(input.activationId, memberId),
     );
   }
 
@@ -126,11 +138,14 @@ export class AgentActivationController {
   @ApiOperation({ summary: 'Submit activation for admin approval' })
   @ApiResponse({ status: 200, description: 'Submitted for approval.' })
   async submitApproval(
+    @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(submitApprovalSchema))
     input: SubmitApprovalDto,
   ) {
+    // P5-R1: the authenticated member must own the activation.
+    const memberId = await this.resolveMemberId(actor);
     return this.handle(() =>
-      this.activation.submitApproval(input.activationId),
+      this.activation.submitApproval(input.activationId, memberId),
     );
   }
 
@@ -154,8 +169,14 @@ export class AgentActivationController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Get activation status by ID' })
   @ApiResponse({ status: 200, description: 'Activation status.' })
-  async getStatusById(@Param('id') id: string) {
-    return this.handle(() => this.activation.getStatusById(id));
+  async getStatusById(
+    @CurrentActor() actor: RequestActor | undefined,
+    @Param('id') id: string,
+  ) {
+    // P5-R1: the authenticated member must own the activation
+    // (no cross-member status disclosure).
+    const memberId = await this.resolveMemberId(actor);
+    return this.handle(() => this.activation.getStatusById(id, memberId));
   }
 
   // ─── Helpers ──────────────────────────────────────────────────
@@ -216,6 +237,9 @@ export class AgentActivationController {
         case 'AGENT_ACTIVATION_MISSING_APPROVAL':
         case 'AGENT_ACTIVATION_FEE_NOT_CONFIGURED':
           throw new BadRequestException(body);
+        case 'AGENT_ACTIVATION_OWNERSHIP_MISMATCH':
+        case 'AGENT_ACTIVATION_MARKET_MISMATCH':
+          throw new ForbiddenException(body);
         case 'AGENT_ACTIVATION_INVALID_TRANSITION':
         case 'AGENT_ACTIVATION_INVALID_STATUS':
         case 'AGENT_ACTIVATION_ALREADY_ACTIVE':

@@ -1048,6 +1048,9 @@ export const expectedSchema = {
     'revocation_reason',
     'created_at',
     'updated_at',
+    'fee_rate_version_id',
+    'activation_fee',
+    'activation_fee_currency',
   ],
   agent_activation_status_log: [
     'log_id',

@@ -29,6 +29,8 @@ export type AgentActivationErrorCode =
   | 'AGENT_ACTIVATION_MARKET_ALREADY_EXISTS'
   | 'AGENT_ACTIVATION_IDEMPOTENCY_CONFLICT'
   | 'AGENT_ACTIVATION_FEE_NOT_CONFIGURED'
+  | 'AGENT_ACTIVATION_OWNERSHIP_MISMATCH'
+  | 'AGENT_ACTIVATION_MARKET_MISMATCH'
   | 'AGENT_ACTIVATION_DEACTIVATED_CANNOT_REACTIVATE'
   | 'AGENT_ACTIVATION_REJECTED_CANNOT_TRANSITION';
 
@@ -183,6 +185,29 @@ export function activationFeeNotConfiguredError(
     'AGENT_ACTIVATION_FEE_NOT_CONFIGURED',
     `Activation fee not configured for market ${market}.`,
     { market },
+  );
+}
+
+export function activationOwnershipMismatchError(
+  activationId: string,
+  memberId: string,
+): AgentActivationError {
+  return new AgentActivationError(
+    'AGENT_ACTIVATION_OWNERSHIP_MISMATCH',
+    `Activation ${activationId} does not belong to member ${memberId}.`,
+    { activationId, memberId },
+  );
+}
+
+export function activationMarketMismatchError(
+  activationId: string,
+  expectedMarket: string,
+  actualMarket: string,
+): AgentActivationError {
+  return new AgentActivationError(
+    'AGENT_ACTIVATION_MARKET_MISMATCH',
+    `Activation ${activationId} is in market ${actualMarket}, not the selected market ${expectedMarket}.`,
+    { activationId, expectedMarket, actualMarket },
   );
 }
 

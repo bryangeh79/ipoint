@@ -322,11 +322,17 @@ export class CommissionQueryService {
    * Supports filtering by beneficiary, market, source type, status,
    * and effective time range.
    *
+   * P5-R1: `selectedMarket` is the server-derived Current Admin Market
+   * code. The query is always bounded to that market; a client-supplied
+   * `market` filter that disagrees is rejected with
+   * COMMISSION_MARKET_CONTEXT_MISMATCH (client market values are never
+   * authority).
+   *
    * @param options - Search filters and pagination
    * @returns Paginated ledger entries with beneficiary details
    */
   async adminSearch(
-    options?: AdminSearchOptions,
+    options?: AdminSearchOptions & { selectedMarket?: string },
   ): Promise<PaginatedLedgerResponse> {
     const limit = this.clampLimit(options?.limit);
     const offset = Math.max(0, options?.offset ?? 0);
@@ -335,15 +341,27 @@ export class CommissionQueryService {
     // Build conditions dynamically
     const conditions: ReturnType<typeof eq | typeof gte | typeof lte>[] = [];
 
-    if (options?.beneficiaryId) {
-      conditions.push(
-        eq(commissionLedger.beneficiaryId, options.beneficiaryId),
+    // P5-R1: server-side selected-market bound is mandatory for the admin
+    // search surface; a disagreeing client market filter is a defect.
+    const selectedMarket = options?.selectedMarket;
+    if (!selectedMarket) {
+      throw new Error(
+        'COMMISSION_SELECTED_MARKET_REQUIRED: admin search requires the server-derived selected market.',
+      );
+    }
+    conditions.push(eq(commissionLedger.market, selectedMarket.toUpperCase()));
+    if (
+      options?.market &&
+      options.market.toUpperCase() !== selectedMarket.toUpperCase()
+    ) {
+      throw new Error(
+        `COMMISSION_MARKET_CONTEXT_MISMATCH: requested market ${options.market} differs from the selected market ${selectedMarket}.`,
       );
     }
 
-    if (options?.market) {
+    if (options?.beneficiaryId) {
       conditions.push(
-        eq(commissionLedger.market, options.market.toUpperCase()),
+        eq(commissionLedger.beneficiaryId, options.beneficiaryId),
       );
     }
 
@@ -409,16 +427,24 @@ export class CommissionQueryService {
   /**
    * Get the full status event history for a commission ledger entry.
    *
+   * P5-R1: `selectedMarket` (server-derived Current Admin Market code) is
+   * mandatory; the entry must belong to the selected market.
+   *
    * @param entryId - The ledger entry UUID
+   * @param selectedMarket - The server-derived selected market code
    * @returns Ordered list of status events
    * @throws NotFoundException if the entry does not exist
+   * @throws Error if the entry is outside the selected market
    */
-  async getAuditLog(entryId: string): Promise<AuditEventResponse[]> {
+  async getAuditLog(
+    entryId: string,
+    selectedMarket?: string,
+  ): Promise<AuditEventResponse[]> {
     const db = this.database.db;
 
     // Verify the entry exists
     const entryExists = await db
-      .select({ id: commissionLedger.id })
+      .select({ id: commissionLedger.id, market: commissionLedger.market })
       .from(commissionLedger)
       .where(eq(commissionLedger.id, entryId))
       .limit(1);
@@ -426,6 +452,18 @@ export class CommissionQueryService {
     if (entryExists.length === 0) {
       throw new NotFoundException(
         `Commission ledger entry not found: ${entryId}`,
+      );
+    }
+
+    if (!selectedMarket) {
+      throw new Error(
+        'COMMISSION_SELECTED_MARKET_REQUIRED: audit log requires the server-derived selected market.',
+      );
+    }
+
+    if (entryExists[0]!.market !== selectedMarket.toUpperCase()) {
+      throw new Error(
+        `COMMISSION_MARKET_CONTEXT_MISMATCH: entry ${entryId} is in market ${entryExists[0]!.market}, not the selected market ${selectedMarket}.`,
       );
     }
 

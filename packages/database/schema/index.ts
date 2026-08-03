@@ -3325,6 +3325,14 @@ export const agentActivations = pgTable(
     activatedBy: uuid('activated_by'),
     market: varchar('market', { length: 2 }).notNull(),
     currency: varchar('currency', { length: 3 }).notNull().default('MYR'),
+    feeRateVersionId: uuid('fee_rate_version_id').references(
+      () => commissionRateVersions.id,
+      { onDelete: 'restrict' },
+    ),
+    activationFee: numeric('activation_fee', { precision: 38, scale: 10 }),
+    activationFeeCurrency: varchar('activation_fee_currency', { length: 3 })
+      .notNull()
+      .default('MYR'),
     rejectionReason: text('rejection_reason'),
     reactivationCount: integer('reactivation_count').notNull().default(0),
     revokedAt: utcTimestamp('revoked_at'),
@@ -3342,6 +3350,14 @@ export const agentActivations = pgTable(
     check(
       'chk_agent_currency',
       sql`${table.currency} = upper(${table.currency})`,
+    ),
+    check(
+      'chk_agent_fee_currency',
+      sql`${table.activationFeeCurrency} = upper(${table.activationFeeCurrency})`,
+    ),
+    check(
+      'chk_agent_fee_pair',
+      sql`(${table.feeRateVersionId} is null and ${table.activationFee} is null) or (${table.feeRateVersionId} is not null and ${table.activationFee} is not null)`,
     ),
     check('chk_agent_reactivation_count', sql`${table.reactivationCount} >= 0`),
   ],
@@ -3451,7 +3467,7 @@ export const commissionRateVersions = pgTable(
     ),
     check(
       'chk_commission_type',
-      sql`${table.commissionType} in ('AGENT_UPGRADE', 'MEMBER_CONSUMPTION', 'MERCHANT_RECRUITMENT')`,
+      sql`${table.commissionType} in ('AGENT_UPGRADE', 'MEMBER_CONSUMPTION', 'MERCHANT_RECRUITMENT', 'AGENT_ACTIVATION_FEE')`,
     ),
     check('chk_rate_type', sql`${table.rateType} in ('PERCENTAGE', 'FIXED')`),
     check('chk_generation', sql`${table.generation} in (0, 1, 2)`),

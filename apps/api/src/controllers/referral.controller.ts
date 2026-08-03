@@ -48,7 +48,7 @@ import {
 
 @ApiTags('Referral')
 @ApiBearerAuth()
-@Controller('api/v1/referral')
+@Controller('referral')
 @UseGuards(AuthGuard)
 export class ReferralController {
   constructor(

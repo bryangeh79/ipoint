@@ -40,11 +40,16 @@ import {
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentActor } from '../auth/current-actor.decorator.js';
 import type { RequestActor } from '../auth/auth.types.js';
+import { DatabaseService } from '../database/database.service.js';
 import { RbacGuard, RequirePermission } from '../platform-access/rbac.guard.js';
 import {
   RateManagementService,
   RateManagementError,
 } from '../domain/commission/rate.service.js';
+import { eq } from 'drizzle-orm';
+import { markets } from '@ipoint/database';
+import type { Request } from 'express';
+import { Req } from '@nestjs/common';
 
 /* ================================================================== */
 /*  Admin Rate Controller                                             */
@@ -52,12 +57,14 @@ import {
 
 @ApiTags('Admin Commission Rates')
 @ApiBearerAuth()
-@Controller('api/v1/admin/commission-rates')
+@Controller('admin/commission-rates')
 @UseGuards(AuthGuard, RbacGuard)
 export class AdminRateController {
   constructor(
     @Inject(RateManagementService)
     private readonly rateService: RateManagementService,
+    @Inject(DatabaseService)
+    private readonly database: DatabaseService,
   ) {}
 
   // ─── Get Active Rates ──────────────────────────────────────────
@@ -78,6 +85,7 @@ export class AdminRateController {
   })
   async getActiveRates(
     @CurrentActor() _actor: RequestActor | undefined,
+    @Req() request: Request,
     @Query('market') market?: string,
   ) {
     if (!market) {
@@ -86,6 +94,9 @@ export class AdminRateController {
         message: 'market query parameter is required.',
       });
     }
+    // P5-R1: rate configuration is bounded to the server-selected market.
+    const selectedMarket = await this.resolveSelectedMarketCode(request);
+    this.assertMarketMatches(market, selectedMarket);
     return this.rateService.getActiveRates(market);
   }
 
@@ -105,6 +116,7 @@ export class AdminRateController {
   })
   async getRateHistory(
     @CurrentActor() _actor: RequestActor | undefined,
+    @Req() request: Request,
     @Query('commissionType') commissionType?: string,
     @Query('generation') generation?: string,
     @Query('market') market?: string,
@@ -115,6 +127,9 @@ export class AdminRateController {
         message: 'commissionType, generation, and market are required.',
       });
     }
+    // P5-R1: rate configuration is bounded to the server-selected market.
+    const selectedMarket = await this.resolveSelectedMarketCode(request);
+    this.assertMarketMatches(market, selectedMarket);
     return this.rateService.getRateHistory(
       market,
       commissionType,
@@ -169,6 +184,7 @@ export class AdminRateController {
   @ApiResponse({ status: 409, description: 'Overlapping period conflict' })
   async createRateVersion(
     @CurrentActor() actor: RequestActor | undefined,
+    @Req() request: Request,
     @Body()
     body: {
       market: string;
@@ -207,6 +223,10 @@ export class AdminRateController {
       });
     }
 
+    // P5-R1: rate configuration is bounded to the server-selected market.
+    const selectedMarket = await this.resolveSelectedMarketCode(request);
+    this.assertMarketMatches(market, selectedMarket);
+
     return this.handleRateError(() =>
       this.rateService.createRate(
         adminId,
@@ -237,6 +257,7 @@ export class AdminRateController {
   @ApiResponse({ status: 409, description: 'Overlapping period conflict' })
   async scheduleRateVersion(
     @CurrentActor() actor: RequestActor | undefined,
+    @Req() request: Request,
     @Body()
     body: {
       market: string;
@@ -271,6 +292,10 @@ export class AdminRateController {
       });
     }
 
+    // P5-R1: rate configuration is bounded to the server-selected market.
+    const selectedMarket = await this.resolveSelectedMarketCode(request);
+    this.assertMarketMatches(market, selectedMarket);
+
     return this.handleRateError(() =>
       this.rateService.createRate(
         adminId,
@@ -295,6 +320,50 @@ export class AdminRateController {
       });
     }
     return actor.adminUserId;
+  }
+
+  /**
+   * Resolve the server-selected Current Admin Market code from the
+   * RbacGuard-resolved context (never from client input).
+   */
+  private async resolveSelectedMarketCode(request: Request): Promise<string> {
+    const context = (
+      request as Request & {
+        adminMarketContext?: { marketId: string; contextVersion: number };
+      }
+    ).adminMarketContext;
+    if (!context?.marketId) {
+      throw new ForbiddenException({
+        code: 'MARKET_SELECTION_REQUIRED',
+        message: 'Select an authorized market to continue.',
+      });
+    }
+    const rows = await this.database.db
+      .select({ code: markets.code })
+      .from(markets)
+      .where(eq(markets.id, context.marketId))
+      .limit(1);
+    const code = rows[0]?.code;
+    if (!code) {
+      throw new ForbiddenException({
+        code: 'MARKET_SELECTION_REQUIRED',
+        message: 'The selected market is not available.',
+      });
+    }
+    return code;
+  }
+
+  /**
+   * Reject any request whose market code differs from the server-selected
+   * Current Admin Market (client market values are never authority).
+   */
+  private assertMarketMatches(market: string, selectedMarket: string): void {
+    if (market.toUpperCase() !== selectedMarket) {
+      throw new ConflictException({
+        code: 'MARKET_CONTEXT_MISMATCH',
+        message: 'The selected market changed. Refresh and try again.',
+      });
+    }
   }
 
   private async handleRateError<T>(operation: () => Promise<T>): Promise<T> {

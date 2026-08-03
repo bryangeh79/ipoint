@@ -175,7 +175,20 @@ describe
       );
     });
 
-    it('loads the exact five frozen MY rate versions', async () => {
+    it('loads the exact canonical MY rate versions (P5-R1 fee version included)', async () => {
+      // P5-R1 (GATE-P5-01) adds the versioned activation fee
+      // (AGENT_ACTIVATION_FEE, generation 0, RM388.00) and the canonical
+      // single-generation merchant-recruitment rate at generation 0
+      // (migration 0029). The legacy seed row at MERCHANT_RECRUITMENT
+      // generation 1 is never read by the merchant-recruitment service and
+      // remains as an inert seed artifact (the seed file is outside the
+      // P5-R1 remediation path and is not modified).
+      // Apply the additive P5-R1 migration on top of the 0018 baseline.
+      const p5r1Migration = await readFile(
+        `${migrationsDirectory}/0029_p5_r1_agent_fee_version_snapshot.sql`,
+        'utf8',
+      );
+      await disposable.pool.query(p5r1Migration);
       const rates = await disposable.pool.query<{
         commission_type: string;
         generation: number;
@@ -187,6 +200,12 @@ describe
          ORDER BY commission_type, generation`,
       );
       expect(rates.rows).toEqual([
+        {
+          commission_type: 'AGENT_ACTIVATION_FEE',
+          generation: 0,
+          rate_value: '388.0000000000',
+          rate_type: 'FIXED',
+        },
         {
           commission_type: 'AGENT_UPGRADE',
           generation: 1,
@@ -208,6 +227,12 @@ describe
         {
           commission_type: 'MEMBER_CONSUMPTION',
           generation: 2,
+          rate_value: '0.0050000000',
+          rate_type: 'PERCENTAGE',
+        },
+        {
+          commission_type: 'MERCHANT_RECRUITMENT',
+          generation: 0,
           rate_value: '0.0050000000',
           rate_type: 'PERCENTAGE',
         },
