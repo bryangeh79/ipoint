@@ -145,4 +145,48 @@
 
 ---
 
-*End of register - new entries appended above this line.*
+## P7-S5A — Member Operations
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S5A |
+| **Sub-phase** | P7-S5 (safe Member, Merchant, KYC operations) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` |
+| **Model/provider identity** | OpenClaw managed subagent (deepseek/deepseek-v4-flash runtime pool) |
+| **Session start time** | 2026-08-03 MYT (~14:40) |
+| **Worktree** | `.local/wt-p7-s5a` |
+| **Task branch** | `task/p7-s5a-member-ops` |
+| **Starting SHA** | `c6e530bfe3ce3548950dd1c1667163d582303585` |
+| **Allowed paths** | `apps/api/src/admin-member-ops/**` (new adapter), `apps/admin-web/src/**` (member pages/tests/append-only route wiring), `packages/api-client/src/index.ts` (append-only), `docs/06-phase-reports/p7-s5/**` |
+| **Commit SHA** | `4e6d216ac8354e303921ba92414ad26c3b878c05` (feat), `a43eb84c39817b58a569eb93b75949764c127afd` (docs report) |
+| **Tests executed** | `vitest run src/admin-member-ops/` (clean DB); api typecheck; admin-web typecheck/test/build; api-client typecheck/test; prettier/eslint |
+| **Test results** | member-ops **42/42** (18 unit + 24 real-DB integration; independently re-run by OpenClaw on a clean DB); admin-web **87/87**; api-client 32/32; typecheck/build/format/lint clean; axe zero critical/serious (jsdom) |
+| **Independent reviewer** | OpenClaw: adapter diff reviewed (selected-market equality + audit-of-view over frozen Phase 2 owner; zero frozen-owner changes verified); full suite re-run on clean DB (42/42); initial 2 failures on a dirty DB were confirmed as leftover-fixture artifacts, not defects |
+| **Integration commit** | `7e03ad85…` (merge(p7-s5a) on `phase/7-admin-operations`; append-only conflicts resolved keeping both sections; api-client merge completed by `263c7cdf`) |
+| **Known limitations** | Browser flows not executable in sandbox (Chromium libs missing; apt read-only) - recorded, not claimed as passed. |
+
+---
+
+## P7-S5B — Merchant Operations
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S5B |
+| **Sub-phase** | P7-S5 (safe Member, Merchant, KYC operations) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` |
+| **Model/provider identity** | OpenClaw managed subagent (deepseek/deepseek-v4-flash runtime pool) |
+| **Session start time** | 2026-08-03 MYT (~14:45) |
+| **Worktree** | `.local/wt-p7-s5b` |
+| **Task branch** | `task/p7-s5b-merchant-ops` |
+| **Starting SHA** | `c6e530bfe3ce3548950dd1c1667163d582303585` |
+| **Allowed paths** | `apps/api/src/admin-merchant-ops/**` (new adapter), `apps/admin-web/src/**` (merchant pages/tests/append-only route wiring), `packages/api-client/src/index.ts` (append-only), `docs/06-phase-reports/p7-s5/**` |
+| **Commit SHA** | `5e82f5a3…` (feat), `11a867d2…` (docs report); module registration wired by `0369435c…` (task/p7-s5-wire-merchant-module) |
+| **Tests executed** | `vitest run src/admin-merchant-ops/` (clean DB); api typecheck; admin-web typecheck/test/build; prettier/eslint |
+| **Test results** | merchant-ops **17/17** (independently re-run by OpenClaw on a clean DB); admin-web tests pass on merged tree; typecheck/build clean |
+| **Independent reviewer** | OpenClaw: adapter diff reviewed; full suite re-run on clean DB (17/17); merged-tree verification (api/admin-web typecheck, admin-web 114/114, api-client 41/41) |
+| **Integration commit** | `f1e03aca…` (merge(p7-s5b)), `04bfd41c…` (merge(p7-s5-wire)) on `phase/7-admin-operations` |
+| **Known limitations** | Module registration was missing from the feat commit; wired by a follow-up task. Browser flows not executable in sandbox (recorded, not claimed as passed). |
+
+---
+
+*End of register — new entries appended above this line.*
