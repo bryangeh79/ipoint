@@ -42,6 +42,7 @@ import {
 } from './route-manifest.js';
 import { ApiErrorState, ShellState } from './shell-states.js';
 import { useAdminWriteEnvironment } from './pwa-policy.js';
+import { DashboardPage } from './dashboard-page.js';
 
 const routeObjects: RouteObject[] = [
   { path: '/', element: <Navigate replace to="/admin/login" /> },
@@ -171,6 +172,7 @@ function RouteContent({ route }: { route: AdminRoute }) {
   if (route.id === 'mfa-challenge') return <MfaChallengeScreen />;
   if (route.id === 'mfa-recovery') return <MfaRecoveryScreen />;
   if (route.id === 'sessions') return <SessionsScreen />;
+  if (route.id === 'dashboard') return <DashboardPage />;
   return (
     <section aria-labelledby="admin-route-title">
       <PageHeader

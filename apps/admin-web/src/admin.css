@@ -301,3 +301,293 @@
   place-items: center;
   padding: var(--ip-space-3);
 }
+
+/* ─── P7-S4B Dashboard ─────────────────────────────────────────── */
+
+.admin-dashboard {
+  display: grid;
+  gap: var(--ip-space-4);
+  padding-block-end: var(--ip-space-6);
+}
+
+.admin-dashboard-live {
+  margin: 0;
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-body-sm);
+}
+
+.admin-dashboard-section {
+  display: grid;
+  gap: var(--ip-space-2);
+}
+
+.admin-dashboard-section > h2 {
+  margin: 0;
+  font-size: var(--ip-font-size-h3);
+}
+
+.admin-dashboard-section__description {
+  margin: 0;
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-body-sm);
+}
+
+.admin-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: var(--ip-space-2);
+}
+
+.admin-dashboard-card {
+  display: grid;
+  gap: var(--ip-space-1-5);
+  align-content: start;
+  min-width: 0;
+}
+
+.admin-dashboard-card--stale {
+  border-color: var(--ip-color-warning);
+}
+
+.admin-dashboard-card--unavailable {
+  border-style: dashed;
+}
+
+.admin-dashboard-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ip-space-1);
+}
+
+.admin-dashboard-card__head h3 {
+  margin: 0;
+  font-size: var(--ip-font-size-body);
+  line-height: var(--ip-line-tight);
+}
+
+.admin-dashboard-card__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ip-space-1);
+  flex-shrink: 0;
+}
+
+.admin-dashboard-definition-version {
+  color: var(--ip-color-text-subtle);
+  font-size: var(--ip-font-size-caption);
+  white-space: nowrap;
+}
+
+.admin-dashboard-definition summary {
+  cursor: pointer;
+  color: var(--ip-color-primary-active);
+  font-size: var(--ip-font-size-body-sm);
+  font-weight: 600;
+}
+
+.admin-dashboard-definition p {
+  margin: var(--ip-space-1) 0 0;
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-body-sm);
+}
+
+.admin-dashboard-definition .admin-dashboard-source {
+  font-size: var(--ip-font-size-caption);
+}
+
+.admin-dashboard-source span {
+  font-weight: 700;
+}
+
+.admin-dashboard-value {
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-weight: 800;
+  line-height: var(--ip-line-tight);
+  color: var(--ip-color-primary-active);
+  overflow-wrap: anywhere;
+}
+
+.admin-dashboard-value--balance {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ip-space-1);
+  flex-wrap: wrap;
+}
+
+.admin-dashboard-rows {
+  display: grid;
+  gap: var(--ip-space-1);
+}
+
+.admin-dashboard-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ip-space-2);
+  padding-block: var(--ip-space-0-5);
+  border-bottom: 1px solid var(--ip-color-border);
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-body-sm);
+}
+
+.admin-dashboard-row:last-child {
+  border-bottom: 0;
+}
+
+.admin-dashboard-row strong {
+  color: var(--ip-color-text);
+  font-size: var(--ip-font-size-body);
+}
+
+.admin-dashboard-amount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--ip-space-0-5);
+  white-space: nowrap;
+}
+
+.admin-dashboard-currency {
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-caption);
+  font-weight: 700;
+}
+
+.admin-dashboard-status-counts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--ip-space-0-5);
+}
+
+.admin-dashboard-row--statuses {
+  align-items: flex-start;
+}
+
+.admin-dashboard-job-run {
+  display: grid;
+  gap: var(--ip-space-1);
+  padding: var(--ip-space-1-5);
+  border: 1px solid var(--ip-color-border);
+  border-radius: var(--ip-radius-sm);
+  background: var(--ip-color-surface-muted);
+}
+
+.admin-dashboard-job-run__details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--ip-space-1);
+  margin: 0;
+}
+
+.admin-dashboard-job-run__details dt {
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-caption);
+}
+
+.admin-dashboard-job-run__details dd {
+  margin: 0;
+  font-size: var(--ip-font-size-body-sm);
+  font-weight: 600;
+}
+
+.admin-dashboard-sensitive-summary,
+.admin-dashboard-muted {
+  margin: 0;
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-caption);
+}
+
+.admin-dashboard-state {
+  display: grid;
+  gap: var(--ip-space-1);
+  padding: var(--ip-space-1-5);
+  border-radius: var(--ip-radius-sm);
+}
+
+.admin-dashboard-state p {
+  margin: 0;
+  font-size: var(--ip-font-size-body-sm);
+}
+
+.admin-dashboard-state--unavailable {
+  background: var(--ip-color-surface-muted);
+}
+
+.admin-dashboard-state--unavailable strong {
+  color: var(--ip-color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--ip-font-size-body-sm);
+}
+
+.admin-dashboard-state--stale {
+  background: var(--ip-color-warning-soft);
+  border: 1px solid var(--ip-color-warning);
+}
+
+.admin-dashboard-state--error {
+  background: var(--ip-color-error-soft);
+  border: 1px solid var(--ip-color-error);
+}
+
+.admin-dashboard-state--error p {
+  color: var(--ip-color-error);
+}
+
+.admin-dashboard-stale-value {
+  opacity: 0.65;
+}
+
+.admin-dashboard-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ip-space-1);
+  flex-wrap: wrap;
+  padding-top: var(--ip-space-1);
+  border-top: 1px solid var(--ip-color-border);
+}
+
+.admin-dashboard-asof {
+  color: var(--ip-color-text-subtle);
+  font-size: var(--ip-font-size-caption);
+}
+
+.admin-dashboard-drilldown {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ip-space-0-5);
+  color: var(--ip-color-primary-active);
+  font-size: var(--ip-font-size-body-sm);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-dashboard-drilldown:hover {
+  text-decoration: underline;
+}
+
+.admin-dashboard-masking-badge {
+  font-size: var(--ip-font-size-caption);
+}
+
+@media (max-width: 767px) {
+  .admin-dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 360px) {
+  .admin-dashboard-card__head {
+    flex-direction: column;
+  }
+
+  .admin-dashboard-row--statuses {
+    flex-direction: column;
+  }
+
+  .admin-dashboard-status-counts {
+    justify-content: flex-start;
+  }
+}

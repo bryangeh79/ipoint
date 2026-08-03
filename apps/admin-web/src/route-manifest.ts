@@ -89,7 +89,7 @@ export const adminRouteManifest = [
     'Dashboard',
     '/admin/:marketId/dashboard',
     'Overview',
-    'dashboard.read',
+    'dashboard.view',
     'selected',
     'read-only',
   ),

@@ -50,12 +50,24 @@ describe('P7-S3A Admin route manifest', () => {
   });
 
   it('requires the exact effective permission without role inference', () => {
-    expect(hasEffectivePermission(['dashboard.read'], 'dashboard.read')).toBe(
+    // Canonical P7-S2 catalog value (packages/database/src/permission-catalog.ts)
+    // is dashboard.view; the manifest must not drift from it.
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'dashboard')?.permission,
+    ).toBe('dashboard.view');
+    expect(hasEffectivePermission(['dashboard.view'], 'dashboard.view')).toBe(
       true,
     );
-    expect(hasEffectivePermission(['SUPER_ADMIN'], 'dashboard.read')).toBe(
+    expect(hasEffectivePermission(['SUPER_ADMIN'], 'dashboard.view')).toBe(
       false,
     );
+    // The outdated dashboard.read alias is not a canonical permission and must
+    // not be required by any manifest route (zero drift vs the catalog).
+    expect(
+      adminRouteManifest.some(
+        ({ permission }) => permission === 'dashboard.read',
+      ),
+    ).toBe(false);
   });
 
   it('keeps hard-gated capabilities discoverable without executable controls', () => {
