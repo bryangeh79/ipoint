@@ -55,7 +55,7 @@ no direct domain-table writes in production code; nothing pushed.
 
 | Worktree        | Branch                     | Starting SHA                               | Delivered commits |
 | --------------- | -------------------------- | ------------------------------------------ | ----------------: |
-| `wt-p7-s5c`     | `task/p7-s5c-kyc-privacy`  | `8777b20b03412b706ee19755afe74dabceef4f14` |                 3 |
+| `wt-p7-s5c`     | `task/p7-s5c-kyc-privacy`  | `8777b20b03412b706ee19755afe74dabceef4f14` |                 5 |
 
 No push was performed; OpenClaw reviews and pushes.
 
@@ -63,7 +63,73 @@ No push was performed; OpenClaw reviews and pushes.
 
 1. `1343fe802d4c0efb09f9f26c1aaaec2a70617099` — `feat(admin): add selected-market kyc review and evidence controls` (code + tests; 30 files, +7781/−5)
 2. `1098cb9f86329bed259491f6df06da944a6a249d` — `test(admin): add mock-based kyc review browser verification spec` (ready-to-run Playwright spec, unexecuted in sandbox)
-3. `<COMMIT_3_SHA>` — `docs(p7-s5c): record internal delivery report` (this report)
+3. `aee62f91` — `docs(p7-s5c): record internal delivery report` (this report)
+4. `7d45302c79b75cdab216dc19e4b93a4465f35219` — `fix(p7-s5c): commit and verify denied-access audit filter` (defect fix: filter + unit/integration tests, see §2a)
+5. `<COMMIT_5_SHA>` — `docs(p7-s5c): record denied-audit filter fix` (this §2a update)
+
+## 2a. Defect fix (P7-S5C-FIX) — denied-access audit filter
+
+**Defect**: commit `1343fe80` referenced a module that was NOT in the commit
+tree — `admin-kyc-ops.controller.ts` imports
+`./admin-kyc-ops.denied.filter.js` and applies
+`@UseFilters(AdminKycDeniedAuditFilter)`, but `git ls-tree 1343fe80
+apps/api/src/admin-kyc-ops/` showed no `admin-kyc-ops.denied.filter.ts`; the
+file existed only as an untracked worktree artifact. A clean checkout of the
+branch therefore failed typecheck/build (missing module), while the worktree
+passed only because the untracked file was present.
+
+**Fix**: the filter file was reviewed, covered with tests, and committed
+(commit 4 above). `git ls-tree HEAD apps/api/src/admin-kyc-ops/` now includes
+`admin-kyc-ops.denied.filter.ts`, and `git grep -n "denied.filter" HEAD --
+apps/api/src/admin-kyc-ops/` resolves within HEAD.
+
+**Review findings (executor review, no code change required)**:
+
+- `AuditService.recordPrivilegedAction` call shape matches the actual
+  `PrivilegedAuditInput` signature exactly (`actor`, `action`, `entity`,
+  `marketId`, `result: 'DENIED'`, `reason`, `requestId`, `ipAddress`,
+  `summary`); `result: 'DENIED'` is a legal enum value.
+- Actor extraction matches `RequestActor` (`type: 'ADMIN_USER'` +
+  `adminUserId`, set by `AuthGuard`); non-admin actors are skipped.
+- Error serialization is parity with the global `AllExceptionsFilter`
+  (`{ error: { code, message, details? }, requestId, timestamp }`); the
+  only divergence (array-message → `Validation failed`) cannot occur here
+  because this adapter's Zod pipe throws `BadRequestException`, which this
+  filter does not catch.
+- Route-pattern mapping produces the same action codes the adapter uses for
+  SUCCESS audit-of-view (`member/merchant.kyc.ops.queue.view/.view/
+  .evidence.view`; decide actions → `.decide`). Intentional divergence,
+  documented: DENIED merchant rows use the `merchant_branch` entity (branch
+  id from the URL — no DB lookup at denial time) while SUCCESS rows use
+  `merchant_kyc_submission`; `merchant_branch` is a first-class audit entity
+  type (`AuditService.queryEntity`). Market id is captured when the guard
+  has resolved it (reason/step-up/mismatch denials); permission/market-level
+  denials occur pre-market-resolution and carry the entity context instead.
+- Fail-open confirmed: audit-append failure logs and still returns the
+  denial (fail-open for observability, fail-closed for access).
+
+**Test coverage added** (filter previously had zero tests):
+
+- New unit spec `admin-kyc-ops.denied.filter.spec.ts` (11 tests): denied
+  evidence view → 403 `PERMISSION_DENIED` audited with
+  `member.kyc.ops.evidence.view`; 422 `SENSITIVE_VIEW_REASON_REQUIRED`
+  audited; `MARKET_ACCESS_DENIED` audited; review-action denial →
+  `member.kyc.ops.decide`; merchant evidence → `merchant.kyc.ops.evidence.view`
+  on the branch entity; merchant queue denial → `merchant.kyc.ops.queue.view`;
+  URL-path fallback when `request.route` is absent; non-denial conflicts
+  (e.g. `ADMIN_KYC_INVALID_STATE`) serialized but NOT audited; non-admin
+  actor not audited; fail-open on audit-append failure; unexpected errors
+  serialized as `INTERNAL_ERROR` without audit.
+- Real-DB integration additions (4 tests in `admin-kyc-ops.integration.spec.ts`):
+  denied review action audited with `member.kyc.ops.decide` (+ exact row
+  assertions); `MARKET_ACCESS_DENIED` denial audited; non-denial responses
+  (404 unknown case, 409 invalid state) NOT audited (before/after counts +
+  standard error contract); fail-open — audit service rejection still
+  returns 403 `PERMISSION_DENIED` with the error contract.
+
+**Suite result**: 54 → **69 passed** (33 unit: 22 pre-existing + 11 new;
+36 real-DB integration: 32 pre-existing + 4 new) on a freshly recreated
+`ipoint_p7s5c_test`; typecheck, build, prettier, and eslint all clean.
 
 ## 4. Reuse-vs-adapter decision (task 4.1) — evidence
 
@@ -189,7 +255,7 @@ counts and requires a clean schema; procedure: recreate DB, then run once).
 | Command | Result |
 | ------- | ------ |
 | `pnpm --filter @ipoint/api typecheck` | PASS, exit 0 |
-| `DATABASE_URL=postgres://ipoint:ipoint-local-only@172.23.0.3:5432/ipoint_p7s5c_test pnpm --filter @ipoint/api exec vitest run src/admin-kyc-ops/` | **54/54 passed** (22 unit + 32 real-DB integration on a freshly recreated DB), exit 0 |
+| `DATABASE_URL=postgres://ipoint:ipoint-local-only@172.23.0.3:5432/ipoint_p7s5c_test pnpm --filter @ipoint/api exec vitest run src/admin-kyc-ops/` | **69/69 passed** (33 unit + 36 real-DB integration on a freshly recreated DB), exit 0 |
 | `pnpm --filter @ipoint/admin-web typecheck` | PASS, exit 0 |
 | `pnpm --filter @ipoint/admin-web test` | **147/147 passed** (19 files; 109 pre-existing + 38 new incl. axe), exit 0 |
 | `pnpm --filter @ipoint/admin-web build` | PASS (**1625 modules transformed**), exit 0 |
@@ -242,14 +308,14 @@ executed** here; no browser run is claimed as passed.
   action-class mismatch belongs to the P7-S2 owner (frozen code). The UI
   evidence flow implements the full challenge/verify UX and surfaces the 403
   correctly; the grant-seeding remediation is server-side only.
-- **Unowned artifact found in the worktree (not committed)**: a
-  `apps/api/src/admin-kyc-ops/admin-kyc-ops.denied.filter.ts` (an
-  unwired `ExceptionFilter` for auditing denied sensitive access) appeared
-  in the worktree during the run; it was **not authored by this subagent**,
-  is not referenced by any module/controller, and is **excluded from the
-  commits** (left untracked) pending OpenClaw review. It typechecks but is
-  untested and unregistered; if it is an intended deliverable, it should be
-  reviewed, wired (`@UseFilters` or module-level), and tested by its owner.
+- **Unowned artifact found in the worktree (resolved by P7-S5C-FIX)**: commit
+  `1343fe80` referenced `admin-kyc-ops.denied.filter.ts` (via `@UseFilters`
+  in the controller) without the file being in the commit tree; the file
+  existed only as an untracked worktree artifact, so a clean checkout failed
+  typecheck/build. The P7-S5C-FIX subagent reviewed the filter (correct:
+  audit shape, actor extraction, serialization parity, route mapping),
+  added unit + real-DB integration coverage (11 + 4 tests), and committed it
+  (`7d45302c`). See §2a.
 - The `kyc.e2e.spec.ts` (Playwright) is delivered ready-to-run but
   unexecuted in this sandbox; it follows the accepted S5B
   `merchant.e2e.spec.ts` pattern.
@@ -264,19 +330,28 @@ executed** here; no browser run is claimed as passed.
 
 - Worktree: `/workspace/.local/wt-p7-s5c` (branch `task/p7-s5c-kyc-privacy`).
 - Starting SHA: `8777b20b03412b706ee19755afe74dabceef4f14`.
-- Commits: 3 (code+tests, browser spec, then this report). No amend, no
-  rebase, no reset, no force, NO PUSH.
+- Commits: 5 (code+tests, browser spec, delivery report, P7-S5C-FIX
+  filter+tests, then this report update). No amend, no rebase, no reset, no
+  force, NO PUSH.
 - Exact-path staging only; the 102 historical untracked artifacts in the
-  main checkout were untouched; `jiti/` and the unowned
-  `admin-kyc-ops.denied.filter.ts` were left untracked.
+  main checkout were untouched; `jiti/` remains untracked (same pattern as
+  P7-S4A/S4B/S5A). `apps/api/vitest.config.ts` carries a pre-existing
+  uncommitted worktree-only hook-timeout tuning (`hookTimeout: 60_000` for
+  the DB-heavy integration suites) left over from the original S5C run; it
+  is outside this fix's allowed paths and remains uncommitted — a clean
+  checkout running the full api suite may hit vitest's 10s default hook
+  budget under parallel load (documented in the diff itself as an
+  environment/suite-load fix).
 
 ## 12. Internal gate result
 
 `OPENCLAW_INTERNAL_GATE_PASSED` — API adapter unit + real-DB integration
-54/54 on a clean dedicated DB, Admin Web 147/147 + build 1625 modules,
-API client 49/49, all typechecks, prettier, and eslint (API + client) green;
-axe zero serious/critical on covered paths; frozen Phase 1/2 owner code
-byte-identical (`git diff` shows zero changes under `admin-kyc/`, `kyc/`,
-`admin-member/`, `merchant/`, `packages/database/`); raw evidence gating
-(permission + reason + step-up + audit-of-view) proven server-side; commits
-scoped exactly; nothing pushed.
+69/69 on a clean dedicated DB (54 pre-existing + 15 added by P7-S5C-FIX:
+11 filter unit + 4 denied-audit integration), Admin Web 147/147 + build 1625
+modules, API client 49/49, all typechecks, prettier, and eslint (API +
+client) green; axe zero serious/critical on covered paths; frozen Phase 1/2
+owner code byte-identical (`git diff` shows zero changes under `admin-kyc/`,
+`kyc/`, `admin-member/`, `merchant/`, `packages/database/`); raw evidence
+gating (permission + reason + step-up + audit-of-view) proven server-side;
+denied-sensitive-access audit (P7-S5C-FIX) committed and tracked in HEAD;
+commits scoped exactly; nothing pushed.
