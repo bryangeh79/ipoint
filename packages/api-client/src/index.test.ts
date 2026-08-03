@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 /* eslint-disable @typescript-eslint/no-base-to-string */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { AdminApiClient, ApiClient, ApiError } from './index.js';
+import {
+  AdminApiClient,
+  AdminDashboardCatalogDto,
+  AdminDashboardMetricDetailDto,
+  ApiClient,
+  ApiError,
+} from './index.js';
 
 const BASE_URL = 'http://localhost:3000/api/v1';
 
@@ -571,6 +577,123 @@ describe('AdminApiClient', () => {
       market_id: 'market-1',
       expected_context_version: 4,
     });
+  });
+
+  it('uses the exact P7-S4A dashboard metrics paths', async () => {
+    const core = createClient();
+    core.setTokens({
+      accessToken: 'access-token',
+      accessExpiresAt: '2026-08-01T12:15:00.000Z',
+    });
+    const client = new AdminApiClient(core);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      async () =>
+        new Response('{}', {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+
+    await client.dashboardMetrics();
+    await client.dashboardMetricDetail('M14');
+    await client.dashboardMetricDetail('M99');
+
+    expect(fetchSpy.mock.calls.map(([url]) => String(url))).toEqual([
+      `${BASE_URL}/admin/dashboard/metrics`,
+      `${BASE_URL}/admin/dashboard/metrics/M14`,
+      `${BASE_URL}/admin/dashboard/metrics/M99`,
+    ]);
+  });
+
+  it('shapes the P7-S4A dashboard catalog and detail DTOs', async () => {
+    const core = createClient();
+    core.setTokens({
+      accessToken: 'access-token',
+      accessExpiresAt: '2026-08-01T12:15:00.000Z',
+    });
+    const client = new AdminApiClient(core);
+    const catalogBody: AdminDashboardCatalogDto = {
+      asOf: '2026-08-03T00:00:00.000Z',
+      marketId: 'market-1',
+      items: [
+        {
+          id: 'M01',
+          name: 'Members',
+          definition: 'Member count.',
+          definitionVersion: 1,
+          freshnessClass: 'KPI',
+          currencyDimension: false,
+          permission: 'dashboard.view',
+          source: 'member_market_preferences',
+          state: 'FRESH',
+          asOf: '2026-08-03T00:00:00.000Z',
+          value: { kind: 'COUNT', count: 3 },
+        },
+        {
+          id: 'M10',
+          name: 'Unavailable',
+          definition: 'No durable source.',
+          definitionVersion: 1,
+          freshnessClass: 'KPI',
+          currencyDimension: false,
+          permission: 'dashboard.view',
+          source: 'none',
+          state: 'UNAVAILABLE',
+          unavailableReason: 'NO_DURABLE_SOURCE',
+          asOf: '2026-08-03T00:00:00.000Z',
+        },
+      ],
+    };
+    const detailBody: AdminDashboardMetricDetailDto = {
+      id: 'M14',
+      name: 'MCP Available Balance',
+      definition: 'Available balance.',
+      definitionVersion: 1,
+      freshnessClass: 'KPI',
+      currencyDimension: true,
+      permission: 'dashboard.view',
+      source: 'mcp_accounts',
+      state: 'FRESH',
+      asOf: '2026-08-03T00:00:00.000Z',
+      marketId: 'market-1',
+      value: {
+        kind: 'BALANCE',
+        currency: 'MYR',
+        totalAvailableBalance: '1.0000000000',
+      },
+      drillDown: {
+        metricId: 'M14',
+        marketId: 'market-1',
+        marketScope: 'SELECTED',
+        permission: 'dashboard.view',
+        masking: true,
+        metricFilter: null,
+        timeBoundary: null,
+      },
+    };
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(catalogBody), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(detailBody), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+
+    const catalog = await client.dashboardMetrics();
+    const detail = await client.dashboardMetricDetail('M14');
+
+    expect(catalog).toEqual(catalogBody);
+    expect(detail).toEqual(detailBody);
+    expect(fetchSpy.mock.calls[0]?.[1]).not.toHaveProperty(
+      'headers.x-market-id',
+    );
   });
 
   it.each([
