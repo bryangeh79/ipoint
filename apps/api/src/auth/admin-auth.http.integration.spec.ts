@@ -262,7 +262,11 @@ describe.skipIf(!databaseUrl)('Admin MFA and session HTTP integration', () => {
     const stepUp = await supertest(server)
       .post('/api/v1/auth/admin/mfa/step-up/challenge')
       .set('Authorization', `Bearer ${accessToken}`)
-      .send({ action_class: 'ADMIN_MFA_RESET', target: target.adminUserId })
+      // P7-S2C-STEPUP-FIX: the step-up action class for the MFA-reset
+      // purpose is now the canonical catalog permission code
+      // `admin.mfa.reset` (legacy `ADMIN_MFA_RESET` is no longer a
+      // consumable action class).
+      .send({ action_class: 'admin.mfa.reset', target: target.adminUserId })
       .expect(202);
     const stepUpVerified = await supertest(server)
       .post('/api/v1/auth/admin/mfa/step-up/verify')
@@ -311,7 +315,7 @@ describe.skipIf(!databaseUrl)('Admin MFA and session HTTP integration', () => {
     await supertest(server)
       .post('/api/v1/auth/admin/mfa/step-up/challenge')
       .set('Authorization', `Bearer ${recovered.body.accessToken as string}`)
-      .send({ action_class: 'ADMIN_MFA_RESET', target: adminUserId })
+      .send({ action_class: 'ADMIN.MFA.RESET', target: adminUserId })
       .expect(403);
     const usedRecoveryChallenge = await supertest(server)
       .post('/api/v1/auth/admin/login')

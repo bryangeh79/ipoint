@@ -459,16 +459,15 @@ describe.skipIf(!databaseUrl)(
      * factor, with `action_class` equal to the canonical permission code the
      * RbacGuard consumes.
      *
-     * Upstream note (P7-S2C, outside this task's allowed paths): the real
-     * challenge flow (`/auth/admin/mfa/step-up/challenge`) constrains
-     * `action_class` to `^[A-Z0-9_:.]+$`, so it can mint grants for
-     * uppercase action classes only, while the RbacGuard consumes grants
-     * whose `action_class` equals the lowercase catalog permission code. The
-     * guard therefore fails closed (403 MFA_STEP_UP_REQUIRED) for every
-     * real-flow grant on catalog permissions. Seeding the grant row directly
-     * exercises the canonical guard + adapter evidence path end-to-end;
-     * remediating the upstream action-class mismatch belongs to the P7-S2
-     * owner (frozen).
+     * P7-S2C-STEPUP-FIX: the real challenge/verify flow now also mints
+     * grants with the canonical lowercase action class (see
+     * `admin-auth.service.ts` / `rbac.service.ts` normalization), so the
+     * guard consumes real-flow grants end-to-end (proved by the
+     * `consumes a real-flow step-up grant ... end-to-end` test above). This
+     * seeding helper is retained for tests that need to control grant
+     * issuance directly (for example to pair a grant with a pre-created
+     * case id); it seeds the same canonical action class the real flow
+     * produces.
      */
     async function seedStepUpGrant(
       admin: { adminUserId: string; accountId: string; token: string },
@@ -973,25 +972,63 @@ describe.skipIf(!databaseUrl)(
         ).toBe(true);
       });
 
-      it('documents the upstream step-up action-class constraint (P7-S2C, frozen)', async () => {
-        // The frozen challenge schema only accepts UPPERCASE action classes,
-        // while the RbacGuard consumes grants whose action_class equals the
-        // lowercase catalog permission code. This assertion pins the frozen
-        // behaviour so the upstream remediation (P7-S2 owner) is visible.
+      it('consumes a real-flow step-up grant for the canonical permission end-to-end (P7-S2C-STEPUP-FIX)', async () => {
+        // P7-S2C-STEPUP-FIX: the challenge schema previously accepted only
+        // UPPER_CASE action classes (`^[A-Z0-9_:.]+$`) while the RbacGuard
+        // consumed grants whose action_class equals the lowercase catalog
+        // permission code, so every real-flow grant was denied (403
+        // MFA_STEP_UP_REQUIRED). Step-up now normalizes the action class to
+        // the canonical lowercase catalog code at grant creation AND at
+        // guard lookup, so the real challenge/verify flow (no direct grant
+        // seeding) is consumable end-to-end. This test is the direct
+        // successor of the pre-fix pin that asserted the broken 400.
         const admin = await createAdmin({
           marketIds: [marketA],
           permissionCodes: ['member.kyc.evidence.view'],
           enrollMfa: true,
         });
         await setCurrentMarket(admin.accountId, marketA);
-        await supertest(server)
+        // Use a dedicated case so this test's SUCCESS audit row never
+        // changes the row counts the seeded-grant tests assert on caseA1.
+        const evidenceCase = await createKycCase(marketA, 'SUBMITTED');
+        const challenge = await supertest(server)
           .post('/api/v1/auth/admin/mfa/step-up/challenge')
           .set(authorized(admin.token))
           .send({
             action_class: 'member.kyc.evidence.view',
             market_id: marketA,
           })
-          .expect(400);
+          .expect(202);
+        await database.db
+          .update(adminMfaFactors)
+          .set({ lastAcceptedCounter: null })
+          .where(eq(adminMfaFactors.adminUserId, admin.adminUserId));
+        const verified = await supertest(server)
+          .post('/api/v1/auth/admin/mfa/step-up/verify')
+          .set(authorized(admin.token))
+          .send({
+            challenge_id: challenge.body.step_up_challenge_id,
+            code: totpCode(mfaSecret, Math.floor(Date.now() / 30_000)),
+          })
+          .expect(200);
+        const response = await supertest(server)
+          .get(`${memberBase}/${evidenceCase.caseId}/evidence`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', verified.body.step_up_token)
+          .set('x-sensitive-access-reason', 'Identity verification review')
+          .expect(200);
+        const body = response.body as MemberKycCaseBody;
+        expect(body.legalFullName).toBe('Jane Mildred Doe');
+        expect(body.evidenceAccess?.masked).toBe(false);
+        // The real-flow grant row was created with the canonical action
+        // class and consumed exactly once.
+        const grantRows = await database.db
+          .select()
+          .from(adminStepUpGrants)
+          .where(eq(adminStepUpGrants.adminUserId, admin.adminUserId));
+        expect(grantRows).toHaveLength(1);
+        expect(grantRows[0]?.actionClass).toBe('member.kyc.evidence.view');
+        expect(grantRows[0]?.usedAt).toBeInstanceOf(Date);
       });
 
       it('serves minimum evidence only with permission + reason + step-up, and audits the view', async () => {
