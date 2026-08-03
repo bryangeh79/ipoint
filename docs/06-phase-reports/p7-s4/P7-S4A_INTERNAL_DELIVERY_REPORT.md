@@ -36,12 +36,8 @@ No push was performed; OpenClaw reviews and pushes.
 
 ## 3. Commit map
 
-1. `<COMMIT1_SHA>` — `feat(admin-api): add bounded dashboard read models`
-2. `<COMMIT2_SHA>` — `docs(p7-s4a): record internal delivery report`
-
-(Full 40-char SHAs are filled in by OpenClaw after review of this report
-commit; the commits exist in the worktree and are listed with their SHAs in
-the final subagent report.)
+1. `a91887862a4da75c94d534790607bafa4c607489` — `feat(admin-api): add bounded dashboard read models`
+2. `404ca4d7375f73b8e32ff4ac3c47f298869ac690` — `docs(p7-s4a): record internal delivery report` (this report; SHA map filled by a follow-up docs commit after the report SHA was known)
 
 ## 4. API delivery
 
