@@ -57,6 +57,26 @@
 | **Integration commit** | `7336dd46cf707620188b288c5cfedb02d33aefb3` (merge(p7-s4a) on `phase/7-admin-operations`, --no-ff, no conflicts) |
 | **Known limitations** | (1) PUSH BLOCKED in this runtime: sandbox has no GitHub credentials; elevated/gateway exec disabled by policy; origin push of task branch and phase branch pending host-side execution (see D-048 environment note below). (2) First dispatch ended before committing; completed via written handoff per D-048 §5. (3) Integration attempt subagent stopped at push step (401 anonymous write access) without changes. (4) `jiti/` cache left untracked in worktree. (5) openapi:validate requires `REDEMPTION_VOUCHER_ENCRYPTION_KEY` env (pre-existing script gap). (6) Test database `ipoint_dashboard_test` created on the `ipoint-postgres-1` container (172.23.0.3:5432). |
 
+## P7-S4B — Dashboard Admin Web
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S4B |
+| **Sub-phase** | P7-S4 (Dashboard and bounded operational read models) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` |
+| **Model/provider identity** | OpenClaw managed subagent (deepseek/deepseek-v4-flash runtime pool) |
+| **Session start time** | 2026-08-03 MYT (afternoon) |
+| **Worktree** | `.local/wt-p7-s4b` |
+| **Task branch** | `task/p7-s4b-dashboard-ui` |
+| **Starting SHA** | `b25f1f142ae41588169e1a4d0471c9214efb895e` |
+| **Allowed paths** | `apps/admin-web/src/**`, `apps/admin-web/playwright.admin.config.ts`, `docs/06-phase-reports/p7-s4/**` |
+| **Commit SHA** | `de01500ebdbb2f8985c8ec7d6a006f5925d7e0b0` (feat), `f500d99fb10cce82b97de00b2a30d6f2e0109769` (docs report) |
+| **Tests executed** | `pnpm --filter @ipoint/admin-web typecheck`; `pnpm --filter @ipoint/admin-web test`; `pnpm --filter @ipoint/admin-web build`; prettier/eslint on changed paths; axe component checks; playwright admin config (browser launch blocked - environment) |
+| **Test results** | typecheck exit 0; tests 60/60 (8 files) exit 0; build exit 0 (1610 modules); format/lint clean; axe zero serious/critical; Playwright browser launch blocked by missing runtime libs (recorded, not a regression) |
+| **Independent reviewer** | OpenClaw integration review: full diff review (route-manifest permission fix to canonical `dashboard.view`, dashboard-model/states/cards/page, admin-app wiring, api-client DTO usage, fixtures), scope check (17 files, no migrations, no frozen-owner code), manifest zero-drift test verified |
+| **Integration commit** | 75f0a4b5394ff3131042b31fdb948aed0053bd4d (merge on `phase/7-admin-operations` executed after review) |
+| **Known limitations** | (1) Push blocked in this runtime (same as P7-S4A; origin push pending host-side execution). (2) Playwright browser launch requires host/CI (sandbox lacks browser runtime shared libraries and apt is read-only). (3) Follow-up recorded: `tests/e2e/admin-shell.spec.ts` still mocks `dashboard.read` (2 places) - must be flipped to `dashboard.view` before the root e2e suite runs; assigned to P7-S4C verification scope. |
+
 ---
 
 *End of register — new entries appended above this line.*
