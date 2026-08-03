@@ -44,6 +44,7 @@ import { AUTH_RATE_LIMITER } from '../auth/auth.constants.js';
 import type { InMemoryRateLimiter } from '../auth/rate-limit.port.js';
 import { AuthService } from '../auth/auth.service.js';
 import { DatabaseService } from '../database/database.service.js';
+import { AuditService } from '../platform-access/audit.service.js';
 
 const databaseUrl = process.env['DATABASE_URL'];
 const password = 'Kyc-Ops-Password-123!';
@@ -1512,6 +1513,167 @@ describe.skipIf(!databaseUrl)(
         expect((response.body as ErrorBody).error.code).toBe(
           'MARKET_CONTEXT_MISMATCH',
         );
+      });
+    });
+
+    describe('denied-access audit filter (P7-S5C-FIX)', () => {
+      it('audits a denied review action with member.kyc.ops.decide', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['member.kyc.read'],
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        const created = await createKycCase(marketA, 'SUBMITTED');
+        const response = await supertest(server)
+          .post(`${memberBase}/${created.caseId}/approve`)
+          .set(authorized(admin.token))
+          .send({ reason: 'No decide permission' })
+          .expect(403);
+        expect((response.body as ErrorBody).error.code).toBe(
+          'PERMISSION_DENIED',
+        );
+        const deniedAudits = await database.db
+          .select()
+          .from(auditLogs)
+          .where(
+            and(
+              eq(auditLogs.action, 'member.kyc.ops.decide'),
+              eq(auditLogs.entityType, 'member_kyc_case'),
+              eq(auditLogs.entityId, created.caseId),
+              eq(auditLogs.result, 'DENIED'),
+            ),
+          );
+        expect(deniedAudits).toHaveLength(1);
+        expect(deniedAudits[0]?.actorType).toBe('ADMIN_USER');
+        expect(deniedAudits[0]?.reason).toContain('PERMISSION_DENIED');
+      });
+
+      it('audits a market-access denial (403 MARKET_ACCESS_DENIED)', async () => {
+        // The admin holds the evidence permission but has NO market grant
+        // anywhere: the guard denies with MARKET_ACCESS_DENIED before any
+        // market context is attached, so the audit row carries the entity
+        // context and the denial reason.
+        const admin = await createAdmin({
+          marketIds: [],
+          permissionCodes: ['member.kyc.evidence.view'],
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        const response = await supertest(server)
+          .get(`${memberBase}/${caseA1}/evidence`)
+          .set(authorized(admin.token))
+          .expect(403);
+        expect((response.body as ErrorBody).error.code).toBe(
+          'MARKET_ACCESS_DENIED',
+        );
+        const deniedAudits = await database.db
+          .select()
+          .from(auditLogs)
+          .where(
+            and(
+              eq(auditLogs.action, 'member.kyc.ops.evidence.view'),
+              eq(auditLogs.entityType, 'member_kyc_case'),
+              eq(auditLogs.entityId, caseA1),
+              eq(auditLogs.result, 'DENIED'),
+            ),
+          );
+        expect(
+          deniedAudits.some((row) =>
+            row.reason?.includes('MARKET_ACCESS_DENIED'),
+          ),
+        ).toBe(true);
+      });
+
+      it('does not audit non-denial responses (404 unknown case, 409 invalid state)', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['member.kyc.read', 'member.kyc.decide'],
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+
+        // 404: NotFoundException is not caught by the denied filter at all.
+        const unknownId = randomUUID();
+        const notFound = await supertest(server)
+          .get(`${memberBase}/${unknownId}`)
+          .set(authorized(admin.token))
+          .expect(404);
+        expect((notFound.body as ErrorBody).error.code).toBe(
+          'ADMIN_KYC_CASE_NOT_FOUND',
+        );
+        const notFoundAudits = await database.db
+          .select()
+          .from(auditLogs)
+          .where(
+            and(
+              eq(auditLogs.entityType, 'member_kyc_case'),
+              eq(auditLogs.entityId, unknownId),
+            ),
+          );
+        expect(notFoundAudits).toHaveLength(0);
+
+        // 409 ADMIN_KYC_INVALID_STATE: a conflict outside the denial-code
+        // set is serialized with the standard contract but NOT audited as a
+        // denial.
+        const created = await createKycCase(marketA, 'SUBMITTED');
+        const countBefore = (
+          await database.db
+            .select({ id: auditLogs.id })
+            .from(auditLogs)
+            .where(
+              and(
+                eq(auditLogs.action, 'member.kyc.ops.decide'),
+                eq(auditLogs.entityId, created.caseId),
+                eq(auditLogs.result, 'DENIED'),
+              ),
+            )
+        ).length;
+        const conflict = await supertest(server)
+          .post(`${memberBase}/${created.caseId}/approve`)
+          .set(authorized(admin.token))
+          .set('idempotency-key', randomUUID())
+          .send({ reason: 'Premature approval' })
+          .expect(409);
+        expect((conflict.body as ErrorBody).error.code).toBe(
+          'ADMIN_KYC_INVALID_STATE',
+        );
+        expect(conflict.body).toHaveProperty('requestId');
+        expect(conflict.body).toHaveProperty('timestamp');
+        const countAfter = (
+          await database.db
+            .select({ id: auditLogs.id })
+            .from(auditLogs)
+            .where(
+              and(
+                eq(auditLogs.action, 'member.kyc.ops.decide'),
+                eq(auditLogs.entityId, created.caseId),
+                eq(auditLogs.result, 'DENIED'),
+              ),
+            )
+        ).length;
+        expect(countAfter).toBe(countBefore);
+      });
+
+      it('fail-open: an audit-append failure does not block the denial response', async () => {
+        const auditService = app.get(AuditService);
+        const spy = vi.spyOn(auditService, 'recordPrivilegedAction');
+        spy.mockRejectedValueOnce(new Error('audit store unavailable'));
+        try {
+          const admin = await createAdmin({
+            marketIds: [marketA],
+            permissionCodes: ['member.kyc.read'],
+          });
+          await setCurrentMarket(admin.accountId, marketA);
+          const response = await supertest(server)
+            .get(`${memberBase}/${caseA1}/evidence`)
+            .set(authorized(admin.token))
+            .expect(403);
+          expect((response.body as ErrorBody).error.code).toBe(
+            'PERMISSION_DENIED',
+          );
+          expect(response.body).toHaveProperty('requestId');
+          expect(spy).toHaveBeenCalledTimes(1);
+        } finally {
+          spy.mockRestore();
+        }
       });
     });
   },
