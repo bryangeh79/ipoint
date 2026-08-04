@@ -3,6 +3,7 @@ import {
   AdminKycOpsApiClient,
   AdminMerchantApiClient,
   AdminPackageOpsApiClient,
+  AdminRewardOpsApiClient,
   ApiClient,
 } from '@ipoint/api-client';
 
@@ -39,5 +40,15 @@ export const adminKycOpsApi = new AdminKycOpsApiClient(
  * percentage read carries the fresh step-up token.
  */
 export const adminPackageOpsApi = new AdminPackageOpsApiClient(
+  new ApiClient(apiBaseUrl),
+);
+
+/**
+ * P7-S6B selected-market Admin Reward Configuration client.
+ * Self-contained addition; the market is validated server-side against the
+ * Current Admin Market on every request, and the SUPER_ADMIN-only schedule
+ * write carries a mandatory Idempotency-Key + reason.
+ */
+export const adminRewardOpsApi = new AdminRewardOpsApiClient(
   new ApiClient(apiBaseUrl),
 );

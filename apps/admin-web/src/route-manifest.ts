@@ -224,7 +224,6 @@ export const adminRouteManifest = [
     'read-only',
     'bootstrap',
     true,
-    gate('reward.rule.schedule', 'CG-02'),
   ),
   route(
     'redemption-rates',
