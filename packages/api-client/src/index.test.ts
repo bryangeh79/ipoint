@@ -15,6 +15,10 @@ import {
   AdminMemberOpsNotesPageDto,
   AdminMemberOpsProfileDto,
   AdminMerchantApiClient,
+  AdminPackageCatalogDto,
+  AdminPackageOpsApiClient,
+  AdminPackageVersionDto,
+  AdminSpecialPercentageListDto,
   ApiClient,
   ApiError,
 } from './index.js';
@@ -1491,6 +1495,210 @@ describe('AdminKycOpsApiClient (P7-S5C KYC review + privacy)', () => {
     ).rejects.toMatchObject({
       status: 422,
       body: { code: 'SENSITIVE_VIEW_REASON_REQUIRED' },
+    });
+  });
+});
+
+/* ────────────────────────────────────────────────────────────────────────
+ * P7-S6A Admin Package Operations client tests (append-only block)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+describe('AdminPackageOpsApiClient (P7-S6A package configuration)', () => {
+  const MARKET = '11111111-1111-4111-8111-111111111111';
+  const PACKAGE = '22222222-2222-4222-8222-222222222222';
+  const VERSION = '33333333-3333-4333-8333-333333333333';
+  const BRANCH = '44444444-4444-4444-8444-444444444444';
+
+  function packageOpsClient(): AdminPackageOpsApiClient {
+    return new AdminPackageOpsApiClient(new ApiClient(BASE_URL));
+  }
+
+  it('reads the selected-market package catalog with exact decimal rates', async () => {
+    const client = packageOpsClient();
+    const catalog: AdminPackageCatalogDto = {
+      marketId: MARKET,
+      items: [
+        {
+          id: PACKAGE,
+          code: 'A',
+          name: 'Standard Package A',
+          description: 'Standard merchant service-fee package A.',
+          versions: [
+            {
+              id: VERSION,
+              profile_id: PACKAGE,
+              rate: '2.500000',
+              status: 'ACTIVE',
+              effective_from: '1970-01-01T00:00:00.000Z',
+              effective_to: null,
+              created_at: '2026-08-01T00:00:00.000Z',
+            },
+          ],
+        },
+      ],
+    };
+    const fetchSpy = mockFetch(200, catalog);
+
+    const result = await client.packageCatalog(MARKET);
+
+    expect(result.items[0]?.code).toBe('A');
+    // Exact decimal strings are never parsed client-side.
+    expect(result.items[0]?.versions[0]?.rate).toBe('2.500000');
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe(
+      `${BASE_URL}/admin/package-ops/markets/${MARKET}/packages`,
+    );
+  });
+
+  it('passes the step-up token for the privileged special-percentage read', async () => {
+    const client = packageOpsClient();
+    const body: AdminSpecialPercentageListDto = {
+      marketId: MARKET,
+      items: [
+        {
+          id: 'special-1',
+          rate: '12.500000',
+          description: 'Special launch partner',
+          created_by_admin_user_id: 'admin-1',
+          created_at: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+    };
+    const fetchMock = mockFetch(200, body);
+
+    const result = await client.specialPercentages(MARKET, 'stepup-token');
+
+    expect(result.items[0]?.rate).toBe('12.500000');
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/package-ops/markets/${MARKET}/special-percentages`,
+    );
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('x-step-up-token')).toBe('stepup-token');
+  });
+
+  it('creates a package version through the owner command with an Idempotency-Key', async () => {
+    const client = packageOpsClient();
+    const version: AdminPackageVersionDto = {
+      id: VERSION,
+      profile_id: PACKAGE,
+      rate: '2.500000',
+      status: 'DRAFT',
+      effective_from: '2027-01-01T00:00:00.000Z',
+      effective_to: '2027-06-01T00:00:00.000Z',
+      created_at: '2026-08-01T00:00:00.000Z',
+    };
+    const fetchMock = mockFetch(201, version);
+
+    const result = await client.createPackageVersion(
+      MARKET,
+      PACKAGE,
+      {
+        rate: '2.5',
+        effective_from: '2027-01-01T00:00:00.000Z',
+        effective_to: '2027-06-01T00:00:00.000Z',
+      },
+      'idem-create',
+    );
+
+    expect(result.rate).toBe('2.500000');
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/markets/${MARKET}/packages/${PACKAGE}/versions`,
+    );
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('idempotency-key')).toBe('idem-create');
+    expect(JSON.parse(String((init as RequestInit | undefined)?.body))).toEqual(
+      {
+        rate: '2.5',
+        effective_from: '2027-01-01T00:00:00.000Z',
+        effective_to: '2027-06-01T00:00:00.000Z',
+      },
+    );
+  });
+
+  it('activates a package version through the owner command', async () => {
+    const client = packageOpsClient();
+    const fetchMock = mockFetch(200, {
+      id: VERSION,
+      profile_id: PACKAGE,
+      rate: '4.000000',
+      status: 'ACTIVE',
+      effective_from: '2026-01-01T00:00:00.000Z',
+      effective_to: '2027-01-01T00:00:00.000Z',
+      created_at: '2026-08-01T00:00:00.000Z',
+    } satisfies AdminPackageVersionDto);
+
+    const result = await client.activatePackageVersion(
+      MARKET,
+      PACKAGE,
+      VERSION,
+      'idem-activate',
+    );
+
+    expect(result.status).toBe('ACTIVE');
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/markets/${MARKET}/packages/${PACKAGE}/versions/${VERSION}/activate`,
+    );
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('idempotency-key')).toBe('idem-activate');
+  });
+
+  it('assigns and sets default through the explicit owner reassignment commands', async () => {
+    const client = packageOpsClient();
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 'assign-1' }), {
+          status: 201,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 'assign-1' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+
+    const assigned = await client.assignMerchantPackage(
+      MARKET,
+      BRANCH,
+      { service_fee_version_id: VERSION, is_default: true },
+      'idem-assign',
+    );
+    const madeDefault = await client.setDefaultMerchantPackage(
+      MARKET,
+      BRANCH,
+      'assign-1',
+      'idem-default',
+    );
+
+    expect(assigned.id).toBe('assign-1');
+    expect(madeDefault.id).toBe('assign-1');
+    const [assignUrl, assignInit] = fetchMock.mock.calls[0] ?? [];
+    expect(String(assignUrl)).toBe(
+      `${BASE_URL}/admin/markets/${MARKET}/merchants/${BRANCH}/packages/assignments`,
+    );
+    expect(
+      JSON.parse(String((assignInit as RequestInit | undefined)?.body)),
+    ).toEqual({ service_fee_version_id: VERSION, is_default: true });
+    const [defaultUrl, defaultInit] = fetchMock.mock.calls[1] ?? [];
+    expect(String(defaultUrl)).toBe(
+      `${BASE_URL}/admin/markets/${MARKET}/merchants/${BRANCH}/packages/assignments/assign-1/set-default`,
+    );
+    const headers = new Headers(
+      (defaultInit as RequestInit | undefined)?.headers,
+    );
+    expect(headers.get('idempotency-key')).toBe('idem-default');
+  });
+
+  it('propagates step-up gating errors from the privileged read', async () => {
+    const client = packageOpsClient();
+    mockFetch(403, { code: 'MFA_STEP_UP_REQUIRED' });
+    await expect(client.specialPercentages(MARKET)).rejects.toMatchObject({
+      status: 403,
+      body: { code: 'MFA_STEP_UP_REQUIRED' },
     });
   });
 });
