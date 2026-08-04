@@ -68,7 +68,7 @@ Coverage includes: 401/403/409 RBAC + selected-market enforcement; catalog exact
 | `pnpm --filter @ipoint/api build`                               | ✅ exit 0                                                                                                                                                                     |
 | `pnpm --filter @ipoint/api openapi:validate`                    | ✅ **226 paths, 0 errors, 0 duplicate operationIds**; both `admin/package-ops` paths present; does not self-exit after PASS (pre-existing outbox-worker quirk, same as S4/S5) |
 | `pnpm --filter @ipoint/admin-web typecheck`                     | ✅ exit 0                                                                                                                                                                     |
-| `pnpm --filter @ipoint/admin-web test`                          | ✅ **165/165** (147 prior + 18 new: 8 page, 9 model, 1 manifest zero-drift)                                                                                                   |
+| `pnpm --filter @ipoint/admin-web test`                          | ✅ **165/165** (147 prior + 18 new: 8 page, 10 model, 1 manifest zero-drift)                                                                                                  |
 | `pnpm --filter @ipoint/admin-web build`                         | ✅ exit 0 (1628 modules)                                                                                                                                                      |
 | `pnpm --filter @ipoint/api-client typecheck` / `test` / `build` | ✅ exit 0 / **55/55** (+6) / exit 0                                                                                                                                           |
 | prettier (all changed paths)                                    | ✅ clean                                                                                                                                                                      |
@@ -101,10 +101,10 @@ apps/api/src/admin-package-ops/admin-package-ops.module.ts            (new, owne
 apps/api/src/admin-package-ops/admin-package-ops.service.ts           (new)
 apps/api/src/admin-package-ops/admin-package-ops.types.ts             (new)
 apps/api/src/admin-package-ops/admin-package-ops.spec.ts              (new, 4 tests)
-apps/api/src/admin-package-ops/admin-package-ops.integration.spec.ts  (new, 23 tests)
+apps/api/src/admin-package-ops/admin-package-ops.integration.spec.ts  (new, 32 tests)
 apps/api/src/app.module.ts                                            (register AdminPackageOpsModule)
 apps/admin-web/src/package-config-model.ts                            (new)
-apps/admin-web/src/package-config-model.test.ts                       (new, 8 tests)
+apps/admin-web/src/package-config-model.test.ts                       (new, 10 tests)
 apps/admin-web/src/package-config-states.tsx                          (new)
 apps/admin-web/src/package-config-page.tsx                            (new)
 apps/admin-web/src/package-config-page.test.tsx                       (new, 8 tests)
