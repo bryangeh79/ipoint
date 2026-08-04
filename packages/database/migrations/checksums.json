@@ -28,5 +28,6 @@
   "0026_phase_6_shipping_recovery_v2.sql": "e2038e6c42de0ecbb2d18e500ddd1eb7d33a35f6b0a83cba60deb2e724c4afec",
   "0027_admin_mfa_session_policy.sql": "1484564d29a4eb0f1ef869d264b47db94a16e343f7e76b513a652964cf0c5976",
   "0028_admin_market_session_context.sql": "7220285fb1f6424cc3352afd6add1d2aee4490502a746b5e03b8ad530b1f0e93",
-  "0029_p5_r1_agent_fee_version_snapshot.sql": "a1a284728a49e98b8fd6e40989c8bcd7df537dfcbf8ea67ec00543992b76f57c"
+  "0029_p5_r1_agent_fee_version_snapshot.sql": "a1a284728a49e98b8fd6e40989c8bcd7df537dfcbf8ea67ec00543992b76f57c",
+  "0030_p3_d050_reward_rule_reason.sql": "8387b392b6a357da43e04dfffc03bc1bf280381c099475f7a6384325cb068696"
 }
