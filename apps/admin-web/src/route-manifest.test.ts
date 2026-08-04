@@ -91,6 +91,18 @@ describe('P7-S3A Admin route manifest', () => {
         ({ permission }) => permission === 'merchant.package.read',
       ),
     ).toBe(false);
+    // P7-S6C: the redemption-rates route must use the canonical
+    // redemption.rate.read (added to the Phase 7-owned catalog with this
+    // capability) and must no longer carry the stale SEC-03/15 gate — the
+    // schedule capability (redemption.rate.manage) is now implemented.
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'redemption-rates')
+        ?.permission,
+    ).toBe('redemption.rate.read');
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'redemption-rates')
+        ?.capabilityGate,
+    ).toBeUndefined();
   });
 
   it('keeps hard-gated capabilities discoverable without executable controls', () => {
