@@ -480,6 +480,19 @@ export const canonicalPermissionCatalog = [
     { marketScoped: true },
   ),
   permission(
+    'redemption.rate.read',
+    'View prospective redemption rate versions.',
+    'Redemption',
+    [
+      'SUPER_ADMIN',
+      'OPERATIONS_ADMIN',
+      'FINANCE_OPERATOR',
+      'FINANCE_APPROVER',
+      'SUPPORT_READONLY_AUDITOR',
+    ],
+    { marketScoped: true },
+  ),
+  permission(
     'redemption.order.read',
     'View bounded redemption orders.',
     'Redemption',
