@@ -2403,3 +2403,137 @@ export class AdminPackageOpsApiClient {
     ).data;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  P7-S6B selected-market Admin Reward Configuration                  */
+/*                                                                     */
+/*  Append-only section (do not move or merge). DTOs mirror the        */
+/*  Phase 7 adapter (`apps/api/src/admin-reward-ops`, read projection  */
+/*  + orchestrated create over the frozen Phase 3 reward owner) and    */
+/*  the frozen contract §7.1 (decisions P7-OD-04 / P7-OD-05, D-046).  */
+/*                                                                     */
+/*  The market in every URL path is validated server-side against the  */
+/*  server-owned Current Admin Market by the canonical RbacGuard       */
+/*  (mismatch returns 409 MARKET_CONTEXT_MISMATCH); the client never   */
+/*  invents a market. Rates are exact decimal strings in %/day         */
+/*  (0%–0.05%/day, at most six decimals, package A–F maxima) and are   */
+/*  never parsed client-side. createRule requires an Idempotency-Key   */
+/*  and a mandatory reason; the same key + same payload replays the    */
+/*  original result, the same key + different payload returns 409.     */
+/*  Activation is only ever at a strictly future market-local 00:00    */
+/*  (market-local AND resolved UTC are returned).                      */
+/* ------------------------------------------------------------------ */
+
+export interface AdminRewardPackageReferenceDto {
+  code: string;
+  /** Exact decimal string (%/day), e.g. "0.0125" — never a float. */
+  max_rate_per_day: string;
+}
+
+export type AdminRewardWindowStatus =
+  | 'SCHEDULED'
+  | 'ACTIVE'
+  | 'SUPERSEDED'
+  | 'EXPIRED'
+  | 'ARCHIVED';
+
+export interface AdminRewardRuleVersionDto {
+  id: string;
+  name: string;
+  description: string | null;
+  /** Exact decimal string (%/day), e.g. "0.050000" — never a float. */
+  reward_rate: string;
+  cap_type: string;
+  cap_value: string;
+  minimum_reward: string;
+  /** `A`–`F` when created through this surface; null otherwise. */
+  package_reference: string | null;
+  /** Resolved UTC instant of the market-local 00:00 activation. */
+  effective_from_utc: string;
+  /** Market-local wall time of the activation (IANA market timezone). */
+  effective_from_local: string;
+  /** Effective window end (earlier of next version start and explicit effective_to). */
+  effective_until_utc: string | null;
+  effective_until_local: string | null;
+  /** IANA market timezone used for the local resolutions. */
+  timezone: string;
+  window_status: AdminRewardWindowStatus;
+  market_id: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface AdminRewardRuleListDto {
+  marketId: string;
+  timezone: string;
+  packages: AdminRewardPackageReferenceDto[];
+  rules: AdminRewardRuleVersionDto[];
+}
+
+/** Schedule input: §7.1 package reference, exact %/day rate, market-local date. */
+export interface AdminRewardRuleCreateInput {
+  package_reference: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+  /** Exact decimal string (%/day), 0%–0.05%, at most 6 decimals. */
+  rate: string;
+  /** Market-local calendar date (YYYY-MM-DD) of the activation 00:00. */
+  effective_date: string;
+  /** Mandatory privileged-write reason (§7 / §15). */
+  reason: string;
+  description?: string;
+}
+
+export interface AdminRewardRuleCreateResultDto {
+  id: string;
+  package_reference: string;
+  /** Exact decimal string (%/day). */
+  reward_rate: string;
+  effective_date: string;
+  effective_from_utc: string;
+  effective_from_local: string;
+  timezone: string;
+  market_id: string;
+  created_by: string;
+  created_at: string;
+}
+
+/**
+ * P7-S6B Admin Reward Configuration client.
+ *
+ * Read surface: selected-market reward schedule with §7.1 package
+ * references (all admin roles holding `reward.rule.read`). Write surface:
+ * schedule a new rule version (SUPER_ADMIN-only `reward.rule.schedule`,
+ * mandatory Idempotency-Key + reason). The server delegates the single
+ * `reward_rule_versions` insert to the frozen Phase 3 owner command — this
+ * client is a typed pass-through, never a direct table write.
+ */
+export class AdminRewardOpsApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Selected-market reward schedule with package references + windows. */
+  async listRules(marketId: string): Promise<AdminRewardRuleListDto> {
+    return (
+      await this.client.get<AdminRewardRuleListDto>(
+        `/admin/reward-ops/markets/${encodeURIComponent(marketId)}/rules`,
+      )
+    ).data;
+  }
+
+  /**
+   * Schedule a reward rule version (Super Admin only). The Idempotency-Key
+   * is mandatory and passed through untouched: same key + same payload
+   * replays the original result; same key + different payload returns 409.
+   */
+  async createRule(
+    marketId: string,
+    input: AdminRewardRuleCreateInput,
+    idempotencyKey: string,
+  ): Promise<AdminRewardRuleCreateResultDto> {
+    return (
+      await this.client.post<AdminRewardRuleCreateResultDto>(
+        `/admin/reward-ops/markets/${encodeURIComponent(marketId)}/rules`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+}
