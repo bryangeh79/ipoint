@@ -2537,3 +2537,133 @@ export class AdminRewardOpsApiClient {
     ).data;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  P7-S6C Admin Redemption Rate Configuration                         */
+/* ------------------------------------------------------------------ */
+
+/** One redemption rate version, projected for the selected market. */
+export interface AdminRedemptionRateVersionDto {
+  id: string;
+  /** Canonical conversion rate type (`POINTS_PER_CURRENCY`). */
+  rate_type: string;
+  /** Full technical precision (up to 10 decimals) — exact string. */
+  rate_value: string;
+  /** Display-only value with at most 6 decimals (never stored/rounded). */
+  display_rate: string;
+  /** Resolved UTC instant of the market-local 00:00 activation. */
+  effective_from_utc: string;
+  /** Market-local wall time of the activation (IANA market timezone). */
+  effective_from_local: string;
+  /** Effective window end (market-local / UTC), null when open. */
+  effective_until_utc: string | null;
+  effective_until_local: string | null;
+  window_status: 'SCHEDULED' | 'ACTIVE' | 'SUPERSEDED' | 'EXPIRED';
+  created_by: string;
+  created_at: string;
+}
+
+/** The approved §7.2 configuration bounds of the selected market. */
+export interface AdminRedemptionRateConfigDto {
+  /** Exact initial rate (local currency per 1 iPoint). */
+  initial_rate: string;
+  /** Exact minimum rate — validation bound (below → rejected). */
+  minimum_rate: string;
+  /** Exact maximum rate — validation bound (above → rejected). */
+  maximum_rate: string;
+  currency: string;
+  display_unit: string;
+  /** §7.2 technical precision ceiling (10). */
+  technical_decimals: number;
+  /** §7.2 display precision ceiling (6). */
+  display_decimals: number;
+}
+
+/** Selected-market redemption rate configuration read model. */
+export interface AdminRedemptionRateListDto {
+  market_id: string;
+  market_code: string;
+  timezone: string;
+  /**
+   * `true` when the market has an approved rate configuration; `false`
+   * means the market is blocked (no fallback to any other market).
+   */
+  configured: boolean;
+  /** The approved bounds when `configured`; `null` when blocked. */
+  config: AdminRedemptionRateConfigDto | null;
+  /** All `POINTS_PER_CURRENCY` versions of the market (newest first). */
+  rates: AdminRedemptionRateVersionDto[];
+}
+
+/** Create input: exact rate string, market-local date, mandatory reason. */
+export interface AdminRedemptionRateCreateInput {
+  /** Exact decimal string (local currency per 1 iPoint), ≤10 decimals. */
+  rate_value: string;
+  /** Market-local calendar date (YYYY-MM-DD) of the activation 00:00. */
+  effective_date: string;
+  /** Mandatory privileged-write reason (§7 / §15). */
+  reason: string;
+}
+
+export interface AdminRedemptionRateCreateResultDto {
+  id: string;
+  rate_type: string;
+  /** Full technical precision (up to 10 decimals) — exact string. */
+  rate_value: string;
+  /** Display-only value with at most 6 decimals. */
+  display_rate: string;
+  effective_date: string;
+  effective_from_utc: string;
+  effective_from_local: string;
+  timezone: string;
+  market_id: string;
+  created_by: string;
+  created_at: string;
+}
+
+/**
+ * P7-S6C Admin Redemption Rate Configuration client.
+ *
+ * Read surface: selected-market redemption rate configuration with the
+ * approved §7.2 per-market bounds (all admin roles holding
+ * `redemption.rate.read`) — a market without an approved configuration is
+ * explicitly blocked (`configured: false`) and the surface never falls
+ * back to Malaysia or any other market. Write surface: create a rate
+ * version (SUPER_ADMIN-only `redemption.rate.manage`, mandatory
+ * Idempotency-Key + reason). The server delegates the single
+ * `redemption_rate_versions` insert to the frozen Phase 6 owner command —
+ * this client is a typed pass-through, never a direct table write. Rates
+ * are exact decimal strings and are never parsed.
+ */
+export class AdminRedemptionOpsApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Selected-market redemption rate configuration + versions. */
+  async listRates(marketId: string): Promise<AdminRedemptionRateListDto> {
+    return (
+      await this.client.get<AdminRedemptionRateListDto>(
+        `/admin/redemption-ops/markets/${encodeURIComponent(marketId)}/rates`,
+      )
+    ).data;
+  }
+
+  /**
+   * Create a redemption rate version (Super Admin only). The
+   * Idempotency-Key is mandatory and passed through untouched: same key +
+   * same payload replays the original result; same key + different payload
+   * returns 409.
+   */
+  async createRate(
+    marketId: string,
+    input: AdminRedemptionRateCreateInput,
+    idempotencyKey: string,
+  ): Promise<AdminRedemptionRateCreateResultDto> {
+    return (
+      await this.client.post<AdminRedemptionRateCreateResultDto>(
+        `/admin/redemption-ops/markets/${encodeURIComponent(marketId)}/rates`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+}

@@ -23,6 +23,9 @@ import {
   AdminRewardRuleListDto,
   AdminRewardRuleVersionDto,
   AdminRewardRuleCreateResultDto,
+  AdminRedemptionOpsApiClient,
+  AdminRedemptionRateListDto,
+  AdminRedemptionRateCreateResultDto,
   ApiClient,
   ApiError,
 } from './index.js';
@@ -1881,6 +1884,208 @@ describe('AdminRewardOpsApiClient (P7-S6B reward configuration)', () => {
     ).rejects.toMatchObject({
       status: 409,
       body: { code: 'REWARD_IDEMPOTENCY_CONFLICT' },
+    });
+  });
+});
+
+describe('AdminRedemptionOpsApiClient (P7-S6C redemption rate configuration)', () => {
+  const MARKET = '11111111-1111-4111-8111-111111111111';
+  const VERSION = '66666666-6666-4666-8666-666666666666';
+
+  function redemptionOpsClient(): AdminRedemptionOpsApiClient {
+    return new AdminRedemptionOpsApiClient(new ApiClient(BASE_URL));
+  }
+
+  it('reads the selected-market configuration with exact bounds and rates', async () => {
+    const client = redemptionOpsClient();
+    const config: AdminRedemptionRateListDto = {
+      market_id: MARKET,
+      market_code: 'MY',
+      timezone: 'Asia/Kuala_Lumpur',
+      configured: true,
+      config: {
+        initial_rate: '1',
+        minimum_rate: '0.5',
+        maximum_rate: '2',
+        currency: 'MYR',
+        display_unit: 'RM per 1 iPoint',
+        technical_decimals: 10,
+        display_decimals: 6,
+      },
+      rates: [
+        {
+          id: VERSION,
+          rate_type: 'POINTS_PER_CURRENCY',
+          rate_value: '1.1234567890',
+          display_rate: '1.123457',
+          effective_from_utc: '2026-08-31T16:00:00.000Z',
+          effective_from_local: '2026-09-01 00:00:00',
+          effective_until_utc: null,
+          effective_until_local: null,
+          window_status: 'ACTIVE',
+          created_by: 'admin-1',
+          created_at: '2026-08-04T00:00:00.000Z',
+        },
+      ],
+    };
+    const fetchSpy = mockFetch(200, config);
+
+    const result = await client.listRates(MARKET);
+
+    expect(result.configured).toBe(true);
+    expect(result.config?.minimum_rate).toBe('0.5');
+    expect(result.config?.maximum_rate).toBe('2');
+    // Full technical precision survives; display is ≤6 and display-only.
+    expect(result.rates[0]?.rate_value).toBe('1.1234567890');
+    expect(result.rates[0]?.display_rate).toBe('1.123457');
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe(
+      `${BASE_URL}/admin/redemption-ops/markets/${MARKET}/rates`,
+    );
+  });
+
+  it('surfaces the explicit blocked state for unapproved markets', async () => {
+    const client = redemptionOpsClient();
+    const blocked: AdminRedemptionRateListDto = {
+      market_id: MARKET,
+      market_code: 'SG',
+      timezone: 'Asia/Singapore',
+      configured: false,
+      config: null,
+      rates: [],
+    };
+    mockFetch(200, blocked);
+
+    const result = await client.listRates(MARKET);
+
+    expect(result.configured).toBe(false);
+    expect(result.config).toBeNull();
+    expect(result.rates).toEqual([]);
+  });
+
+  it('creates a rate version with the mandatory Idempotency-Key and reason', async () => {
+    const client = redemptionOpsClient();
+    const result: AdminRedemptionRateCreateResultDto = {
+      id: VERSION,
+      rate_type: 'POINTS_PER_CURRENCY',
+      rate_value: '1.0000000000',
+      display_rate: '1',
+      effective_date: '2026-09-01',
+      effective_from_utc: '2026-08-31T16:00:00.000Z',
+      effective_from_local: '2026-09-01 00:00:00',
+      timezone: 'Asia/Kuala_Lumpur',
+      market_id: MARKET,
+      created_by: 'admin-1',
+      created_at: '2026-08-04T00:00:00.000Z',
+    };
+    const fetchSpy = mockFetch(201, result);
+
+    const created = await client.createRate(
+      MARKET,
+      {
+        rate_value: '1.0000000000',
+        effective_date: '2026-09-01',
+        reason: 'Malaysia initial rate baseline',
+      },
+      'idem-redemption-1',
+    );
+
+    expect(created.id).toBe(VERSION);
+    expect(created.rate_value).toBe('1.0000000000');
+    expect(created.display_rate).toBe('1');
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/redemption-ops/markets/${MARKET}/rates`,
+    );
+    const headers = new Headers(init?.headers);
+    expect(headers.get('idempotency-key')).toBe('idem-redemption-1');
+  });
+
+  it('passes exact decimal strings through untouched (never parsed)', async () => {
+    const client = redemptionOpsClient();
+    const body = JSON.stringify({
+      id: VERSION,
+      rate_type: 'POINTS_PER_CURRENCY',
+      rate_value: '1.1234567890',
+      display_rate: '1.123457',
+      effective_date: '2026-09-01',
+      effective_from_utc: '2026-08-31T16:00:00.000Z',
+      effective_from_local: '2026-09-01 00:00:00',
+      timezone: 'Asia/Kuala_Lumpur',
+      market_id: MARKET,
+      created_by: 'admin-1',
+      created_at: '2026-08-04T00:00:00.000Z',
+    });
+    const fetchSpy = mockFetch(201, JSON.parse(body) as unknown);
+
+    const result = await client.createRate(
+      MARKET,
+      {
+        rate_value: '1.1234567890',
+        effective_date: '2026-09-01',
+        reason: 'Precision check',
+      },
+      'idem-redemption-2',
+    );
+
+    // The ten-decimal technical string survives byte-for-byte.
+    expect(result.rate_value).toBe('1.1234567890');
+    expect(fetchSpy.mock.calls[0]?.[1]?.body).toBe(
+      JSON.stringify({
+        rate_value: '1.1234567890',
+        effective_date: '2026-09-01',
+        reason: 'Precision check',
+      }),
+    );
+  });
+
+  it('propagates permission, blocked-market and idempotency errors', async () => {
+    const client = redemptionOpsClient();
+    mockFetch(403, { code: 'PERMISSION_DENIED' });
+    await expect(
+      client.createRate(
+        MARKET,
+        {
+          rate_value: '1.5',
+          effective_date: '2026-09-01',
+          reason: 'Ops review',
+        },
+        'idem-conflict',
+      ),
+    ).rejects.toMatchObject({
+      status: 403,
+      body: { code: 'PERMISSION_DENIED' },
+    });
+
+    mockFetch(422, { code: 'REDEMPTION_RATE_MARKET_BLOCKED' });
+    await expect(
+      client.createRate(
+        MARKET,
+        {
+          rate_value: '1.5',
+          effective_date: '2026-09-01',
+          reason: 'Ops review',
+        },
+        'idem-conflict-2',
+      ),
+    ).rejects.toMatchObject({
+      status: 422,
+      body: { code: 'REDEMPTION_RATE_MARKET_BLOCKED' },
+    });
+
+    mockFetch(409, { code: 'REDEMPTION_IDEMPOTENCY_CONFLICT' });
+    await expect(
+      client.createRate(
+        MARKET,
+        {
+          rate_value: '1.5',
+          effective_date: '2026-09-01',
+          reason: 'Ops review',
+        },
+        'idem-conflict',
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      body: { code: 'REDEMPTION_IDEMPOTENCY_CONFLICT' },
     });
   });
 });
