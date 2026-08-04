@@ -19,6 +19,7 @@ import { AdminRewardModule } from './admin-reward/admin-reward.module.js';
 import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module.js';
 import { AdminMerchantOpsModule } from './admin-merchant-ops/admin-merchant-ops.module.js';
 import { AdminKycOpsModule } from './admin-kyc-ops/admin-kyc-ops.module.js';
+import { AdminPackageOpsModule } from './admin-package-ops/admin-package-ops.module.js';
 import { RewardModule } from './reward/reward.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
 import { DailyJobModule } from './daily-job/job.module.js';
@@ -85,6 +86,7 @@ import {
     AdminDashboardModule,
     AdminMerchantOpsModule,
     AdminKycOpsModule,
+    AdminPackageOpsModule,
     RewardModule,
     WalletModule,
     DailyJobModule,
