@@ -81,6 +81,16 @@ describe('P7-S3A Admin route manifest', () => {
         ({ permission }) => permission === 'dashboard.read',
       ),
     ).toBe(false);
+    // P7-S6A: the packages route must use the canonical merchant.package.view
+    // (the catalog has no merchant.package.read code — zero drift).
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'packages')?.permission,
+    ).toBe('merchant.package.view');
+    expect(
+      adminRouteManifest.some(
+        ({ permission }) => permission === 'merchant.package.read',
+      ),
+    ).toBe(false);
   });
 
   it('keeps hard-gated capabilities discoverable without executable controls', () => {

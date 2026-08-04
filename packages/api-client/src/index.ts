@@ -2226,3 +2226,180 @@ export class AdminKycOpsApiClient {
     ).data;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  P7-S6A selected-market Admin Package Operations                    */
+/*                                                                     */
+/*  Append-only section (do not move or merge). DTOs mirror the        */
+/*  Phase 7 adapter (`apps/api/src/admin-package-ops`, read-only       */
+/*  projections over the frozen Phase 1 package owner rows) and the    */
+/*  frozen Phase 1 owner write commands (package version create/       */
+/*  activate and per-merchant assignment/set-default).                 */
+/*                                                                     */
+/*  The market in every URL path is validated server-side against the  */
+/*  server-owned Current Admin Market by the canonical RbacGuard       */
+/*  (mismatch returns 409 MARKET_CONTEXT_MISMATCH); the client never   */
+/*  invents a market. Rates are exact decimal strings (numeric(12,6))  */
+/*  and are never parsed client-side. Writes require an                */
+/*  Idempotency-Key and are passed through untouched (owner            */
+/*  semantics). Special-percentage creation is intentionally NOT       */
+/*  exposed here (owner gap: the frozen command cannot record the      */
+/*  mandatory §7.3 reason).                                            */
+/* ------------------------------------------------------------------ */
+
+export interface AdminPackageVersionDto {
+  id: string;
+  profile_id: string;
+  /** Exact decimal string (numeric(12,6)), e.g. "2.500000" — never a float. */
+  rate: string;
+  status: 'DRAFT' | 'SCHEDULED' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED';
+  effective_from: string;
+  effective_to: string | null;
+  created_at: string;
+}
+
+export interface AdminPackageProfileDto {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  versions: AdminPackageVersionDto[];
+}
+
+export interface AdminPackageCatalogDto {
+  marketId: string;
+  items: AdminPackageProfileDto[];
+}
+
+export interface AdminSpecialPercentageDto {
+  id: string;
+  /** Exact decimal string (numeric(12,6)), e.g. "12.500000" — never a float. */
+  rate: string;
+  description: string | null;
+  created_by_admin_user_id: string;
+  created_at: string;
+}
+
+export interface AdminSpecialPercentageListDto {
+  marketId: string;
+  items: AdminSpecialPercentageDto[];
+}
+
+/** Owner command input: create a draft version of a standard package. */
+export interface AdminPackageVersionCreateInput {
+  rate: string;
+  effective_from: string;
+  effective_to?: string;
+}
+
+/** Owner command input: explicitly assign a package source to one branch. */
+export interface AdminPackageAssignmentInput {
+  service_fee_version_id?: string;
+  special_percentage_id?: string;
+  is_default?: boolean;
+}
+
+/**
+ * P7-S6A Admin Package Operations client.
+ *
+ * Read surfaces: selected-market package catalog and the privileged
+ * (Super Admin, step-up, audited) special-percentage list. Write surfaces:
+ * typed pass-throughs of the frozen Phase 1 owner commands used for
+ * configuration and explicit per-merchant reassignment — never a direct
+ * table write and never a duplicate of owner logic.
+ */
+export class AdminPackageOpsApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Selected-market standard package catalog (profiles + versions). */
+  async packageCatalog(marketId: string): Promise<AdminPackageCatalogDto> {
+    return (
+      await this.client.get<AdminPackageCatalogDto>(
+        `/admin/package-ops/markets/${encodeURIComponent(marketId)}/packages`,
+      )
+    ).data;
+  }
+
+  /**
+   * Privileged selected-market special-percentage list. Requires the
+   * SUPER_ADMIN-only permission and a fresh step-up grant token; every
+   * view is audited server-side.
+   */
+  async specialPercentages(
+    marketId: string,
+    stepUpToken?: string,
+  ): Promise<AdminSpecialPercentageListDto> {
+    const headers: Record<string, string> = {};
+    if (stepUpToken) headers['x-step-up-token'] = stepUpToken;
+    return (
+      await this.client.get<AdminSpecialPercentageListDto>(
+        `/admin/package-ops/markets/${encodeURIComponent(marketId)}/special-percentages`,
+        { headers },
+      )
+    ).data;
+  }
+
+  /** Owner command: create a DRAFT version of a standard package. */
+  async createPackageVersion(
+    marketId: string,
+    packageId: string,
+    input: AdminPackageVersionCreateInput,
+    idempotencyKey: string,
+  ): Promise<AdminPackageVersionDto> {
+    return (
+      await this.client.post<AdminPackageVersionDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/packages/${encodeURIComponent(packageId)}/versions`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  /** Owner command: activate (or schedule) a package version. */
+  async activatePackageVersion(
+    marketId: string,
+    packageId: string,
+    versionId: string,
+    idempotencyKey: string,
+  ): Promise<AdminPackageVersionDto> {
+    return (
+      await this.client.patch<AdminPackageVersionDto>(
+        `/admin/markets/${encodeURIComponent(marketId)}/packages/${encodeURIComponent(packageId)}/versions/${encodeURIComponent(versionId)}/activate`,
+        undefined,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  /** Owner command: explicitly assign a package source to one merchant branch. */
+  async assignMerchantPackage(
+    marketId: string,
+    branchId: string,
+    input: AdminPackageAssignmentInput,
+    idempotencyKey: string,
+  ): Promise<{ id: string }> {
+    return (
+      await this.client.post<{ id: string }>(
+        `/admin/markets/${encodeURIComponent(marketId)}/merchants/${encodeURIComponent(branchId)}/packages/assignments`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  /** Owner command: set the default assignment for a merchant branch. */
+  async setDefaultMerchantPackage(
+    marketId: string,
+    branchId: string,
+    assignmentId: string,
+    idempotencyKey: string,
+  ): Promise<{ id: string }> {
+    return (
+      await this.client.patch<{ id: string }>(
+        `/admin/markets/${encodeURIComponent(marketId)}/merchants/${encodeURIComponent(branchId)}/packages/assignments/${encodeURIComponent(assignmentId)}/set-default`,
+        undefined,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+}

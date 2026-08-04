@@ -1009,3 +1009,86 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ────────────────────────────────────────────────────────────────────
+ * P7-S6A package configuration (additive)
+ * ──────────────────────────────────────────────────────────────────── */
+
+.admin-package-section {
+  font-size: var(--ip-font-size-title-sm);
+  margin: var(--ip-space-5) 0 var(--ip-space-2);
+}
+
+.admin-package-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--ip-space-4);
+}
+
+.admin-package-card__title {
+  font-size: var(--ip-font-size-title-sm);
+  margin: 0 0 var(--ip-space-1);
+}
+
+.admin-package-muted {
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-body-sm);
+  margin: 0 0 var(--ip-space-2);
+}
+
+.admin-package-form {
+  display: grid;
+  gap: var(--ip-space-2);
+  margin-top: var(--ip-space-3);
+  padding-top: var(--ip-space-3);
+  border-top: 1px solid var(--ip-color-border);
+}
+
+.admin-package-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ip-space-2);
+  margin-bottom: var(--ip-space-2);
+}
+
+.admin-package-matches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ip-space-2);
+  margin-bottom: var(--ip-space-3);
+}
+
+/* Shared state blocks used by the package-config state components. */
+.admin-state {
+  display: grid;
+  gap: var(--ip-space-1-5);
+  padding: var(--ip-space-3);
+}
+
+.admin-state--skeleton {
+  gap: var(--ip-space-2);
+}
+
+.admin-state__row {
+  height: 1.25rem;
+  border-radius: var(--ip-radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--ip-color-surface-muted) 25%,
+    var(--ip-color-surface) 50%,
+    var(--ip-color-surface-muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: ip-skeleton 1.4s ease-in-out infinite;
+}
+
+.admin-state__title {
+  font-weight: 600;
+  margin: 0;
+}
+
+.admin-state__body {
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-body-sm);
+  margin: 0;
+}

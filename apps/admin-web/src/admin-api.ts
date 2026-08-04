@@ -2,6 +2,7 @@ import {
   AdminApiClient,
   AdminKycOpsApiClient,
   AdminMerchantApiClient,
+  AdminPackageOpsApiClient,
   ApiClient,
 } from '@ipoint/api-client';
 
@@ -28,5 +29,15 @@ export const adminMerchantApi = new AdminMerchantApiClient(
  * recorded reason and step-up token headers.
  */
 export const adminKycOpsApi = new AdminKycOpsApiClient(
+  new ApiClient(apiBaseUrl),
+);
+
+/**
+ * P7-S6A selected-market Admin Package Operations client.
+ * Self-contained addition; the market is validated server-side against the
+ * Current Admin Market on every request, and the privileged special-
+ * percentage read carries the fresh step-up token.
+ */
+export const adminPackageOpsApi = new AdminPackageOpsApiClient(
   new ApiClient(apiBaseUrl),
 );
