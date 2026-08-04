@@ -1545,3 +1545,41 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | Bryan |
 | **Basis** | Bryan explicit written instruction (2026-08-04) |
 | **Status** | **APPROVED / ENFORCED** |
+
+---
+
+## D-051 - Phase 1 owner remediation: special-percentage mandatory reason and audit
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-051 |
+| **Date** | 2026-08-04 |
+| **Source** | ChatGPT Command Center - P7-S6B GATE REVOCATION AND OWNER-REMEDIATION ENFORCEMENT ORDER (2026-08-04) §5 |
+| **Old Rule** | Frozen Phase 1 special-percentage creation command accepts `rate` + `description` only; no mandatory reason, no reason column, no reason in owner audit (gap found in P7-S6A) |
+| **New Decision** | Phase 1 owner remediation is MANDATORY: extend the frozen Phase 1 special-percentage create command with a mandatory `reason` (DTO + storage + audit). Until accepted, the Phase 7 special-percentage CREATE/ACTIVATE surface remains blocked (404 + UI blocked state). The Command Center order references this remediation as "D-049"; the DECISION_LOG ID D-049 was already allocated to Bryan's communication-language directive (2026-08-04, rank-1 authority). To preserve append-only uniqueness this entry is recorded as **D-051** with this explicit cross-reference. |
+| **Reason** | Frozen contract §7.3 requires "reason and immutable audit are mandatory" for special percentages; Phase 7 cannot add the reason atomically inside frozen owner code (contract §14). |
+| **Affected Files** | Phase 1 owner package (service-fee-package / special-percentages), packages/database (forward migration for reason column + checksums, single migration owner), docs/06-phase-reports/p7-s6/** |
+| **Affected Phases** | Phase 1 (frozen-owner remediation), P7-S6A |
+| **Migration** | Forward-only migration for `special_percentages.reason` (centrally owned; no parallel migration owner) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | Command Center order 2026-08-04 §5 (referenced as D-049) |
+| **Status** | **MANDATORY / AUTHORIZED** |
+
+---
+
+## D-052 - Phase 3 owner remediation: reward-rule owner security and versioning (CG-02 gate)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-052 |
+| **Date** | 2026-08-04 |
+| **Source** | ChatGPT Command Center - P7-S6B GATE REVOCATION AND OWNER-REMEDIATION ENFORCEMENT ORDER (2026-08-04) §5-§8 |
+| **Old Rule** | Frozen Phase 3 reward-rule owner command lacks RBAC, selected-market enforcement, idempotency, payload-hash protection, overlap protection, mandatory reason, atomic immutable audit and safe concurrency ownership; P7-S6B internal gate was declared passed with adapter-level controls only |
+| **New Decision** | `P7-S6B_INTERNAL_GATE_DECLARATION_REJECTED` / `CG-02_REWARD_OWNER_GATE_NOT_PASSED` / `P7-S6B_LOCAL_INTEGRATION_RETAINED_BUT_NOT_ACCEPTED` / `WRITE_SURFACE_NOT_AUTHORIZED`. D-050-equivalent Phase 3 owner remediation is MANDATORY on branch `fix/p3-p7-reward-rule-owner` with the full scope (order §6): reward configuration permission; admin identity validation; selected-market enforcement; resource-market consistency; exact 0%-0.05% validation; six-decimal precision; future market-local 00:00 activation; resolved UTC timestamp; append-only versions; no overlapping ranges; transaction-safe concurrency; mandatory reason; durable reason storage; atomic immutable audit; operation-scoped idempotency; canonical payload hash; same-key/different-payload rejection; no historical reward recalculation; secured canonical Phase 3 route; updated DTO and OpenAPI contract. Phase 7 must call this canonical owner; the original unsafe Phase 3 route must no longer bypass these controls. Evidence gate per order §7 (26 items) on a clean migrated/seeded isolated database, with independent implementing + reviewing Coding Subagents and a separate integration verifier. The Command Center order references this remediation as "D-050"; the ID is recorded as **D-052** to preserve append-only uniqueness (D-049 already allocated to Bryan's directive; no earlier D-050 exists in this log) — explicit cross-reference. |
+| **Reason** | Adapter-level protections do not repair the canonical owner; the original Phase 3 command remains bypassable; CG-02 cannot pass while the owner is unsafe. High test counts are not a substitute for canonical domain ownership. |
+| **Affected Files** | Phase 3 reward owner package (apps/api/src/admin-reward/** + reward/**), packages/database (only if a forward migration is required by the remediation — centrally owned), OpenAPI contract, docs/06-phase-reports/p7-s6/** |
+| **Affected Phases** | Phase 3 (frozen-owner remediation), P7-S6B (provisional until rewired), P7-S6C (paused until gate), P7-S6D |
+| **Migration** | Forward-only if required (single migration owner; no parallel P7-S6 migration owner) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | Command Center order 2026-08-04 §5-§8 (referenced as D-050) |
+| **Status** | **MANDATORY / AUTHORIZED — EXECUTE NOW** |
