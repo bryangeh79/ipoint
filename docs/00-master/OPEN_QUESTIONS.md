@@ -145,6 +145,19 @@
 
 ---
 
+## O-13: Member-facing reward-rule creation route security (CRITICAL FINDING)
+
+| Field | Value |
+|---|---|
+| **ID** | O-13 |
+| **Description** | `POST /api/v1/rewards/rules` (apps/api/src/reward/reward.controller.ts) is guarded ONLY by `AuthGuard` — any authenticated ACCOUNT can call `RewardService.createRuleVersion` (raw insert): no RBAC/permission check, no market enforcement (`marketId` optional in member DTO), no §7.1 0.05%/day governance ceiling (any positive decimal accepted, e.g. `"999"`), no six-decimal limit, no future-market-local-00:00 rule, `effectiveTo` (closed windows) allowed, no reason, no audit, no idempotency; `createdBy` is client-suppliable (attribution spoofing). Severity: **HIGH** (authorization bypass + governance-limit bypass on a Phase 3 owner resource, unaudited, spoofable attribution). Confirmed by D-050 independent reviewer (2026-08-05); the D-050 fix branch correctly did NOT touch `apps/api/src/reward/**` (outside its scope). |
+| **Affected Phases** | Phase 3 (frozen owner member surface), Phase 7 |
+| **Blocks Phase** | No (D-050/CG-02 acceptance is independent); blocks safe member exposure of reward-rule creation; remediation decision required |
+| **Status** | **OPEN — CRITICAL FINDING (remediation decision pending; candidate follow-on owner remediation)** |
+| **Decision needed by** | Before any member-facing reward rule surface is exposed; recommended: remove/secure the member route (owner remediation, e.g. D-053) |
+
+---
+
 ## Resolved questions (kept for reference)
 
 | Original ID | Description | Resolution Decision ID | Status |
