@@ -5,6 +5,12 @@
 
 ---
 
+## 0. 交流语言（Communication Language）
+
+**所有沟通一律使用中文（简体或繁体均可），适用于全部 sessions 与全部渠道**——包括与 Bryan、ChatGPT Command Center 的对话，以及子代理/工具会话。除非 Bryan 明确要求英文，否则不得输出英文对话。仓库文档、提交信息与代码注释保持英文项目惯例（除非另有指示）。依据：Bryan 指令 2026-08-04，已记录为 D-049。
+
+---
+
 ## 1. Roles (see also `docs/00-master/OPENCLAW_OPERATING_RULES.md`)
 
 | Role | Persona | Responsibility |

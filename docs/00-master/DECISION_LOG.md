@@ -1526,3 +1526,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | ChatGPT Command Center |
 | **Basis** | D-048 Phase 7 Alternate Coding Subagent Execution Authorization (2026-08-02) |
 | **Status** | **APPROVED / AUTHORIZED** |
+
+---
+
+## D-049 - Bryan directive: Chinese communication language across all sessions
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-049 |
+| **Date** | 2026-08-04 |
+| **Source** | Bryan (explicit written instruction, rank #1 authority) |
+| **Old Rule** | SOUL.md iron rule limited mandatory Chinese to conversations with Bryan; other sessions (e.g., ChatGPT Command Center dialogues) were conducted in English |
+| **New Decision** | All communication outputs across ALL sessions and channels use Chinese (Simplified or Traditional). Applies to Bryan, ChatGPT Command Center, and all sub-agent/tool session dialogues. English is used only when Bryan explicitly requests it. Repository documentation, commit messages and code comments remain in English per project convention unless separately directed. |
+| **Reason** | Bryan instructed: "以中文交流，全部 sessions 一样，帮我记录起来" (2026-08-04) |
+| **Affected Files** | SOUL.md, USER.md, AGENTS.md, docs/00-master/DECISION_LOG.md |
+| **Affected Phases** | NONE (communication policy only; no scope/rule change) |
+| **Migration** | NONE |
+| **Approver** | Bryan |
+| **Basis** | Bryan explicit written instruction (2026-08-04) |
+| **Status** | **APPROVED / ENFORCED** |
