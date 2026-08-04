@@ -243,7 +243,7 @@ export const adminRouteManifest = [
     'Merchant package management',
     '/admin/:marketId/config/packages',
     'Configuration',
-    'merchant.package.read',
+    'merchant.package.view',
     'resource',
     'read-only',
   ),
