@@ -1275,5 +1275,503 @@ describe.skipIf(!databaseUrl)(
           .expect(404);
       });
     });
+
+    describe('supplementary (Command Center 2026-08-04): exact decimal boundaries — D-010 range and maximum six decimals', () => {
+      it('accepts six decimals and rejects seven for standard package versions', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.package.manage'],
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+
+        const created = await supertest(server)
+          .post(
+            `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', `six-dec-${randomUUID()}`)
+          .send({
+            rate: '2.123456',
+            effective_from: '2036-01-01T00:00:00.000Z',
+            effective_to: '2036-06-01T00:00:00.000Z',
+          })
+          .expect(201);
+        expect((created.body as { rate: string }).rate).toBe('2.123456');
+        // Stored numeric(12,6) is exactly six decimals.
+        const stored = await database.db
+          .select({ rate: serviceFeeVersions.rate })
+          .from(serviceFeeVersions)
+          .where(eq(serviceFeeVersions.id, (created.body as { id: string }).id));
+        expect(stored[0]?.rate).toBe('2.123456');
+
+        for (const bad of ['2.1234567', '0.0000000']) {
+          const rejected = await supertest(server)
+            .post(
+              `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions`,
+            )
+            .set(authorized(admin.token))
+            .set('Idempotency-Key', `seven-dec-${randomUUID()}`)
+            .send({
+              rate: bad,
+              effective_from: '2036-07-01T00:00:00.000Z',
+              effective_to: '2036-12-31T00:00:00.000Z',
+            })
+            .expect(400);
+          expect((rejected.body as ErrorBody).error.code).toBeDefined();
+        }
+      });
+
+      it('accepts six decimals and enforces (0, 100] for special percentages', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.special_package.manage'],
+          enrollMfa: true,
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        const grant = () =>
+          seedStepUpGrant(admin, 'merchant.special_package.manage', marketA);
+
+        const ok = await supertest(server)
+          .post(`/api/v1/admin/markets/${marketA}/special-percentages`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', await grant())
+          .set('Idempotency-Key', `sp-six-${randomUUID()}`)
+          .send({ rate: '12.345678', description: 'Six decimals' })
+          .expect(201);
+        expect((ok.body as { rate: string }).rate).toBe('12.345678');
+
+        const seven = await supertest(server)
+          .post(`/api/v1/admin/markets/${marketA}/special-percentages`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', await grant())
+          .set('Idempotency-Key', `sp-seven-${randomUUID()}`)
+          .send({ rate: '12.3456789', description: 'Seven decimals' })
+          .expect(400);
+        expect((seven.body as ErrorBody).error.code).toBeDefined();
+
+        const zero = await supertest(server)
+          .post(`/api/v1/admin/markets/${marketA}/special-percentages`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', await grant())
+          .set('Idempotency-Key', `sp-zero-${randomUUID()}`)
+          .send({ rate: '0', description: 'Zero' })
+          .expect(400);
+        expect((zero.body as ErrorBody).error.code).toBeDefined();
+
+        const max = await supertest(server)
+          .post(`/api/v1/admin/markets/${marketA}/special-percentages`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', await grant())
+          .set('Idempotency-Key', `sp-max-${randomUUID()}`)
+          .send({ rate: '100.000000', description: 'Max' })
+          .expect(201);
+        expect((max.body as { rate: string }).rate).toBe('100.000000');
+
+        const over = await supertest(server)
+          .post(`/api/v1/admin/markets/${marketA}/special-percentages`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', await grant())
+          .set('Idempotency-Key', `sp-over-${randomUUID()}`)
+          .send({ rate: '100.000001', description: 'Over' })
+          .expect(400);
+        expect((over.body as ErrorBody).error.code).toBeDefined();
+      });
+    });
+
+    describe('supplementary (Command Center 2026-08-04): package versions are append-only', () => {
+      it('refuses to edit or delete a published version; drafts cancel; in-use versions cannot cancel', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.package.manage'],
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+
+        // Published (ACTIVE) version — direct fixture.
+        const published = await createMarketVersion(
+          profileA,
+          marketA,
+          '1.234560',
+          new Date('2037-01-01T00:00:00.000Z'),
+          new Date('2037-06-01T00:00:00.000Z'),
+        );
+
+        // Editing a published version is refused (append-only).
+        const edit = await supertest(server)
+          .patch(
+            `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions/${published}`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', `edit-${randomUUID()}`)
+          .send({ rate: '9.000000' })
+          .expect(409);
+        expect((edit.body as ErrorBody).error.code).toBe(
+          'PACKAGE_VERSION_IMMUTABLE',
+        );
+
+        // No delete route exists — versions are never deleted.
+        await supertest(server)
+          .delete(
+            `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions/${published}`,
+          )
+          .set(authorized(admin.token))
+          .expect(404);
+
+        // A DRAFT (not yet published) version can still be cancelled.
+        const draft = await supertest(server)
+          .post(
+            `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', `draft-${randomUUID()}`)
+          .send({
+            rate: '1.240000',
+            effective_from: '2038-01-01T00:00:00.000Z',
+            effective_to: '2038-06-01T00:00:00.000Z',
+          })
+          .expect(201);
+        await supertest(server)
+          .patch(
+            `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions/${(draft.body as { id: string }).id}/cancel`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', `draft-cancel-${randomUUID()}`)
+          .expect(200);
+
+        // An actively assigned version cannot be cancelled (history pinned).
+        const branch = await createMerchantBranch(marketA);
+        await seedAssignment(branch, published);
+        const cancelActive = await supertest(server)
+          .patch(
+            `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions/${published}/cancel`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', `active-cancel-${randomUUID()}`)
+          .expect(409);
+        expect((cancelActive.body as ErrorBody).error.code).toBe(
+          'PACKAGE_VERSION_IN_ACTIVE_USE',
+        );
+      });
+    });
+
+    describe('supplementary (Command Center 2026-08-04): idempotency key + payload hash on every configuration write', () => {
+      it('activates idempotently; a different target with the same key stays an independent scope', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.package.manage'],
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        const v1 = await createMarketVersion(
+          profileA,
+          marketA,
+          '6.500000',
+          new Date('2039-01-01T00:00:00.000Z'),
+          new Date('2039-06-01T00:00:00.000Z'),
+        );
+        const v2 = await createMarketVersion(
+          profileA,
+          marketA,
+          '6.750000',
+          new Date('2039-07-01T00:00:00.000Z'),
+          new Date('2039-12-31T00:00:00.000Z'),
+        );
+        const key = `activate-idem-${randomUUID()}`;
+        const first = await supertest(server)
+          .patch(
+            `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions/${v1}/activate`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', key)
+          .expect(200);
+        const replay = await supertest(server)
+          .patch(
+            `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions/${v1}/activate`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', key)
+          .expect(200);
+        // Idempotent replay returns the ORIGINAL stored result (same id).
+        expect((replay.body as { id: string }).id).toBe(
+          (first.body as { id: string }).id,
+        );
+        // The owner scopes idempotency per operation+actor, so the same key
+        // on a different version is a new scope, not a replay conflict.
+        const other = await supertest(server)
+          .patch(
+            `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions/${v2}/activate`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', key)
+          .expect(200);
+        expect((other.body as { id: string }).id).toBe(v2);
+      });
+
+      it('rejects the same idempotency key with a different assign payload (payload hash)', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.package.assign'],
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        const branch = await createMerchantBranch(marketA);
+        await seedAssignment(branch, marketVersionA);
+        const profileE = (
+          await database.db
+            .select({ id: serviceFeeProfiles.id })
+            .from(serviceFeeProfiles)
+            .where(eq(serviceFeeProfiles.code, 'E'))
+            .limit(1)
+        )[0];
+        const profileF = (
+          await database.db
+            .select({ id: serviceFeeProfiles.id })
+            .from(serviceFeeProfiles)
+            .where(eq(serviceFeeProfiles.code, 'F'))
+            .limit(1)
+        )[0];
+        const versionE = await createMarketVersion(
+          profileE?.id ?? '',
+          marketA,
+          '11.000000',
+          new Date('2026-03-01T00:00:00.000Z'),
+          new Date('2027-03-01T00:00:00.000Z'),
+        );
+        const versionF = await createMarketVersion(
+          profileF?.id ?? '',
+          marketA,
+          '12.000000',
+          new Date('2026-03-01T00:00:00.000Z'),
+          new Date('2027-03-01T00:00:00.000Z'),
+        );
+        const key = `assign-idem-${randomUUID()}`;
+        const payload = {
+          service_fee_version_id: versionE,
+          is_default: false,
+        };
+        const first = await supertest(server)
+          .post(
+            `/api/v1/admin/markets/${marketA}/merchants/${branch}/packages/assignments`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', key)
+          .send(payload)
+          .expect(201);
+        const replay = await supertest(server)
+          .post(
+            `/api/v1/admin/markets/${marketA}/merchants/${branch}/packages/assignments`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', key)
+          .send(payload)
+          .expect(201);
+        expect((replay.body as { id: string }).id).toBe(
+          (first.body as { id: string }).id,
+        );
+        // Same key, different payload → payload-hash conflict (409).
+        const conflict = await supertest(server)
+          .post(
+            `/api/v1/admin/markets/${marketA}/merchants/${branch}/packages/assignments`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', key)
+          .send({ service_fee_version_id: versionF, is_default: false })
+          .expect(409);
+        expect((conflict.body as ErrorBody).error.code).toBe(
+          'IDEMPOTENCY_KEY_CONFLICT',
+        );
+      });
+
+      it('replays set-default idempotently', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.package.assign'],
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        const branch = await createMerchantBranch(marketA);
+        const oldAssignment = await seedAssignment(branch, marketVersionA);
+        const profileD = (
+          await database.db
+            .select({ id: serviceFeeProfiles.id })
+            .from(serviceFeeProfiles)
+            .where(eq(serviceFeeProfiles.code, 'D'))
+            .limit(1)
+        )[0];
+        const versionD = await createMarketVersion(
+          profileD?.id ?? '',
+          marketA,
+          '13.000000',
+          new Date('2026-04-01T00:00:00.000Z'),
+          new Date('2027-04-01T00:00:00.000Z'),
+        );
+        const assigned = await supertest(server)
+          .post(
+            `/api/v1/admin/markets/${marketA}/merchants/${branch}/packages/assignments`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', `sd-assign-${randomUUID()}`)
+          .send({ service_fee_version_id: versionD, is_default: false })
+          .expect(201);
+        const assignmentId = (assigned.body as { id: string }).id;
+        expect(assignmentId).not.toBe(oldAssignment);
+        const key = `sd-${randomUUID()}`;
+        const first = await supertest(server)
+          .patch(
+            `/api/v1/admin/markets/${marketA}/merchants/${branch}/packages/assignments/${assignmentId}/set-default`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', key)
+          .expect(200);
+        const replay = await supertest(server)
+          .patch(
+            `/api/v1/admin/markets/${marketA}/merchants/${branch}/packages/assignments/${assignmentId}/set-default`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', key)
+          .expect(200);
+        expect((replay.body as { id: string }).id).toBe(
+          (first.body as { id: string }).id,
+        );
+      });
+    });
+
+    describe('supplementary (Command Center 2026-08-04): concurrent version creation', () => {
+      it('accepts two concurrent creates with disjoint windows and rejects an overlapping race', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.package.manage'],
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+
+        const [r1, r2] = await Promise.all([
+          supertest(server)
+            .post(
+              `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions`,
+            )
+            .set(authorized(admin.token))
+            .set('Idempotency-Key', `conc-1-${randomUUID()}`)
+            .send({
+              rate: '21.000000',
+              effective_from: '2040-01-01T00:00:00.000Z',
+              effective_to: '2040-06-01T00:00:00.000Z',
+            }),
+          supertest(server)
+            .post(
+              `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions`,
+            )
+            .set(authorized(admin.token))
+            .set('Idempotency-Key', `conc-2-${randomUUID()}`)
+            .send({
+              rate: '22.000000',
+              effective_from: '2040-07-01T00:00:00.000Z',
+              effective_to: '2040-12-31T00:00:00.000Z',
+            }),
+        ]);
+        expect(r1.status).toBe(201);
+        expect(r2.status).toBe(201);
+
+        // Overlapping windows: the exclusion constraint lets exactly one
+        // concurrent create win; the loser gets 409.
+        const [o1, o2] = await Promise.all([
+          supertest(server)
+            .post(
+              `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions`,
+            )
+            .set(authorized(admin.token))
+            .set('Idempotency-Key', `conc-ov-1-${randomUUID()}`)
+            .send({
+              rate: '23.000000',
+              effective_from: '2041-01-01T00:00:00.000Z',
+              effective_to: '2042-01-01T00:00:00.000Z',
+            }),
+          supertest(server)
+            .post(
+              `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions`,
+            )
+            .set(authorized(admin.token))
+            .set('Idempotency-Key', `conc-ov-2-${randomUUID()}`)
+            .send({
+              rate: '24.000000',
+              effective_from: '2041-06-01T00:00:00.000Z',
+              effective_to: '2042-06-01T00:00:00.000Z',
+            }),
+        ]);
+        expect([o1.status, o2.status].sort()).toEqual([201, 409]);
+        const loser =
+          o1.status === 409 ? o1 : (o2.status === 409 ? o2 : null);
+        if (loser) {
+          expect((loser.body as ErrorBody).error.code).toBe(
+            'PACKAGE_EFFECTIVE_WINDOW_OVERLAP',
+          );
+        }
+      });
+    });
+
+    describe('supplementary (Command Center 2026-08-04): no Phase 7 write duplication — delegation only', () => {
+      it('exposes no write routes on the Phase 7 adapter surface', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: [
+            'merchant.package.manage',
+            'merchant.package.assign',
+          ],
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+
+        // No profile/version create on the adapter.
+        await supertest(server)
+          .post(`/api/v1/admin/package-ops/markets/${marketA}/packages`)
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', `dup-1-${randomUUID()}`)
+          .send({ code: 'Z', name: 'Duplicate', description: 'x' })
+          .expect(404);
+        // No assignment write on the adapter.
+        await supertest(server)
+          .post(
+            `/api/v1/admin/package-ops/markets/${marketA}/merchants/${randomUUID()}/packages/assignments`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', `dup-2-${randomUUID()}`)
+          .send({ service_fee_version_id: marketVersionA })
+          .expect(404);
+      });
+
+      it('keeps every merchant assignment in the market unchanged when a new version is created and activated', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.package.manage'],
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        const before = (
+          await database.db
+            .select({ id: merchantPackageAssignments.id })
+            .from(merchantPackageAssignments)
+        ).length;
+
+        const created = await supertest(server)
+          .post(
+            `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', `pin-market-${randomUUID()}`)
+          .send({
+            rate: '25.250000',
+            effective_from: '2043-01-01T00:00:00.000Z',
+            effective_to: '2043-06-01T00:00:00.000Z',
+          })
+          .expect(201);
+        await supertest(server)
+          .patch(
+            `/api/v1/admin/markets/${marketA}/packages/${profileA}/versions/${(created.body as { id: string }).id}/activate`,
+          )
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', `pin-market-act-${randomUUID()}`)
+          .expect(200);
+
+        const after = (
+          await database.db
+            .select({ id: merchantPackageAssignments.id })
+            .from(merchantPackageAssignments)
+        ).length;
+        expect(after).toBe(before);
+      });
+    });
   },
 );

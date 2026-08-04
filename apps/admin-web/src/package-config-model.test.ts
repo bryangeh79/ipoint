@@ -67,6 +67,14 @@ describe('P7-S6A package configuration model', () => {
     expect(packageRateValid('abc')).toBe(false);
   });
 
+  it('caps rates at six decimal places (Command Center 2026-08-04)', () => {
+    expect(packageRateValid('2.123456')).toBe(true);
+    expect(packageRateValid('2.1234567')).toBe(false);
+    expect(packageRateValid('0.000000')).toBe(false);
+    expect(packageRateValid('0.000001')).toBe(true);
+    expect(packageRateValid('99.999999')).toBe(true);
+  });
+
   it('validates effective windows', () => {
     expect(packageWindowValid('2026-01-01T00:00:00.000Z', '')).toBe(true);
     expect(
