@@ -19,6 +19,10 @@ import {
   AdminPackageOpsApiClient,
   AdminPackageVersionDto,
   AdminSpecialPercentageListDto,
+  AdminRewardOpsApiClient,
+  AdminRewardRuleListDto,
+  AdminRewardRuleVersionDto,
+  AdminRewardRuleCreateResultDto,
   ApiClient,
   ApiError,
 } from './index.js';
@@ -1699,6 +1703,184 @@ describe('AdminPackageOpsApiClient (P7-S6A package configuration)', () => {
     await expect(client.specialPercentages(MARKET)).rejects.toMatchObject({
       status: 403,
       body: { code: 'MFA_STEP_UP_REQUIRED' },
+    });
+  });
+});
+
+/* ────────────────────────────────────────────────────────────────────────
+ * P7-S6B Admin Reward Configuration client tests (append-only block)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+describe('AdminRewardOpsApiClient (P7-S6B reward configuration)', () => {
+  const MARKET = '11111111-1111-4111-8111-111111111111';
+  const VERSION = '55555555-5555-4555-8555-555555555555';
+
+  function rewardOpsClient(): AdminRewardOpsApiClient {
+    return new AdminRewardOpsApiClient(new ApiClient(BASE_URL));
+  }
+
+  it('reads the selected-market reward schedule with exact decimal rates', async () => {
+    const client = rewardOpsClient();
+    const schedule: AdminRewardRuleListDto = {
+      marketId: MARKET,
+      timezone: 'Asia/Kuala_Lumpur',
+      packages: [
+        { code: 'A', max_rate_per_day: '0.0125' },
+        { code: 'B', max_rate_per_day: '0.025' },
+        { code: 'C', max_rate_per_day: '0.05' },
+      ],
+      rules: [
+        {
+          id: VERSION,
+          name: 'Package A Reward Rate',
+          description: null,
+          reward_rate: '0.0125',
+          cap_type: 'NONE',
+          cap_value: '0',
+          minimum_reward: '0',
+          package_reference: 'A',
+          effective_from_utc: '2026-08-31T16:00:00.000Z',
+          effective_from_local: '2026-09-01 00:00:00',
+          effective_until_utc: null,
+          effective_until_local: null,
+          timezone: 'Asia/Kuala_Lumpur',
+          window_status: 'ACTIVE',
+          market_id: MARKET,
+          created_by: 'admin-1',
+          created_at: '2026-08-04T00:00:00.000Z',
+        },
+      ],
+    };
+    const fetchSpy = mockFetch(200, schedule);
+
+    const result = await client.listRules(MARKET);
+
+    expect(result.packages[0]?.max_rate_per_day).toBe('0.0125');
+    expect(result.rules[0]?.reward_rate).toBe('0.0125');
+    expect(result.rules[0]?.effective_from_local).toBe('2026-09-01 00:00:00');
+    expect(result.rules[0]?.window_status).toBe('ACTIVE');
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe(
+      `${BASE_URL}/admin/reward-ops/markets/${MARKET}/rules`,
+    );
+  });
+
+  it('schedules a rule version with the mandatory Idempotency-Key and reason', async () => {
+    const client = rewardOpsClient();
+    const result: AdminRewardRuleCreateResultDto = {
+      id: VERSION,
+      package_reference: 'B',
+      reward_rate: '0.025',
+      effective_date: '2026-09-01',
+      effective_from_utc: '2026-08-31T16:00:00.000Z',
+      effective_from_local: '2026-09-01 00:00:00',
+      timezone: 'Asia/Kuala_Lumpur',
+      market_id: MARKET,
+      created_by: 'admin-1',
+      created_at: '2026-08-04T00:00:00.000Z',
+    };
+    const fetchMock = mockFetch(201, result);
+
+    const scheduled = await client.createRule(
+      MARKET,
+      {
+        package_reference: 'B',
+        rate: '0.025',
+        effective_date: '2026-09-01',
+        reason: 'Q3 rate review',
+      },
+      'idem-reward-create',
+    );
+
+    expect(scheduled.id).toBe(VERSION);
+    expect(scheduled.reward_rate).toBe('0.025');
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/reward-ops/markets/${MARKET}/rules`,
+    );
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('idempotency-key')).toBe('idem-reward-create');
+    expect(JSON.parse(String((init as RequestInit | undefined)?.body))).toEqual(
+      {
+        package_reference: 'B',
+        rate: '0.025',
+        effective_date: '2026-09-01',
+        reason: 'Q3 rate review',
+      },
+    );
+  });
+
+  it('passes exact decimal strings through untouched (never parsed)', async () => {
+    const client = rewardOpsClient();
+    const schedule: AdminRewardRuleListDto = {
+      marketId: MARKET,
+      timezone: 'UTC',
+      packages: [{ code: 'F', max_rate_per_day: '0.05' }],
+      rules: [
+        {
+          id: VERSION,
+          name: 'Package F Reward Rate',
+          description: null,
+          reward_rate: '0.000001',
+          cap_type: 'NONE',
+          cap_value: '0',
+          minimum_reward: '0',
+          package_reference: 'F',
+          effective_from_utc: '2026-09-01T00:00:00.000Z',
+          effective_from_local: '2026-09-01 00:00:00',
+          effective_until_utc: null,
+          effective_until_local: null,
+          timezone: 'UTC',
+          window_status: 'SCHEDULED',
+          market_id: MARKET,
+          created_by: 'admin-1',
+          created_at: '2026-08-04T00:00:00.000Z',
+        },
+      ],
+    };
+    const fetchSpy = mockFetch(200, schedule);
+
+    const result = await client.listRules(MARKET);
+
+    // Six-decimal exact strings survive the round trip byte-for-byte.
+    expect(result.rules[0]?.reward_rate).toBe('0.000001');
+    const [url] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toContain('/admin/reward-ops/markets/');
+  });
+
+  it('propagates permission and idempotency errors from the write surface', async () => {
+    const client = rewardOpsClient();
+    mockFetch(403, { code: 'PERMISSION_DENIED' });
+    await expect(
+      client.createRule(
+        MARKET,
+        {
+          package_reference: 'C',
+          rate: '0.05',
+          effective_date: '2026-09-01',
+          reason: 'Ops review',
+        },
+        'idem-conflict',
+      ),
+    ).rejects.toMatchObject({
+      status: 403,
+      body: { code: 'PERMISSION_DENIED' },
+    });
+
+    mockFetch(409, { code: 'REWARD_IDEMPOTENCY_CONFLICT' });
+    await expect(
+      client.createRule(
+        MARKET,
+        {
+          package_reference: 'C',
+          rate: '0.05',
+          effective_date: '2026-09-01',
+          reason: 'Ops review',
+        },
+        'idem-conflict',
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      body: { code: 'REWARD_IDEMPOTENCY_CONFLICT' },
     });
   });
 });
