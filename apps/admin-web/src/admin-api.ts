@@ -3,6 +3,7 @@ import {
   AdminKycOpsApiClient,
   AdminMerchantApiClient,
   AdminPackageOpsApiClient,
+  AdminRedemptionOpsApiClient,
   AdminRewardOpsApiClient,
   ApiClient,
 } from '@ipoint/api-client';
@@ -50,5 +51,16 @@ export const adminPackageOpsApi = new AdminPackageOpsApiClient(
  * write carries a mandatory Idempotency-Key + reason.
  */
 export const adminRewardOpsApi = new AdminRewardOpsApiClient(
+  new ApiClient(apiBaseUrl),
+);
+
+/**
+ * P7-S6C selected-market Admin Redemption Rate Configuration client.
+ * Self-contained addition; the market is validated server-side against the
+ * Current Admin Market on every request, and the SUPER_ADMIN-only rate
+ * write carries a mandatory Idempotency-Key + reason. Markets without an
+ * approved configuration return the explicit blocked state (no fallback).
+ */
+export const adminRedemptionOpsApi = new AdminRedemptionOpsApiClient(
   new ApiClient(apiBaseUrl),
 );
