@@ -81,3 +81,59 @@ export function rewardRuleVersionNotFoundError(): AdminRewardOpsError {
     'The reward rule version was not found.',
   );
 }
+
+// ─── Canonical owner-sourced surface errors (D-050 rewiring, order §8) ─
+// The secured owner command re-validates identity, permission, selected
+// market, resource-market consistency, reason and idempotency key inside
+// its own command. These factories surface those rejections with the same
+// codes the canonical RbacGuard uses at the transport boundary, so the
+// adapter's external contract stays consistent whether the guard or the
+// owner command rejects.
+
+/** The owner re-checked identity/permission inside its command (403). */
+export function rewardPermissionDeniedError(): AdminRewardOpsError {
+  return new AdminRewardOpsError(
+    'PERMISSION_DENIED',
+    'You do not have permission for this action.',
+  );
+}
+
+/** The owner re-checked the market grant inside its command (403). */
+export function rewardMarketAccessDeniedError(): AdminRewardOpsError {
+  return new AdminRewardOpsError(
+    'MARKET_ACCESS_DENIED',
+    'The administrator does not have access to this market.',
+  );
+}
+
+/** The owner requires the server Current Admin Market (409). */
+export function rewardMarketSelectionRequiredError(): AdminRewardOpsError {
+  return new AdminRewardOpsError(
+    'MARKET_SELECTION_REQUIRED',
+    'Select an authorized market to continue.',
+  );
+}
+
+/** Body market and server Current Admin Market disagree (409). */
+export function rewardMarketContextMismatchError(): AdminRewardOpsError {
+  return new AdminRewardOpsError(
+    'MARKET_CONTEXT_MISMATCH',
+    'The selected market changed. Refresh and try again.',
+  );
+}
+
+/** The owner requires the Idempotency-Key (400; controller also enforces). */
+export function rewardIdempotencyKeyRequiredError(): AdminRewardOpsError {
+  return new AdminRewardOpsError(
+    'IDEMPOTENCY_KEY_REQUIRED',
+    'A valid Idempotency-Key header is required.',
+  );
+}
+
+/** The owner requires a 1–500 character operator reason (400). */
+export function rewardReasonRequiredError(): AdminRewardOpsError {
+  return new AdminRewardOpsError(
+    'REASON_REQUIRED',
+    'A reason between 1 and 500 characters is required.',
+  );
+}
