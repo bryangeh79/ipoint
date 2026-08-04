@@ -176,6 +176,7 @@ describe.skipIf(!databaseUrl)(
       rate: string,
       effectiveFrom: Date,
       effectiveTo?: Date,
+      status: 'DRAFT' | 'ACTIVE' = 'ACTIVE',
     ): Promise<string> {
       const inserted = await database.db
         .insert(serviceFeeVersions)
@@ -185,7 +186,7 @@ describe.skipIf(!databaseUrl)(
           rate,
           effectiveFrom,
           ...(effectiveTo ? { effectiveTo } : {}),
-          status: 'ACTIVE',
+          status,
         })
         .returning({ id: serviceFeeVersions.id });
       return inserted[0]?.id ?? '';
@@ -1301,7 +1302,9 @@ describe.skipIf(!databaseUrl)(
         const stored = await database.db
           .select({ rate: serviceFeeVersions.rate })
           .from(serviceFeeVersions)
-          .where(eq(serviceFeeVersions.id, (created.body as { id: string }).id));
+          .where(
+            eq(serviceFeeVersions.id, (created.body as { id: string }).id),
+          );
         expect(stored[0]?.rate).toBe('2.123456');
 
         for (const bad of ['2.1234567', '0.0000000']) {
@@ -1466,6 +1469,7 @@ describe.skipIf(!databaseUrl)(
           '6.500000',
           new Date('2039-01-01T00:00:00.000Z'),
           new Date('2039-06-01T00:00:00.000Z'),
+          'DRAFT',
         );
         const v2 = await createMarketVersion(
           profileA,
@@ -1473,6 +1477,7 @@ describe.skipIf(!databaseUrl)(
           '6.750000',
           new Date('2039-07-01T00:00:00.000Z'),
           new Date('2039-12-31T00:00:00.000Z'),
+          'DRAFT',
         );
         const key = `activate-idem-${randomUUID()}`;
         const first = await supertest(server)
@@ -1694,8 +1699,7 @@ describe.skipIf(!databaseUrl)(
             }),
         ]);
         expect([o1.status, o2.status].sort()).toEqual([201, 409]);
-        const loser =
-          o1.status === 409 ? o1 : (o2.status === 409 ? o2 : null);
+        const loser = o1.status === 409 ? o1 : o2.status === 409 ? o2 : null;
         if (loser) {
           expect((loser.body as ErrorBody).error.code).toBe(
             'PACKAGE_EFFECTIVE_WINDOW_OVERLAP',
