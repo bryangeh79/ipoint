@@ -2,11 +2,17 @@
  * P7-S6B Admin Reward Configuration adapter types (frozen contract §7.1,
  * decisions P7-OD-04 / P7-OD-05, D-046).
  *
- * Phase 7 read projections + orchestration over the frozen Phase 3 reward
- * owner (`apps/api/src/admin-reward`, `apps/api/src/reward`). The adapter
+ * Phase 7 read projections + orchestration over the canonical Phase 3
+ * reward owner (`apps/api/src/admin-reward`, D-052/D-050). The adapter
  * never duplicates owner formulas and never mutates domain tables: the
- * create command delegates the single `reward_rule_versions` insert to the
- * frozen owner service (`AdminRewardService.createRuleVersion`) unchanged.
+ * create command delegates the ENTIRE create — rate bounds/precision,
+ * future market-local 00:00 activation, overlap, advisory lock, operation-
+ * scoped idempotency claim + canonical payload hash, mandatory reason,
+ * selected-market enforcement and the atomic owner audit — to the secured
+ * owner command `AdminRewardService.createRuleVersion` (D-050). The
+ * adapter keeps only Phase 7 orchestration/read/UI behavior: the §7.1
+ * package-reference surface (A `0.0125%`, B `0.025%`, C/D/E/F `0.05%`),
+ * the market-local date → UTC instant conversion, and the read projection.
  *
  * Rate semantics: the frozen contract §7.1 input/display unit is `%/day`
  * with a `0%`–`0.05%/day` governance range and a maximum of six input
@@ -49,7 +55,18 @@ export type AdminRewardOpsErrorCode =
   | 'REWARD_ACTIVATION_NOT_FUTURE'
   | 'REWARD_EFFECTIVE_WINDOW_OVERLAP'
   | 'REWARD_IDEMPOTENCY_CONFLICT'
-  | 'REWARD_RULE_VERSION_NOT_FOUND';
+  | 'REWARD_RULE_VERSION_NOT_FOUND'
+  // ─── Canonical owner-sourced codes (D-050 rewiring, order §8) ─────
+  // The adapter surfaces the pre-existing REWARD_* codes for the
+  // violations the owner re-validates inside its command; these extra
+  // codes carry the owner's identity/selected-market errors (the same
+  // codes the canonical RbacGuard uses at the transport boundary).
+  | 'PERMISSION_DENIED'
+  | 'MARKET_ACCESS_DENIED'
+  | 'MARKET_SELECTION_REQUIRED'
+  | 'MARKET_CONTEXT_MISMATCH'
+  | 'IDEMPOTENCY_KEY_REQUIRED'
+  | 'REASON_REQUIRED';
 
 export class AdminRewardOpsError extends Error {
   constructor(
@@ -62,11 +79,20 @@ export class AdminRewardOpsError extends Error {
   }
 }
 
-/** Server-derived actor for adapter audit records. */
+/**
+ * Server-derived actor for the adapter surface.
+ *
+ * `currentMarketId`/`marketContextVersion` carry the server-owned Current
+ * Admin Market resolved by the canonical RbacGuard on HTTP routes and are
+ * passed through into the owner command so in-process callers get the
+ * exact same selected-market enforcement as the canonical route.
+ */
 export interface AdminRewardOpsActor {
   adminUserId: string;
   requestId?: string;
   ipAddress?: string;
+  currentMarketId?: string;
+  marketContextVersion?: number;
 }
 
 /**
