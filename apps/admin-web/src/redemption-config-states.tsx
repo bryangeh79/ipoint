@@ -47,9 +47,9 @@ export function RedemptionEmptyState() {
       <div className="admin-state" role="status">
         <p className="admin-state__title">No redemption rate configured</p>
         <p className="admin-state__body">
-          No rate version exists for this market yet. Rates are exact
-          decimals (local currency per 1 iPoint) and every version activates
-          at a future market-local 00:00.
+          No rate version exists for this market yet. Rates are exact decimals
+          (local currency per 1 iPoint) and every version activates at a future
+          market-local 00:00.
         </p>
       </div>
     </Card>
@@ -88,8 +88,8 @@ export function RedemptionPermissionDeniedState({
       <div className="admin-state" role="status">
         <p className="admin-state__title">Permission denied</p>
         <p className="admin-state__body">
-          The server did not grant the {permission} permission for this
-          market. Navigation visibility is not authorization.
+          The server did not grant the {permission} permission for this market.
+          Navigation visibility is not authorization.
         </p>
       </div>
     </Card>
@@ -102,8 +102,8 @@ export function RedemptionOfflineState({ onRetry }: { onRetry: () => void }) {
       <div className="admin-state" role="status">
         <p className="admin-state__title">You are offline</p>
         <p className="admin-state__body">
-          Redemption rate configuration needs a connection. Retry when you
-          are back online.
+          Redemption rate configuration needs a connection. Retry when you are
+          back online.
         </p>
         <Button variant="secondary" onClick={onRetry}>
           Retry
@@ -125,10 +125,9 @@ export function RedemptionMarketBlockedNotice({ code }: { code: string }) {
       tone="warning"
       title={`Redemption rate is not configured for market ${code}`}
     >
-      Market {code} has no approved redemption rate configuration yet.
-      Initial, Minimum, Maximum, Currency and Display Unit must be approved
-      before rates can be managed. There is no fallback to Malaysia or any
-      other market.
+      Market {code} has no approved redemption rate configuration yet. Initial,
+      Minimum, Maximum, Currency and Display Unit must be approved before rates
+      can be managed. There is no fallback to Malaysia or any other market.
     </Alert>
   );
 }
@@ -141,9 +140,9 @@ export function RedemptionMarketBlockedNotice({ code }: { code: string }) {
 export function RedemptionManageBlockedNotice() {
   return (
     <Alert tone="warning" title="Managing redemption rates is Super Admin only">
-      The server grants redemption.rate.manage to SUPER_ADMIN only. This
-      surface is read-only for your role; every configured rate is recorded
-      with a mandatory reason in the privileged audit trail.
+      The server grants redemption.rate.manage to SUPER_ADMIN only. This surface
+      is read-only for your role; every configured rate is recorded with a
+      mandatory reason in the privileged audit trail.
     </Alert>
   );
 }

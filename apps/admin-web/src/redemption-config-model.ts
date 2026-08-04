@@ -1,4 +1,7 @@
-import { ApiError, type AdminRedemptionRateVersionDto } from '@ipoint/api-client';
+import {
+  ApiError,
+  type AdminRedemptionRateVersionDto,
+} from '@ipoint/api-client';
 
 /**
  * P7-S6C Admin Redemption Rate Configuration — pure presentation model.
@@ -55,8 +58,7 @@ export function redemptionRateWithinBounds(
 function scaledRate(value: string): bigint {
   const [whole = '0', fraction = ''] = value.trim().split('.');
   return (
-    BigInt(whole) * 10_000_000_000n +
-    BigInt(fraction.padEnd(10, '0') || '0')
+    BigInt(whole) * 10_000_000_000n + BigInt(fraction.padEnd(10, '0') || '0')
   );
 }
 
@@ -192,9 +194,9 @@ export function formatRedemptionUtc(iso: string): string {
 }
 
 /** Sort the versions newest-first for display (server order is authority). */
-export function orderRedemptionRates<
-  T extends { effective_from_utc: string },
->(rates: ReadonlyArray<T>): T[] {
+export function orderRedemptionRates<T extends { effective_from_utc: string }>(
+  rates: ReadonlyArray<T>,
+): T[] {
   return [...rates].sort(
     (left, right) =>
       Date.parse(right.effective_from_utc) -

@@ -64,9 +64,9 @@ describe('per-market bounds check (server-provided configuration)', () => {
     // digits than the bound string never suffers float drift.
     expect(redemptionRateWithinBounds('0.5000000000', '0.5', '2')).toBe(true);
     expect(redemptionRateWithinBounds('2', '0.5', '2')).toBe(true);
-    expect(redemptionRateWithinBounds('1.1234567890', '0.5', '2.0000000000')).toBe(
-      true,
-    );
+    expect(
+      redemptionRateWithinBounds('1.1234567890', '0.5', '2.0000000000'),
+    ).toBe(true);
   });
 });
 
@@ -76,19 +76,16 @@ describe('market-local dates and midnight resolution', () => {
     expect(redemptionEffectiveDateFuture(tomorrow, 'Asia/Kuala_Lumpur')).toBe(
       true,
     );
-    expect(redemptionEffectiveDateFuture('2020-01-01', 'Asia/Kuala_Lumpur')).toBe(
-      false,
-    );
-    expect(redemptionEffectiveDateFuture('not-a-date', 'Asia/Kuala_Lumpur')).toBe(
-      false,
-    );
+    expect(
+      redemptionEffectiveDateFuture('2020-01-01', 'Asia/Kuala_Lumpur'),
+    ).toBe(false);
+    expect(
+      redemptionEffectiveDateFuture('not-a-date', 'Asia/Kuala_Lumpur'),
+    ).toBe(false);
   });
 
   it('resolves market-local midnight to UTC for display (UTC+8)', () => {
-    const midnight = resolveLocalMidnightUtc(
-      '2026-09-01',
-      'Asia/Kuala_Lumpur',
-    );
+    const midnight = resolveLocalMidnightUtc('2026-09-01', 'Asia/Kuala_Lumpur');
     expect(midnight?.toISOString()).toBe('2026-08-31T16:00:00.000Z');
   });
 });

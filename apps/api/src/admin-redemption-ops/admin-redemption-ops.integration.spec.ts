@@ -276,14 +276,12 @@ describe.skipIf(!databaseUrl)(
           .onConflictDoNothing();
       }
       if (options.marketIds.length > 0) {
-        await database.db
-          .insert(marketAccess)
-          .values(
-            options.marketIds.map((marketId) => ({
-              adminUserId: adminUserIdValue,
-              marketId,
-            })),
-          );
+        await database.db.insert(marketAccess).values(
+          options.marketIds.map((marketId) => ({
+            adminUserId: adminUserIdValue,
+            marketId,
+          })),
+        );
       }
       const token = (
         await auth.createAdminSession(account.accountId, adminUserIdValue, {
@@ -956,7 +954,10 @@ describe.skipIf(!databaseUrl)(
       await setCurrentMarket(admin.accountId, marketMg);
       const date = marketLocalDate(10, 'Asia/Kuala_Lumpur');
       const key = `idem-${randomUUID()}`;
-      const payload = createPayload({ rate_value: '1.6', effective_date: date });
+      const payload = createPayload({
+        rate_value: '1.6',
+        effective_date: date,
+      });
 
       const first = await supertest(server)
         .post(ratesUrl(marketMg))
@@ -998,7 +999,9 @@ describe.skipIf(!databaseUrl)(
         .post(ratesUrl(marketMh))
         .set(authorized(admin.token))
         .set('Idempotency-Key', key)
-        .send(createPayload({ rate_value: '1.8', effective_date: date, reason }))
+        .send(
+          createPayload({ rate_value: '1.8', effective_date: date, reason }),
+        )
         .expect(201);
       const versionId = (body.body as { id: string }).id;
 

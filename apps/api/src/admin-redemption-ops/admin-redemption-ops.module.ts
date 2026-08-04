@@ -36,12 +36,7 @@ import {
  * actor must hold the grant.
  */
 @Module({
-  imports: [
-    AuthModule,
-    DatabaseModule,
-    PlatformAccessModule,
-    RedemptionModule,
-  ],
+  imports: [AuthModule, DatabaseModule, PlatformAccessModule, RedemptionModule],
   controllers: [AdminRedemptionOpsController],
   providers: [
     AdminRedemptionOpsService,

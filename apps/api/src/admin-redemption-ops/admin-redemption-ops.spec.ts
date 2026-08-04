@@ -210,7 +210,12 @@ describe('createRate validation ordering (P7-S6C)', () => {
   it('rejects rates below the approved Malaysia minimum (0.50)', async () => {
     mockMarketRow('MY');
     await expect(
-      service.createRate(actor, marketId, { ...base, rate_value: '0.49' }, 'k-1'),
+      service.createRate(
+        actor,
+        marketId,
+        { ...base, rate_value: '0.49' },
+        'k-1',
+      ),
     ).rejects.toMatchObject({ code: 'REDEMPTION_RATE_BELOW_MINIMUM' });
     await expect(
       service.createRate(
@@ -230,7 +235,12 @@ describe('createRate validation ordering (P7-S6C)', () => {
   it('rejects rates above the approved Malaysia maximum (2.00)', async () => {
     mockMarketRow('MY');
     await expect(
-      service.createRate(actor, marketId, { ...base, rate_value: '2.01' }, 'k-2'),
+      service.createRate(
+        actor,
+        marketId,
+        { ...base, rate_value: '2.01' },
+        'k-2',
+      ),
     ).rejects.toMatchObject({ code: 'REDEMPTION_RATE_ABOVE_MAXIMUM' });
     await expect(
       service.createRate(

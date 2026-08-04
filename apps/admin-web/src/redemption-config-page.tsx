@@ -228,7 +228,11 @@ export function RedemptionConfigPage() {
       />
 
       {message ? (
-        <Alert tone={message.tone} title="Redemption configuration" role="status">
+        <Alert
+          tone={message.tone}
+          title="Redemption configuration"
+          role="status"
+        >
           {message.text}
         </Alert>
       ) : null}
@@ -236,7 +240,9 @@ export function RedemptionConfigPage() {
       {/* ── Configuration bounds ───────────────────────────────────── */}
       <section aria-label="Approved rate bounds">
         <h2 className="admin-reward-section">Approved configuration (§7.2)</h2>
-        {configLoad.status === 'loading' ? <RedemptionRateSkeleton rows={2} /> : null}
+        {configLoad.status === 'loading' ? (
+          <RedemptionRateSkeleton rows={2} />
+        ) : null}
         {configLoad.status === 'error' ? (
           <RedemptionErrorState
             title={configLoad.title}
@@ -248,8 +254,8 @@ export function RedemptionConfigPage() {
           configured && bounds !== null ? (
             <Card>
               <p className="admin-reward-muted">
-                Every configured rate must stay within the approved minimum
-                and maximum for this market. Technical precision is up to{' '}
+                Every configured rate must stay within the approved minimum and
+                maximum for this market. Technical precision is up to{' '}
                 {bounds.technical_decimals} decimals; the UI displays up to{' '}
                 {bounds.display_decimals}.
               </p>
@@ -325,7 +331,9 @@ export function RedemptionConfigPage() {
                       </span>
                     </td>
                     <td>
-                      <RedemptionWindowStatusBadge status={rate.window_status} />
+                      <RedemptionWindowStatusBadge
+                        status={rate.window_status}
+                      />
                     </td>
                     <td>{formatRedemptionWindow(rate)}</td>
                     <td>
@@ -362,7 +370,10 @@ export function RedemptionConfigPage() {
               <RedemptionMarketBlockedNotice code={marketCode} />
             ) : (
               <div className="admin-reward-form">
-                <FormField label="Rate (per 1 iPoint)" htmlFor="redemption-rate">
+                <FormField
+                  label="Rate (per 1 iPoint)"
+                  htmlFor="redemption-rate"
+                >
                   <Input
                     id="redemption-rate"
                     aria-label="Rate per 1 iPoint"
@@ -376,10 +387,9 @@ export function RedemptionConfigPage() {
                     }
                   />
                   <p className="admin-reward-muted">
-                    Approved bounds for this market:{' '}
-                    {bounds.minimum_rate} – {bounds.maximum_rate}{' '}
-                    {bounds.display_unit}; up to {bounds.technical_decimals}{' '}
-                    decimals accepted.
+                    Approved bounds for this market: {bounds.minimum_rate} –{' '}
+                    {bounds.maximum_rate} {bounds.display_unit}; up to{' '}
+                    {bounds.technical_decimals} decimals accepted.
                   </p>
                 </FormField>
                 <FormField
@@ -409,7 +419,10 @@ export function RedemptionConfigPage() {
                     {resolvedPreview.utc} UTC
                   </p>
                 ) : null}
-                <FormField label="Reason (mandatory)" htmlFor="redemption-reason">
+                <FormField
+                  label="Reason (mandatory)"
+                  htmlFor="redemption-reason"
+                >
                   <Input
                     id="redemption-reason"
                     aria-label="Reason"

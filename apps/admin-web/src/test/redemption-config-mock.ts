@@ -117,9 +117,8 @@ export function mockRedemptionConfigApi(
       if (url.endsWith('/admin/sessions')) return json({ sessions: [] });
 
       // ── Redemption-ops adapter surface ──────────────────────────────
-      const ratesMatch = /\/admin\/redemption-ops\/markets\/[^/]+\/rates$/u.exec(
-        url,
-      );
+      const ratesMatch =
+        /\/admin\/redemption-ops\/markets\/[^/]+\/rates$/u.exec(url);
       if (ratesMatch && method === 'GET') {
         if (resolved.scheduleFails) {
           return json(

@@ -61,12 +61,16 @@ describe('P7-S6C redemption rate configuration page', () => {
     expect(screen.getByTestId('redemption-config-max')).toHaveTextContent('2');
     expect(screen.getByText('RM per 1 iPoint')).toBeInTheDocument();
     // Display value (≤6 decimals) shown; full precision visible too.
-    expect(screen.getByTestId('redemption-rate-22222222-2222-4222-8222-222222222222')).toHaveTextContent(
-      '1.123457',
-    );
-    expect(screen.getByTestId('redemption-full-22222222-2222-4222-8222-222222222222')).toHaveTextContent(
-      '1.1234567890',
-    );
+    expect(
+      screen.getByTestId(
+        'redemption-rate-22222222-2222-4222-8222-222222222222',
+      ),
+    ).toHaveTextContent('1.123457');
+    expect(
+      screen.getByTestId(
+        'redemption-full-22222222-2222-4222-8222-222222222222',
+      ),
+    ).toHaveTextContent('1.1234567890');
     // Window statuses as badges + local and UTC times.
     expect(screen.getByText('Active')).toBeInTheDocument();
     expect(screen.getByText('Expired')).toBeInTheDocument();
@@ -116,17 +120,23 @@ describe('P7-S6C redemption rate configuration page', () => {
     // The notice is rendered in the bounds section AND the create section,
     // so multiple matches are expected.
     expect(
-      (await screen.findAllByText(/Redemption rate is not configured for market SG/))
-        .length,
+      (
+        await screen.findAllByText(
+          /Redemption rate is not configured for market SG/,
+        )
+      ).length,
     ).toBeGreaterThan(0);
     expect(
-      screen.getAllByText(/There is no fallback to Malaysia or any other market/)
-        .length,
+      screen.getAllByText(
+        /There is no fallback to Malaysia or any other market/,
+      ).length,
     ).toBeGreaterThan(0);
     // No Malaysia bounds leak into the blocked market.
     expect(screen.queryByText('RM per 1 iPoint')).not.toBeInTheDocument();
     // The create form is replaced by the blocked notice.
-    expect(screen.queryByLabelText('Rate per 1 iPoint')).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Rate per 1 iPoint'),
+    ).not.toBeInTheDocument();
   });
 
   it('configures a rate with client validation, UTC preview and success message', async () => {
@@ -147,9 +157,9 @@ describe('P7-S6C redemption rate configuration page', () => {
     });
 
     // Resolved-UTC preview (display helper).
-    expect(await screen.findByTestId('redemption-utc-preview')).toHaveTextContent(
-      '2098-12-31T16:00:00.000Z',
-    );
+    expect(
+      await screen.findByTestId('redemption-utc-preview'),
+    ).toHaveTextContent('2098-12-31T16:00:00.000Z');
 
     await userEvent.click(
       screen.getByRole('button', {
@@ -269,7 +279,9 @@ describe('P7-S6C redemption rate configuration page', () => {
     adminApi.clearSession();
     mockRedemptionBlockedMarket();
     await signIn();
-    await screen.findAllByText(/Redemption rate is not configured for market SG/);
+    await screen.findAllByText(
+      /Redemption rate is not configured for market SG/,
+    );
     const blockedResults = await axe.run(document.body, {
       rules: { region: { enabled: false } },
     });

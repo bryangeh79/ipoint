@@ -147,7 +147,9 @@ export class AdminRedemptionOpsService {
     const now = Date.now();
 
     const rates: AdminRedemptionRateVersionDto[] = rows.map((row) => {
-      const chainIndex = chain.findIndex((candidate) => candidate.id === row.id);
+      const chainIndex = chain.findIndex(
+        (candidate) => candidate.id === row.id,
+      );
       const chainNext = chain[chainIndex + 1];
       const explicitEndMs = row.effectiveUntil
         ? row.effectiveUntil.getTime()
@@ -235,10 +237,14 @@ export class AdminRedemptionOpsService {
     // §7.2 bounds enforcement — pure exact-decimal checks (no floats).
     const rateScaled = scaledDecimal(input.rate_value);
     if (rateScaled < scaledDecimal(rule.minimumRate)) {
-      throw redemptionRateBelowMinimumError(normalizeRateString(rule.minimumRate));
+      throw redemptionRateBelowMinimumError(
+        normalizeRateString(rule.minimumRate),
+      );
     }
     if (rateScaled > scaledDecimal(rule.maximumRate)) {
-      throw redemptionRateAboveMaximumError(normalizeRateString(rule.maximumRate));
+      throw redemptionRateAboveMaximumError(
+        normalizeRateString(rule.maximumRate),
+      );
     }
 
     // Activation only at a strictly future market-local 00:00.
@@ -420,7 +426,8 @@ export class AdminRedemptionOpsService {
   private async marketRow(
     marketId: string,
   ): Promise<
-    { id: string; code: string; currencyCode: string; timezone: string } | undefined
+    | { id: string; code: string; currencyCode: string; timezone: string }
+    | undefined
   > {
     const rows = await this.database.db
       .select({

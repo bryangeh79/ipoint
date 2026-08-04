@@ -112,8 +112,7 @@ export class AdminRedemptionOpsController {
   })
   @ApiResponse({
     status: 422,
-    description:
-      'Market blocked, bounds/precision/activation-time violation.',
+    description: 'Market blocked, bounds/precision/activation-time violation.',
   })
   createRate(
     @Param('marketId', new ParseUUIDPipe()) marketId: string,

@@ -83,17 +83,16 @@ export const redemptionBlockedFixture: AdminRedemptionRateListDto = {
   rates: [],
 };
 
-export const redemptionRateCreateFixture: AdminRedemptionRateCreateResultDto =
-  {
-    id: '33333333-3333-4333-8333-333333333333',
-    rate_type: 'POINTS_PER_CURRENCY',
-    rate_value: '1.5000000000',
-    display_rate: '1.5',
-    effective_date: '2026-10-01',
-    effective_from_utc: '2026-09-30T16:00:00.000Z',
-    effective_from_local: '2026-10-01 00:00:00',
-    timezone: 'Asia/Kuala_Lumpur',
-    market_id: redemptionOpsMarketA,
-    created_by: 'admin-1',
-    created_at: '2026-08-04T00:00:00.000Z',
-  };
+export const redemptionRateCreateFixture: AdminRedemptionRateCreateResultDto = {
+  id: '33333333-3333-4333-8333-333333333333',
+  rate_type: 'POINTS_PER_CURRENCY',
+  rate_value: '1.5000000000',
+  display_rate: '1.5',
+  effective_date: '2026-10-01',
+  effective_from_utc: '2026-09-30T16:00:00.000Z',
+  effective_from_local: '2026-10-01 00:00:00',
+  timezone: 'Asia/Kuala_Lumpur',
+  market_id: redemptionOpsMarketA,
+  created_by: 'admin-1',
+  created_at: '2026-08-04T00:00:00.000Z',
+};
