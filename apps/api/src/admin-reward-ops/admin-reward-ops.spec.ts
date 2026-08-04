@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  adminRewardActivationNotFutureError,
+  adminRewardIdempotencyConflictError,
+} from '../admin-reward/admin-reward.errors.js';
 import type { AdminRewardService } from '../admin-reward/admin-reward.service.js';
 import type { DatabaseService } from '../database/database.service.js';
-import type { AuditService } from '../platform-access/audit.service.js';
 import { AdminRewardOpsService } from './admin-reward-ops.service.js';
 import { AdminRewardOpsError } from './admin-reward-ops.types.js';
 import {
@@ -20,15 +23,19 @@ import {
 } from './admin-reward-ops.service.js';
 
 /**
- * P7-S6B adapter unit tests (frozen contract §7.1).
+ * P7-S6B adapter unit tests (frozen contract §7.1, D-050 rewiring).
  *
  * Pure-logic coverage: the exact-decimal boundary math (0%–0.05%/day and
  * the A–F package maxima, six-decimal precision), the market-local
- * midnight → UTC resolution (including the round-trip wall-clock guard),
- * the local-time rendering, the deterministic package-reference derivation,
- * and the canonical payload hash used for idempotency correlation. The
- * database/owner surfaces are mocked; the HTTP contract is exercised by the
- * integration suite on a fresh database.
+ * midnight → UTC resolution (round-trip wall-clock guard; helpers are
+ * re-exported from the canonical owner after the D-050 rewiring), the
+ * local-time rendering, the deterministic package-reference derivation,
+ * the canonical payload hash used for idempotency correlation, and the
+ * create-path orchestration: package maxima classification and full
+ * delegation to the canonical owner command with reason, idempotency key
+ * and the server Current Admin Market. The database/owner surfaces are
+ * mocked; the HTTP contract is exercised by the integration suite on a
+ * fresh database.
  */
 
 let database: {
@@ -36,7 +43,6 @@ let database: {
   pool: DatabaseService['pool'];
 };
 let owner: Pick<AdminRewardService, 'createRuleVersion'>;
-let audit: Pick<AuditService, 'recordPrivilegedAction'>;
 let service: AdminRewardOpsService;
 
 beforeEach(() => {
@@ -45,11 +51,9 @@ beforeEach(() => {
     pool: { connect: vi.fn() } as unknown as DatabaseService['pool'],
   };
   owner = { createRuleVersion: vi.fn() };
-  audit = { recordPrivilegedAction: vi.fn().mockResolvedValue(undefined) };
   service = new AdminRewardOpsService(
     database as unknown as DatabaseService,
     owner as unknown as AdminRewardService,
-    audit as unknown as AuditService,
   );
 });
 
@@ -220,8 +224,8 @@ describe('createRule validation ordering (P7-S6B)', () => {
     ).rejects.toMatchObject({ code: 'REWARD_RATE_EXCEEDS_PACKAGE_MAX' });
   });
 
-  it('rejects non-future market-local dates (same-day and backdated)', async () => {
-    // Provide an existing market so the date check is what rejects.
+  it('rejects non-future market-local dates via the canonical owner (mapped)', async () => {
+    // Provide an existing market so the owner command is reached.
     const limit = vi
       .fn()
       .mockResolvedValue([{ id: marketId, timezone: 'Asia/Kuala_Lumpur' }]);
@@ -230,6 +234,12 @@ describe('createRule validation ordering (P7-S6B)', () => {
     database.db = {
       select: vi.fn().mockReturnValue({ from }),
     } as unknown as DatabaseService['db'];
+    // The D-050 owner re-validates the strictly-future market-local 00:00
+    // inside its command; the adapter surfaces the pre-existing S6B code
+    // (order §8 — activation enforcement is no longer duplicated).
+    (owner.createRuleVersion as ReturnType<typeof vi.fn>).mockRejectedValue(
+      adminRewardActivationNotFutureError(),
+    );
     const today = new Date();
     const year = today.getUTCFullYear();
     const month = String(today.getUTCMonth() + 1).padStart(2, '0');
@@ -250,6 +260,81 @@ describe('createRule validation ordering (P7-S6B)', () => {
         'k-5',
       ),
     ).rejects.toMatchObject({ code: 'REWARD_ACTIVATION_NOT_FUTURE' });
+    expect(owner.createRuleVersion).toHaveBeenCalledTimes(2);
+  });
+
+  it('delegates the create to the canonical owner with reason, key and market context', async () => {
+    const limit = vi
+      .fn()
+      .mockResolvedValue([{ id: marketId, timezone: 'Asia/Kuala_Lumpur' }]);
+    const where = vi.fn().mockReturnValue({ limit });
+    const from = vi.fn().mockReturnValue({ where });
+    database.db = {
+      select: vi.fn().mockReturnValue({ from }),
+    } as unknown as DatabaseService['db'];
+    const version = {
+      id: '33333333-3333-4333-8333-333333333333',
+      name: 'Package C Reward Rate',
+      rewardRate: '0.0500000000',
+      effectiveFrom: '2098-12-31T16:00:00.000Z',
+      effectiveFromLocal: '2099-01-01 00:00:00',
+      timezone: 'Asia/Kuala_Lumpur',
+      marketId,
+      reason: 'Ops review',
+      createdBy: actor.adminUserId,
+      createdAt: '2098-12-30T00:00:00.000Z',
+    };
+    (owner.createRuleVersion as ReturnType<typeof vi.fn>).mockResolvedValue(
+      version,
+    );
+    const result = await service.createRule(
+      { ...actor, currentMarketId: marketId, marketContextVersion: 2 },
+      marketId,
+      base,
+      'key-owner',
+    );
+    // The adapter passes the server Current Admin Market, the mandatory
+    // reason and the client Idempotency-Key into the owner command
+    // (D-050 contract, order §8).
+    expect(owner.createRuleVersion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adminUserId: actor.adminUserId,
+        currentMarketId: marketId,
+        marketContextVersion: 2,
+      }),
+      expect.objectContaining({
+        name: 'Package C Reward Rate',
+        rewardRate: '0.05',
+        marketId,
+        reason: 'Ops review',
+        idempotencyKey: 'key-owner',
+      }),
+    );
+    // The response maps the owner-resolved activation + surface fields.
+    expect(result.id).toBe(version.id);
+    expect(result.reward_rate).toBe('0.05');
+    expect(result.effective_date).toBe('2099-01-01');
+    expect(result.effective_from_utc).toBe(version.effectiveFrom);
+    expect(result.effective_from_local).toBe(version.effectiveFromLocal);
+    expect(result.timezone).toBe(version.timezone);
+    expect(result.created_at).toBe(version.createdAt);
+  });
+
+  it('maps the owner idempotency-conflict rejection to the S6B 409 code', async () => {
+    const limit = vi
+      .fn()
+      .mockResolvedValue([{ id: marketId, timezone: 'Asia/Kuala_Lumpur' }]);
+    const where = vi.fn().mockReturnValue({ limit });
+    const from = vi.fn().mockReturnValue({ where });
+    database.db = {
+      select: vi.fn().mockReturnValue({ from }),
+    } as unknown as DatabaseService['db'];
+    (owner.createRuleVersion as ReturnType<typeof vi.fn>).mockRejectedValue(
+      adminRewardIdempotencyConflictError(),
+    );
+    await expect(
+      service.createRule(actor, marketId, base, 'k-conflict'),
+    ).rejects.toMatchObject({ code: 'REWARD_IDEMPOTENCY_CONFLICT' });
   });
 
   it('rejects a missing market before any lock or owner call', async () => {
