@@ -1058,6 +1058,33 @@
   margin-bottom: var(--ip-space-3);
 }
 
+/* ────────────────────────────────────────────────────────────────────
+ * P7-S6B reward configuration (additive)
+ * ──────────────────────────────────────────────────────────────────── */
+
+.admin-reward-section {
+  font-size: var(--ip-font-size-title-sm);
+  margin: var(--ip-space-5) 0 var(--ip-space-2);
+}
+
+.admin-reward-muted {
+  color: var(--ip-color-text-muted);
+  font-size: var(--ip-font-size-body-sm);
+  margin: 0 0 var(--ip-space-2);
+}
+
+.admin-reward-form {
+  display: grid;
+  gap: var(--ip-space-2);
+  margin-top: var(--ip-space-3);
+}
+
+@media (max-width: 767px) {
+  .admin-reward-form {
+    gap: var(--ip-space-2);
+  }
+}
+
 /* Shared state blocks used by the package-config state components. */
 .admin-state {
   display: grid;
