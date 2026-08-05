@@ -26,6 +26,7 @@ import {
   AdminRedemptionOpsApiClient,
   AdminRedemptionRateListDto,
   AdminRedemptionRateCreateResultDto,
+  AdminRedemptionRateCancelResultDto,
   ApiClient,
   ApiError,
 } from './index.js';
@@ -2086,6 +2087,84 @@ describe('AdminRedemptionOpsApiClient (P7-S6C redemption rate configuration)', (
     ).rejects.toMatchObject({
       status: 409,
       body: { code: 'REDEMPTION_IDEMPOTENCY_CONFLICT' },
+    });
+  });
+
+  it('cancels a scheduled version with the mandatory Idempotency-Key and reason', async () => {
+    const client = redemptionOpsClient();
+    const result: AdminRedemptionRateCancelResultDto = {
+      id: '44444444-4444-4444-8444-444444444444',
+      rate_version_id: VERSION,
+      market_id: MARKET,
+      rate_value: '1.5',
+      effective_from_utc: '2026-08-31T16:00:00.000Z',
+      reason: 'Scheduled baseline no longer required',
+      cancelled_by: 'admin-1',
+      cancelled_at: '2026-08-04T01:00:00.000Z',
+    };
+    const fetchSpy = mockFetch(200, result);
+
+    const cancelled = await client.cancelRate(
+      MARKET,
+      VERSION,
+      { reason: 'Scheduled baseline no longer required' },
+      'idem-cancel-1',
+    );
+
+    expect(cancelled.id).toBe(result.id);
+    expect(cancelled.rate_version_id).toBe(VERSION);
+    expect(cancelled.reason).toBe('Scheduled baseline no longer required');
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/redemption-ops/markets/${MARKET}/rates/${VERSION}/cancel`,
+    );
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(String(init?.body))).toEqual({
+      reason: 'Scheduled baseline no longer required',
+    });
+    const headers = new Headers(init?.headers);
+    expect(headers.get('idempotency-key')).toBe('idem-cancel-1');
+  });
+
+  it('propagates cancel rejections (already cancelled / cannot cancel / not found)', async () => {
+    const client = redemptionOpsClient();
+    mockFetch(409, { code: 'REDEMPTION_RATE_ALREADY_CANCELLED' });
+    await expect(
+      client.cancelRate(
+        MARKET,
+        VERSION,
+        { reason: 'Second attempt' },
+        'idem-cancel-2',
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      body: { code: 'REDEMPTION_RATE_ALREADY_CANCELLED' },
+    });
+
+    mockFetch(409, { code: 'REDEMPTION_RATE_CANNOT_CANCEL_EFFECTIVE' });
+    await expect(
+      client.cancelRate(
+        MARKET,
+        VERSION,
+        { reason: 'Active version' },
+        'idem-cancel-3',
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      body: { code: 'REDEMPTION_RATE_CANNOT_CANCEL_EFFECTIVE' },
+    });
+
+    mockFetch(404, { code: 'REDEMPTION_RATE_VERSION_NOT_FOUND' });
+    await expect(
+      client.cancelRate(
+        MARKET,
+        VERSION,
+        { reason: 'Unknown version' },
+        'idem-cancel-4',
+      ),
+    ).rejects.toMatchObject({
+      status: 404,
+      body: { code: 'REDEMPTION_RATE_VERSION_NOT_FOUND' },
     });
   });
 });

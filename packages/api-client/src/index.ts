@@ -2558,7 +2558,18 @@ export interface AdminRedemptionRateVersionDto {
   /** Effective window end (market-local / UTC), null when open. */
   effective_until_utc: string | null;
   effective_until_local: string | null;
-  window_status: 'SCHEDULED' | 'ACTIVE' | 'SUPERSEDED' | 'EXPIRED';
+  /**
+   * Window status of the version inside the market chain. `CANCELLED` is
+   * the explicit state of a voided scheduled version (append-only
+   * cancellation event, D-053 §9) — cancelled versions never become
+   * effective and never close or supersede a predecessor window.
+   */
+  window_status:
+    | 'SCHEDULED'
+    | 'ACTIVE'
+    | 'SUPERSEDED'
+    | 'EXPIRED'
+    | 'CANCELLED';
   created_by: string;
   created_at: string;
 }
@@ -2621,6 +2632,33 @@ export interface AdminRedemptionRateCreateResultDto {
   created_at: string;
 }
 
+/** Cancel input: the mandatory operator reason (D-053 §9/§11). */
+export interface AdminRedemptionRateCancelInput {
+  /** Mandatory privileged-write reason (1..500 chars). */
+  reason: string;
+}
+
+/**
+ * Cancel result: the append-only immutable cancellation event (D-053 §9).
+ * The immutable rate-version row is never updated or deleted; the resolver
+ * ignores cancelled versions forever.
+ */
+export interface AdminRedemptionRateCancelResultDto {
+  /** Cancellation event id (immutable row in the cancellations table). */
+  id: string;
+  /** The cancelled rate-version id (its immutable row is untouched). */
+  rate_version_id: string;
+  market_id: string;
+  /** Normalized exact rate of the cancelled version. */
+  rate_value: string;
+  /** Resolved UTC instant of the cancelled version's activation. */
+  effective_from_utc: string;
+  /** Mandatory operator reason stored on the cancellation event. */
+  reason: string;
+  cancelled_by: string;
+  cancelled_at: string;
+}
+
 /**
  * P7-S6C Admin Redemption Rate Configuration client.
  *
@@ -2630,10 +2668,12 @@ export interface AdminRedemptionRateCreateResultDto {
  * explicitly blocked (`configured: false`) and the surface never falls
  * back to Malaysia or any other market. Write surface: create a rate
  * version (SUPER_ADMIN-only `redemption.rate.manage`, mandatory
- * Idempotency-Key + reason). The server delegates the single
- * `redemption_rate_versions` insert to the frozen Phase 6 owner command —
- * this client is a typed pass-through, never a direct table write. Rates
- * are exact decimal strings and are never parsed.
+ * Idempotency-Key + reason) and cancel a scheduled, not-yet-effective
+ * version (same gate; append-only immutable cancellation event, D-053
+ * §9). The server delegates the single `redemption_rate_versions` insert
+ * and the append-only cancellation event to the secured Phase 6 owner
+ * commands — this client is a typed pass-through, never a direct table
+ * write. Rates are exact decimal strings and are never parsed.
  */
 export class AdminRedemptionOpsApiClient {
   constructor(private readonly client: ApiClient) {}
@@ -2661,6 +2701,31 @@ export class AdminRedemptionOpsApiClient {
     return (
       await this.client.post<AdminRedemptionRateCreateResultDto>(
         `/admin/redemption-ops/markets/${encodeURIComponent(marketId)}/rates`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  /**
+   * Cancel a scheduled, not-yet-effective redemption rate version (Super
+   * Admin only). Append-only (D-053 §9): the immutable rate-version row is
+   * never updated or deleted; the response is the new cancellation event.
+   * The Idempotency-Key is mandatory and passed through untouched: same
+   * key + same payload replays the original cancellation; same key +
+   * different payload returns 409. Active/expired/historically-used
+   * versions are rejected with 409 `REDEMPTION_RATE_CANNOT_CANCEL_EFFECTIVE`
+   * and a second cancellation with 409 `REDEMPTION_RATE_ALREADY_CANCELLED`.
+   */
+  async cancelRate(
+    marketId: string,
+    versionId: string,
+    input: AdminRedemptionRateCancelInput,
+    idempotencyKey: string,
+  ): Promise<AdminRedemptionRateCancelResultDto> {
+    return (
+      await this.client.post<AdminRedemptionRateCancelResultDto>(
+        `/admin/redemption-ops/markets/${encodeURIComponent(marketId)}/rates/${encodeURIComponent(versionId)}/cancel`,
         input,
         { idempotencyKey },
       )
