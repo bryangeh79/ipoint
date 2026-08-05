@@ -10,6 +10,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
   varchar,
@@ -136,6 +137,11 @@ export const redemptionRateVersions = pgTable(
     effectiveUntil: utcTimestamp('effective_until'),
     createdBy: uuid('created_by').notNull(),
     createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    // D-053 §11: durable mandatory operator reason on every owner-written
+    // version row (legacy rows keep NULL). The frozen gist exclusion
+    // uq_redemption_rate_period was replaced by migration 0031; the
+    // successor/chain rule is enforced by the owner advisory lock.
+    reason: text('reason'),
   },
   (table) => [
     check('chk_redemption_rate_value', sql`${table.rateValue} > 0`),
@@ -143,11 +149,110 @@ export const redemptionRateVersions = pgTable(
       'chk_redemption_rate_period',
       sql`${table.effectiveUntil} IS NULL OR ${table.effectiveUntil} > ${table.effectiveFrom}`,
     ),
-    // gist exclusion: no overlapping rate periods per market+rate_type
+    check(
+      'chk_redemption_rate_reason',
+      sql`${table.reason} IS NULL OR (char_length(btrim(${table.reason})) BETWEEN 1 AND 500)`,
+    ),
     index('idx_redemption_rate_active').on(
       table.marketId,
       table.rateType,
       table.effectiveFrom,
+    ),
+  ],
+);
+
+// ─── Redemption Rate Market Rules (D-053 §6) ───────────────────────────────
+// Versioned per-market rate configuration (CONFIGURABLE, market data).
+// Keyed by canonical market code + rate type. Malaysia ('MY') is seeded
+// idempotently from packages/database/seeds/foundation.ts. No logic
+// hard-codes market bounds; unconfigured markets are explicitly blocked.
+
+export const redemptionRateMarketRules = pgTable(
+  'redemption_rate_market_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    marketCode: varchar('market_code', { length: 8 }).notNull(),
+    rateType: redemptionRateType('rate_type')
+      .notNull()
+      .default('POINTS_PER_CURRENCY'),
+    initialRate: numeric('initial_rate', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    minimumRate: numeric('minimum_rate', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    maximumRate: numeric('maximum_rate', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    currency: varchar('currency', { length: 3 }).notNull(),
+    displayUnit: varchar('display_unit', { length: 64 }).notNull(),
+    isActive: boolean('is_active').notNull().default(true),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('uq_redemption_rate_market_rules').on(
+      table.marketCode,
+      table.rateType,
+    ),
+    check(
+      'chk_redemption_rate_market_rules_currency',
+      sql`char_length(${table.currency}) = 3`,
+    ),
+    check(
+      'chk_redemption_rate_market_rules_bounds',
+      sql`${table.minimumRate} > 0 AND ${table.maximumRate} > 0 AND ${table.initialRate} >= ${table.minimumRate} AND ${table.initialRate} <= ${table.maximumRate}`,
+    ),
+    check(
+      'chk_redemption_rate_market_rules_display',
+      sql`char_length(btrim(${table.displayUnit})) > 0`,
+    ),
+    check(
+      'chk_redemption_rate_market_rules_version',
+      sql`${table.version} > 0`,
+    ),
+    index('idx_redemption_rate_market_rules_active')
+      .on(table.marketCode)
+      .where(sql`${table.isActive} = true`),
+  ],
+);
+
+// ─── Redemption Rate Cancellations (D-053 §9) ─────────────────────────────
+// Append-only immutable cancellation events. A cancellation never updates
+// or deletes a rate-version row; UNIQUE (rate_version_id) guarantees a
+// version is cancelled at most once. reject_update/reject_delete triggers
+// make the table append-only.
+
+export const redemptionRateCancellations = pgTable(
+  'redemption_rate_cancellations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    rateVersionId: uuid('rate_version_id')
+      .notNull()
+      .references(() => redemptionRateVersions.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    cancelledBy: uuid('cancelled_by')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    reason: text('reason').notNull(),
+    requestId: varchar('request_id', { length: 128 }),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('uq_redemption_rate_cancellations_version').on(table.rateVersionId),
+    check(
+      'chk_redemption_rate_cancellations_reason',
+      sql`char_length(btrim(${table.reason})) BETWEEN 1 AND 500`,
+    ),
+    index('idx_redemption_rate_cancellations_market').on(
+      table.marketId,
+      table.createdAt,
     ),
   ],
 );

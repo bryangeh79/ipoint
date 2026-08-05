@@ -1,6 +1,7 @@
 import type { Database } from '../src/client.js';
 import {
   permissions,
+  redemptionRateMarketRules,
   rolePermissions,
   roles,
   serviceFeeProfiles,
@@ -24,6 +25,28 @@ export const standardServiceFeeProfiles = [
   ['D', '15.000000'],
   ['E', '20.000000'],
   ['F', '25.000000'],
+] as const;
+
+/**
+ * D-053 §6: versioned per-market redemption rate rules.
+ *
+ * Malaysia (market code 'MY', MYR): initial RM1.00, minimum RM0.50,
+ * maximum RM2.00 per 1 iPoint (POINTS_PER_CURRENCY). These values are
+ * CONFIGURABLE market data — never hard-coded in service logic. The
+ * owner command blocks every market without an explicit active rule
+ * (422 REDEMPTION_RATE_MARKET_BLOCKED); there is no cross-market
+ * fallback. Additional markets must be approved and seeded explicitly.
+ */
+export const foundationRedemptionRateRules = [
+  {
+    marketCode: 'MY',
+    rateType: 'POINTS_PER_CURRENCY' as const,
+    initialRate: '1.0000000000',
+    minimumRate: '0.5000000000',
+    maximumRate: '2.0000000000',
+    currency: 'MYR',
+    displayUnit: 'RM per 1 iPoint',
+  },
 ] as const;
 
 export async function seedFoundation(db: Database): Promise<void> {
@@ -78,6 +101,29 @@ export async function seedFoundation(db: Database): Promise<void> {
         }),
       )
       .onConflictDoNothing();
+
+    // D-053 §6: idempotent upsert of the approved Malaysia rate rule.
+    // A re-run refreshes the approved values and bumps the version; a
+    // missing row is inserted once.
+    await tx
+      .insert(redemptionRateMarketRules)
+      .values(foundationRedemptionRateRules.map((rule) => ({ ...rule })))
+      .onConflictDoUpdate({
+        target: [
+          redemptionRateMarketRules.marketCode,
+          redemptionRateMarketRules.rateType,
+        ],
+        set: {
+          initialRate: sql`excluded.initial_rate`,
+          minimumRate: sql`excluded.minimum_rate`,
+          maximumRate: sql`excluded.maximum_rate`,
+          currency: sql`excluded.currency`,
+          displayUnit: sql`excluded.display_unit`,
+          isActive: true,
+          version: sql`${redemptionRateMarketRules.version} + 1`,
+          updatedAt: new Date(),
+        },
+      });
 
     const permissionRows = await tx
       .select()
