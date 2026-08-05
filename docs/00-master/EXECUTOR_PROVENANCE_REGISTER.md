@@ -402,3 +402,26 @@ _End of register - new entries appended above this line._
 ---
 
 _End of register - new entries appended above this line._
+
+## P7-S6B-REWIRE — Canonical Owner Rewiring + Final Gate (CG-02 passed)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S6B-REWIRE (order §8 rewiring dispatch; final gate 2026-08-05) |
+| **Sub-phase** | P7-S6B — reward configuration rewired to the D-050 secured canonical Phase 3 owner command |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementing subagent; D-048) — the rewiring commits were authored by the implementing subagent, not by OpenClaw |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Worktree** | `.local/wt-p7-s6b-rewire` (task branch tip `3dbb34ad`) |
+| **Task branch** | `task/p7-s6b-rewire-canonical` (base `0081a2d9` = phase HEAD incl. D-050 merge `277e7fc3`) |
+| **Commit SHAs** | `3020f907` (fix: rewire reward configuration to canonical phase 3 owner command), `993b31d9` (fix: map canonical owner error codes), `95da8ff3` (test: update suites for canonical owner wiring), `3dbb34ad` (docs: record rewiring delivery) |
+| **Allowed paths** | `apps/api/src/admin-reward-ops/**` (7 files) + `docs/06-phase-reports/p7-s6/P7-S6B_REWIRING_DELIVERY_REPORT.md` — nothing else; `apps/api/src/admin-reward/**` byte-identical (frozen) |
+| **Migration** | NONE (checksums 31/31 unchanged) |
+| **Independent review (final gate)** | `OPENCLAW_MANAGED_CODING_SUBAGENT` independent reviewer (D-048): verdict **APPROVED** — 20/20 required findings PASS over BOTH ranges (D-050 `e0958c6e..3e44b1d8` + rewire `0081a2d9..3dbb34ad`) and merge topology; 0 Critical/High; 1 Medium pre-existing (member-facing `POST /api/v1/rewards/rules`, O-13, outside both ranges) + 3 Low documented. Verdict file `.local/s6b-final-gate/review/REVIEWER_VERDICT.md` |
+| **Independent test gate (final)** | `OPENCLAW_MANAGED_CODING_SUBAGENT` separate verifier (D-048): verdict **TEST GATE PASSED** — 17/17 gates on fresh migrated/seeded databases (`ipoint_gate_s6b_final*`): S6B unit 18/18, S6B PostgreSQL integration 20/20, D-050 owner regression 56/56 (33+23), S6A regression 36/36 (4+32), api-client 59/59, admin-web 185/185 (23 files), checksums 31/31, OpenAPI 227 paths / 0 errors, api/admin-web/api-client typecheck+build exit 0, eslint 0 errors, prettier clean; 8/8 behavioural checks covered (incl. same-key/different-market rejection at the market-context boundary 409 + per-market idempotency-scope semantics recorded honestly). Verdict file `.local/s6b-final-gate/evidence/VERIFIER_VERDICT.md` |
+| **Integration commit** | Fast-forward of `phase/7-admin-operations` to `3dbb34ad` at the final gate (no merge commit; rewire commits are ancestors of the Phase 7 HEAD) |
+| **Final gate-record commit** | `docs(p7-s6b): record canonical reward owner rewire final gate` — adds `P7-S6B_FINAL_GATE_RECORD.md`, delivery-report addendum, this register entry, PHASE_REGISTRY update |
+| **Known limitations** | Browser E2E host/CI-only (mock-based component specs; not claimed as passed); `openapi:validate` non-self-exit quirk; pre-existing outbox-worker log noise; per-market idempotency scope semantics (same key after deliberate market-context switch = new scoped claim; safe, documented); pre-existing member-facing reward route (O-13) pending Command Center decision; 376 unreachable corrupt tree objects in the local object store (pre-existing, none on the delivery path, no history rewrite). |
+
+---
+
+_End of register - new entries appended above this line._

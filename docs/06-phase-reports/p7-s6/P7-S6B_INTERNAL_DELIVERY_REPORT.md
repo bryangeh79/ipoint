@@ -131,3 +131,34 @@ No frozen Phase 1/3/5/6 owner file, no migration, no seed, and no permission-cat
 - Not pushed, not merged; OpenClaw integration review pending.
 
 `P7-S6B_DELIVERY_COMPLETE` / pending OpenClaw integration review / NOT Command Center acceptance.
+
+---
+
+## 7. Final Gate Addendum (2026-08-05) — superseded by the final gate record
+
+This addendum is appended forward-only; the original report body above is
+retained unmodified. The provisional status recorded above has been
+superseded by `P7-S6B_FINAL_GATE_RECORD.md` (same directory), which records:
+
+- D-050 Phase 3 owner remediation (`fix/p3-p7-reward-rule-owner`,
+  `e0958c6e..3e44b1d8`, 6 commits) integrated via merge `277e7fc3`;
+- canonical owner rewiring (`task/p7-s6b-rewire-canonical`,
+  `0081a2d9..3dbb34ad`, 4 commits) fast-forwarded into
+  `phase/7-admin-operations` at this gate;
+- final independent review verdict **APPROVED** (20/20 findings, 0
+  Critical/High) — `OPENCLAW_MANAGED_CODING_SUBAGENT` reviewer (D-048);
+- final independent test gate verdict **TEST GATE PASSED** (17/17 gates;
+  18/18 S6B unit, 20/20 S6B integration, 56/56 D-050 regression, 36/36
+  S6A regression, 59/59 api-client, 185/185 admin-web, 31/31 checksums,
+  227 OpenAPI paths / 0 errors, typecheck/build/lint/format clean) —
+  `OPENCLAW_MANAGED_CODING_SUBAGENT` separate verifier (D-048);
+- duplicate adapter controls removed; direct owner route secured; CG-02
+  canonical ownership satisfied;
+- hygiene: `report_files_review.txt` removed, 102-untracked baseline
+  restored, OpenClaw authored no production code (temporary
+  verification-only spec was deleted, never committed);
+- declaration `P7-S6B_DELIVERY_COMPLETE` /
+  `P7-S6B_OPENCLAW_INTERNAL_GATE_PASSED` /
+  `CG-02_REWARD_OWNER_GATE_PASSED` /
+  `D-050_OWNER_REMEDIATION_INTEGRATED` / `CONTINUING_UNDER_D-047_D-048_D-049_D-050`
+  (OpenClaw internal gate only; NOT Command Center acceptance).
