@@ -49,6 +49,7 @@ import { MemberListPage } from './member-list-page.js';
 import { MemberDetailPage } from './member-detail-page.js';
 import { MemberKycQueuePage } from './kyc-member-queue-page.js';
 import { PackageConfigPage } from './package-config-page.js';
+import { RedemptionConfigPage } from './redemption-config-page.js';
 import { RewardConfigPage } from './reward-config-page.js';
 import { MemberKycDetailPage } from './kyc-member-detail-page.js';
 import { MerchantKycQueuePage } from './kyc-merchant-queue-page.js';
@@ -198,6 +199,8 @@ function RouteContent({ route }: { route: AdminRoute }) {
   if (route.id === 'packages') return <PackageConfigPage />;
   /* P7-S6B reward configuration (append-only route case). */
   if (route.id === 'reward-rates') return <RewardConfigPage />;
+  /* P7-S6C redemption rate configuration (append-only route case). */
+  if (route.id === 'redemption-rates') return <RedemptionConfigPage />;
   return (
     <section aria-labelledby="admin-route-title">
       <PageHeader

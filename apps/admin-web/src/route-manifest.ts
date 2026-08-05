@@ -235,7 +235,6 @@ export const adminRouteManifest = [
     'read-only',
     'bootstrap',
     true,
-    gate('redemption.rate.schedule', 'SEC-03/15'),
   ),
   route(
     'packages',
