@@ -1086,6 +1086,7 @@ export const expectedSchema = {
     'effective_until',
     'created_by',
     'created_at',
+    'reason',
   ],
   commission_ledger: [
     'id',

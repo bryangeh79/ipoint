@@ -3462,6 +3462,7 @@ export const commissionRateVersions = pgTable(
     effectiveUntil: utcTimestamp('effective_until'),
     createdBy: uuid('created_by').notNull(),
     createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    reason: text('reason'),
   },
   (table) => [
     index('idx_rate_effective').on(
