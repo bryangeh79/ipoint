@@ -55,6 +55,13 @@ describe('P6 Shipping Payment Compensation', () => {
         mockDb as any,
         mockConfig as any,
         mockPaymentAdapter as any,
+        // D-053: secured owner injects RbacService + AuditService; these
+        // suites do not exercise owner commands, so inert stubs suffice.
+        { isAllowed: vi.fn(), hasMarketAccess: vi.fn() } as any,
+        {
+          appendWithinTransaction: vi.fn(),
+          recordPrivilegedAction: vi.fn(),
+        } as any,
       );
 
       const result = await service.calculateShippingCost(
@@ -91,6 +98,13 @@ describe('P6 Shipping Payment Compensation', () => {
         mockDb as any,
         mockConfig as any,
         mockPaymentAdapter as any,
+        // D-053: secured owner injects RbacService + AuditService; these
+        // suites do not exercise owner commands, so inert stubs suffice.
+        { isAllowed: vi.fn(), hasMarketAccess: vi.fn() } as any,
+        {
+          appendWithinTransaction: vi.fn(),
+          recordPrivilegedAction: vi.fn(),
+        } as any,
       );
 
       const result = await service.calculateShippingCost(

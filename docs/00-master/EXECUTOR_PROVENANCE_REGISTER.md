@@ -425,3 +425,27 @@ _End of register - new entries appended above this line._
 ---
 
 _End of register - new entries appended above this line._
+
+## D-053 — Phase 6 Redemption-Rate Owner Remediation (CG-03 gate)
+
+| Field | Value |
+|---|---|
+| **Task ID** | D-053 (DECISION_LOG D-053; CG-03 gate) |
+| **Sub-phase** | Phase 6 frozen-owner remediation — redemption-rate owner security/versioning/cancellation (Command Center order 2026-08-05) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementing subagent + two fix subagents + independent reviewing subagent + separate test-verifier subagent; all D-048) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session start time** | 2026-08-05 MYT |
+| **Worktree** | `.local/wt-p6-p7-redemption-rate-owner` |
+| **Task branch** | `fix/p6-p7-redemption-rate-owner` (base `12ca6c63` = phase HEAD incl. D-053 governance) |
+| **Commit SHAs** | `a0210ff8` (feat database: migration 0031 — reason column, `redemption_rate_market_rules`, `redemption_rate_cancellations`, gist-exclusion replacement), `73bb4667` (fix: secure redemption rate owner command — rbac/market/rate/activation/idempotency/reason/audit/cancellation), `6d046a0e` (test: D-053 owner evidence suite 59 + 4 updated suites), `bdbc77dc` (docs: delivery report) |
+| **Allowed paths** | `apps/api/src/redemption/**` (18 files incl. 5 spec files), `packages/database` (migration 0031 + checksums.json + schema/index.ts + schema/redemption.ts + seeds/foundation.ts + expected-schema.ts), `docs/06-phase-reports/p7-s6/**` — nothing else; reward/admin-reward/admin-reward-ops/admin-redemption-ops/admin-web/api-client zero drift |
+| **Migration** | `0031_p6_d053_redemption_rate_owner.sql` (forward-only; D-053 sole migration owner; 0000-0030 byte-identical; checksums 32/32 verified; db:drift clean on a 0031-migrated DB) |
+| **Host test gate (2026-08-05)** | Owner suite **59/59**; redemption domain regression **235/235** (owner suite excluded — its beforeAll DROP/CREATEs its own DB; combined domain total 294/294); P7-S6B **38/38**; P7-S6A **36/36**; checksums **32/32**; OpenAPI **235 paths / 0 missing / 0 duplicate** (path count 227→235 because `AdminRedemptionController` was previously unregistered — pre-existing Phase 6 finding fixed by this remediation; its rate routes are now mounted and secured); api/admin-web/api-client typecheck+build exit 0; eslint 0 errors; prettier clean (9 files formatted pre-commit). Evidence: `.local/d053-gate/evidence/*.log`. |
+| **Independent review (D-053 §12)** | `OPENCLAW_MANAGED_CODING_SUBAGENT` independent reviewer: verdict **APPROVED** — 20/20 dimensions PASS, 0 Critical/0 High; 3 non-blocking items: F1 (Medium, display-precision ≤6-decimals clause not enforced — display-only, storage/finance exact), F2 (Low, cancel pre-lock idempotency read race — transient 409, single committed result guaranteed), F3 (Info, gist-exclusion replacement — documented deviation mandated by D-053 §8/§9, DDL-only). Verdict file `.local/d053-gate/review/REVIEWER_VERDICT.md`. |
+| **Independent verification (D-053 §7B/§13)** | `OPENCLAW_MANAGED_CODING_SUBAGENT` separate verifier: verdict **TEST GATE PASSED** — independently re-ran checksum 32/32, owner suite 59/59, redemption regression 235/235, S6B 38/38, S6A 36/36, typecheck, OpenAPI 235 paths / 0 errors, lint/format on fresh databases (Node v24.19.0). Verdict file `.local/d053-gate/evidence/VERIFIER_VERDICT.md`. |
+| **Integration commit** | `09279dc5` (merge branch 'fix/p6-p7-redemption-rate-owner' into `phase/7-admin-operations`, --no-ff, no conflicts) — pushed; local = remote; main untouched; untracked baseline 102; tracked modifications 0 |
+| **Known limitations** | F1/F2/F3 as above (surfaced at Command Center acceptance); pre-existing `crypto is not defined` in `redemption-integration.spec.ts` only under sandbox node v18 (7 un-imported usages; passes under the project node v24 — environment compatibility item, not a D-053 defect); `.sql` prettier no-parser quirk unchanged; browser E2E host/CI-only; OpenAPI non-self-exit quirk. CG-03_REDEMPTION_RATE_OWNER_GATE_PASSED declaration pending the P7-S6C rewire final gate per order §15. |
+
+---
+
+_End of register - new entries appended above this line._

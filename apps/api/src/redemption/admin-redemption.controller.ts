@@ -1,11 +1,14 @@
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
   ForbiddenException,
   Get,
+  Headers,
   HttpCode,
   Inject,
+  InternalServerErrorException,
   Ip,
   NotFoundException,
   Param,
@@ -13,6 +16,7 @@ import {
   Put,
   Query,
   Req,
+  UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -32,13 +36,13 @@ import {
   adminCatalogQuerySchema,
   rateVersionQuerySchema,
   pickupLocationQuerySchema,
+  ownerRateCreateSchema,
+  ownerRateCancelSchema,
 } from './redemption.dto.js';
 import {
   createCatalogItemSchema,
   updateCatalogItemSchema,
   setCatalogStatusSchema,
-  createRateVersionSchema,
-  cancelRateVersionSchema,
   createPickupLocationSchema,
   updatePickupLocationSchema,
 } from '@ipoint/validation';
@@ -156,8 +160,9 @@ export class AdminRedemptionController {
   createRate(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('marketId') marketId: string,
-    @Body(new ZodValidationPipe(createRateVersionSchema))
+    @Body(new ZodValidationPipe(ownerRateCreateSchema))
     body: unknown,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Ip() ip: string,
     @Req() request: Request,
   ) {
@@ -165,6 +170,7 @@ export class AdminRedemptionController {
       this.redemption.createRateVersion(this.adminActor(actor, request, ip), {
         ...(body as Record<string, unknown>),
         marketId,
+        idempotencyKey: this.requireIdempotencyKey(idempotencyKey),
       } as Parameters<RedemptionService['createRateVersion']>[1]),
     );
   }
@@ -194,8 +200,9 @@ export class AdminRedemptionController {
   cancelRate(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('rateId') rateId: string,
-    @Body(new ZodValidationPipe(cancelRateVersionSchema))
+    @Body(new ZodValidationPipe(ownerRateCancelSchema))
     body: unknown,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Ip() ip: string,
     @Req() request: Request,
   ) {
@@ -203,7 +210,10 @@ export class AdminRedemptionController {
       this.redemption.cancelRateVersion(
         this.adminActor(actor, request, ip),
         rateId,
-        body as Parameters<RedemptionService['cancelRateVersion']>[2],
+        {
+          ...(body as Record<string, unknown>),
+          idempotencyKey: this.requireIdempotencyKey(idempotencyKey),
+        } as Parameters<RedemptionService['cancelRateVersion']>[2],
       ),
     );
   }
@@ -305,11 +315,33 @@ export class AdminRedemptionController {
     const requestId = (request as unknown as Record<string, unknown>)[
       'requestId'
     ];
+    const marketContext = (
+      request as Request & {
+        adminMarketContext?: { marketId: string; contextVersion: number };
+      }
+    ).adminMarketContext;
     return {
       adminUserId: actor.adminUserId,
       ipAddress,
       ...(typeof requestId === 'string' ? { requestId } : {}),
+      ...(marketContext
+        ? {
+            currentMarketId: marketContext.marketId,
+            marketContextVersion: marketContext.contextVersion,
+          }
+        : {}),
     };
+  }
+
+  private requireIdempotencyKey(value: string | undefined): string {
+    const key = value?.trim();
+    if (!key || key.length > 200) {
+      throw new BadRequestException({
+        code: 'REDEMPTION_RATE_IDEMPOTENCY_KEY_REQUIRED',
+        message: 'A valid Idempotency-Key header is required.',
+      });
+    }
+    return key;
   }
 
   private async handle<T>(operation: () => Promise<T>): Promise<T> {
@@ -325,18 +357,38 @@ export class AdminRedemptionController {
       switch (error.code) {
         case 'REDEMPTION_CATALOG_ITEM_NOT_FOUND':
         case 'REDEMPTION_RATE_NOT_FOUND':
+        case 'REDEMPTION_RATE_MARKET_NOT_FOUND':
         case 'REDEMPTION_PICKUP_LOCATION_NOT_FOUND':
         case 'REDEMPTION_QUOTE_NOT_FOUND':
         case 'REDEMPTION_SHIPPING_PAYMENT_NOT_FOUND':
           throw new NotFoundException(body);
+        case 'REDEMPTION_RATE_PERMISSION_DENIED':
+        case 'REDEMPTION_RATE_MARKET_ACCESS_DENIED':
+          throw new ForbiddenException(body);
         case 'REDEMPTION_CATALOG_SKU_DUPLICATE':
         case 'REDEMPTION_RATE_OVERLAP':
         case 'REDEMPTION_CATALOG_ITEM_VERSION_CONFLICT':
         case 'REDEMPTION_RATE_CANNOT_MODIFY_HISTORICAL':
         case 'REDEMPTION_IDEMPOTENCY_MISMATCH':
+        case 'REDEMPTION_RATE_IDEMPOTENCY_CONFLICT':
+        case 'REDEMPTION_RATE_MARKET_SELECTION_REQUIRED':
+        case 'REDEMPTION_RATE_MARKET_CONTEXT_MISMATCH':
+        case 'REDEMPTION_RATE_CANNOT_CANCEL_EFFECTIVE':
+        case 'REDEMPTION_RATE_ALREADY_CANCELLED':
           throw new ConflictException(body);
+        case 'REDEMPTION_RATE_REASON_REQUIRED':
+        case 'REDEMPTION_RATE_IDEMPOTENCY_KEY_REQUIRED':
+        case 'REDEMPTION_INVALID_STATUS':
+          throw new BadRequestException(body);
+        case 'REDEMPTION_RATE_PRECISION_EXCEEDED':
+        case 'REDEMPTION_RATE_MARKET_BLOCKED':
+        case 'REDEMPTION_RATE_BELOW_MINIMUM':
+        case 'REDEMPTION_RATE_ABOVE_MAXIMUM':
+        case 'REDEMPTION_RATE_CURRENCY_MISMATCH':
+        case 'REDEMPTION_RATE_ACTIVATION_NOT_FUTURE':
+          throw new UnprocessableEntityException(body);
         default:
-          throw new ConflictException(body);
+          throw new InternalServerErrorException(body);
       }
     }
   }

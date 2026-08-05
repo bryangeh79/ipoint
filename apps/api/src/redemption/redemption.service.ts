@@ -1,8 +1,37 @@
 import { createHash } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  adminUsers,
+  marketAccess,
+  markets,
+  redemptionRateMarketRules,
+  type Database,
+} from '@ipoint/database';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service.js';
 import { ConfigService } from '../config/config.service.js';
+import { AuditService } from '../platform-access/audit.service.js';
+import { RbacService } from '../platform-access/rbac.service.js';
 import { RedemptionError } from './redemption.errors.js';
+import {
+  redemptionRateAboveMaximumError,
+  redemptionRateActivationNotFutureError,
+  redemptionRateAlreadyCancelledError,
+  redemptionRateBelowMinimumError,
+  redemptionRateCannotCancelEffectiveError,
+  redemptionRateCurrencyMismatchError,
+  redemptionRateIdempotencyConflictError,
+  redemptionRateIdempotencyKeyRequiredError,
+  redemptionRateMarketAccessDeniedError,
+  redemptionRateMarketBlockedError,
+  redemptionRateMarketContextMismatchError,
+  redemptionRateMarketNotFoundError,
+  redemptionRateMarketSelectionRequiredError,
+  redemptionRateOverlapError,
+  redemptionRatePermissionDeniedError,
+  redemptionRatePrecisionError,
+  redemptionRateReasonRequiredError,
+} from './redemption.errors.js';
 import type {
   RedemptionAdminActor,
   RedemptionCatalogItem,
@@ -17,13 +46,17 @@ import type {
   MemberCatalogListResponse,
   RedemptionOrderResponse,
   ConfirmOrderInput,
+  CreateRateVersionCommand,
+  CancelRateVersionCommand,
+  RedemptionRateVersionCreateResponse,
+  RedemptionRateCancelResponse,
+  RedemptionRateMarketConfig,
 } from './redemption.types.js';
 import type {
   ShippingPaymentAdapter,
   PaymentIntentRequest,
 } from './shipping-payment.port.js';
 import { SHIPPING_PAYMENT_ADAPTER } from './shipping-payment.port.js';
-import { sql } from 'drizzle-orm';
 
 /**
  * Redemption Service — P6-S2/S3/S4
@@ -42,6 +75,22 @@ import { sql } from 'drizzle-orm';
  * Canonical schema defined in packages/database/schema/redemption.ts.
  */
 
+/**
+ * D-053 §6 technical precision: at most ten decimals.
+ */
+export const REDEMPTION_RATE_SCALE = 10n ** 10n;
+
+/**
+ * Owner idempotency scope namespaces (shared mechanism table
+ * merchant_api_idempotency_keys, unique (scope, key)) — D-053 §10.
+ */
+const REDEMPTION_RATE_OWNER_CREATE_SCOPE = 'redemption.rate.owner.create';
+const REDEMPTION_RATE_OWNER_CANCEL_SCOPE = 'redemption.rate.owner.cancel';
+
+type DbTransaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+type DbExecutor = Database | DbTransaction;
+type RedemptionRateTypeValue = 'POINTS_PER_CURRENCY' | 'CURRENCY_PER_POINT';
+
 @Injectable()
 export class RedemptionService {
   private readonly logger = new Logger(RedemptionService.name);
@@ -51,6 +100,8 @@ export class RedemptionService {
     @Inject(ConfigService) private readonly config: ConfigService,
     @Inject(SHIPPING_PAYMENT_ADAPTER)
     private readonly paymentAdapter: ShippingPaymentAdapter,
+    @Inject(RbacService) private readonly rbac: RbacService,
+    @Inject(AuditService) private readonly audit: AuditService,
   ) {}
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -582,77 +633,296 @@ export class RedemptionService {
   }
 
   // ═════════════════════════════════════════════════════════════════════════
-  // RATE VERSION MANAGEMENT (P6-S2) — Canonical Schema
+  // RATE VERSION MANAGEMENT (P6-S2 + D-053 secured owner) — Canonical Schema
   // ═════════════════════════════════════════════════════════════════════════
 
   /**
-   * Create a new rate version (admin only).
-   * Canonical columns: market_id, rate_type, rate_value, effective_from,
-   *   effective_until, created_by, created_at.
-   * Append-only (reject_update, reject_delete triggers on table).
-   * No notes column.
+   * Secured Phase 6 redemption-rate owner create command (D-053, CG-03).
+   *
+   * Every control lives HERE — in the owner command layer — so the
+   * canonical route AND any in-process caller (Phase 7 adapter) get
+   * identical enforcement:
+   *
+   * 1. Identity: authenticated ADMIN_USER actor with a real adminUserId.
+   * 2. Permission: `redemption.rate.manage` re-checked server-side via
+   *    RbacService.isAllowed (ACTIVE admin + ACTIVE account + grant).
+   * 3. Selected-market: server Current Admin Market (actor.currentMarketId)
+   *    required; active market grant asserted; body market must equal the
+   *    server current market (409 otherwise).
+   * 4. Per-market config (§6): the market must carry an active
+   *    redemption_rate_market_rules entry (Malaysia seeded; NO cross-market
+   *    fallback); unconfigured markets are explicitly blocked (422).
+   * 5. Exact rate contract: positive decimal, ≤10 fractional digits
+   *    (BigInt math only — no JS float arithmetic), within the approved
+   *    per-market [minimum, maximum] bounds; currency must match the rule.
+   * 6. Activation (§7): strictly future market-local 00:00 only (IANA
+   *    multi-probe resolution; same-day/backdated/non-midnight and
+   *    DST-skipped/ambiguous midnights rejected); resolved UTC + local
+   *    wall time + timezone returned.
+   * 7. Versioning (§8): append-only open-ended versions; strictly
+   *    increasing effective_from per market + rate type (half-open
+   *    [start, next_start) windows); proper overlap detection replacing
+   *    the degenerate expression; no UPDATE/DELETE of existing rows.
+   * 8. Concurrency (§8): transaction-scoped pg_advisory_xact_lock per
+   *    market (create and cancel share the lock); exactly one winner.
+   * 9. Idempotency (§10): Idempotency-Key mandatory; mechanism row in
+   *    merchant_api_idempotency_keys (scope create:<marketId>:<adminUserId>);
+   *    canonical payload hash (sorted keys + sha256); same-key/same-payload
+   *    replays the original result; same-key/different-payload → 409.
+   * 10. Reason (§11): mandatory 1..500 chars, stored durably on the version
+   *     row (migration 0031); legacy rows keep NULL.
+   * 11. Audit (§11): owner write + idempotency claim + immutable audit in
+   *     ONE transaction (atomic rollback on any failure).
    */
   async createRateVersion(
     actor: RedemptionAdminActor,
-    input: {
-      marketId: string;
-      rateType: string;
-      rateValue: string;
-      fiatCurrency: string;
-      effectiveFrom: string;
-      effectiveUntil?: string;
-      idempotencyKey: string;
-    },
-  ): Promise<RedemptionRateVersion> {
-    const db = this.database.db;
+    input: CreateRateVersionCommand,
+  ): Promise<RedemptionRateVersionCreateResponse> {
+    // ── 1+2. Identity + permission (server-side, in-process-safe) ─────
+    if (!actor?.adminUserId) throw redemptionRatePermissionDeniedError();
+    const allowed = await this.rbac.isAllowed({
+      adminUserId: actor.adminUserId,
+      permission: 'redemption.rate.manage',
+    });
+    if (!allowed) throw redemptionRatePermissionDeniedError();
 
-    // Check for overlapping rate versions using gist exclusion constraint
-    // Canonical: EXCLUDE USING gist (market_id WITH =, rate_type WITH =,
-    //   tstzrange(effective_from, COALESCE(effective_until, 'infinity'::timestamptz)) WITH &&
-    // We pre-check before insert for a more informative error
-    const overlapCheck = await db.execute(
-      sql`
-        SELECT id FROM redemption_rate_versions
-        WHERE market_id = ${input.marketId}
-          AND rate_type = ${input.rateType}::redemption_rate_type
-          AND effective_from < COALESCE(${input.effectiveUntil ?? null}, 'infinity'::timestamptz)
-          AND COALESCE(${input.effectiveUntil ?? null}, 'infinity'::timestamptz) > effective_from`,
-    );
-    const overlappingRow = overlapCheck.rows[0];
-    if (overlappingRow) {
-      throw new RedemptionError(
-        'REDEMPTION_RATE_OVERLAP',
-        'A rate version already exists with an overlapping effective range for this rate type.',
-        {
-          marketId: input.marketId,
-          rateType: input.rateType,
-          overlappingRateId: overlappingRow.id as string,
-        },
-      );
+    // ── 10. Mandatory reason (blank/overlength rejected) ──────────────
+    const reason = input.reason?.trim() ?? '';
+    if (!reason || reason.length > 500)
+      throw redemptionRateReasonRequiredError();
+
+    // ── 9. Operation-scoped idempotency key (mandatory) ───────────────
+    const idempotencyKey = input.idempotencyKey?.trim() ?? '';
+    if (!idempotencyKey || idempotencyKey.length > 200) {
+      throw redemptionRateIdempotencyKeyRequiredError();
     }
 
-    const result = await db.execute(
-      sql`INSERT INTO redemption_rate_versions (
-          market_id, rate_type, rate_value, effective_from, effective_until,
-          created_by
-        ) VALUES (
-          ${input.marketId}, ${input.rateType}::redemption_rate_type,
-          ${input.rateValue},
-          ${input.effectiveFrom}, ${input.effectiveUntil ?? null},
-          ${actor.adminUserId}
-        ) RETURNING *`,
+    // ── 3. Selected-market + resource-market consistency ──────────────
+    const marketId = input.marketId;
+    if (!marketId) throw redemptionRateMarketSelectionRequiredError();
+    if (!actor.currentMarketId)
+      throw redemptionRateMarketSelectionRequiredError();
+    if (actor.currentMarketId !== marketId) {
+      throw redemptionRateMarketContextMismatchError();
+    }
+    await this.assertMarketAccess(
+      this.database.db,
+      actor.adminUserId,
+      marketId,
     );
-    const rateRow = result.rows[0];
-    if (!rateRow)
-      throw new RedemptionError(
-        'REDEMPTION_RATE_CREATE_FAILED',
-        'Failed to create rate version',
+    const market = await this.marketRow(marketId);
+    if (!market) throw redemptionRateMarketNotFoundError();
+
+    // ── 5. Exact rate grammar (BigInt only) ───────────────────────────
+    const rateValue = input.rateValue.trim();
+    let rateScaled: bigint;
+    try {
+      rateScaled = scaledRate(rateValue); // throws on grammar/precision
+    } catch {
+      throw redemptionRatePrecisionError();
+    }
+
+    // ── 4. Per-market approved configuration (no fallback) ────────────
+    const rule = await this.marketRuleRow(marketId, input.rateType);
+    if (!rule) throw redemptionRateMarketBlockedError();
+    const minimumScaled = scaledRate(rule.minimumRate);
+    const maximumScaled = scaledRate(rule.maximumRate);
+    if (rateScaled < minimumScaled) {
+      throw redemptionRateBelowMinimumError({
+        marketId,
+        rateType: input.rateType,
+        rateValue,
+        minimum: rule.minimumRate,
+      });
+    }
+    if (rateScaled > maximumScaled) {
+      throw redemptionRateAboveMaximumError({
+        marketId,
+        rateType: input.rateType,
+        rateValue,
+        maximum: rule.maximumRate,
+      });
+    }
+    const fiatCurrency = input.fiatCurrency?.trim().toUpperCase() ?? '';
+    if (fiatCurrency !== rule.currency) {
+      throw redemptionRateCurrencyMismatchError();
+    }
+
+    // ── 6. Future market-local 00:00 activation ONLY ──────────────────
+    const effectiveFrom = new Date(input.effectiveFrom);
+    if (
+      Number.isNaN(effectiveFrom.getTime()) ||
+      !isMarketLocalMidnight(effectiveFrom, market.timezone) ||
+      effectiveFrom.getTime() <= Date.now()
+    ) {
+      throw redemptionRateActivationNotFutureError();
+    }
+
+    // ── 9. Canonical payload hash (sorted keys + sha256) ──────────────
+    const payloadHash = canonicalPayloadHash({
+      operation: 'create',
+      marketId,
+      rateType: input.rateType,
+      rateValue,
+      localDate: localDateString(effectiveFrom, market.timezone),
+      effectiveFrom: effectiveFrom.toISOString(),
+      timezone: market.timezone,
+      reason,
+      actorScope: `${REDEMPTION_RATE_OWNER_CREATE_SCOPE}:${marketId}:${actor.adminUserId}`,
+    });
+
+    const scope = `${REDEMPTION_RATE_OWNER_CREATE_SCOPE}:${marketId}:${actor.adminUserId}`;
+    const lockKey = this.ownerLockKey(marketId);
+
+    // ── 7/8/9/11: atomic create with lock, chain, idempotency, audit ──
+    return this.database.runTransaction(async (tx) => {
+      // 8. Serialize the whole operation per market scope. Transaction-
+      // scoped lock: auto-releases at commit/rollback; a losing concurrent
+      // command waits, then observes the winner's row and fails the chain
+      // rule (deterministic result).
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockKey})`);
+
+      // 9. Claim the operation key. On conflict the row already exists
+      // (replay path); on any later throw the claim rolls back with the
+      // transaction so the same key can be retried after correction.
+      const claimed = await tx.execute(
+        sql`INSERT INTO merchant_api_idempotency_keys (scope, key, request_hash)
+            VALUES (${scope}, ${idempotencyKey}, ${payloadHash})
+            ON CONFLICT (scope, key) DO NOTHING
+            RETURNING id`,
       );
-    return this.toRateVersion(rateRow);
+      const claimRow = claimed.rows[0];
+
+      if (!claimRow) {
+        const existing = await tx.execute(
+          sql`SELECT id, response, status_code, request_hash
+              FROM merchant_api_idempotency_keys
+              WHERE scope = ${scope} AND key = ${idempotencyKey}
+              LIMIT 1`,
+        );
+        const row = existing.rows[0];
+        // Same key + different payload → conflict; otherwise replay the
+        // original result exactly.
+        if (!row || row.response === null || row.request_hash !== payloadHash) {
+          throw redemptionRateIdempotencyConflictError();
+        }
+        return row.response as unknown as RedemptionRateVersionCreateResponse;
+      }
+
+      // 7. Chain rule (proper overlap detection, D-050 pattern): the new
+      // version must not fall inside any existing non-cancelled window.
+      // Windows are half-open [start, next_start) — ends are derived from
+      // the next start, so the check reduces to the latest non-cancelled
+      // version (legacy rows with a stored effective_until are respected:
+      // a successor may start exactly at the predecessor's stored end).
+      const latest = await tx.execute(
+        sql`SELECT id, effective_from, effective_until
+            FROM redemption_rate_versions
+            WHERE market_id = ${marketId}
+              AND rate_type = ${input.rateType}::redemption_rate_type
+              AND NOT EXISTS (
+                SELECT 1 FROM redemption_rate_cancellations c
+                WHERE c.rate_version_id = redemption_rate_versions.id
+              )
+            ORDER BY effective_from DESC
+            LIMIT 1`,
+      );
+      const latestRow = latest.rows[0];
+      if (latestRow) {
+        const latestStart = new Date(
+          latestRow.effective_from as string,
+        ).getTime();
+        const latestUntil = latestRow.effective_until
+          ? new Date(latestRow.effective_until as string).getTime()
+          : null;
+        const overlaps =
+          latestUntil === null
+            ? effectiveFrom.getTime() <= latestStart
+            : effectiveFrom.getTime() < latestUntil;
+        if (overlaps) {
+          throw redemptionRateOverlapError({
+            marketId,
+            rateType: input.rateType,
+            effectiveFrom: effectiveFrom.toISOString(),
+            conflictingRateId: latestRow.id as string,
+          });
+        }
+      }
+
+      // 7/10. Append-only insert with the durable reason (migration 0031).
+      const inserted = await tx.execute(
+        sql`INSERT INTO redemption_rate_versions (
+              market_id, rate_type, rate_value, effective_from, created_by, reason
+            ) VALUES (
+              ${marketId}, ${input.rateType}::redemption_rate_type,
+              ${rateValue}, ${effectiveFrom}, ${actor.adminUserId}, ${reason}
+            ) RETURNING id, market_id, rate_type, rate_value,
+              effective_from, effective_until, created_by, created_at, reason`,
+      );
+      const version = inserted.rows[0];
+      if (!version) {
+        throw new RedemptionError(
+          'REDEMPTION_RATE_CREATE_FAILED',
+          'Failed to create rate version',
+        );
+      }
+
+      // 11. Atomic immutable audit — same transaction as the insert.
+      await this.audit.appendWithinTransaction(tx, {
+        actor: { type: 'ADMIN_USER', id: actor.adminUserId },
+        action: 'redemption.rate_version.create',
+        entity: { type: 'redemption_rate_version', id: version.id as string },
+        marketId,
+        after: this.sanitizeForAudit({
+          rateValue: String(version.rate_value),
+          rateType: String(version.rate_type),
+          effectiveFrom: effectiveFrom.toISOString(),
+          payloadHash,
+        }),
+        reason,
+        result: 'SUCCESS',
+        requestId: actor.requestId ?? idempotencyKey,
+        ipAddress: actor.ipAddress,
+        summary: `Administrator scheduled redemption rate ${String(version.rate_value)} ${String(version.rate_type)} for market ${marketId} effective ${effectiveFrom.toISOString()} (${localWallString(new Date(version.effective_from as string), market.timezone)} market-local).`,
+      });
+
+      const response: RedemptionRateVersionCreateResponse = {
+        id: version.id as string,
+        marketId,
+        rateType: String(version.rate_type),
+        rateValue: normalizeRateString(String(version.rate_value)),
+        effectiveFrom: effectiveFrom.toISOString(),
+        effectiveFromLocal: localWallString(
+          new Date(version.effective_from as string),
+          market.timezone,
+        ),
+        timezone: market.timezone,
+        reason: (version.reason as string | null) ?? null,
+        createdBy: actor.adminUserId,
+        createdAt: new Date(version.created_at as string).toISOString(),
+      };
+
+      // 9. Persist the original result for exact replay.
+      await tx.execute(
+        sql`UPDATE merchant_api_idempotency_keys
+            SET response = ${JSON.stringify(response)}::jsonb,
+                status_code = 201,
+                updated_at = NOW()
+            WHERE id = ${claimRow.id as string}`,
+      );
+
+      return response;
+    });
   }
 
   /**
-   * List rate versions for a market.
+   * List rate versions for a market (admin read surface).
+   *
+   * D-053 §6/§9: cancelled future versions are flagged `CANCELLED` and the
+   * response carries the per-market approved configuration
+   * (`marketConfig.configured: false` for markets without an active rule —
+   * no cross-market fallback). The `status` filter is honoured
+   * (SCHEDULED / ACTIVE / EXPIRED / CANCELLED).
    */
   async listRateVersions(
     _actor: RedemptionAdminActor,
@@ -668,96 +938,359 @@ export class RedemptionService {
     total: number;
     page: number;
     pageSize: number;
+    marketConfig: RedemptionRateMarketConfig;
   }> {
     const db = this.database.db;
-    const conditions: ReturnType<typeof sql>[] = [sql`market_id = ${marketId}`];
+    const conditions: ReturnType<typeof sql>[] = [
+      sql`v.market_id = ${marketId}`,
+    ];
 
     if (filters.rateType) {
       conditions.push(
-        sql`rate_type = ${filters.rateType}::redemption_rate_type`,
+        sql`v.rate_type = ${filters.rateType}::redemption_rate_type`,
       );
+    }
+    const notCancelled = sql`NOT EXISTS (
+      SELECT 1 FROM redemption_rate_cancellations c
+      WHERE c.rate_version_id = v.id
+    )`;
+    switch (filters.status) {
+      case 'CANCELLED':
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM redemption_rate_cancellations c
+            WHERE c.rate_version_id = v.id
+          )`,
+        );
+        break;
+      case 'SCHEDULED':
+        conditions.push(sql`${notCancelled} AND v.effective_from > NOW()`);
+        break;
+      case 'ACTIVE':
+        conditions.push(
+          sql`${notCancelled} AND v.effective_from <= NOW()
+              AND (v.effective_until IS NULL OR v.effective_until > NOW())`,
+        );
+        break;
+      case 'EXPIRED':
+        conditions.push(
+          sql`v.effective_until IS NOT NULL AND v.effective_until <= NOW()`,
+        );
+        break;
+      default:
+        break;
     }
 
     const whereClause = sql`WHERE ${sql.join(conditions, sql` AND `)}`;
     const offset = (filters.page - 1) * filters.pageSize;
 
     const countResult = await db.execute(
-      sql`SELECT COUNT(*) as total FROM redemption_rate_versions ${whereClause}`,
+      sql`SELECT COUNT(*) as total FROM redemption_rate_versions v ${whereClause}`,
     );
     const total = Number(countResult.rows[0]?.total ?? 0);
 
     const result = await db.execute(
-      sql`SELECT id, rate_type, rate_value, effective_from, effective_until,
-                 created_by, created_at
-          FROM redemption_rate_versions ${whereClause}
-          ORDER BY effective_from DESC
+      sql`SELECT v.id, v.rate_type, v.rate_value, v.effective_from,
+                 v.effective_until, v.created_by, v.created_at,
+                 CASE WHEN c.id IS NULL THEN false ELSE true END AS cancelled
+          FROM redemption_rate_versions v
+          LEFT JOIN redemption_rate_cancellations c
+            ON c.rate_version_id = v.id
+          ${whereClause}
+          ORDER BY v.effective_from DESC
           LIMIT ${filters.pageSize} OFFSET ${offset}`,
     );
-    // Compute status from effective range
+    // Compute status from the effective range + cancellation record.
     const now = new Date();
-    return {
-      versions: result.rows.map((row: Record<string, unknown>) => {
-        const effectiveFrom = new Date(row.effective_from as string);
-        const effectiveUntil = row.effective_until
-          ? new Date(row.effective_until as string)
-          : null;
-        let status = 'SCHEDULED';
-        if (effectiveFrom <= now && (!effectiveUntil || effectiveUntil > now)) {
-          status = 'ACTIVE';
-        } else if (effectiveUntil && effectiveUntil <= now) {
-          status = 'EXPIRED';
-        }
+    const versions = result.rows.map((row: Record<string, unknown>) => {
+      const effectiveFrom = new Date(row.effective_from as string);
+      const effectiveUntil = row.effective_until
+        ? new Date(row.effective_until as string)
+        : null;
+      let status = 'SCHEDULED';
+      if (row.cancelled) {
+        status = 'CANCELLED';
+      } else if (
+        effectiveFrom <= now &&
+        (!effectiveUntil || effectiveUntil > now)
+      ) {
+        status = 'ACTIVE';
+      } else if (effectiveUntil && effectiveUntil <= now) {
+        status = 'EXPIRED';
+      }
 
-        return {
-          id: row.id as string,
-          rateType: row.rate_type as string,
-          rateValue: row.rate_value as string,
-          effectiveFrom: effectiveFrom.toISOString(),
-          effectiveUntil: effectiveUntil ? effectiveUntil.toISOString() : null,
-          status,
-          createdAt: new Date(row.created_at as string).toISOString(),
+      return {
+        id: row.id as string,
+        rateType: row.rate_type as string,
+        rateValue: row.rate_value as string,
+        effectiveFrom: effectiveFrom.toISOString(),
+        effectiveUntil: effectiveUntil ? effectiveUntil.toISOString() : null,
+        status,
+        createdAt: new Date(row.created_at as string).toISOString(),
+      };
+    });
+
+    const rule = await this.marketRuleRow(marketId, 'POINTS_PER_CURRENCY');
+    const marketConfig: RedemptionRateMarketConfig = rule
+      ? {
+          configured: true,
+          initialRate: normalizeRateString(rule.initialRate),
+          minimumRate: normalizeRateString(rule.minimumRate),
+          maximumRate: normalizeRateString(rule.maximumRate),
+          currency: rule.currency,
+          displayUnit: rule.displayUnit,
+        }
+      : {
+          configured: false,
+          initialRate: null,
+          minimumRate: null,
+          maximumRate: null,
+          currency: null,
+          displayUnit: null,
         };
-      }),
+
+    return {
+      versions,
       total,
       page: filters.page,
       pageSize: filters.pageSize,
+      marketConfig,
     };
   }
 
   /**
-   * Cancel a rate version by setting its effective_until to NOW().
+   * Secured Phase 6 redemption-rate owner cancel command (D-053 §9).
+   *
+   * A cancellation NEVER updates or deletes the immutable rate-version row
+   * (append-only triggers + no UPDATE path). It records an append-only
+   * immutable event in `redemption_rate_cancellations`; the resolver
+   * ignores cancelled versions forever, so a cancelled scheduled version
+   * can never become effective and no historical quote/order is touched.
+   *
+   * Only future-scheduled, not-yet-effective versions can be cancelled;
+   * active, expired and historically used versions are rejected. Cancelling
+   * requires the same identity/permission/selected-market/reason/
+   * idempotency/audit guarantees as create.
    */
   async cancelRateVersion(
     actor: RedemptionAdminActor,
     rateId: string,
-    _input: { reason: string; idempotencyKey: string },
-  ): Promise<RedemptionRateVersion> {
-    void _input;
-    const db = this.database.db;
-    const result = await db.execute(
-      sql`UPDATE redemption_rate_versions
-          SET effective_until = NOW(),
-              updated_at = NOW(),
-              updated_by = ${actor.adminUserId}
+    input: CancelRateVersionCommand,
+  ): Promise<RedemptionRateCancelResponse> {
+    // ── Identity + permission (server-side, in-process-safe) ──────────
+    if (!actor?.adminUserId) throw redemptionRatePermissionDeniedError();
+    const allowed = await this.rbac.isAllowed({
+      adminUserId: actor.adminUserId,
+      permission: 'redemption.rate.manage',
+    });
+    if (!allowed) throw redemptionRatePermissionDeniedError();
+
+    // ── Mandatory reason (blank/overlength rejected) ──────────────────
+    const reason = input.reason?.trim() ?? '';
+    if (!reason || reason.length > 500)
+      throw redemptionRateReasonRequiredError();
+
+    // ── Operation-scoped idempotency key (mandatory) ──────────────────
+    const idempotencyKey = input.idempotencyKey?.trim() ?? '';
+    if (!idempotencyKey || idempotencyKey.length > 200) {
+      throw redemptionRateIdempotencyKeyRequiredError();
+    }
+
+    // ── Selected-market presence (before any business query) ─────────
+    // §5/§9: an actor without a server Current Admin Market is rejected
+    // BEFORE any resource/business query runs.
+    if (!actor.currentMarketId)
+      throw redemptionRateMarketSelectionRequiredError();
+
+    // ── Load the immutable target version ─────────────────────────────
+    const loaded = await this.database.db.execute(
+      sql`SELECT id, market_id, rate_type, rate_value, effective_from,
+                 effective_until
+          FROM redemption_rate_versions
           WHERE id = ${rateId}
-            AND (effective_until IS NULL OR effective_until > NOW())
-          RETURNING *`,
+          LIMIT 1`,
     );
-    const row = result.rows[0];
-    if (!row) {
+    const version = loaded.rows[0];
+    if (!version) {
       throw new RedemptionError(
         'REDEMPTION_RATE_NOT_FOUND',
-        'Rate version not found or already expired.',
+        'Rate version not found.',
         { rateId },
       );
     }
-    return this.toRateVersion(row);
+    const versionMarketId = version.market_id as string;
+    const versionEffectiveFrom = new Date(version.effective_from as string);
+    const versionEffectiveUntil = version.effective_until
+      ? new Date(version.effective_until as string)
+      : null;
+
+    // ── Selected-market + resource-market consistency ────────────────
+    if (actor.currentMarketId !== versionMarketId) {
+      throw redemptionRateMarketContextMismatchError();
+    }
+    await this.assertMarketAccess(
+      this.database.db,
+      actor.adminUserId,
+      versionMarketId,
+    );
+    const market = await this.marketRow(versionMarketId);
+    if (!market) throw redemptionRateMarketNotFoundError();
+
+    // ── Canonical payload hash (sorted keys + sha256) ─────────────────
+    const payloadHash = canonicalPayloadHash({
+      operation: 'cancel',
+      marketId: versionMarketId,
+      rateType: String(version.rate_type),
+      rateValue: String(version.rate_value),
+      localDate: localDateString(versionEffectiveFrom, market.timezone),
+      effectiveFrom: versionEffectiveFrom.toISOString(),
+      timezone: market.timezone,
+      reason,
+      targetVersionId: rateId,
+      actorScope: `${REDEMPTION_RATE_OWNER_CANCEL_SCOPE}:${versionMarketId}:${actor.adminUserId}`,
+    });
+
+    const scope = `${REDEMPTION_RATE_OWNER_CANCEL_SCOPE}:${versionMarketId}:${actor.adminUserId}`;
+    const lockKey = this.ownerLockKey(versionMarketId);
+
+    // ── Idempotency replay/conflict BEFORE cancellability checks ─────
+    // §10: a replayed key must return the original result (or a 409 on
+    // payload mismatch) even though the version is now cancelled — the
+    // cancellability pre-check below would otherwise reject the replay
+    // as REDEMPTION_RATE_ALREADY_CANCELLED before the idempotency row is
+    // ever consulted. Same-key/different-payload also surfaces as 409
+    // IDEMPOTENCY_CONFLICT here (not ALREADY_CANCELLED).
+    const prior = await this.database.db.execute(
+      sql`SELECT id, response, request_hash
+          FROM merchant_api_idempotency_keys
+          WHERE scope = ${scope} AND key = ${idempotencyKey}
+          LIMIT 1`,
+    );
+    const priorRow = prior.rows[0];
+    if (priorRow) {
+      if (priorRow.response === null || priorRow.request_hash !== payloadHash) {
+        throw redemptionRateIdempotencyConflictError();
+      }
+      return priorRow.response as unknown as RedemptionRateCancelResponse;
+    }
+
+    // ── Cancellability pre-checks (re-checked inside the lock) ────────
+    await this.assertCancellable(
+      this.database.db,
+      version,
+      versionEffectiveFrom,
+      versionEffectiveUntil,
+    );
+
+    // ── Atomic cancel: lock, idempotency, cancellability, audit ───────
+    return this.database.runTransaction(async (tx) => {
+      // Serialize with creates (and other cancels) on the same market.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockKey})`);
+
+      // Claim the operation key (replay/conflict semantics as for create).
+      const claimed = await tx.execute(
+        sql`INSERT INTO merchant_api_idempotency_keys (scope, key, request_hash)
+            VALUES (${scope}, ${idempotencyKey}, ${payloadHash})
+            ON CONFLICT (scope, key) DO NOTHING
+            RETURNING id`,
+      );
+      const claimRow = claimed.rows[0];
+      if (!claimRow) {
+        const existing = await tx.execute(
+          sql`SELECT id, response, status_code, request_hash
+              FROM merchant_api_idempotency_keys
+              WHERE scope = ${scope} AND key = ${idempotencyKey}
+              LIMIT 1`,
+        );
+        const row = existing.rows[0];
+        if (!row || row.response === null || row.request_hash !== payloadHash) {
+          throw redemptionRateIdempotencyConflictError();
+        }
+        return row.response as unknown as RedemptionRateCancelResponse;
+      }
+
+      // Re-check cancellability inside the lock (race-safe).
+      await this.assertCancellable(
+        tx,
+        version,
+        versionEffectiveFrom,
+        versionEffectiveUntil,
+      );
+
+      // Append-only immutable cancellation event (migration 0031).
+      const cancelled = await tx.execute(
+        sql`INSERT INTO redemption_rate_cancellations (
+              rate_version_id, market_id, cancelled_by, reason, request_id
+            ) VALUES (
+              ${rateId}, ${versionMarketId}, ${actor.adminUserId},
+              ${reason}, ${actor.requestId ?? null}
+            ) RETURNING id, rate_version_id, market_id, cancelled_by,
+              reason, request_id, created_at`,
+      );
+      const cancellation = cancelled.rows[0];
+      if (!cancellation) {
+        throw new RedemptionError(
+          'REDEMPTION_RATE_CANCELLATION_FAILED',
+          'Failed to cancel rate version',
+        );
+      }
+
+      // Atomic immutable audit — same transaction as the cancellation.
+      await this.audit.appendWithinTransaction(tx, {
+        actor: { type: 'ADMIN_USER', id: actor.adminUserId },
+        action: 'redemption.rate_version.cancel',
+        entity: {
+          type: 'redemption_rate_cancellation',
+          id: cancellation.id as string,
+        },
+        marketId: versionMarketId,
+        after: this.sanitizeForAudit({
+          rateVersionId: rateId,
+          rateValue: String(version.rate_value),
+          rateType: String(version.rate_type),
+          effectiveFrom: versionEffectiveFrom.toISOString(),
+          payloadHash,
+        }),
+        reason,
+        result: 'SUCCESS',
+        requestId: actor.requestId ?? idempotencyKey,
+        ipAddress: actor.ipAddress,
+        summary: `Administrator cancelled scheduled redemption rate version ${rateId} (${String(version.rate_value)} ${String(version.rate_type)}) for market ${versionMarketId}.`,
+      });
+
+      const response: RedemptionRateCancelResponse = {
+        id: cancellation.id as string,
+        rateVersionId: rateId,
+        marketId: versionMarketId,
+        rateType: String(version.rate_type),
+        rateValue: normalizeRateString(String(version.rate_value)),
+        effectiveFrom: versionEffectiveFrom.toISOString(),
+        reason,
+        cancelledBy: actor.adminUserId,
+        cancelledAt: new Date(cancellation.created_at as string).toISOString(),
+      };
+
+      // Persist the original result for exact replay.
+      await tx.execute(
+        sql`UPDATE merchant_api_idempotency_keys
+            SET response = ${JSON.stringify(response)}::jsonb,
+                status_code = 200,
+                updated_at = NOW()
+            WHERE id = ${claimRow.id as string}`,
+      );
+
+      return response;
+    });
   }
 
   /**
    * Get the effective rate for a market at the current time.
    * Returns the most recent rate version whose effective range covers NOW().
    * Canonical: uses rate_type = 'POINTS_PER_CURRENCY' (default conversion type).
+   *
+   * D-053 §7/§9: the resolver excludes cancelled versions (a cancelled
+   * scheduled version can never become effective) and respects legacy
+   * stored window ends. Frozen quote/order snapshots are never repriced.
    */
   async getEffectiveRate(marketId: string): Promise<RedemptionRateVersion> {
     const db = this.database.db;
@@ -767,6 +1300,10 @@ export class RedemptionService {
             AND rate_type = 'POINTS_PER_CURRENCY'::redemption_rate_type
             AND effective_from <= NOW()
             AND (effective_until IS NULL OR effective_until > NOW())
+            AND NOT EXISTS (
+              SELECT 1 FROM redemption_rate_cancellations c
+              WHERE c.rate_version_id = redemption_rate_versions.id
+            )
           ORDER BY effective_from DESC
           LIMIT 1`,
     );
@@ -779,6 +1316,159 @@ export class RedemptionService {
       );
     }
     return this.toRateVersion(row);
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // D-053 OWNER HELPERS — identity, market, config, cancellation
+  // ═════════════════════════════════════════════════════════════════════════
+
+  private async marketRow(
+    marketId: string,
+  ): Promise<{ id: string; code: string; timezone: string } | undefined> {
+    const rows = await this.database.db
+      .select({
+        id: markets.id,
+        code: markets.code,
+        timezone: markets.timezone,
+      })
+      .from(markets)
+      .where(and(eq(markets.id, marketId), eq(markets.status, 'ACTIVE')))
+      .limit(1);
+    return rows[0];
+  }
+
+  private async assertMarketAccess(
+    db: DbExecutor,
+    adminUserId: string,
+    marketId: string,
+  ): Promise<void> {
+    const rows = await db
+      .select({ id: adminUsers.id })
+      .from(marketAccess)
+      .innerJoin(adminUsers, eq(adminUsers.id, marketAccess.adminUserId))
+      .innerJoin(markets, eq(markets.id, marketAccess.marketId))
+      .where(
+        and(
+          eq(marketAccess.adminUserId, adminUserId),
+          eq(marketAccess.marketId, marketId),
+          isNull(marketAccess.revokedAt),
+          eq(adminUsers.status, 'ACTIVE'),
+          eq(markets.status, 'ACTIVE'),
+        ),
+      )
+      .limit(1);
+    if (!rows[0]) throw redemptionRateMarketAccessDeniedError();
+  }
+
+  /**
+   * Active approved rate rule for the market (D-053 §6). Keyed by the
+   * canonical market code — NO cross-market fallback: a market without an
+   * explicit active rule resolves to `undefined` and the owner blocks it.
+   */
+  private async marketRuleRow(
+    marketId: string,
+    rateType: string,
+    db: DbExecutor = this.database.db,
+  ): Promise<
+    | {
+        initialRate: string;
+        minimumRate: string;
+        maximumRate: string;
+        currency: string;
+        displayUnit: string;
+      }
+    | undefined
+  > {
+    const rows = await db
+      .select({
+        initialRate: redemptionRateMarketRules.initialRate,
+        minimumRate: redemptionRateMarketRules.minimumRate,
+        maximumRate: redemptionRateMarketRules.maximumRate,
+        currency: redemptionRateMarketRules.currency,
+        displayUnit: redemptionRateMarketRules.displayUnit,
+      })
+      .from(redemptionRateMarketRules)
+      .innerJoin(
+        markets,
+        eq(markets.code, redemptionRateMarketRules.marketCode),
+      )
+      .where(
+        and(
+          eq(markets.id, marketId),
+          eq(
+            redemptionRateMarketRules.rateType,
+            rateType as RedemptionRateTypeValue,
+          ),
+          eq(redemptionRateMarketRules.isActive, true),
+        ),
+      )
+      .limit(1);
+    return rows[0];
+  }
+
+  /**
+   * D-053 §9 cancellability: only future-scheduled, not-yet-effective,
+   * never-used versions can be cancelled. Active/expired/historically used
+   * versions are rejected. Runs outside the lock for a clean early error
+   * and again INSIDE the lock for race safety.
+   */
+  private async assertCancellable(
+    db: DbExecutor,
+    version: Record<string, unknown>,
+    effectiveFrom: Date,
+    effectiveUntil: Date | null,
+  ): Promise<void> {
+    const alreadyCancelled = await db.execute(
+      sql`SELECT 1 FROM redemption_rate_cancellations
+          WHERE rate_version_id = ${version.id}
+          LIMIT 1`,
+    );
+    if (alreadyCancelled.rows[0]) throw redemptionRateAlreadyCancelledError();
+
+    if (effectiveFrom.getTime() <= Date.now()) {
+      throw redemptionRateCannotCancelEffectiveError({
+        rateVersionId: version.id,
+        effectiveFrom: effectiveFrom.toISOString(),
+      });
+    }
+    if (effectiveUntil && effectiveUntil.getTime() <= Date.now()) {
+      throw redemptionRateCannotCancelEffectiveError({
+        rateVersionId: version.id,
+        reason: 'expired',
+      });
+    }
+    const used = await db.execute(
+      sql`SELECT 1 FROM (
+            SELECT 1 FROM redemption_quotes
+            WHERE rate_version_id = ${version.id}
+            UNION ALL
+            SELECT 1 FROM redemption_orders
+            WHERE rate_version_id = ${version.id}
+          ) t
+          LIMIT 1`,
+    );
+    if (used.rows[0]) {
+      throw redemptionRateCannotCancelEffectiveError({
+        rateVersionId: version.id,
+        reason: 'historically-used',
+      });
+    }
+  }
+
+  /**
+   * Market-scoped owner advisory-lock key shared by create and cancel so
+   * every owner mutation of a market's rate schedule serializes together.
+   */
+  private ownerLockKey(marketId: string): bigint {
+    return this.hashKeyToBigInt(`d053:redemption-rate-owner:${marketId}`);
+  }
+
+  private sanitizeForAudit(
+    value: Record<string, unknown>,
+  ): Record<string, unknown> {
+    return Object.fromEntries(
+      Object.entries(value).filter(([, v]) => v !== undefined && v !== null),
+    );
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -1023,13 +1713,20 @@ export class RedemptionService {
     }
 
     // Load effective rate for the market (OD-22: rate locked at quote time)
-    // Canonical: use POINTS_PER_CURRENCY rate type
+    // Canonical: use POINTS_PER_CURRENCY rate type.
+    // D-053 §7/§9: the resolver excludes cancelled versions so a cancelled
+    // scheduled version can never lock into a new quote; existing frozen
+    // quote/order snapshots are never repriced.
     const rateResult = await db.execute(
       sql`SELECT * FROM redemption_rate_versions
           WHERE market_id = ${memberMarketId}
             AND rate_type = 'POINTS_PER_CURRENCY'::redemption_rate_type
             AND effective_from <= NOW()
             AND (effective_until IS NULL OR effective_until > NOW())
+            AND NOT EXISTS (
+              SELECT 1 FROM redemption_rate_cancellations c
+              WHERE c.rate_version_id = redemption_rate_versions.id
+            )
           ORDER BY effective_from DESC
           LIMIT 1`,
     );
@@ -2493,4 +3190,181 @@ export class RedemptionService {
     const fracPart = padded.slice(padded.length - scale);
     return `${intPart}.${fracPart}`;
   }
+}
+
+// ─── D-053 exact-decimal helpers (string only — never float arithmetic) ──
+
+/**
+ * Scale a rate decimal string to 10^10 integer units (BigInt).
+ * Rejects negative values, missing digits, or more than 10 decimals.
+ */
+export function scaledRate(value: string): bigint {
+  const match = /^(\d+)(?:\.(\d{1,10}))?$/u.exec(value.trim());
+  if (!match) throw redemptionRatePrecisionError();
+  const whole = BigInt(match[1] ?? '0');
+  const fraction = (match[2] ?? '').padEnd(10, '0') || '0';
+  return whole * REDEMPTION_RATE_SCALE + BigInt(fraction);
+}
+
+/**
+ * Trim a stored exact-decimal rate to its significant digits for display
+ * (string-only formatting — no arithmetic). Storage keeps `numeric(38,10)`;
+ * the display convention is at most six decimals (server-derived, never
+ * changing the stored exact value).
+ */
+export function normalizeRateString(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed.includes('.')) return trimmed;
+  const [whole = '0', fraction] = trimmed.split('.');
+  const significant = (fraction ?? '').replace(/0+$/u, '');
+  return significant === '' ? whole : `${whole}.${significant}`;
+}
+
+// ─── Market-local midnight resolution (IANA timezone, D-053 §7) ──────────
+
+/**
+ * Resolve the UTC instant of the market-local midnight of a calendar date
+ * in the given IANA timezone. Returns `null` when no unambiguous 00:00:00
+ * wall time exists for that date (skipped midnights such as
+ * America/Havana spring-forward, or ambiguous repeated midnights such as
+ * America/Santiago fall-back, or an invalid/unsupported timezone).
+ *
+ * Multiple probes across the UTC day are used so a transition that lands
+ * between 00:00 and 12:00 local can never hide the pre-transition midnight:
+ * the offset observed by at least one probe matches the offset in force at
+ * the date's own 00:00.
+ */
+export function resolveLocalMidnight(
+  dateStr: string,
+  timeZone: string,
+): Date | null {
+  try {
+    const dateParts = dateStr.split('-').map((value) => Number(value));
+    const year = dateParts[0] ?? 0;
+    const month = dateParts[1] ?? 0;
+    const day = dateParts[2] ?? 0;
+    const candidates: number[] = [];
+    for (const hour of [0, 6, 12, 18]) {
+      const probe = new Date(Date.UTC(year, month - 1, day, hour, 0, 0, 0));
+      const probeParts = localParts(probe, timeZone);
+      const localAsUtc = Date.UTC(
+        probeParts.year,
+        probeParts.month - 1,
+        probeParts.day,
+        probeParts.hour,
+        probeParts.minute,
+        probeParts.second,
+      );
+      const offsetMs = localAsUtc - probe.getTime();
+      const midnight = new Date(
+        Date.UTC(year, month - 1, day, 0, 0, 0, 0) - offsetMs,
+      );
+      const wall = localParts(midnight, timeZone);
+      if (
+        wall.year === year &&
+        wall.month === month &&
+        wall.day === day &&
+        wall.hour === 0 &&
+        wall.minute === 0 &&
+        wall.second === 0
+      ) {
+        candidates.push(midnight.getTime());
+      }
+    }
+    if (candidates.length === 0) return null;
+    const distinct = [...new Set(candidates)];
+    if (distinct.length !== 1) return null;
+    return new Date(distinct[0] ?? 0);
+  } catch {
+    // Invalid/unsupported IANA timezone (Intl throws RangeError).
+    return null;
+  }
+}
+
+/**
+ * True when the given instant is exactly the market-local 00:00:00 of its
+ * own local date in the market timezone (round-trip against
+ * `resolveLocalMidnight` so DST edges — skipped or ambiguous midnights —
+ * are rejected).
+ */
+export function isMarketLocalMidnight(at: Date, timeZone: string): boolean {
+  if (Number.isNaN(at.getTime())) return false;
+  const wall = localParts(at, timeZone);
+  if (wall.hour !== 0 || wall.minute !== 0 || wall.second !== 0) return false;
+  const dateStr = `${String(wall.year).padStart(4, '0')}-${String(wall.month).padStart(2, '0')}-${String(wall.day).padStart(2, '0')}`;
+  const resolved = resolveLocalMidnight(dateStr, timeZone);
+  return resolved !== null && resolved.getTime() === at.getTime();
+}
+
+interface LocalParts {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+}
+
+function localParts(at: Date, timeZone: string): LocalParts {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  const map = new Map(
+    formatter.formatToParts(at).map((part) => [part.type, part.value]),
+  );
+  return {
+    year: Number(map.get('year') ?? '0'),
+    month: Number(map.get('month') ?? '0'),
+    day: Number(map.get('day') ?? '0'),
+    hour: Number(map.get('hour') ?? '0'),
+    minute: Number(map.get('minute') ?? '0'),
+    second: Number(map.get('second') ?? '0'),
+  };
+}
+
+/**
+ * Market-local wall clock "YYYY-MM-DD HH:mm:ss" for display.
+ */
+export function localWallString(at: Date, timeZone: string): string {
+  const parts = localParts(at, timeZone);
+  return `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')} ${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}:${String(parts.second).padStart(2, '0')}`;
+}
+
+/**
+ * Market-local calendar date "YYYY-MM-DD" (payload-hash component).
+ */
+export function localDateString(at: Date, timeZone: string): string {
+  const parts = localParts(at, timeZone);
+  return `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+}
+
+// ─── Canonical payload hash (sorted keys + sha256, D-053 §10) ────────────
+
+/**
+ * Canonical payload hash for idempotency correlation (owner pattern):
+ * keys sorted recursively, then sha256 hex.
+ */
+export function canonicalPayloadHash(payload: Record<string, unknown>): string {
+  return createHash('sha256')
+    .update(JSON.stringify(sortJson(payload)))
+    .digest('hex');
+}
+
+function sortJson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortJson);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, sortJson(nested)]),
+    );
+  }
+  return value;
 }

@@ -3830,6 +3830,8 @@ export const commissionAdjustmentRequests = pgTable(
 
 import {
   redemptionRateVersions,
+  redemptionRateMarketRules,
+  redemptionRateCancellations,
   redemptionCatalogItems,
   redemptionQuotes,
   redemptionOrders,
@@ -3864,6 +3866,8 @@ import {
 
 export {
   redemptionRateVersions,
+  redemptionRateMarketRules,
+  redemptionRateCancellations,
   redemptionCatalogItems,
   redemptionQuotes,
   redemptionOrders,

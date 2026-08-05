@@ -8,6 +8,7 @@ import { RedemptionController } from './redemption.controller.js';
 import { RedemptionService } from './redemption.service.js';
 import { RedemptionFulfilmentService } from './redemption-fulfilment.service.js';
 import { RedemptionRefundService } from './redemption-refund.service.js';
+import { AdminRedemptionController } from './admin-redemption.controller.js';
 import { AdminRedemptionFulfilmentController } from './redemption-admin-fulfilment.controller.js';
 import { AdminRedemptionRefundController } from './redemption-admin-refund.controller.js';
 import { SandboxPaymentAdapter } from './sandbox-payment.adapter.js';
@@ -23,6 +24,7 @@ import { SHIPPING_PAYMENT_ADAPTER } from './shipping-payment.port.js';
   ],
   controllers: [
     RedemptionController,
+    AdminRedemptionController,
     AdminRedemptionFulfilmentController,
     AdminRedemptionRefundController,
   ],
