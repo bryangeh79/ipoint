@@ -474,3 +474,27 @@ _End of register - new entries appended above this line._
 ---
 
 _End of register - new entries appended above this line._
+
+---
+
+_End of register - new entries appended above this line._
+
+## D-054 — Phase 5 Commission-Rate Owner Remediation (CG-04 gate)
+
+| Field | Value |
+|---|---|
+| **Task ID** | D-054 (DECISION_LOG D-054; CG-04 gate) |
+| **Sub-phase** | Phase 5 frozen-owner remediation — commission-rate owner security/versioning/audit (Command Center order 2026-08-05) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementing subagent + regression-fix subagent + independent reviewing subagent + separate test-verifier subagent; all D-048) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Worktree** | `.local/wt-p5-p7-commission-rate-owner` |
+| **Task branch** | `fix/p5-p7-commission-rate-owner` (base `7250c25f`) |
+| **Commit SHAs** | `09d97e88` (feat database: migration 0032 — reason column, append-only triggers, gist replacement), `60882c47` (fix: secured owner command), `f642bb73` (fix: per-generation rate guard + DESC resolution), `b8a2071c` (test: 51-test evidence suite), `515d36bc` (docs: delivery report) |
+| **Migration** | `0032_p5_d054_commission_rate_reason.sql` (forward-only; D-054 sole owner; 0000-0031 byte-identical; checksums 33/33; drift clean) |
+| **Host test gate** | Owner 51/51; P5-R1 13/13 (isolated DB); B/C/D 35/35 (isolated); commission domain 199/199; S6B 38/38; S6C 49/49; redemption 235/235; checksums 33/33; OpenAPI 237 paths / 0 errors; api/admin-web/api-client typecheck+build exit 0; lint 0 errors; prettier clean; drift clean. Evidence `.local/d054-gate/evidence/*.log`. |
+| **Independent review** | **APPROVED** — 0 Critical / 0 High; **`GIST_REPLACEMENT_APPROVED`** explicit; 4 Low (L-1..L-4, non-blocking; L-3/L-4 test additions queued as D-055 bounded follow-up). Verdict `.local/d054-gate/review/REVIEWER_VERDICT.md`. |
+| **Independent verification** | **TEST_GATE_PASSED** — 12 gates re-run on fresh isolated DBs (Node v24.19.0). Verdict `.local/d054-gate/evidence/VERIFIER_VERDICT.md`. |
+| **Integration commit** | `ab297a4d` (merge into `phase/7-admin-operations`, --no-ff, no conflicts) — pushed; local = remote; main untouched; untracked 102; tracked 0 |
+| **Declarations** | `D-054_OWNER_REMEDIATION_INTEGRATED` / `CG-04_COMMISSION_RATE_OWNER_GATE_PASSED` (OpenClaw internal; NOT Command Center acceptance) |
+| **Known limitations** | 4 Low reviewer observations; fixture-collision lesson recorded (isolated DBs mandatory for high-risk suites); pre-existing node-v18-only crypto item; OpenAPI non-self-exit quirk; browser E2E host/CI-only. |
+
