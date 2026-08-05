@@ -1,27 +1,34 @@
 /**
  * P7-S6C Admin Redemption Rate Configuration adapter types (frozen contract
- * §7.2, D-046).
+ * §7.2, D-046; rewired to the D-053 secured owner, order §15).
  *
- * Phase 7 read projection + orchestrated create over the frozen Phase 6
- * redemption owner (`apps/api/src/redemption`). The adapter never mutates
- * domain tables and never duplicates owner formulas: the single
- * `redemption_rate_versions` insert delegates to the frozen owner command
- * (`RedemptionService.createRateVersion`) unchanged.
+ * Phase 7 read projection + orchestrated create/cancel over the secured
+ * Phase 6 redemption owner (`apps/api/src/redemption`). The adapter never
+ * mutates domain tables and never duplicates owner formulas: the single
+ * `redemption_rate_versions` insert and the append-only cancellation
+ * events delegate to the secured owner commands
+ * (`RedemptionService.createRateVersion` / `cancelRateVersion`) with the
+ * mandatory reason, the client Idempotency-Key and the server Current
+ * Admin Market (D-053 contract).
  *
  * Rate semantics (frozen contract §7.2):
  * - Independent per market; no universal rate and NO other-market
  *   fallback. A market without an approved configuration shows the
- *   explicit blocked state.
+ *   explicit blocked state (`configured: false` — resolved from the
+ *   canonical `redemption_rate_market_rules` table, the same source the
+ *   secured owner enforces).
  * - Immutable forward-only versions; quotes and orders retain their
  *   original Rate Version (frozen OD-22 rate locking — this surface never
- *   reprices history).
+ *   reprices history). A scheduled version can be voided by an
+ *   append-only cancellation event (D-053 §9); the resolver ignores
+ *   cancelled versions forever.
  * - Technical ceiling ten decimals; UI displays up to six. Storage
  *   (`numeric(38,10)`) and the API carry the full precision; the display
  *   string is derived server-side and is display-only.
  * - Malaysia (market code `MY`): local currency value per 1 iPoint —
- *   initial RM1.00, minimum RM0.50, maximum RM2.00. Other markets stay
- *   blocked until Initial, Minimum, Maximum, Currency, and Display Unit
- *   are approved.
+ *   initial RM1.00, minimum RM0.50, maximum RM2.00 (seeded in the
+ *   canonical rules table, D-053 §6). Other markets stay blocked until
+ *   Initial, Minimum, Maximum, Currency, and Display Unit are approved.
  *
  * The surface configures the canonical conversion rate type the frozen
  * redemption flow actually consumes at quote time:
@@ -39,78 +46,25 @@ export const REDEMPTION_RATE_TECHNICAL_DECIMALS = 10;
 /** §7.2 display precision ceiling (UI shows at most 6 decimals). */
 export const REDEMPTION_RATE_DISPLAY_DECIMALS = 6;
 
-/** Exact-decimal scale used for string comparisons (10^10). */
-export const REDEMPTION_RATE_SCALE = 10_000_000_000n;
-
-/**
- * One approved per-market redemption rate configuration (CONFIGURABLE —
- * versioned Phase 7 rules). Values are read from this versioned rule
- * structure, never hard-coded in logic. A market is BLOCKED until a rule
- * exists for its market code; there is no cross-market fallback.
- */
-export interface RedemptionRateMarketRule {
-  /** Canonical market code this rule applies to (e.g. `MY` = Malaysia). */
-  marketCode: string;
-  /** §7.2 initial rate (local currency per 1 iPoint), exact string. */
-  initialRate: string;
-  /** §7.2 minimum rate, exact string. */
-  minimumRate: string;
-  /** §7.2 maximum rate, exact string. */
-  maximumRate: string;
-  /** ISO-4217 currency code of the rate (e.g. `MYR`). */
-  currency: string;
-  /** Display unit shown with the rate (e.g. `RM per 1 iPoint`). */
-  displayUnit: string;
-}
-
-/**
- * Approved per-market rules (versioned rules, D-046 §7.2 Malaysia values).
- * Malaysia initial RM1.00 / minimum RM0.50 / maximum RM2.00 per 1 iPoint.
- * Every other market stays blocked until its values are approved — no
- * fallback to Malaysia or any other market.
- */
-export const REDEMPTION_RATE_MARKET_RULES: Readonly<
-  Record<string, RedemptionRateMarketRule>
-> = {
-  MY: {
-    marketCode: 'MY',
-    initialRate: '1.0000000000',
-    minimumRate: '0.5000000000',
-    maximumRate: '2.0000000000',
-    currency: 'MYR',
-    displayUnit: 'RM per 1 iPoint',
-  },
-};
-
-/**
- * The versioned-rules map type (keyed by market code, uppercase).
- * Injectable so the approval catalog can evolve without touching logic.
- */
-export type RedemptionRateMarketRulesMap = Readonly<
-  Record<string, RedemptionRateMarketRule>
->;
-
-/**
- * DI token for the approved per-market redemption rate rules. The default
- * value is `REDEMPTION_RATE_MARKET_RULES` (D-046 §7.2); the integration
- * suite overrides the provider with additional test codes carrying the
- * same Malaysia values so multi-market evidence can be produced without
- * altering the production approval catalog.
- */
-export const REDEMPTION_RATE_RULES_PROVIDER = Symbol(
-  'REDEMPTION_RATE_RULES_PROVIDER',
-);
-
 export type AdminRedemptionOpsErrorCode =
   | 'REDEMPTION_MARKET_NOT_FOUND'
   | 'REDEMPTION_RATE_MARKET_BLOCKED'
   | 'REDEMPTION_RATE_BELOW_MINIMUM'
   | 'REDEMPTION_RATE_ABOVE_MAXIMUM'
+  | 'REDEMPTION_RATE_CURRENCY_MISMATCH'
   | 'REDEMPTION_RATE_PRECISION_EXCEEDED'
   | 'REDEMPTION_ACTIVATION_NOT_FUTURE'
   | 'REDEMPTION_RATE_OVERLAP'
   | 'REDEMPTION_IDEMPOTENCY_CONFLICT'
-  | 'REDEMPTION_RATE_VERSION_NOT_FOUND';
+  | 'REDEMPTION_RATE_VERSION_NOT_FOUND'
+  | 'PERMISSION_DENIED'
+  | 'MARKET_ACCESS_DENIED'
+  | 'MARKET_SELECTION_REQUIRED'
+  | 'MARKET_CONTEXT_MISMATCH'
+  | 'IDEMPOTENCY_KEY_REQUIRED'
+  | 'REASON_REQUIRED'
+  | 'REDEMPTION_RATE_CANNOT_CANCEL_EFFECTIVE'
+  | 'REDEMPTION_RATE_ALREADY_CANCELLED';
 
 export class AdminRedemptionOpsError extends Error {
   constructor(
@@ -123,28 +77,38 @@ export class AdminRedemptionOpsError extends Error {
   }
 }
 
-/** Server-derived actor for adapter audit records. */
+/** Server-derived actor for the adapter's owner delegation. */
 export interface AdminRedemptionOpsActor {
   adminUserId: string;
   requestId?: string;
   ipAddress?: string;
+  /**
+   * Server-owned Current Admin Market resolved by the canonical RbacGuard
+   * (D-053 §5). Passed through into the secured owner commands so they
+   * apply the exact same selected-market enforcement as the canonical
+   * route.
+   */
+  currentMarketId?: string;
+  marketContextVersion?: number;
 }
 
 /**
  * Window status of a rate version inside the selected-market chain.
  * The frozen owner resolution
  * (`RedemptionService.getEffectiveRate`: latest `effective_from` whose
- * window covers the instant wins) closes each version's window at the
- * earlier of an explicit `effective_until` and the next version's
- * `effective_from`. Versions created through this surface are always
- * open-ended, so their windows are pure chain steps
- * `[effective_from, next effective_from)`.
+ * window covers the instant wins, cancelled versions ignored — D-053 §9)
+ * closes each version's window at the earlier of an explicit
+ * `effective_until` and the next NON-cancelled version's `effective_from`.
+ * A cancelled scheduled version is void: it never becomes effective, never
+ * closes or supersedes a predecessor window, and is projected with the
+ * explicit `CANCELLED` status.
  */
 export type AdminRedemptionRateWindowStatus =
   | 'SCHEDULED'
   | 'ACTIVE'
   | 'SUPERSEDED'
-  | 'EXPIRED';
+  | 'EXPIRED'
+  | 'CANCELLED';
 
 /** One redemption rate version, projected for the selected market. */
 export interface AdminRedemptionRateVersionDto {
@@ -200,7 +164,7 @@ export interface AdminRedemptionRateListResponse {
   rates: AdminRedemptionRateVersionDto[];
 }
 
-/** Create-command result (also the stored idempotency replay payload). */
+/** Create-command result (owner-resolved activation + surface fields). */
 export interface AdminRedemptionRateCreateResponse {
   id: string;
   rate_type: string;
@@ -215,4 +179,21 @@ export interface AdminRedemptionRateCreateResponse {
   market_id: string;
   created_by: string;
   created_at: string;
+}
+
+/** Cancel-command result (append-only cancellation event, D-053 §9). */
+export interface AdminRedemptionRateCancelResponse {
+  /** Cancellation event id (immutable row in the cancellations table). */
+  id: string;
+  /** The cancelled rate-version id (its immutable row is untouched). */
+  rate_version_id: string;
+  market_id: string;
+  /** Normalized exact rate of the cancelled version. */
+  rate_value: string;
+  /** Resolved UTC instant of the cancelled version's activation. */
+  effective_from_utc: string;
+  /** Mandatory operator reason stored on the cancellation event. */
+  reason: string;
+  cancelled_by: string;
+  cancelled_at: string;
 }

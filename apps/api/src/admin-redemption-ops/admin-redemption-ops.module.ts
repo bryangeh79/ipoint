@@ -5,30 +5,29 @@ import { PlatformAccessModule } from '../platform-access/platform-access.module.
 import { RedemptionModule } from '../redemption/redemption.module.js';
 import { AdminRedemptionOpsController } from './admin-redemption-ops.controller.js';
 import { AdminRedemptionOpsService } from './admin-redemption-ops.service.js';
-import {
-  REDEMPTION_RATE_MARKET_RULES,
-  REDEMPTION_RATE_RULES_PROVIDER,
-} from './admin-redemption-ops.types.js';
 
 /**
- * P7-S6C Admin Redemption Rate Configuration adapter module (Phase 7, new).
+ * P7-S6C Admin Redemption Rate Configuration adapter module (Phase 7,
+ * new; rewired to the D-053 secured owner, order §15).
  *
- * Phase 7 read projection + orchestration over the frozen Phase 6
- * redemption owner (frozen contract §7.2). No frozen Phase 1/3/5/6 owner
- * file is modified and no owner command is duplicated: the single
- * `redemption_rate_versions` insert delegates to the frozen
- * `RedemptionService.createRateVersion` owner command unchanged.
+ * Phase 7 read projection + orchestrated create/cancel over the secured
+ * Phase 6 redemption owner (frozen contract §7.2). No frozen Phase 1/3/5/6
+ * owner file is modified and no owner command is duplicated: the single
+ * `redemption_rate_versions` insert and the append-only cancellation
+ * events delegate to the secured owner commands
+ * (`RedemptionService.createRateVersion` / `cancelRateVersion`) with the
+ * mandatory reason, the client Idempotency-Key and the server Current
+ * Admin Market (RbacGuard `adminMarketContext`).
  *
- * The adapter adds the §7.2 configuration surface the frozen owner does
- * not provide: per-market approved bounds (Malaysia initial RM1.00 / min
- * RM0.50 / max RM2.00 per 1 iPoint; every other market stays blocked with
- * no fallback), ≤10-decimal technical precision validation, future
- * market-local 00:00 activation resolution, no-overlap chain serialization
- * (session-level advisory lock, frozen contract §14), exact idempotency
- * (Idempotency-Key + canonical payload hash claimed in the shared
- * idempotency mechanism table), and mandatory reason + privileged audit
- * (§7/§15). Quotes and orders retain their original rate version (frozen
- * OD-22) — this surface never reprices history.
+ * The adapter adds only legitimate Phase 7 orchestration/read/UI
+ * behavior: the read projection (approved per-market bounds resolved from
+ * the canonical `redemption_rate_market_rules` table — the same source
+ * the owner enforces — or the explicit blocked state, full technical
+ * precision, market-local + resolved UTC windows incl. CANCELLED), the
+ * market-local date → UTC instant conversion, and the create/cancel
+ * response + error mapping. It performs no advisory lock, no idempotency
+ * claim/mechanism writes and no privileged audit of its own — those are
+ * owned by the canonical owner commands (D-053 §10/§11).
  *
  * Market enforcement is the canonical RbacGuard
  * (`redemption.rate.read` / `redemption.rate.manage` are marketScoped):
@@ -38,13 +37,7 @@ import {
 @Module({
   imports: [AuthModule, DatabaseModule, PlatformAccessModule, RedemptionModule],
   controllers: [AdminRedemptionOpsController],
-  providers: [
-    AdminRedemptionOpsService,
-    {
-      provide: REDEMPTION_RATE_RULES_PROVIDER,
-      useValue: REDEMPTION_RATE_MARKET_RULES,
-    },
-  ],
+  providers: [AdminRedemptionOpsService],
   exports: [AdminRedemptionOpsService],
 })
 export class AdminRedemptionOpsModule {}

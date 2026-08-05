@@ -13,6 +13,7 @@ import {
   permissions,
   redemptionOrders,
   redemptionQuotes,
+  redemptionRateCancellations,
   redemptionRateVersions,
   roleAssignments,
   rolePermissions,
@@ -39,10 +40,6 @@ import type { InMemoryRateLimiter } from '../auth/rate-limit.port.js';
 import { AuthService } from '../auth/auth.service.js';
 import { DatabaseService } from '../database/database.service.js';
 import { RedemptionService } from '../redemption/redemption.service.js';
-import {
-  REDEMPTION_RATE_RULES_PROVIDER,
-  type RedemptionRateMarketRulesMap,
-} from './admin-redemption-ops.types.js';
 
 const databaseUrl = process.env['DATABASE_URL'];
 const password = 'Redemption-Ops-Password-123!';
@@ -64,33 +61,14 @@ function marketLocalDate(daysAhead: number, timeZone: string): string {
   return `${map.get('year')}-${map.get('month')}-${map.get('day')}`;
 }
 
-/**
- * Test-only extension of the approved rules catalog: every test market code
- * below carries the SAME Malaysia §7.2 values (initial 1.00 / min 0.50 /
- * max 2.00 MYR). The PRODUCTION catalog (`REDEMPTION_RATE_MARKET_RULES`)
- * approves only `MY`; the extra codes exist solely so the multi-market
- * evidence (at-bounds acceptance, isolation, races) can be produced without
- * altering production configuration.
- */
-function testRules(): RedemptionRateMarketRulesMap {
-  const codes = ['MY', 'MA', 'MB', 'MC', 'MD', 'ME', 'MF', 'MG', 'MH', 'MI'];
-  return Object.fromEntries(
-    codes.map((code) => [
-      code,
-      {
-        marketCode: code,
-        initialRate: '1.0000000000',
-        minimumRate: '0.5000000000',
-        maximumRate: '2.0000000000',
-        currency: 'MYR',
-        displayUnit: 'RM per 1 iPoint',
-      },
-    ]),
-  );
-}
+/** Approved Malaysia §7.2 values used for the test-configured markets. */
+const MALAYSIA_INITIAL = '1.0000000000';
+const MALAYSIA_MIN = '0.5000000000';
+const MALAYSIA_MAX = '2.0000000000';
+const MALAYSIA_CURRENCY = 'MYR';
 
 describe.skipIf(!databaseUrl)(
-  'Admin Redemption Rate Operations HTTP integration (P7-S6C)',
+  'Admin Redemption Rate Operations HTTP integration (P7-S6C, D-053 rewiring)',
   () => {
     let app: INestApplication;
     let server: Server;
@@ -98,20 +76,23 @@ describe.skipIf(!databaseUrl)(
     let database: DatabaseService;
     let redemption: RedemptionService;
     let rateLimiter: InMemoryRateLimiter;
-    let marketMy: string; // code MY, MYR, Asia/Kuala_Lumpur (approved §7.2)
+    let marketMy: string; // code MY, MYR, Asia/Kuala_Lumpur (seeded rule)
     let marketSg: string; // code SG, SGD, Asia/Singapore (blocked, no rule)
-    let marketMa: string; // test-configured (Malaysia values) — at-bounds 0.50
-    let marketMb: string; // test-configured — at-bounds 2.00
-    let marketMc: string; // test-configured — ten-decimal precision
-    let marketMd: string; // test-configured — future 00:00 resolution
-    let marketMe: string; // test-configured — overlap prevention
-    let marketMf: string; // test-configured — concurrent race
-    let marketMg: string; // test-configured — idempotency
-    let marketMh: string; // test-configured — audit trail
-    let marketMi: string; // test-configured — market isolation
+    let marketMa: string; // configured — at-bounds 0.50
+    let marketMb: string; // configured — at-bounds 2.00
+    let marketMc: string; // configured — ten-decimal precision
+    let marketMd: string; // configured — future 00:00 resolution
+    let marketMe: string; // configured — overlap + successor
+    let marketMf: string; // configured — concurrent race
+    let marketMg: string; // configured — idempotency
+    let marketMh: string; // configured — owner audit / no-direct-write
+    let marketMi: string; // configured — market isolation
+    let marketMj: string; // configured — cancel surface
 
     const ratesUrl = (marketId: string) =>
       `/api/v1/admin/redemption-ops/markets/${marketId}/rates`;
+    const cancelUrl = (marketId: string, versionId: string) =>
+      `/api/v1/admin/redemption-ops/markets/${marketId}/rates/${versionId}/cancel`;
 
     function authorized(token: string) {
       return { Authorization: `Bearer ${token}` };
@@ -148,9 +129,10 @@ describe.skipIf(!databaseUrl)(
       return inserted[0]?.id ?? '';
     }
 
-    /** A brand-new active market with a random (unapproved) code. */
+    /** Fresh ACTIVE market WITHOUT a rate rule (unconfigured → blocked). */
     async function freshMarket(
       timezone = 'Asia/Kuala_Lumpur',
+      currencyCode = 'MYR',
     ): Promise<string> {
       const code = `M${randomUUID().slice(0, 6).toUpperCase()}`;
       const inserted = await database.db
@@ -159,12 +141,48 @@ describe.skipIf(!databaseUrl)(
           code,
           name: `Fresh Redemption Ops Market ${code}`,
           status: 'ACTIVE',
-          currencyCode: 'MYR',
+          currencyCode,
           timezone,
           defaultLocale: 'en-MY',
         })
         .returning({ id: markets.id });
       return inserted[0]?.id ?? '';
+    }
+
+    /**
+     * Fresh ACTIVE market with an approved Malaysia-bounds rule in the
+     * canonical `redemption_rate_market_rules` table — the SAME source the
+     * secured owner enforces (D-053 §6). No provider override: the rule is
+     * market data, exactly like the production seed.
+     */
+    async function freshConfiguredMarket(
+      timezone = 'Asia/Kuala_Lumpur',
+    ): Promise<string> {
+      const code = `C${randomUUID().slice(0, 6).toUpperCase()}`;
+      const inserted = await database.db
+        .insert(markets)
+        .values({
+          code,
+          name: `Configured Redemption Ops Market ${code}`,
+          status: 'ACTIVE',
+          currencyCode: MALAYSIA_CURRENCY,
+          timezone,
+          defaultLocale: 'en-MY',
+        })
+        .returning({ id: markets.id });
+      const marketId = inserted[0]?.id ?? '';
+      await database.db.execute(
+        sql`INSERT INTO redemption_rate_market_rules (
+              market_code, rate_type, initial_rate, minimum_rate,
+              maximum_rate, currency, display_unit
+            ) VALUES (
+              ${code}, 'POINTS_PER_CURRENCY'::redemption_rate_type,
+              ${MALAYSIA_INITIAL}, ${MALAYSIA_MIN}, ${MALAYSIA_MAX},
+              ${MALAYSIA_CURRENCY}, 'RM per 1 iPoint'
+            )
+            ON CONFLICT (market_code, rate_type) DO NOTHING`,
+      );
+      return marketId;
     }
 
     async function createAccount(): Promise<{
@@ -386,10 +404,7 @@ describe.skipIf(!databaseUrl)(
       vi.stubEnv('LOG_LEVEL', 'silent');
       const moduleFixture: TestingModule = await Test.createTestingModule({
         imports: [AppModule],
-      })
-        .overrideProvider(REDEMPTION_RATE_RULES_PROVIDER)
-        .useValue(testRules())
-        .compile();
+      }).compile();
       app = moduleFixture.createNestApplication();
       configureApplication(app, {
         enableShutdownHooks: false,
@@ -406,15 +421,16 @@ describe.skipIf(!databaseUrl)(
 
       marketMy = await ensureActiveMarket('MY', 'MYR', 'Asia/Kuala_Lumpur');
       marketSg = await ensureActiveMarket('SG', 'SGD', 'Asia/Singapore');
-      marketMa = await ensureActiveMarket('MA', 'MYR', 'Asia/Kuala_Lumpur');
-      marketMb = await ensureActiveMarket('MB', 'MYR', 'Asia/Kuala_Lumpur');
-      marketMc = await ensureActiveMarket('MC', 'MYR', 'Asia/Kuala_Lumpur');
-      marketMd = await ensureActiveMarket('MD', 'MYR', 'Asia/Kuala_Lumpur');
-      marketMe = await ensureActiveMarket('ME', 'MYR', 'Asia/Kuala_Lumpur');
-      marketMf = await ensureActiveMarket('MF', 'MYR', 'Asia/Kuala_Lumpur');
-      marketMg = await ensureActiveMarket('MG', 'MYR', 'Asia/Kuala_Lumpur');
-      marketMh = await ensureActiveMarket('MH', 'MYR', 'Asia/Kuala_Lumpur');
-      marketMi = await ensureActiveMarket('MI', 'MYR', 'Asia/Kuala_Lumpur');
+      marketMa = await freshConfiguredMarket();
+      marketMb = await freshConfiguredMarket();
+      marketMc = await freshConfiguredMarket();
+      marketMd = await freshConfiguredMarket();
+      marketMe = await freshConfiguredMarket();
+      marketMf = await freshConfiguredMarket();
+      marketMg = await freshConfiguredMarket();
+      marketMh = await freshConfiguredMarket();
+      marketMi = await freshConfiguredMarket();
+      marketMj = await freshConfiguredMarket();
     });
 
     afterAll(async () => {
@@ -474,21 +490,21 @@ describe.skipIf(!databaseUrl)(
       const market = await freshMarket();
       const admin = await createAdmin({ marketIds: [market] });
       await setCurrentMarket(admin.accountId, market);
-      const start = new Date('2026-01-01T00:00:00.000Z');
-      const later = new Date('2026-06-01T00:00:00.000Z');
+      const dayMs = 24 * 60 * 60 * 1000;
+      const v1Start = new Date(Date.now() - 45 * dayMs);
+      const v1End = new Date(Date.now() - 15 * dayMs);
+      const v2Start = new Date(Date.now() - 15 * dayMs);
       const v1 = await seedRateVersion({
         marketId: market,
         rateValue: '1.0000000000',
-        effectiveFrom: start,
-        // Bounded window so v2 can start at 2026-06-01 (the frozen gist
-        // exclusion forbids two open-ended versions in the same market).
-        effectiveUntil: later,
+        effectiveFrom: v1Start,
+        effectiveUntil: v1End,
         createdBy: admin.adminUserId,
       });
       const v2 = await seedRateVersion({
         marketId: market,
         rateValue: '1.1234567890',
-        effectiveFrom: later,
+        effectiveFrom: v2Start,
         createdBy: admin.adminUserId,
       });
       const response = await supertest(server)
@@ -508,18 +524,34 @@ describe.skipIf(!databaseUrl)(
       expect(rateV1.rate_type).toBe('POINTS_PER_CURRENCY');
       expect(rateV1.rate_value).toBe('1.0000000000');
       expect(rateV1.display_rate).toBe('1');
-      expect(rateV1.effective_from_utc).toBe('2026-01-01T00:00:00.000Z');
-      expect(rateV1.effective_from_local).toBe('2026-01-01 08:00:00');
-      // v1's explicit window ended exactly when v2 started (adjacent
-      // half-open windows, no overlap) — it EXPIRED at its own end.
+      expect(rateV1.effective_from_utc).toBe(v1Start.toISOString());
+      expect(rateV1.effective_from_local).toBe(
+        localWallFor(v1Start, 'Asia/Kuala_Lumpur'),
+      );
+      // v1's explicit window ended in the past → EXPIRED.
       expect(rateV1.window_status).toBe('EXPIRED');
-      expect(rateV1.effective_until_utc).toBe('2026-06-01T00:00:00.000Z');
+      expect(rateV1.effective_until_utc).toBe(v1End.toISOString());
       // Full technical precision survives; display is ≤6 decimals.
       expect(rateV2.rate_value).toBe('1.1234567890');
       expect(rateV2.display_rate).toBe('1.123457');
       expect(rateV2.window_status).toBe('ACTIVE');
       expect(rateV2.effective_until_utc).toBeNull();
     });
+
+    function localWallFor(at: Date, timeZone: string): string {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23',
+      }).formatToParts(at);
+      const map = new Map(parts.map((part) => [part.type, part.value]));
+      return `${map.get('year')}-${map.get('month')}-${map.get('day')} ${map.get('hour')}:${map.get('minute')}:${map.get('second')}`;
+    }
 
     // ─── Authorization and market enforcement ─────────────────────────
 
@@ -597,33 +629,38 @@ describe.skipIf(!databaseUrl)(
         });
     });
 
-    it('requires an Idempotency-Key on the write (400)', async () => {
-      const market = await freshMarket();
+    it('requires an Idempotency-Key and a reason on the write (400)', async () => {
+      const market = await freshConfiguredMarket();
       const admin = await createAdmin({
         marketIds: [market],
         permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
       });
       await setCurrentMarket(admin.accountId, market);
-      const body = await supertest(server)
+
+      const noKey = await supertest(server)
         .post(ratesUrl(market))
         .set(authorized(admin.token))
         .send(createPayload())
         .expect(400);
-      expect((body.body as ErrorBody).error.code).toBe(
+      expect((noKey.body as ErrorBody).error.code).toBe(
         'IDEMPOTENCY_KEY_REQUIRED',
       );
+
+      const noReason = await supertest(server)
+        .post(ratesUrl(market))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', `key-${randomUUID()}`)
+        .send({
+          rate_value: '1.5',
+          effective_date: marketLocalDate(2, 'Asia/Kuala_Lumpur'),
+        })
+        .expect(400);
+      expect((noReason.body as ErrorBody).error.code).toBe('VALIDATION_ERROR');
     });
 
-    // ─── Create surface (Malaysia, strict future dates, increasing order)
-    // Note: tests that create versions on the shared Malaysia market MUST
-    // use strictly increasing market-local dates (the frozen owner allows
-    // exactly one version per market + rate type; the surface rejects any
-    // further version with the stable 409 overlap contract).
+    // ─── Create surface (secured owner command, D-053) ───────────────
 
     it('accepts the Malaysia bounds at 0.50 / 1.00 / 2.00 (at-bounds)', async () => {
-      // Each at-bounds value is accepted on its own configured market: the
-      // frozen owner allows exactly one version per market + rate type, so
-      // a fresh configured market is the correct fixture for each value.
       const admin = await createAdmin({
         marketIds: [marketMy, marketMa, marketMb],
         permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
@@ -690,16 +727,17 @@ describe.skipIf(!databaseUrl)(
     });
 
     it('rejects below the minimum and above the maximum (Malaysia bounds)', async () => {
+      const market = await freshConfiguredMarket();
       const admin = await createAdmin({
-        marketIds: [marketMy],
+        marketIds: [market],
         permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
       });
-      await setCurrentMarket(admin.accountId, marketMy);
+      await setCurrentMarket(admin.accountId, market);
       const date = marketLocalDate(7, 'Asia/Kuala_Lumpur');
-      const before = await rateVersionCount(marketMy);
+      const before = await rateVersionCount(market);
 
       const below = await supertest(server)
-        .post(ratesUrl(marketMy))
+        .post(ratesUrl(market))
         .set(authorized(admin.token))
         .set('Idempotency-Key', `key-${randomUUID()}`)
         .send(createPayload({ rate_value: '0.49', effective_date: date }))
@@ -709,7 +747,7 @@ describe.skipIf(!databaseUrl)(
       );
 
       const above = await supertest(server)
-        .post(ratesUrl(marketMy))
+        .post(ratesUrl(market))
         .set(authorized(admin.token))
         .set('Idempotency-Key', `key-${randomUUID()}`)
         .send(createPayload({ rate_value: '2.01', effective_date: date }))
@@ -720,7 +758,7 @@ describe.skipIf(!databaseUrl)(
 
       // Eleven input decimals exceed the §7.2 technical ceiling → 400.
       await supertest(server)
-        .post(ratesUrl(marketMy))
+        .post(ratesUrl(market))
         .set(authorized(admin.token))
         .set('Idempotency-Key', `key-${randomUUID()}`)
         .send(
@@ -729,7 +767,7 @@ describe.skipIf(!databaseUrl)(
         .expect(400);
 
       // No version was created by any of the rejected calls.
-      expect(await rateVersionCount(marketMy)).toBe(before);
+      expect(await rateVersionCount(market)).toBe(before);
     });
 
     it('accepts the full ten-decimal technical precision; display is ≤6 and display-only', async () => {
@@ -757,12 +795,14 @@ describe.skipIf(!databaseUrl)(
       // Display value rounds half-up to 6 decimals — display only.
       expect(result.display_rate).toBe('1.123457');
 
-      // Stored row keeps the exact ten-decimal value (never rounded).
+      // Stored row keeps the exact ten-decimal value (never rounded) and
+      // the durable reason the owner wrote on the version row.
       const rows = await database.db
         .select()
         .from(redemptionRateVersions)
         .where(eq(redemptionRateVersions.id, result.id));
       expect(String(rows[0]?.rateValue)).toBe('1.1234567890');
+      expect(rows[0]?.reason).toBe('Integration test rate configuration');
 
       // The read projection repeats the same full precision + display value.
       const list = await supertest(server)
@@ -839,14 +879,15 @@ describe.skipIf(!databaseUrl)(
     });
 
     it('rejects same-day and backdated activation (422)', async () => {
+      const market = await freshConfiguredMarket();
       const admin = await createAdmin({
-        marketIds: [marketMy],
+        marketIds: [market],
         permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
       });
-      await setCurrentMarket(admin.accountId, marketMy);
+      await setCurrentMarket(admin.accountId, market);
       const today = marketLocalDate(0, 'Asia/Kuala_Lumpur');
       const sameDay = await supertest(server)
-        .post(ratesUrl(marketMy))
+        .post(ratesUrl(market))
         .set(authorized(admin.token))
         .set('Idempotency-Key', `key-${randomUUID()}`)
         .send(createPayload({ effective_date: today }))
@@ -855,7 +896,7 @@ describe.skipIf(!databaseUrl)(
         'REDEMPTION_ACTIVATION_NOT_FUTURE',
       );
       const backdated = await supertest(server)
-        .post(ratesUrl(marketMy))
+        .post(ratesUrl(market))
         .set(authorized(admin.token))
         .set('Idempotency-Key', `key-${randomUUID()}`)
         .send(createPayload({ effective_date: '2020-01-01' }))
@@ -865,7 +906,7 @@ describe.skipIf(!databaseUrl)(
       );
     });
 
-    it('rejects any further version once one exists (overlap prevention)', async () => {
+    it('rejects overlapping starts but allows a legal future successor (D-053 §8)', async () => {
       const admin = await createAdmin({
         marketIds: [marketMe],
         permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
@@ -882,7 +923,7 @@ describe.skipIf(!databaseUrl)(
         .expect(201);
       const firstId = (first.body as { id: string }).id;
 
-      // Same start date → overlap.
+      // Same start date → overlap (409).
       const sameDate = await supertest(server)
         .post(ratesUrl(marketMe))
         .set(authorized(admin.token))
@@ -893,27 +934,37 @@ describe.skipIf(!databaseUrl)(
         'REDEMPTION_RATE_OVERLAP',
       );
 
-      // A LATER start date is also rejected: the frozen owner model allows
-      // exactly one version per market + rate type (append-only triggers,
-      // gist exclusion over `[effective_from, effective_until)` and the
-      // owner's overlap pre-check). Version changes after the initial
-      // baseline require frozen-owner remediation (see delivery report).
-      const later = await supertest(server)
+      // A strictly LATER start date is a legal future successor under the
+      // D-053 owner (half-open windows; the old frozen gist model that
+      // rejected every second version was removed by migration 0031).
+      const successor = await supertest(server)
         .post(ratesUrl(marketMe))
         .set(authorized(admin.token))
         .set('Idempotency-Key', `key-${randomUUID()}`)
         .send(createPayload({ rate_value: '1.3', effective_date: date2 }))
-        .expect(409);
-      expect((later.body as ErrorBody).error.code).toBe(
-        'REDEMPTION_RATE_OVERLAP',
-      );
+        .expect(201);
+      const successorId = (successor.body as { id: string }).id;
+      expect(successorId).not.toBe(firstId);
 
-      // Historical immutability: V1's stored rate never changed.
+      // Historical immutability: V1's stored rate never changed and the
+      // read projection marks it SUPERSEDED by the successor.
       const rows = await database.db
         .select()
         .from(redemptionRateVersions)
         .where(eq(redemptionRateVersions.id, firstId));
       expect(String(rows[0]?.rateValue)).toBe('1.2000000000');
+      const list = await supertest(server)
+        .get(ratesUrl(marketMe))
+        .set(authorized(admin.token))
+        .expect(200);
+      const byId = new Map(
+        (list.body.rates as Array<Record<string, unknown>>).map((rate) => [
+          rate.id,
+          rate.window_status,
+        ]),
+      );
+      expect(byId.get(firstId)).toBe('SUPERSEDED');
+      expect(byId.get(successorId)).toBe('SCHEDULED');
     });
 
     it('concurrent overlapping creates resolve to exactly one 201 + one 409', async () => {
@@ -986,7 +1037,7 @@ describe.skipIf(!databaseUrl)(
       );
     });
 
-    it('writes the privileged audit trail with reason + actor', async () => {
+    it('writes ONE owner-scoped mechanism row + owner audit (no adapter-side writes)', async () => {
       const admin = await createAdmin({
         marketIds: [marketMh],
         permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
@@ -1005,12 +1056,31 @@ describe.skipIf(!databaseUrl)(
         .expect(201);
       const versionId = (body.body as { id: string }).id;
 
+      // The mechanism row is the OWNER's claim (scope
+      // redemption.rate.owner.create:<marketId>:<adminUserId>), written by
+      // the owner inside its transaction — exactly ONE row for the key.
+      const idemRows = await database.db
+        .select()
+        .from(merchantApiIdempotencyKeys)
+        .where(eq(merchantApiIdempotencyKeys.key, key));
+      expect(idemRows.length).toBe(1);
+      expect(idemRows[0]?.scope).toBe(
+        `redemption.rate.owner.create:${marketMh}:${admin.adminUserId}`,
+      );
+      expect(idemRows[0]?.statusCode).toBe(201);
+      expect((idemRows[0]?.response as { id?: string })?.id).toBe(versionId);
+      expect(idemRows[0]?.requestHash).toMatch(/^[a-f0-9]{64}$/u);
+
+      // The immutable audit row is the OWNER's atomic audit
+      // (`redemption.rate_version.create`) carrying actor, market, reason,
+      // correlation and the entity reference. The legacy adapter action
+      // `ADMIN_REDEMPTION_RATE_VERSION_CREATED` no longer exists.
       const auditRows = await database.db
         .select()
         .from(auditLogs)
         .where(
           and(
-            eq(auditLogs.action, 'ADMIN_REDEMPTION_RATE_VERSION_CREATED'),
+            eq(auditLogs.action, 'redemption.rate_version.create'),
             eq(auditLogs.marketId, marketMh),
           ),
         );
@@ -1019,16 +1089,17 @@ describe.skipIf(!databaseUrl)(
       );
       expect(record).toBeTruthy();
       expect(record?.actorId).toBe(admin.adminUserId);
-      expect(record?.requestId).toBe(key);
       expect(record?.result).toBe('SUCCESS');
-      expect(record?.after).toMatchObject({ version_id: versionId });
-
-      const idemRows = await database.db
+      expect(String(record?.requestId ?? '')).not.toBe('');
+      expect(record?.after).toMatchObject({
+        rateValue: '1.8000000000',
+        rateType: 'POINTS_PER_CURRENCY',
+      });
+      const legacyAuditRows = await database.db
         .select()
-        .from(merchantApiIdempotencyKeys)
-        .where(eq(merchantApiIdempotencyKeys.key, key));
-      expect(idemRows[0]?.statusCode).toBe(201);
-      expect((idemRows[0]?.response as { id?: string })?.id).toBe(versionId);
+        .from(auditLogs)
+        .where(eq(auditLogs.action, 'ADMIN_REDEMPTION_RATE_VERSION_CREATED'));
+      expect(legacyAuditRows.length).toBe(0);
     });
 
     it('exposes no edit/delete routes (immutable append-only versions)', async () => {
@@ -1097,14 +1168,14 @@ describe.skipIf(!databaseUrl)(
       expect((body.body as ErrorBody).error.code).toBe(
         'REDEMPTION_RATE_MARKET_BLOCKED',
       );
-      // No row and no audit record were produced.
+      // No row, no owner mechanism claim and no audit record were produced.
       expect(await rateVersionCount(marketSg)).toBe(0);
       const auditRows = await database.db
         .select()
         .from(auditLogs)
         .where(
           and(
-            eq(auditLogs.action, 'ADMIN_REDEMPTION_RATE_VERSION_CREATED'),
+            eq(auditLogs.action, 'redemption.rate_version.create'),
             eq(auditLogs.marketId, marketSg),
           ),
         );
@@ -1116,24 +1187,22 @@ describe.skipIf(!databaseUrl)(
       // the effective rate version at generation time; a successor version
       // (seeded like the owner would create it) never changes the
       // historical rows.
-      const market = await freshMarket('Asia/Kuala_Lumpur');
+      const market = await freshConfiguredMarket();
       const admin = await createAdmin({ marketIds: [market] });
       await setCurrentMarket(admin.accountId, market);
 
-      // v0 is effective NOW (window covers today); v1 is its future
-      // successor starting 2026-09-01 (adjacent half-open windows, exactly
-      // like a bounded-window owner create).
+      const dayMs = 24 * 60 * 60 * 1000;
       const v0 = await seedRateVersion({
         marketId: market,
         rateValue: '1.0000000000',
-        effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
-        effectiveUntil: new Date('2026-09-01T00:00:00.000Z'),
+        effectiveFrom: new Date(Date.now() - 90 * dayMs),
+        effectiveUntil: new Date(Date.now() + 30 * dayMs),
         createdBy: admin.adminUserId,
       });
       const v1 = await seedRateVersion({
         marketId: market,
         rateValue: '2.0000000000',
-        effectiveFrom: new Date('2026-09-01T00:00:00.000Z'),
+        effectiveFrom: new Date(Date.now() + 30 * dayMs),
         createdBy: admin.adminUserId,
       });
 
@@ -1231,15 +1300,13 @@ describe.skipIf(!databaseUrl)(
     });
 
     it('protects versions at the database level (reject update/delete)', async () => {
-      // Seed a version directly (owner-style row) on a fresh market and
-      // prove the append-only triggers reject UPDATE and DELETE.
-      const market = await freshMarket();
+      const market = await freshConfiguredMarket();
       const admin = await createAdmin({ marketIds: [market] });
       await setCurrentMarket(admin.accountId, market);
       const versionId = await seedRateVersion({
         marketId: market,
         rateValue: '1.2500000000',
-        effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+        effectiveFrom: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         createdBy: admin.adminUserId,
       });
 
@@ -1262,6 +1329,386 @@ describe.skipIf(!databaseUrl)(
         .from(redemptionRateVersions)
         .where(eq(redemptionRateVersions.id, versionId));
       expect(String(rows[0]?.rateValue)).toBe('1.2500000000');
+    });
+
+    // ─── Cancel surface (D-053 §9 append-only contract) ───────────────
+
+    it('cancels a scheduled version: 200, append-only event, version row untouched', async () => {
+      const admin = await createAdmin({
+        marketIds: [marketMj],
+        permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
+      });
+      await setCurrentMarket(admin.accountId, marketMj);
+      const date = marketLocalDate(15, 'Asia/Kuala_Lumpur');
+      const reason = 'Scheduled baseline no longer required';
+      const created = await supertest(server)
+        .post(ratesUrl(marketMj))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', `key-${randomUUID()}`)
+        .send(
+          createPayload({ rate_value: '1.5500000000', effective_date: date }),
+        )
+        .expect(201);
+      const versionId = (created.body as { id: string }).id;
+
+      const before = await database.db
+        .select()
+        .from(redemptionRateVersions)
+        .where(eq(redemptionRateVersions.id, versionId));
+
+      const key = `cancel-${randomUUID()}`;
+      const cancelled = await supertest(server)
+        .post(cancelUrl(marketMj, versionId))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', key)
+        .send({ reason })
+        .expect(200);
+      const result = cancelled.body as {
+        id: string;
+        rate_version_id: string;
+        market_id: string;
+        rate_value: string;
+        effective_from_utc: string;
+        reason: string;
+        cancelled_by: string;
+        cancelled_at: string;
+      };
+      expect(result.rate_version_id).toBe(versionId);
+      expect(result.market_id).toBe(marketMj);
+      // The cancel surface consumes the owner's normalized exact value
+      // (the read projection carries the full technical precision).
+      expect(result.rate_value).toBe('1.55');
+      expect(result.reason).toBe(reason);
+      expect(result.cancelled_by).toBe(admin.adminUserId);
+      expect(result.cancelled_at).toBeTruthy();
+
+      // The immutable version row is untouched (rate, window, reason).
+      const after = await database.db
+        .select()
+        .from(redemptionRateVersions)
+        .where(eq(redemptionRateVersions.id, versionId));
+      expect(String(after[0]?.rateValue)).toBe(String(before[0]?.rateValue));
+      expect(after[0]?.effectiveFrom.getTime()).toBe(
+        before[0]?.effectiveFrom.getTime(),
+      );
+      expect(after[0]?.createdBy).toBe(before[0]?.createdBy);
+      expect(after[0]?.reason).toBe('Integration test rate configuration');
+
+      // The append-only cancellation event exists with reason + actor.
+      const cancellationRows = await database.db
+        .select()
+        .from(redemptionRateCancellations)
+        .where(eq(redemptionRateCancellations.rateVersionId, versionId));
+      expect(cancellationRows.length).toBe(1);
+      expect(cancellationRows[0]?.id).toBe(result.id);
+      expect(cancellationRows[0]?.reason).toBe(reason);
+      expect(cancellationRows[0]?.cancelledBy).toBe(admin.adminUserId);
+      expect(cancellationRows[0]?.marketId).toBe(marketMj);
+
+      // The owner's atomic cancel audit row exists.
+      const auditRows = await database.db
+        .select()
+        .from(auditLogs)
+        .where(
+          and(
+            eq(auditLogs.action, 'redemption.rate_version.cancel'),
+            eq(auditLogs.marketId, marketMj),
+          ),
+        );
+      const audit = auditRows.find(
+        (row) => row.entityId === result.id && row.reason === reason,
+      );
+      expect(audit).toBeTruthy();
+      expect(audit?.actorId).toBe(admin.adminUserId);
+
+      // The owner mechanism row for the cancel scope is claimed once.
+      const idemRows = await database.db
+        .select()
+        .from(merchantApiIdempotencyKeys)
+        .where(eq(merchantApiIdempotencyKeys.key, key));
+      expect(idemRows.length).toBe(1);
+      expect(idemRows[0]?.scope).toBe(
+        `redemption.rate.owner.cancel:${marketMj}:${admin.adminUserId}`,
+      );
+      expect(idemRows[0]?.statusCode).toBe(200);
+
+      // The read projection marks the version CANCELLED (explicit state).
+      const list = await supertest(server)
+        .get(ratesUrl(marketMj))
+        .set(authorized(admin.token))
+        .expect(200);
+      const listed = (list.body.rates as Array<Record<string, unknown>>).find(
+        (rate) => rate.id === versionId,
+      );
+      expect(listed?.window_status).toBe('CANCELLED');
+      // The cancelled version never closes or supersedes a predecessor
+      // window — it is void and projected with the CANCELLED state only.
+      expect(listed?.effective_until_utc).toBeNull();
+    });
+
+    it('rejects a second cancellation (409 ALREADY_CANCELLED, append-only at most once)', async () => {
+      const market = await freshConfiguredMarket();
+      const admin = await createAdmin({
+        marketIds: [market],
+        permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
+      });
+      await setCurrentMarket(admin.accountId, market);
+      const date = marketLocalDate(16, 'Asia/Kuala_Lumpur');
+      const created = await supertest(server)
+        .post(ratesUrl(market))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', `key-${randomUUID()}`)
+        .send(createPayload({ rate_value: '1.6', effective_date: date }))
+        .expect(201);
+      const versionId = (created.body as { id: string }).id;
+
+      await supertest(server)
+        .post(cancelUrl(market, versionId))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', `cancel-${randomUUID()}`)
+        .send({ reason: 'First cancellation' })
+        .expect(200);
+
+      const second = await supertest(server)
+        .post(cancelUrl(market, versionId))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', `cancel-${randomUUID()}`)
+        .send({ reason: 'Second attempt' })
+        .expect(409);
+      expect((second.body as ErrorBody).error.code).toBe(
+        'REDEMPTION_RATE_ALREADY_CANCELLED',
+      );
+      const rows = await database.db
+        .select()
+        .from(redemptionRateCancellations)
+        .where(eq(redemptionRateCancellations.rateVersionId, versionId));
+      expect(rows.length).toBe(1);
+    });
+
+    it('rejects cancelling an ACTIVE or EXPIRED version (409 CANNOT_CANCEL_EFFECTIVE)', async () => {
+      const market = await freshConfiguredMarket();
+      const admin = await createAdmin({
+        marketIds: [market],
+        permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
+      });
+      await setCurrentMarket(admin.accountId, market);
+      const dayMs = 24 * 60 * 60 * 1000;
+      const activeId = await seedRateVersion({
+        marketId: market,
+        rateValue: '1.7000000000',
+        effectiveFrom: new Date(Date.now() - 30 * dayMs),
+        createdBy: admin.adminUserId,
+      });
+      const expiredId = await seedRateVersion({
+        marketId: market,
+        rateValue: '1.7100000000',
+        effectiveFrom: new Date(Date.now() - 60 * dayMs),
+        effectiveUntil: new Date(Date.now() - 30 * dayMs),
+        createdBy: admin.adminUserId,
+      });
+
+      for (const versionId of [activeId, expiredId]) {
+        const body = await supertest(server)
+          .post(cancelUrl(market, versionId))
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', `cancel-${randomUUID()}`)
+          .send({ reason: 'Should not cancel' })
+          .expect(409);
+        expect((body.body as ErrorBody).error.code).toBe(
+          'REDEMPTION_RATE_CANNOT_CANCEL_EFFECTIVE',
+        );
+      }
+      const rows = await database.db
+        .select()
+        .from(redemptionRateCancellations)
+        .where(eq(redemptionRateCancellations.marketId, market));
+      expect(rows.length).toBe(0);
+    });
+
+    it('replays idempotent cancels and rejects same-key/different-reason (409)', async () => {
+      const market = await freshConfiguredMarket();
+      const admin = await createAdmin({
+        marketIds: [market],
+        permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
+      });
+      await setCurrentMarket(admin.accountId, market);
+      const date = marketLocalDate(17, 'Asia/Kuala_Lumpur');
+      const created = await supertest(server)
+        .post(ratesUrl(market))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', `key-${randomUUID()}`)
+        .send(createPayload({ rate_value: '1.8', effective_date: date }))
+        .expect(201);
+      const versionId = (created.body as { id: string }).id;
+      const key = `cancel-idem-${randomUUID()}`;
+      const reason = 'Duplicate-safe cancellation';
+
+      const first = await supertest(server)
+        .post(cancelUrl(market, versionId))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', key)
+        .send({ reason })
+        .expect(200);
+      const firstId = (first.body as { id: string }).id;
+
+      const replay = await supertest(server)
+        .post(cancelUrl(market, versionId))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', key)
+        .send({ reason })
+        .expect(200);
+      expect((replay.body as { id: string }).id).toBe(firstId);
+
+      const conflict = await supertest(server)
+        .post(cancelUrl(market, versionId))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', key)
+        .send({ reason: 'A different reason' })
+        .expect(409);
+      expect((conflict.body as ErrorBody).error.code).toBe(
+        'REDEMPTION_IDEMPOTENCY_CONFLICT',
+      );
+      const rows = await database.db
+        .select()
+        .from(redemptionRateCancellations)
+        .where(eq(redemptionRateCancellations.rateVersionId, versionId));
+      expect(rows.length).toBe(1);
+    });
+
+    it('requires an Idempotency-Key and a reason on cancel (400)', async () => {
+      const market = await freshConfiguredMarket();
+      const admin = await createAdmin({
+        marketIds: [market],
+        permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
+      });
+      await setCurrentMarket(admin.accountId, market);
+      const date = marketLocalDate(18, 'Asia/Kuala_Lumpur');
+      const created = await supertest(server)
+        .post(ratesUrl(market))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', `key-${randomUUID()}`)
+        .send(createPayload({ rate_value: '1.9', effective_date: date }))
+        .expect(201);
+      const versionId = (created.body as { id: string }).id;
+
+      const noKey = await supertest(server)
+        .post(cancelUrl(market, versionId))
+        .set(authorized(admin.token))
+        .send({ reason: 'Missing key' })
+        .expect(400);
+      expect((noKey.body as ErrorBody).error.code).toBe(
+        'IDEMPOTENCY_KEY_REQUIRED',
+      );
+
+      const noReason = await supertest(server)
+        .post(cancelUrl(market, versionId))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', `cancel-${randomUUID()}`)
+        .send({})
+        .expect(400);
+      expect((noReason.body as ErrorBody).error.code).toBe('VALIDATION_ERROR');
+
+      // Neither failed call produced a cancellation event.
+      const rows = await database.db
+        .select()
+        .from(redemptionRateCancellations)
+        .where(eq(redemptionRateCancellations.rateVersionId, versionId));
+      expect(rows.length).toBe(0);
+    });
+
+    it('rejects cross-market cancel (409 MARKET_CONTEXT_MISMATCH)', async () => {
+      const marketA = await freshConfiguredMarket();
+      const marketB = await freshConfiguredMarket();
+      const admin = await createAdmin({
+        marketIds: [marketA, marketB],
+        permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
+      });
+      await setCurrentMarket(admin.accountId, marketA);
+      const date = marketLocalDate(19, 'Asia/Kuala_Lumpur');
+      const created = await supertest(server)
+        .post(ratesUrl(marketA))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', `key-${randomUUID()}`)
+        .send(createPayload({ rate_value: '1.95', effective_date: date }))
+        .expect(201);
+      const versionId = (created.body as { id: string }).id;
+
+      // The server Current Admin Market is marketB — the URL market A no
+      // longer matches → 409 at the guard (and the owner re-checks).
+      await setCurrentMarket(admin.accountId, marketB);
+      const body = await supertest(server)
+        .post(cancelUrl(marketA, versionId))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', `cancel-${randomUUID()}`)
+        .send({ reason: 'Cross-market attempt' })
+        .expect(409);
+      expect((body.body as ErrorBody).error.code).toBe(
+        'MARKET_CONTEXT_MISMATCH',
+      );
+      const rows = await database.db
+        .select()
+        .from(redemptionRateCancellations)
+        .where(eq(redemptionRateCancellations.rateVersionId, versionId));
+      expect(rows.length).toBe(0);
+    });
+
+    it('returns 404 REDEMPTION_RATE_VERSION_NOT_FOUND for an unknown version', async () => {
+      const market = await freshConfiguredMarket();
+      const admin = await createAdmin({
+        marketIds: [market],
+        permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
+      });
+      await setCurrentMarket(admin.accountId, market);
+      const body = await supertest(server)
+        .post(cancelUrl(market, randomUUID()))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', `cancel-${randomUUID()}`)
+        .send({ reason: 'Unknown version' })
+        .expect(404);
+      expect((body.body as ErrorBody).error.code).toBe(
+        'REDEMPTION_RATE_VERSION_NOT_FOUND',
+      );
+    });
+
+    it('cancels a scheduled version in an unconfigured market (cancel is independent of config)', async () => {
+      // Create-blocked markets cannot be configured, but an already
+      // scheduled version (owner-style row) is still cancellable: the
+      // D-053 cancel command requires permission/market/reason/idempotency
+      // — NOT an approved rate rule.
+      const market = await freshMarket();
+      const admin = await createAdmin({
+        marketIds: [market],
+        permissionCodes: ['redemption.rate.read', 'redemption.rate.manage'],
+      });
+      await setCurrentMarket(admin.accountId, market);
+      const versionId = await seedRateVersion({
+        marketId: market,
+        rateValue: '1.6000000000',
+        effectiveFrom: new Date(Date.now() + 40 * 24 * 60 * 60 * 1000),
+        createdBy: admin.adminUserId,
+      });
+
+      const cancelled = await supertest(server)
+        .post(cancelUrl(market, versionId))
+        .set(authorized(admin.token))
+        .set('Idempotency-Key', `cancel-${randomUUID()}`)
+        .send({ reason: 'Void scheduled version' })
+        .expect(200);
+      expect(
+        (cancelled.body as { rate_version_id: string }).rate_version_id,
+      ).toBe(versionId);
+      // The read surface keeps the blocked state AND shows the CANCELLED
+      // version — explicit states, never a fallback.
+      const list = await supertest(server)
+        .get(ratesUrl(market))
+        .set(authorized(admin.token))
+        .expect(200);
+      expect(list.body.configured).toBe(false);
+      expect(list.body.config).toBeNull();
+      const listed = (list.body.rates as Array<Record<string, unknown>>).find(
+        (rate) => rate.id === versionId,
+      );
+      expect(listed?.window_status).toBe('CANCELLED');
     });
   },
 );
