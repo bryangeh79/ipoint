@@ -10,6 +10,14 @@ export interface RedemptionAdminActor {
   adminUserId: string;
   ipAddress: string;
   requestId?: string;
+  /**
+   * Server-owned Current Admin Market resolved by the canonical RbacGuard
+   * (D-053 §5). The secured rate owner commands REQUIRE it so in-process
+   * callers (Phase 7 adapters) get the exact same selected-market
+   * enforcement as the HTTP route.
+   */
+  currentMarketId?: string;
+  marketContextVersion?: number;
 }
 
 export interface RedemptionCatalogItem {
@@ -74,6 +82,80 @@ export interface RedemptionRateVersion {
   status: string;
   createdBy: string;
   createdAt: string;
+}
+
+/**
+ * Versioned per-market rate configuration (D-053 §6). Resolved from
+ * `redemption_rate_market_rules` by market code; the owner command blocks
+ * markets without an active rule (`configured: false`).
+ */
+export interface RedemptionRateMarketConfig {
+  configured: boolean;
+  initialRate: string | null;
+  minimumRate: string | null;
+  maximumRate: string | null;
+  currency: string | null;
+  displayUnit: string | null;
+}
+
+/**
+ * Secured owner create command (D-053 §5-§8, §10-§11). `reason` and
+ * `idempotencyKey` are REQUIRED by the command (enforced in the service
+ * layer, never only at the transport) but typed optional so every
+ * in-process caller is forced through the same enforcement and cannot
+ * bypass it at compile time.
+ */
+export interface CreateRateVersionCommand {
+  marketId: string;
+  rateType: 'POINTS_PER_CURRENCY' | 'CURRENCY_PER_POINT';
+  rateValue: string;
+  fiatCurrency: string;
+  effectiveFrom: string;
+  reason?: string;
+  idempotencyKey?: string;
+}
+
+/**
+ * Secured owner cancel command (D-053 §9-§11). `reason` and
+ * `idempotencyKey` are REQUIRED by the command.
+ */
+export interface CancelRateVersionCommand {
+  reason?: string;
+  idempotencyKey?: string;
+}
+
+/**
+ * Create response of the secured owner command: the resolved UTC instant
+ * AND the market-local wall time of the activation, the market timezone
+ * and the durable reason (frozen contract §7).
+ */
+export interface RedemptionRateVersionCreateResponse {
+  id: string;
+  marketId: string;
+  rateType: string;
+  rateValue: string;
+  effectiveFrom: string;
+  effectiveFromLocal: string;
+  timezone: string;
+  reason: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
+/**
+ * Cancel response: the append-only cancellation event (D-053 §9) with the
+ * target version reference. The immutable rate-version row is untouched.
+ */
+export interface RedemptionRateCancelResponse {
+  id: string;
+  rateVersionId: string;
+  marketId: string;
+  rateType: string;
+  rateValue: string;
+  effectiveFrom: string;
+  reason: string;
+  cancelledBy: string;
+  cancelledAt: string;
 }
 
 export interface RedemptionRateVersionListItem {

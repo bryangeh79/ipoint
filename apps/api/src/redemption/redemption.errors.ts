@@ -80,6 +80,26 @@ export const redemptionErrorCodes = {
   shippingPaymentNotFound: 'REDEMPTION_SHIPPING_PAYMENT_NOT_FOUND',
   shippingPaymentNotRecoverable: 'REDEMPTION_SHIPPING_PAYMENT_NOT_RECOVERABLE',
   shippingPaymentRecoveryFailed: 'REDEMPTION_SHIPPING_PAYMENT_RECOVERY_FAILED',
+
+  // D-053 secured redemption rate owner (CG-03)
+  ratePermissionDenied: 'REDEMPTION_RATE_PERMISSION_DENIED',
+  rateMarketAccessDenied: 'REDEMPTION_RATE_MARKET_ACCESS_DENIED',
+  rateMarketNotFound: 'REDEMPTION_RATE_MARKET_NOT_FOUND',
+  rateMarketSelectionRequired: 'REDEMPTION_RATE_MARKET_SELECTION_REQUIRED',
+  rateMarketContextMismatch: 'REDEMPTION_RATE_MARKET_CONTEXT_MISMATCH',
+  rateIdempotencyKeyRequired: 'REDEMPTION_RATE_IDEMPOTENCY_KEY_REQUIRED',
+  rateReasonRequired: 'REDEMPTION_RATE_REASON_REQUIRED',
+  rateIdempotencyConflict: 'REDEMPTION_RATE_IDEMPOTENCY_CONFLICT',
+  ratePrecisionExceeded: 'REDEMPTION_RATE_PRECISION_EXCEEDED',
+  rateMarketBlocked: 'REDEMPTION_RATE_MARKET_BLOCKED',
+  rateBelowMinimum: 'REDEMPTION_RATE_BELOW_MINIMUM',
+  rateAboveMaximum: 'REDEMPTION_RATE_ABOVE_MAXIMUM',
+  rateCurrencyMismatch: 'REDEMPTION_RATE_CURRENCY_MISMATCH',
+  rateActivationNotFuture: 'REDEMPTION_RATE_ACTIVATION_NOT_FUTURE',
+  rateOverlap: 'REDEMPTION_RATE_OVERLAP',
+  rateCannotCancelEffective: 'REDEMPTION_RATE_CANNOT_CANCEL_EFFECTIVE',
+  rateAlreadyCancelled: 'REDEMPTION_RATE_ALREADY_CANCELLED',
+  rateNotFound: 'REDEMPTION_RATE_NOT_FOUND',
 } as const;
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -100,4 +120,139 @@ export function redemptionNotFound(code: string, message: string): never {
 
 export function redemptionConflict(code: string, message: string): never {
   throw new ConflictException({ code, message });
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// D-053 Secured Redemption Rate Owner — error builders
+// ═════════════════════════════════════════════════════════════════════════
+
+export function redemptionRatePermissionDeniedError(): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.ratePermissionDenied,
+    'You do not have permission to manage redemption rates.',
+  );
+}
+
+export function redemptionRateMarketAccessDeniedError(): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateMarketAccessDenied,
+    'The administrator does not have access to this market.',
+  );
+}
+
+export function redemptionRateMarketNotFoundError(): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateMarketNotFound,
+    'The selected market was not found or is not active.',
+  );
+}
+
+export function redemptionRateMarketSelectionRequiredError(): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateMarketSelectionRequired,
+    'Select an authorized market to continue.',
+  );
+}
+
+export function redemptionRateMarketContextMismatchError(): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateMarketContextMismatch,
+    'The selected market changed. Refresh and try again.',
+  );
+}
+
+export function redemptionRateIdempotencyKeyRequiredError(): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateIdempotencyKeyRequired,
+    'A valid Idempotency-Key header is required.',
+  );
+}
+
+export function redemptionRateReasonRequiredError(): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateReasonRequired,
+    'A reason between 1 and 500 characters is required.',
+  );
+}
+
+export function redemptionRateIdempotencyConflictError(): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateIdempotencyConflict,
+    'The idempotency key was already used with a different payload.',
+  );
+}
+
+export function redemptionRatePrecisionError(): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.ratePrecisionExceeded,
+    'The rate must be a positive decimal with at most 10 decimals.',
+  );
+}
+
+export function redemptionRateMarketBlockedError(): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateMarketBlocked,
+    'Redemption rates are not configured for this market.',
+  );
+}
+
+export function redemptionRateBelowMinimumError(
+  details?: Record<string, unknown>,
+): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateBelowMinimum,
+    'The rate is below the approved minimum for this market.',
+    details,
+  );
+}
+
+export function redemptionRateAboveMaximumError(
+  details?: Record<string, unknown>,
+): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateAboveMaximum,
+    'The rate exceeds the approved maximum for this market.',
+    details,
+  );
+}
+
+export function redemptionRateCurrencyMismatchError(): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateCurrencyMismatch,
+    'The fiat currency does not match the approved market configuration.',
+  );
+}
+
+export function redemptionRateActivationNotFutureError(): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateActivationNotFuture,
+    'Activation must be at a strictly future market-local 00:00.',
+  );
+}
+
+export function redemptionRateOverlapError(
+  details?: Record<string, unknown>,
+): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateOverlap,
+    'The effective window overlaps an existing rate version for this market and rate type.',
+    details,
+  );
+}
+
+export function redemptionRateCannotCancelEffectiveError(
+  details?: Record<string, unknown>,
+): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateCannotCancelEffective,
+    'Only a scheduled, not-yet-effective rate version can be cancelled.',
+    details,
+  );
+}
+
+export function redemptionRateAlreadyCancelledError(): RedemptionError {
+  return new RedemptionError(
+    redemptionErrorCodes.rateAlreadyCancelled,
+    'This rate version has already been cancelled.',
+  );
 }

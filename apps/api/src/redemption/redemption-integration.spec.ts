@@ -197,45 +197,136 @@ describe('Redemption (P6)', () => {
     expect(r.items ? r.items.length : 0).toBeGreaterThanOrEqual(1);
   });
 
+  /** Future market-local 00:00 (Asia/Kuala_Lumpur, UTC+8). */
+  function klMidnightIso(daysAhead: number): string {
+    const probe = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kuala_Lumpur',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(probe);
+    const map = new Map(parts.map((part) => [part.type, part.value]));
+    return new Date(
+      Date.UTC(
+        Number(map.get('year')),
+        Number(map.get('month')) - 1,
+        Number(map.get('day')),
+        0,
+        0,
+        0,
+        0,
+      ) -
+        8 * 60 * 60 * 1000,
+    ).toISOString();
+  }
+
+  /**
+   * Seed the RBAC grant chain + market grant for the integration admin so
+   * the secured owner's server-side checks pass (D-053 §5).
+   */
+  async function ensureRateOwnerAccess(marketId: string): Promise<void> {
+    await db.execute(
+      sql`INSERT INTO permissions (code, description)
+          VALUES ('redemption.rate.manage', 'Integration rate owner test')
+          ON CONFLICT (code) DO NOTHING`,
+    );
+    await db.execute(
+      sql`INSERT INTO roles (code, name, is_system)
+          VALUES ('D053_RATE_INT', 'Rate Owner Integration Role', false)
+          ON CONFLICT (code) DO NOTHING`,
+    );
+    const permRow = await db.execute(
+      sql`SELECT id FROM permissions WHERE code = 'redemption.rate.manage'`,
+    );
+    const roleRow = await db.execute(
+      sql`SELECT id FROM roles WHERE code = 'D053_RATE_INT'`,
+    );
+    if (permRow.rows[0]?.id && roleRow.rows[0]?.id) {
+      await db.execute(
+        sql`INSERT INTO role_permissions (role_id, permission_id)
+            VALUES (${roleRow.rows[0].id}, ${permRow.rows[0].id})
+            ON CONFLICT DO NOTHING`,
+      );
+      await db.execute(
+        sql`INSERT INTO role_assignments (admin_user_id, role_id)
+            VALUES (${AID}, ${roleRow.rows[0].id})
+            ON CONFLICT DO NOTHING`,
+      );
+    }
+    await db.execute(
+      sql`INSERT INTO market_access (admin_user_id, market_id)
+          VALUES (${AID}, ${marketId})
+          ON CONFLICT DO NOTHING`,
+    );
+  }
+
   it('RV-01: create rate', async () => {
     const mk = crypto.randomUUID();
+    const code = `M${mk.slice(0, 6).toUpperCase()}`;
     await db.execute(
-      sql`INSERT INTO markets(id,code,name,status,currency_code,timezone,default_locale) VALUES(${mk},${`M${mk.slice(0, 6).toUpperCase()}`},'RV1','ACTIVE','MYR','Asia/Kuala_Lumpur','en-MY') ON CONFLICT(id) DO NOTHING`,
+      sql`INSERT INTO markets(id,code,name,status,currency_code,timezone,default_locale) VALUES(${mk},${code},'RV1','ACTIVE','MYR','Asia/Kuala_Lumpur','en-MY') ON CONFLICT(id) DO NOTHING`,
     );
-    const r = await svc.createRateVersion(actor, {
-      marketId: mk,
-      rateType: 'CURRENCY_PER_POINT',
-      rateValue: '0.02',
-      fiatCurrency: 'MYR',
-      effectiveFrom: new Date(Date.now() + 86400000).toISOString(),
-      idempotencyKey: `rv1:${Date.now()}`,
-    });
+    await db.execute(
+      sql`INSERT INTO redemption_rate_market_rules (market_code, rate_type, initial_rate, minimum_rate, maximum_rate, currency, display_unit)
+          VALUES (${code}, 'CURRENCY_PER_POINT'::redemption_rate_type, '0.0100000000', '0.0100000000', '100.0000000000', 'MYR', 'RM per 1 iPoint')
+          ON CONFLICT (market_code, rate_type) DO NOTHING`,
+    );
+    await ensureRateOwnerAccess(mk);
+    const r = await svc.createRateVersion(
+      { ...actor, currentMarketId: mk },
+      {
+        marketId: mk,
+        rateType: 'CURRENCY_PER_POINT',
+        rateValue: '0.02',
+        fiatCurrency: 'MYR',
+        effectiveFrom: klMidnightIso(2),
+        reason: 'RV-01 evidence',
+        idempotencyKey: `rv1:${Date.now()}`,
+      },
+    );
     expect(r.rateType).toBe('CURRENCY_PER_POINT');
   });
 
   it('RV-02: reject overlap', async () => {
     const mk = crypto.randomUUID();
+    const code = `M${mk.slice(0, 6).toUpperCase()}`;
     await db.execute(
-      sql`INSERT INTO markets(id,code,name,status,currency_code,timezone,default_locale) VALUES(${mk},${`M${mk.slice(0, 6).toUpperCase()}`},'RV2','ACTIVE','MYR','Asia/Kuala_Lumpur','en-MY') ON CONFLICT(id) DO NOTHING`,
+      sql`INSERT INTO markets(id,code,name,status,currency_code,timezone,default_locale) VALUES(${mk},${code},'RV2','ACTIVE','MYR','Asia/Kuala_Lumpur','en-MY') ON CONFLICT(id) DO NOTHING`,
     );
-    await svc.createRateVersion(actor, {
-      marketId: mk,
-      rateType: 'POINTS_PER_CURRENCY',
-      rateValue: '0.01',
-      fiatCurrency: 'MYR',
-      effectiveFrom: new Date(Date.now() + 86400000).toISOString(),
-      idempotencyKey: `rv2a:${Date.now()}`,
-    });
-    await expect(
-      svc.createRateVersion(actor, {
+    await db.execute(
+      sql`INSERT INTO redemption_rate_market_rules (market_code, rate_type, initial_rate, minimum_rate, maximum_rate, currency, display_unit)
+          VALUES (${code}, 'POINTS_PER_CURRENCY'::redemption_rate_type, '1.0000000000', '0.0100000000', '100.0000000000', 'MYR', 'RM per 1 iPoint')
+          ON CONFLICT (market_code, rate_type) DO NOTHING`,
+    );
+    await ensureRateOwnerAccess(mk);
+    const start = klMidnightIso(2);
+    await svc.createRateVersion(
+      { ...actor, currentMarketId: mk },
+      {
         marketId: mk,
         rateType: 'POINTS_PER_CURRENCY',
-        rateValue: '0.02',
+        rateValue: '0.01',
         fiatCurrency: 'MYR',
-        effectiveFrom: new Date(Date.now() + 86400000).toISOString(),
-        idempotencyKey: `rv2b:${Date.now()}`,
-      }),
-    ).rejects.toThrow();
+        effectiveFrom: start,
+        reason: 'RV-02 seed',
+        idempotencyKey: `rv2a:${Date.now()}`,
+      },
+    );
+    await expect(
+      svc.createRateVersion(
+        { ...actor, currentMarketId: mk },
+        {
+          marketId: mk,
+          rateType: 'POINTS_PER_CURRENCY',
+          rateValue: '0.02',
+          fiatCurrency: 'MYR',
+          effectiveFrom: start,
+          reason: 'RV-02 overlap attempt',
+          idempotencyKey: `rv2b:${Date.now()}`,
+        },
+      ),
+    ).rejects.toMatchObject({ code: 'REDEMPTION_RATE_OVERLAP' });
   });
 
   it('RV-03: list rates', async () => {
