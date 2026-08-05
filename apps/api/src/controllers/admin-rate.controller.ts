@@ -11,6 +11,22 @@
  * - Market isolation
  * - Decimal strings throughout
  *
+ * ## D-054 (CG-04 gate)
+ * - Both write routes (`POST /` and `POST /schedule`) call the SINGLE
+ *   secured owner command `RateManagementService.createRateVersion`, which
+ *   re-enforces RBAC / selected market / exact decimals / taxonomy /
+ *   future market-local activation / overlap / advisory lock /
+ *   idempotency / reason / atomic audit INSIDE the service. Transport
+ *   guards (`@UseGuards(AuthGuard, RbacGuard)` +
+ *   `@RequirePermission('commission.rate.manage')`) are defense-in-depth
+ *   only — they are not the security boundary.
+ * - The Idempotency-Key header is mandatory on writes and injected into
+ *   the owner command; the server actor/context (adminUserId, Current
+ *   Admin Market, request id, IP) is built here — never from client input.
+ * - Caller-supplied `createdBy` is never accepted (the command carries no
+ *   such field; the owner derives `createdBy` from the authenticated
+ *   actor).
+ *
  * @packageDocumentation
  */
 
@@ -21,13 +37,17 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Headers,
   HttpCode,
   Inject,
   InternalServerErrorException,
+  Ip,
   NotFoundException,
   Param,
   Post,
   Query,
+  Req,
+  UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -37,6 +57,9 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import type { Request } from 'express';
+import { eq } from 'drizzle-orm';
+import { markets } from '@ipoint/database';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentActor } from '../auth/current-actor.decorator.js';
 import type { RequestActor } from '../auth/auth.types.js';
@@ -46,10 +69,15 @@ import {
   RateManagementService,
   RateManagementError,
 } from '../domain/commission/rate.service.js';
-import { eq } from 'drizzle-orm';
-import { markets } from '@ipoint/database';
-import type { Request } from 'express';
-import { Req } from '@nestjs/common';
+import {
+  ownerRateCreateSchema,
+  type OwnerRateCreateDto,
+} from '../domain/commission/rate.dto.js';
+import type {
+  CommissionRateAdminActor,
+  CreateRateVersionCommand,
+} from '../domain/commission/rate.types.js';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
 
 /* ================================================================== */
 /*  Admin Rate Controller                                             */
@@ -167,159 +195,134 @@ export class AdminRateController {
     }
   }
 
-  // ─── Create Rate Version ──────────────────────────────────────
+  // ─── Create Rate Version (D-054 secured owner) ─────────────────
 
   @Post()
   @RequirePermission('commission.rate.manage')
-  @HttpCode(200)
+  @HttpCode(201)
   @ApiOperation({
     summary: 'Create a new commission rate version',
     description:
-      'Creates a prospective rate version. Rates are immutable after ' +
-      'creation. Overlapping effective periods are rejected. ' +
-      'The createdBy admin ID is extracted from the auth principal.',
+      'Creates a prospective rate version through the secured Phase 5 ' +
+      'owner. Rates are immutable after creation. Overlapping effective ' +
+      'periods are rejected. The Idempotency-Key header is mandatory. ' +
+      'The createdBy admin ID is derived from the authenticated principal ' +
+      '(client-supplied createdBy is never accepted).',
   })
-  @ApiResponse({ status: 200, description: 'Rate version created' })
+  @ApiResponse({ status: 201, description: 'Rate version created' })
   @ApiResponse({ status: 400, description: 'Validation error' })
-  @ApiResponse({ status: 409, description: 'Overlapping period conflict' })
+  @ApiResponse({
+    status: 403,
+    description: 'Permission / market access denied',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Market context / overlap / idempotency conflict',
+  })
   async createRateVersion(
     @CurrentActor() actor: RequestActor | undefined,
     @Req() request: Request,
-    @Body()
-    body: {
-      market: string;
-      commissionType: string;
-      generation: number;
-      rateValue: string;
-      rateType: string;
-      effectiveFrom: string;
-      effectiveUntil?: string;
-    },
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Ip() ip: string,
+    @Body(new ZodValidationPipe(ownerRateCreateSchema))
+    body: OwnerRateCreateDto,
   ) {
-    const adminId = this.resolveAdminId(actor);
-
-    const {
-      market,
-      commissionType,
-      generation,
-      rateValue,
-      rateType,
-      effectiveFrom,
-      effectiveUntil,
-    } = body;
-
-    if (
-      !market ||
-      !commissionType ||
-      generation === undefined ||
-      !rateValue ||
-      !rateType ||
-      !effectiveFrom
-    ) {
-      throw new BadRequestException({
-        code: 'RATE_MISSING_FIELDS',
-        message:
-          'market, commissionType, generation, rateValue, rateType, and effectiveFrom are required.',
-      });
-    }
-
-    // P5-R1: rate configuration is bounded to the server-selected market.
-    const selectedMarket = await this.resolveSelectedMarketCode(request);
-    this.assertMarketMatches(market, selectedMarket);
-
     return this.handleRateError(() =>
-      this.rateService.createRate(
-        adminId,
-        commissionType,
-        generation,
-        market,
-        rateValue,
-        rateType,
-        effectiveFrom,
-        effectiveUntil ?? undefined,
-      ),
+      this.rateService.createRateVersion(this.adminActor(actor, request, ip), {
+        ...(body as unknown as Record<string, unknown>),
+        idempotencyKey: this.requireIdempotencyKey(idempotencyKey),
+      } as unknown as CreateRateVersionCommand),
     );
   }
 
-  // ─── Schedule Rate Version ─────────────────────────────────────
+  // ─── Schedule Rate Version (D-054 secured owner) ───────────────
 
   @Post('schedule')
   @RequirePermission('commission.rate.manage')
-  @HttpCode(200)
+  @HttpCode(201)
   @ApiOperation({
     summary: 'Schedule a future rate version',
     description:
-      'Creates a rate version effective from a future date. ' +
-      'Same validation as create (no overlaps, prospective only).',
+      'Creates a rate version effective from a future date through the ' +
+      'secured Phase 5 owner. Same validation as create (no overlaps, ' +
+      'prospective only, future market-local 00:00). The Idempotency-Key ' +
+      'header is mandatory.',
   })
-  @ApiResponse({ status: 200, description: 'Rate version scheduled' })
+  @ApiResponse({ status: 201, description: 'Rate version scheduled' })
   @ApiResponse({ status: 400, description: 'Validation error' })
-  @ApiResponse({ status: 409, description: 'Overlapping period conflict' })
+  @ApiResponse({
+    status: 403,
+    description: 'Permission / market access denied',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Market context / overlap / idempotency conflict',
+  })
   async scheduleRateVersion(
     @CurrentActor() actor: RequestActor | undefined,
     @Req() request: Request,
-    @Body()
-    body: {
-      market: string;
-      commissionType: string;
-      generation: number;
-      rateValue: string;
-      rateType: string;
-      effectiveFrom: string;
-    },
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Ip() ip: string,
+    @Body(new ZodValidationPipe(ownerRateCreateSchema))
+    body: OwnerRateCreateDto,
   ) {
-    const adminId = this.resolveAdminId(actor);
-    const {
-      market,
-      commissionType,
-      generation,
-      rateValue,
-      rateType,
-      effectiveFrom,
-    } = body;
-
-    if (
-      !market ||
-      !commissionType ||
-      generation === undefined ||
-      !rateValue ||
-      !rateType ||
-      !effectiveFrom
-    ) {
-      throw new BadRequestException({
-        code: 'RATE_MISSING_FIELDS',
-        message: 'All fields are required.',
-      });
-    }
-
-    // P5-R1: rate configuration is bounded to the server-selected market.
-    const selectedMarket = await this.resolveSelectedMarketCode(request);
-    this.assertMarketMatches(market, selectedMarket);
-
     return this.handleRateError(() =>
-      this.rateService.createRate(
-        adminId,
-        commissionType,
-        generation,
-        market,
-        rateValue,
-        rateType,
-        effectiveFrom,
-        undefined,
-      ),
+      this.rateService.createRateVersion(this.adminActor(actor, request, ip), {
+        ...(body as unknown as Record<string, unknown>),
+        idempotencyKey: this.requireIdempotencyKey(idempotencyKey),
+      } as unknown as CreateRateVersionCommand),
     );
   }
 
   // ─── Helpers ──────────────────────────────────────────────────
 
-  private resolveAdminId(actor: RequestActor | undefined): string {
+  /**
+   * Build the server-created actor/context for the owner command from the
+   * authenticated session, the RbacGuard-resolved Current Admin Market,
+   * the request correlation id and the client IP. Client input never
+   * reaches the actor object.
+   */
+  private adminActor(
+    actor: RequestActor | undefined,
+    request: Request,
+    ipAddress: string,
+  ): CommissionRateAdminActor {
     if (actor?.type !== 'ADMIN_USER' || !actor.adminUserId) {
       throw new ForbiddenException({
         code: 'AUTH_PERMISSION_DENIED',
         message: 'An administrator session is required.',
       });
     }
-    return actor.adminUserId;
+    const requestId = (request as unknown as Record<string, unknown>)[
+      'requestId'
+    ];
+    const marketContext = (
+      request as Request & {
+        adminMarketContext?: { marketId: string; contextVersion: number };
+      }
+    ).adminMarketContext;
+    return {
+      adminUserId: actor.adminUserId,
+      ipAddress,
+      ...(typeof requestId === 'string' ? { requestId } : {}),
+      ...(marketContext
+        ? {
+            currentMarketId: marketContext.marketId,
+            marketContextVersion: marketContext.contextVersion,
+          }
+        : {}),
+    };
+  }
+
+  private requireIdempotencyKey(value: string | undefined): string {
+    const key = value?.trim();
+    if (!key || key.length > 200) {
+      throw new BadRequestException({
+        code: 'COMMISSION_RATE_IDEMPOTENCY_KEY_REQUIRED',
+        message: 'A valid Idempotency-Key header is required.',
+      });
+    }
+    return key;
   }
 
   /**
@@ -379,15 +382,31 @@ export class AdminRateController {
       switch (error.code) {
         case 'RATE_VERSION_NOT_FOUND':
           throw new NotFoundException(body);
+        case 'COMMISSION_RATE_PERMISSION_DENIED':
+        case 'COMMISSION_RATE_MARKET_ACCESS_DENIED':
+          throw new ForbiddenException(body);
+        case 'COMMISSION_RATE_MARKET_SELECTION_REQUIRED':
+        case 'COMMISSION_RATE_MARKET_CONTEXT_MISMATCH':
+        case 'COMMISSION_RATE_IDEMPOTENCY_CONFLICT':
+        case 'OVERLAPPING_RATE_PERIOD':
+          throw new ConflictException(body);
+        case 'COMMISSION_RATE_REASON_REQUIRED':
+        case 'COMMISSION_RATE_IDEMPOTENCY_KEY_REQUIRED':
         case 'INVALID_COMMISSION_TYPE':
         case 'INVALID_GENERATION':
         case 'INVALID_RATE_TYPE':
+        case 'RATE_TYPE_MISMATCH':
         case 'INVALID_MARKET':
         case 'INVALID_RATE_VALUE':
         case 'INVALID_EFFECTIVE_RANGE':
+        case 'INVALID_TIMESTAMP':
           throw new BadRequestException(body);
-        case 'OVERLAPPING_RATE_PERIOD':
-          throw new ConflictException(body);
+        case 'COMMISSION_RATE_PRECISION_EXCEEDED':
+        case 'COMMISSION_RATE_PERCENTAGE_LIMIT':
+        case 'COMMISSION_RATE_ACTIVATION_NOT_FUTURE':
+        case 'COMMISSION_RATE_TIMEZONE_MISMATCH':
+        case 'COMMISSION_RATE_MARKET_NOT_FOUND':
+          throw new UnprocessableEntityException(body);
         default:
           throw new InternalServerErrorException(body);
       }
