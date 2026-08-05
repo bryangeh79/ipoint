@@ -62,6 +62,7 @@ function createChain() {
 
     select: vi.fn().mockReturnThis(),
     from: vi.fn().mockReturnThis(),
+    innerJoin: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
     offset: vi.fn().mockReturnThis(),
@@ -909,7 +910,7 @@ describe('CommissionAdjustmentService', () => {
 });
 
 /* ================================================================ */
-/*  CommissionRateService Tests                                      */
+/*  CommissionRateService Tests (D-054 secured owner contract)       */
 /* ================================================================ */
 
 describe('CommissionRateService', () => {
@@ -919,8 +920,93 @@ describe('CommissionRateService', () => {
     chain = createChain().setResult([]);
   });
 
+  /** Active market row returned by the db-level market lookups. */
+  const MARKET_ROW = {
+    id: 'market-1',
+    code: 'MY',
+    timezone: 'Asia/Kuala_Lumpur',
+    currency: 'MYR',
+  };
+
+  /**
+   * D-054 §5 server-created actor: currentMarketId is the server-selected
+   * market UUID; a caller-supplied createdBy is never honored.
+   */
+  const ACTOR = {
+    adminUserId: ADMIN_1,
+    currentMarketId: MARKET_ROW.id,
+    marketContextVersion: 1,
+    requestId: 'unit-request-1',
+    ipAddress: '127.0.0.1',
+  };
+
+  /**
+   * Asia/Kuala_Lumpur is fixed UTC+8 — the UTC instant of a KL midnight.
+   * The owner only accepts strictly future market-local 00:00 (D-054 §8).
+   */
+  function klMidnightIso(klDate: string): string {
+    const [year, month, day] = klDate.split('-').map((value) => Number(value));
+    return new Date(
+      Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1, 0, 0, 0, 0) -
+        8 * 60 * 60 * 1000,
+    ).toISOString();
+  }
+
+  /**
+   * Build the secured owner service over the mocked chain + a controllable
+   * transaction proxy. RbacService and AuditService are stubbed (the frozen
+   * owner controls that touch them are covered by the D-054 integration
+   * suite against real PostgreSQL).
+   */
+  function ownerHarness() {
+    const tx = createTxProxy();
+    // The owner uses raw SQL via tx.execute(...) and expects pg-style
+    // result objects ({ rows: [...] }). Map the mocked thenable result to
+    // that shape (the shared createTxProxy is also used by the frozen
+    // adjustment tests, which expect bare rows arrays — so only the owner
+    // harness wraps it).
+    tx.execute = vi.fn().mockImplementation(() => {
+      let value: unknown[];
+      if (tx._sequence.length > 0) {
+        const idx = Math.min(tx._seqIdx, tx._sequence.length - 1);
+        tx._seqIdx++;
+        value = tx._sequence[idx] as unknown[];
+      } else {
+        value = tx._result as unknown[];
+      }
+      return {
+        then: (resolve: (v: unknown) => void) => resolve({ rows: value }),
+      };
+    });
+    const dbService = createDbService(chain);
+    (dbService as { runTransaction: unknown }).runTransaction = (
+      cb: (t: unknown) => Promise<unknown>,
+    ) => cb(tx);
+    const auditCalls: unknown[] = [];
+    const service = new RateManagementService(
+      dbService as never,
+      {
+        isAllowed: async () => true,
+        hasMarketAccess: async () => true,
+      } as never,
+      {
+        appendWithinTransaction: async (input: unknown) => {
+          auditCalls.push(input);
+        },
+      } as never,
+    );
+    return { service, tx, auditCalls };
+  }
+
   function svc() {
-    return new RateManagementService(createDbService(chain));
+    return new RateManagementService(
+      createDbService(chain) as never,
+      {
+        isAllowed: async () => true,
+        hasMarketAccess: async () => true,
+      } as never,
+      { appendWithinTransaction: async () => undefined } as never,
+    );
   }
 
   function makeRateRow(overrides: Record<string, unknown> = {}) {
@@ -939,187 +1025,436 @@ describe('CommissionRateService', () => {
     };
   }
 
+  /**
+   * Raw pg-style row returned by the owner's INSERT ... RETURNING.
+   */
+  function makeVersionRow(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'rate-1',
+      commission_type: 'AGENT_UPGRADE',
+      generation: 1,
+      market: 'MY',
+      rate_value: '50.0000000000',
+      rate_type: 'FIXED',
+      effective_from: new Date(klMidnightIso('2099-01-01')),
+      effective_until: null,
+      created_by: ADMIN_1,
+      created_at: new Date('2026-08-05T00:00:00Z'),
+      reason: 'unit owner create',
+      ...overrides,
+    };
+  }
+
+  /**
+   * Happy-path command for the secured owner. All timestamps are future KL
+   * midnights (D-054 §8) so only the aspect under test can fail.
+   */
+  function ownerCommand(overrides: Record<string, unknown> = {}) {
+    return {
+      market: 'MY',
+      commissionType: 'AGENT_UPGRADE',
+      generation: 1,
+      rateValue: '50.00',
+      rateType: 'FIXED',
+      effectiveFrom: klMidnightIso('2099-01-01'),
+      reason: 'unit owner create',
+      idempotencyKey: `unit-key-${Math.random().toString(36).slice(2, 10)}`,
+      ...overrides,
+    };
+  }
+
+  /**
+   * Successful-create tx sequence: advisory lock → claim → overlap (none)
+   * → insert → response persist.
+   */
+  function happyTxSequence(versionRow: Record<string, unknown> = {}) {
+    return [[], [{ id: 'claim-1' }], [], [makeVersionRow(versionRow)], []];
+  }
+
   /* ---------------------------------------------------------------- */
-  /*  Create                                                          */
+  /*  Create (secured owner, D-054)                                   */
   /* ---------------------------------------------------------------- */
 
   describe('create', () => {
-    it('creates new rate version with effective_from', async () => {
-      chain.setResult([]); // No overlapping periods
-      const r = await svc().createRate(
-        ADMIN_1,
-        'AGENT_UPGRADE',
-        1,
-        'MY',
-        '50.00',
-        'FIXED',
-        '2026-07-01T00:00:00Z',
-      );
+    it('creates new rate version with effective_from through the owner', async () => {
+      const { service, tx, auditCalls } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      tx.setSequence(happyTxSequence());
+      const r = await service.createRateVersion(ACTOR, ownerCommand());
       expect(r.commissionType).toBe('AGENT_UPGRADE');
       expect(r.generation).toBe(1);
       expect(r.market).toBe('MY');
       expect(r.rateType).toBe('FIXED');
-      expect(r.effectiveFrom).toBe('2026-07-01T00:00:00Z');
+      expect(r.effectiveFrom).toBe(klMidnightIso('2099-01-01'));
       expect(r.effectiveUntil).toBeNull();
-      expect(chain.insert).toHaveBeenCalled();
+      expect(r.createdBy).toBe(ADMIN_1);
+      expect(r.marketId).toBe('market-1');
+      expect(r.currency).toBe('MYR');
+      expect(tx.execute).toHaveBeenCalled();
+      // Atomic immutable audit fired inside the same transaction.
+      expect(auditCalls).toHaveLength(1);
     });
 
-    it('supports optional effective_until', async () => {
-      chain.setResult([]);
-      const r = await svc().createRate(
-        ADMIN_1,
-        'AGENT_UPGRADE',
-        1,
-        'MY',
-        '50.00',
-        'FIXED',
-        '2026-07-01T00:00:00Z',
-        '2026-12-31T23:59:59Z',
+    it('supports optional effective_until (half-open window)', async () => {
+      const { service, tx } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      tx.setSequence(
+        happyTxSequence({
+          effective_until: new Date('2099-06-30T23:59:59.000Z'),
+        }),
       );
-      expect(r.effectiveUntil).toBe('2026-12-31T23:59:59Z');
+      const r = await service.createRateVersion(
+        ACTOR,
+        ownerCommand({ effectiveUntil: '2099-06-30T23:59:59.000Z' }),
+      );
+      expect(r.effectiveUntil).toBe('2099-06-30T23:59:59.000Z');
     });
 
-    it('rejects overlapping effective period', async () => {
-      chain.setResult([{ id: 'existing-rate' }]);
+    it('rejects an effective_until at or before effective_from', async () => {
+      const { service } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
       await expect(
-        svc().createRate(
-          ADMIN_1,
-          'AGENT_UPGRADE',
-          1,
-          'MY',
-          '25.00',
-          'FIXED',
-          '2026-08-01T00:00:00Z',
+        service.createRateVersion(
+          ACTOR,
+          ownerCommand({ effectiveUntil: klMidnightIso('2098-12-31') }),
         ),
       ).rejects.toThrow(RateManagementError);
     });
 
-    it('accepts non-overlapping rate', async () => {
-      chain.setResult([]); // No overlap
-      const r = await svc().createRate(
-        ADMIN_1,
-        'AGENT_UPGRADE',
-        1,
-        'MY',
-        '30.00',
-        'FIXED',
-        '2027-01-01T00:00:00Z',
+    it('rejects overlapping effective period (chain rule)', async () => {
+      const { service, tx } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      // The latest row is open-ended and starts after the new start → overlap.
+      tx.setSequence([
+        [],
+        [{ id: 'claim-1' }],
+        [
+          {
+            id: 'existing-rate',
+            effective_from: new Date(klMidnightIso('2099-02-01')),
+            effective_until: null,
+          },
+        ],
+      ]);
+      await expect(
+        service.createRateVersion(ACTOR, ownerCommand()),
+      ).rejects.toThrow(RateManagementError);
+    });
+
+    it('accepts a successor starting exactly at a stored predecessor end', async () => {
+      const { service, tx } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      // Predecessor window ends exactly at the KL midnight of 2099-07-02;
+      // the successor starts at exactly that instant → legal half-open
+      // successor (D-054 §9: successor may start at the predecessor end).
+      const predecessorEnd = klMidnightIso('2099-07-02');
+      tx.setSequence([
+        [],
+        [{ id: 'claim-1' }],
+        [
+          {
+            id: 'existing-rate',
+            effective_from: new Date('2098-01-01T00:00:00.000Z'),
+            effective_until: new Date(predecessorEnd),
+          },
+        ],
+        [makeVersionRow()],
+        [],
+      ]);
+      const r = await service.createRateVersion(
+        ACTOR,
+        ownerCommand({ effectiveFrom: predecessorEnd }),
       );
-      expect(r.rateValue).toBe('30.00');
+      expect(r.id).toBe('rate-1');
     });
 
     it('validates commission_type', async () => {
+      const { service } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
       await expect(
-        svc().createRate(
-          ADMIN_1,
-          'INVALID_TYPE',
-          0,
-          'MY',
-          '10.00',
-          'PERCENTAGE',
-          '2026-07-01T00:00:00Z',
+        service.createRateVersion(
+          ACTOR,
+          ownerCommand({ commissionType: 'INVALID_TYPE' }),
         ),
       ).rejects.toThrow(RateManagementError);
     });
 
     it('validates generation against the canonical P5-S0 mapping (P5-R1)', async () => {
-      // P5-R1 reconciliation: G1/G2 member consumption uses generations 1/2
-      // (seed + service); generation 0 is only for single-generation types
-      // (MERCHANT_RECRUITMENT, AGENT_ACTIVATION_FEE). The legacy validation
-      // that allowed only generation 0 for MEMBER_CONSUMPTION is retired.
-      const created = await svc().createRate(
-        ADMIN_1,
-        'MEMBER_CONSUMPTION',
-        1,
-        'MY',
-        '5.00',
-        'PERCENTAGE',
-        '2026-07-01T00:00:00Z',
+      const { service, tx } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      tx.setSequence(happyTxSequence());
+      const created = await service.createRateVersion(
+        ACTOR,
+        ownerCommand({
+          commissionType: 'MEMBER_CONSUMPTION',
+          rateType: 'PERCENTAGE',
+          rateValue: '5.00',
+        }),
       );
       expect(created.generation).toBe(1);
     });
 
     it('rejects generation 0 for MEMBER_CONSUMPTION (G1/G2 only)', async () => {
+      const { service } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
       await expect(
-        svc().createRate(
-          ADMIN_1,
-          'MEMBER_CONSUMPTION',
-          0,
-          'MY',
-          '5.00',
-          'PERCENTAGE',
-          '2026-07-01T00:00:00Z',
+        service.createRateVersion(
+          ACTOR,
+          ownerCommand({
+            commissionType: 'MEMBER_CONSUMPTION',
+            generation: 0,
+            rateType: 'PERCENTAGE',
+            rateValue: '5.00',
+          }),
         ),
       ).rejects.toThrow(RateManagementError);
     });
 
     it('accepts the versioned activation fee (AGENT_ACTIVATION_FEE, generation 0)', async () => {
-      const created = await svc().createRate(
-        ADMIN_1,
-        'AGENT_ACTIVATION_FEE',
-        0,
-        'MY',
-        '388.00',
-        'FIXED',
-        '2026-07-25T00:00:00Z',
+      const { service, tx } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      tx.setSequence(
+        happyTxSequence({ commission_type: 'AGENT_ACTIVATION_FEE' }),
+      );
+      const created = await service.createRateVersion(
+        ACTOR,
+        ownerCommand({
+          commissionType: 'AGENT_ACTIVATION_FEE',
+          generation: 0,
+          rateValue: '388.00',
+        }),
       );
       expect(created.commissionType).toBe('AGENT_ACTIVATION_FEE');
     });
 
     it('rejects generation 1 for AGENT_ACTIVATION_FEE (single-generation)', async () => {
+      const { service } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
       await expect(
-        svc().createRate(
-          ADMIN_1,
-          'AGENT_ACTIVATION_FEE',
-          1,
-          'MY',
-          '388.00',
-          'FIXED',
-          '2026-07-25T00:00:00Z',
+        service.createRateVersion(
+          ACTOR,
+          ownerCommand({
+            commissionType: 'AGENT_ACTIVATION_FEE',
+            generation: 1,
+            rateValue: '388.00',
+          }),
         ),
       ).rejects.toThrow(RateManagementError);
     });
 
     it('rejects generation 1 for single-generation MERCHANT_RECRUITMENT', async () => {
+      const { service } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
       await expect(
-        svc().createRate(
-          ADMIN_1,
-          'MERCHANT_RECRUITMENT',
-          1,
-          'MY',
-          '0.005',
-          'PERCENTAGE',
-          '2026-07-25T00:00:00Z',
+        service.createRateVersion(
+          ACTOR,
+          ownerCommand({
+            commissionType: 'MERCHANT_RECRUITMENT',
+            generation: 1,
+            rateValue: '0.005',
+            rateType: 'PERCENTAGE',
+          }),
         ),
       ).rejects.toThrow(RateManagementError);
     });
 
     it('validates rate_type (PERCENTAGE, FIXED)', async () => {
+      const { service } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
       await expect(
-        svc().createRate(
-          ADMIN_1,
-          'AGENT_UPGRADE',
-          1,
-          'MY',
-          '50.00',
-          'PERCENTAGE', // AGENT_UPGRADE requires FIXED
-          '2026-07-01T00:00:00Z',
+        service.createRateVersion(
+          ACTOR,
+          ownerCommand({ rateType: 'PERCENTAGE' }), // AGENT_UPGRADE requires FIXED
         ),
       ).rejects.toThrow(RateManagementError);
     });
 
     it('validates market format', async () => {
+      const { service } = ownerHarness();
       await expect(
-        svc().createRate(
-          ADMIN_1,
-          'AGENT_UPGRADE',
-          1,
-          'XYZ',
-          '50.00',
-          'FIXED',
-          '2026-07-01T00:00:00Z',
-        ),
+        service.createRateVersion(ACTOR, ownerCommand({ market: 'XYZ' })),
       ).rejects.toThrow(RateManagementError);
+    });
+
+    it('requires a server Current Admin Market (D-054 §5)', async () => {
+      const { service } = ownerHarness();
+      await expect(
+        service.createRateVersion({ adminUserId: ADMIN_1 }, ownerCommand()),
+      ).rejects.toMatchObject({
+        code: 'COMMISSION_RATE_MARKET_SELECTION_REQUIRED',
+      });
+    });
+
+    it('rejects a body market different from the current market (D-054 §5)', async () => {
+      const { service } = ownerHarness();
+      chain.setResult([MARKET_ROW]); // current market code is MY
+      await expect(
+        service.createRateVersion(ACTOR, ownerCommand({ market: 'SG' })),
+      ).rejects.toMatchObject({
+        code: 'COMMISSION_RATE_MARKET_CONTEXT_MISMATCH',
+      });
+    });
+
+    it('rejects a missing / blank reason and an overlength reason (D-054 §11)', async () => {
+      const { service } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      await expect(
+        service.createRateVersion(ACTOR, ownerCommand({ reason: '   ' })),
+      ).rejects.toMatchObject({ code: 'COMMISSION_RATE_REASON_REQUIRED' });
+      await expect(
+        service.createRateVersion(
+          ACTOR,
+          ownerCommand({ reason: 'x'.repeat(501) }),
+        ),
+      ).rejects.toMatchObject({ code: 'COMMISSION_RATE_REASON_REQUIRED' });
+    });
+
+    it('rejects a missing Idempotency-Key (D-054 §10)', async () => {
+      const { service } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      await expect(
+        service.createRateVersion(ACTOR, ownerCommand({ idempotencyKey: '' })),
+      ).rejects.toMatchObject({
+        code: 'COMMISSION_RATE_IDEMPOTENCY_KEY_REQUIRED',
+      });
+    });
+
+    it('rejects negative rates and >10 decimals with exact-math errors (D-054 §7)', async () => {
+      const { service } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      await expect(
+        service.createRateVersion(ACTOR, ownerCommand({ rateValue: '-1.00' })),
+      ).rejects.toMatchObject({ code: 'COMMISSION_RATE_PRECISION_EXCEEDED' });
+      await expect(
+        service.createRateVersion(
+          ACTOR,
+          ownerCommand({ rateValue: '0.00000000001' }),
+        ),
+      ).rejects.toMatchObject({ code: 'COMMISSION_RATE_PRECISION_EXCEEDED' });
+    });
+
+    it('rejects percentages above 100% (D-054 §7) and accepts exactly 100%', async () => {
+      const { service, tx } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      await expect(
+        service.createRateVersion(
+          ACTOR,
+          ownerCommand({
+            commissionType: 'MEMBER_CONSUMPTION',
+            rateType: 'PERCENTAGE',
+            rateValue: '100.0000000001',
+          }),
+        ),
+      ).rejects.toMatchObject({
+        code: 'COMMISSION_RATE_PERCENTAGE_LIMIT',
+      });
+      tx.setSequence(
+        happyTxSequence({
+          commission_type: 'MEMBER_CONSUMPTION',
+          rate_type: 'PERCENTAGE',
+        }),
+      );
+      const r = await service.createRateVersion(
+        ACTOR,
+        ownerCommand({
+          commissionType: 'MEMBER_CONSUMPTION',
+          rateType: 'PERCENTAGE',
+          rateValue: '100',
+        }),
+      );
+      expect(r.rateType).toBe('PERCENTAGE');
+    });
+
+    it('rejects non-future / non-midnight activation instants (D-054 §8)', async () => {
+      const { service } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      await expect(
+        service.createRateVersion(
+          ACTOR,
+          ownerCommand({ effectiveFrom: '2099-01-01T00:00:00.000Z' }),
+        ),
+      ).rejects.toMatchObject({
+        code: 'COMMISSION_RATE_ACTIVATION_NOT_FUTURE',
+      });
+      await expect(
+        service.createRateVersion(
+          ACTOR,
+          ownerCommand({ effectiveFrom: '2020-01-01T00:00:00.000Z' }),
+        ),
+      ).rejects.toMatchObject({
+        code: 'COMMISSION_RATE_ACTIVATION_NOT_FUTURE',
+      });
+    });
+
+    it('rejects a payload timezone different from the market timezone (D-054 §8)', async () => {
+      const { service } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      await expect(
+        service.createRateVersion(
+          ACTOR,
+          ownerCommand({ timezone: 'Asia/Singapore' }),
+        ),
+      ).rejects.toMatchObject({
+        code: 'COMMISSION_RATE_TIMEZONE_MISMATCH',
+      });
+    });
+
+    it('replays the original result for same key + same payload (D-054 §10)', async () => {
+      const { service, tx } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      // The request_hash of the replayed payload must match the stored row:
+      // compute the canonical hash of the same command and stub it.
+      const cmd = ownerCommand();
+      const { canonicalPayloadHash } = await import('./rate.service.js');
+      const payloadHash = canonicalPayloadHash({
+        operation: 'create',
+        marketId: 'market-1',
+        market: 'MY',
+        commissionType: cmd.commissionType,
+        generation: cmd.generation,
+        rateType: cmd.rateType,
+        rateValue: cmd.rateValue,
+        effectiveFrom: new Date(cmd.effectiveFrom as string).toISOString(),
+        effectiveUntil: null,
+        timezone: 'Asia/Kuala_Lumpur',
+        reason: cmd.reason,
+        actorScope: `commission.rate.owner.create:market-1:${ADMIN_1}`,
+      });
+      // No claim row (already exists) → replay path returns the stored response.
+      tx.setSequence([
+        [],
+        [],
+        [
+          {
+            id: 'claim-1',
+            response: { id: 'rate-1', commissionType: 'AGENT_UPGRADE' },
+            status_code: 201,
+            request_hash: payloadHash,
+          },
+        ],
+      ]);
+      const r = await service.createRateVersion(ACTOR, cmd);
+      expect(r).toMatchObject({ id: 'rate-1' });
+    });
+
+    it('rejects same key + different payload with an idempotency conflict (D-054 §10)', async () => {
+      const { service, tx } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      tx.setSequence([
+        [],
+        [],
+        [
+          {
+            id: 'claim-1',
+            response: { id: 'rate-1' },
+            status_code: 201,
+            request_hash: 'b'.repeat(64),
+          },
+        ],
+      ]);
+      await expect(
+        service.createRateVersion(ACTOR, ownerCommand()),
+      ).rejects.toMatchObject({ code: 'COMMISSION_RATE_IDEMPOTENCY_CONFLICT' });
     });
   });
 
@@ -1138,18 +1473,15 @@ describe('CommissionRateService', () => {
       expect((service as any).deleteRate).toBeUndefined();
     });
 
-    it('new rate is prospective only', async () => {
-      chain.setResult([]);
-      const r = await svc().createRate(
-        ADMIN_1,
-        'AGENT_UPGRADE',
-        1,
-        'MY',
-        '80.00',
-        'FIXED',
-        '2099-01-01T00:00:00Z',
+    it('new rate is prospective only (strictly future market-local midnight)', async () => {
+      const { service, tx } = ownerHarness();
+      chain.setResult([MARKET_ROW]);
+      tx.setSequence(happyTxSequence());
+      const r = await service.createRateVersion(
+        ACTOR,
+        ownerCommand({ effectiveFrom: klMidnightIso('2099-01-01') }),
       );
-      expect(r.effectiveFrom).toBe('2099-01-01T00:00:00Z');
+      expect(r.effectiveFrom).toBe(klMidnightIso('2099-01-01'));
     });
 
     it('no recalculation of historical ledger entries', async () => {
@@ -1168,6 +1500,23 @@ describe('CommissionRateService', () => {
       const r = await svc().getActiveRates('MY');
       expect(r).toHaveLength(1);
       expect(r[0]!.market).toBe('MY');
+    });
+
+    it('returns only the latest effective start per definition (logical half-open)', async () => {
+      // Rows in PostgreSQL ORDER BY (..., effective_from DESC) order.
+      chain.setResult([
+        makeRateRow({
+          id: 'latest',
+          effectiveFrom: new Date('2099-01-01T00:00:00Z'),
+        }),
+        makeRateRow({
+          id: 'older',
+          effectiveFrom: new Date('2026-07-01T00:00:00Z'),
+        }),
+      ]);
+      const r = await svc().getActiveRates('MY');
+      expect(r).toHaveLength(1);
+      expect(r[0]!.id).toBe('latest');
     });
 
     it('returns rate history by type+generation+market', async () => {
