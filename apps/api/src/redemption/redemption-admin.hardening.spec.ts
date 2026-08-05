@@ -171,29 +171,119 @@ describe('P6-S8: Redemption Admin Hardening — Canonical Schema', () => {
   });
 
   // ═════════════════════════════════════════════════════════════════════
-  // T-86 to T-90: Rate Management — Canonical Schema
+  // T-86 to T-90: Rate Management — Canonical Schema (D-053 secured owner)
   // ═════════════════════════════════════════════════════════════════════
 
   describe('T-86–T-90: Rate Management', () => {
     let rateVersionId: string;
     let rateMarketId: string;
 
+    /** Future market-local 00:00 (Asia/Kuala_Lumpur, UTC+8). */
+    function klMidnightIso(daysAhead: number): string {
+      const probe = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kuala_Lumpur',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).formatToParts(probe);
+      const map = new Map(parts.map((part) => [part.type, part.value]));
+      return new Date(
+        Date.UTC(
+          Number(map.get('year')),
+          Number(map.get('month')) - 1,
+          Number(map.get('day')),
+          0,
+          0,
+          0,
+          0,
+        ) -
+          8 * 60 * 60 * 1000,
+      ).toISOString();
+    }
+
+    /** Idempotent seed of an approved per-market rate rule (D-053 §6). */
+    async function ensureRateRule(
+      code: string,
+      rateType: string,
+    ): Promise<void> {
+      await databaseService.db.execute(sql`
+        INSERT INTO redemption_rate_market_rules (
+          market_code, rate_type, initial_rate, minimum_rate,
+          maximum_rate, currency, display_unit
+        ) VALUES (
+          ${code}, ${rateType}::redemption_rate_type,
+          '1.0000000000', '0.0100000000', '100.0000000000',
+          'MYR', 'RM per 1 iPoint'
+        )
+        ON CONFLICT (market_code, rate_type) DO NOTHING
+      `);
+    }
+
+    /**
+     * Seed the RBAC grant chain + market grant for the hardening admin so
+     * the secured owner's server-side checks pass (D-053 §5).
+     */
+    async function ensureRateOwnerAccess(marketId: string): Promise<void> {
+      await databaseService.db.execute(sql`
+        INSERT INTO permissions (code, description)
+        VALUES ('redemption.rate.manage', 'Hardening rate owner test')
+        ON CONFLICT (code) DO NOTHING
+      `);
+      await databaseService.db.execute(sql`
+        INSERT INTO roles (code, name, is_system)
+        VALUES ('D053_RATE_TEST', 'Rate Owner Hardening Role', false)
+        ON CONFLICT (code) DO NOTHING
+      `);
+      const permRow = await databaseService.db.execute(
+        sql`SELECT id FROM permissions WHERE code = 'redemption.rate.manage'`,
+      );
+      const roleRow = await databaseService.db.execute(
+        sql`SELECT id FROM roles WHERE code = 'D053_RATE_TEST'`,
+      );
+      if (permRow.rows[0]?.id && roleRow.rows[0]?.id) {
+        await databaseService.db.execute(sql`
+          INSERT INTO role_permissions (role_id, permission_id)
+          VALUES (${roleRow.rows[0].id}, ${permRow.rows[0].id})
+          ON CONFLICT DO NOTHING
+        `);
+        await databaseService.db.execute(sql`
+          INSERT INTO role_assignments (admin_user_id, role_id)
+          VALUES (${adminUserId}, ${roleRow.rows[0].id})
+          ON CONFLICT DO NOTHING
+        `);
+      }
+      await databaseService.db.execute(sql`
+        INSERT INTO market_access (admin_user_id, market_id)
+        VALUES (${adminUserId}, ${marketId})
+        ON CONFLICT DO NOTHING
+      `);
+    }
+
     it('T-86: creates a rate version with canonical columns', async () => {
       rateMarketId = randomUUID();
+      const code = `RT${rateMarketId.slice(0, 6).toUpperCase()}`;
       await databaseService.db.execute(
-        sql`INSERT INTO markets(id,code,name,status,currency_code,timezone,default_locale) VALUES(${rateMarketId},${`RT${rateMarketId.slice(0, 6).toUpperCase()}`},'RT86','ACTIVE','MYR','Asia/Kuala_Lumpur','en-MY') ON CONFLICT(id) DO NOTHING`,
+        sql`INSERT INTO markets(id,code,name,status,currency_code,timezone,default_locale) VALUES(${rateMarketId},${code},'RT86','ACTIVE','MYR','Asia/Kuala_Lumpur','en-MY') ON CONFLICT(id) DO NOTHING`,
       );
-      const rate = await redemptionService.createRateVersion(adminActor, {
-        marketId: rateMarketId,
-        rateType: 'CURRENCY_PER_POINT',
-        rateValue: '0.0100000000',
-        fiatCurrency: 'MYR',
-        effectiveFrom: new Date(Date.now() + 86400000).toISOString(),
-        idempotencyKey: `rate-${randomUUID()}`,
-      });
+      await ensureRateRule(code, 'CURRENCY_PER_POINT');
+      await ensureRateOwnerAccess(rateMarketId);
+      const rate = await redemptionService.createRateVersion(
+        { ...adminActor, currentMarketId: rateMarketId },
+        {
+          marketId: rateMarketId,
+          rateType: 'CURRENCY_PER_POINT',
+          rateValue: '0.0100000000',
+          fiatCurrency: 'MYR',
+          effectiveFrom: klMidnightIso(2),
+          reason: 'T-86 hardening evidence',
+          idempotencyKey: `rate-${randomUUID()}`,
+        },
+      );
       expect(rate).toBeDefined();
       expect(rate.rateType).toBe('CURRENCY_PER_POINT');
-      expect(rate.rateValue).toBe('0.0100000000');
+      expect(rate.rateValue).toBe('0.01');
+      expect(rate.reason).toBe('T-86 hardening evidence');
       rateVersionId = rate.id;
     });
 
@@ -209,30 +299,42 @@ describe('P6-S8: Redemption Admin Hardening — Canonical Schema', () => {
     it('T-88: cannot create overlapping rate ranges', async () => {
       // Create a unique market and insert a seed rate first
       const overlapMarketId = randomUUID();
+      const overlapCode = `RT${overlapMarketId.slice(0, 6).toUpperCase()}`;
       await databaseService.db.execute(sql`
         INSERT INTO markets (id, code, name, status, currency_code, timezone, default_locale)
-        VALUES (${overlapMarketId}, ${`RT${overlapMarketId.slice(0, 6).toUpperCase()}`}, 'Rate-Test-88', 'ACTIVE', 'MYR', 'Asia/Kuala_Lumpur', 'en-MY')
+        VALUES (${overlapMarketId}, ${overlapCode}, 'Rate-Test-88', 'ACTIVE', 'MYR', 'Asia/Kuala_Lumpur', 'en-MY')
         ON CONFLICT (id) DO NOTHING
       `);
-      await redemptionService.createRateVersion(adminActor, {
-        marketId: overlapMarketId,
-        rateType: 'POINTS_PER_CURRENCY',
-        rateValue: '0.0100000000',
-        fiatCurrency: 'MYR',
-        effectiveFrom: new Date(Date.now() + 86400000).toISOString(),
-        idempotencyKey: `rate-overlap-seed-${randomUUID()}`,
-      });
-      // Overlapping range should be rejected
-      await expect(
-        redemptionService.createRateVersion(adminActor, {
+      await ensureRateRule(overlapCode, 'POINTS_PER_CURRENCY');
+      await ensureRateOwnerAccess(overlapMarketId);
+      const start = klMidnightIso(2);
+      await redemptionService.createRateVersion(
+        { ...adminActor, currentMarketId: overlapMarketId },
+        {
           marketId: overlapMarketId,
           rateType: 'POINTS_PER_CURRENCY',
-          rateValue: '0.0200000000',
+          rateValue: '0.0100000000',
           fiatCurrency: 'MYR',
-          effectiveFrom: new Date(Date.now() + 86400000).toISOString(),
-          idempotencyKey: `rate-overlap-${randomUUID()}`,
-        }),
-      ).rejects.toThrow(/overlapping|REDEMPTION_RATE_OVERLAP/);
+          effectiveFrom: start,
+          reason: 'T-88 seed',
+          idempotencyKey: `rate-overlap-seed-${randomUUID()}`,
+        },
+      );
+      // Overlapping range should be rejected (same start → chain rule)
+      await expect(
+        redemptionService.createRateVersion(
+          { ...adminActor, currentMarketId: overlapMarketId },
+          {
+            marketId: overlapMarketId,
+            rateType: 'POINTS_PER_CURRENCY',
+            rateValue: '0.0200000000',
+            fiatCurrency: 'MYR',
+            effectiveFrom: start,
+            reason: 'T-88 overlap attempt',
+            idempotencyKey: `rate-overlap-${randomUUID()}`,
+          },
+        ),
+      ).rejects.toMatchObject({ code: 'REDEMPTION_RATE_OVERLAP' });
     });
 
     it('T-89: rate versions are append-only (immutable)', async () => {

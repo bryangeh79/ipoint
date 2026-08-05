@@ -70,6 +70,14 @@ describe('P6 Concurrency — Wallet Lock & Inventory Version', () => {
       mockDb as any,
       mockConfig as any,
       mockPaymentAdapter as any,
+      // D-053: the secured owner injects RbacService + AuditService; the
+      // concurrency suite only exercises confirmOrder (no owner command),
+      // so inert stubs are sufficient.
+      { isAllowed: vi.fn(), hasMarketAccess: vi.fn() } as any,
+      {
+        appendWithinTransaction: vi.fn(),
+        recordPrivilegedAction: vi.fn(),
+      } as any,
     );
   });
 
@@ -706,6 +714,13 @@ describe('P6 Concurrency — Concurrent Quote & Order', () => {
       mockDb1 as any,
       mockConfig as any,
       mockPaymentAdapter as any,
+      // D-053: secured owner injects RbacService + AuditService; these
+      // suites do not exercise owner commands, so inert stubs suffice.
+      { isAllowed: vi.fn(), hasMarketAccess: vi.fn() } as any,
+      {
+        appendWithinTransaction: vi.fn(),
+        recordPrivilegedAction: vi.fn(),
+      } as any,
     );
 
     await expect(
@@ -791,6 +806,13 @@ describe('P6 Concurrency — Concurrent Quote & Order', () => {
       mockDb2 as any,
       mockConfig as any,
       mockPaymentAdapter as any,
+      // D-053: secured owner injects RbacService + AuditService; these
+      // suites do not exercise owner commands, so inert stubs suffice.
+      { isAllowed: vi.fn(), hasMarketAccess: vi.fn() } as any,
+      {
+        appendWithinTransaction: vi.fn(),
+        recordPrivilegedAction: vi.fn(),
+      } as any,
     );
 
     await expect(
