@@ -53,15 +53,21 @@ import type {
  *   effective windows in market-local time AND resolved UTC.
  * - `POST .../rules` — schedule a new rule version (`reward.rule.schedule`,
  *   SUPER_ADMIN only, marketScoped, mandatory Idempotency-Key + reason).
- *   The adapter validates the §7.1 range/precision/package maxima and the
- *   future market-local 00:00 activation, serializes overlap with an
- *   advisory lock, then delegates the single insert to the frozen Phase 3
- *   owner command unchanged.
+ *   The adapter performs only Phase 7 orchestration (package maxima
+ *   classification, market-local date → UTC instant conversion) and
+ *   delegates the ENTIRE create to the secured canonical Phase 3 owner
+ *   command (D-050): RBAC re-check, selected-market enforcement,
+ *   exact 0%–0.05%/day rate bounds, future market-local 00:00 activation,
+ *   append-only strictly-increasing windows under a transaction-safe
+ *   advisory lock, operation-scoped idempotency, mandatory reason and the
+ *   atomic owner audit. The server Current Admin Market (RbacGuard
+ *   `adminMarketContext`) is passed through into the owner command.
  *
  * The market contract is enforced by the canonical RbacGuard
  * (`marketScoped`): the URL market must equal the server-owned Current
  * Admin Market and the actor must hold the market grant; any client-
  * supplied market disagreement returns 409 `MARKET_CONTEXT_MISMATCH`.
+ * The owner command re-enforces the same contract in-process.
  */
 @ApiTags('Admin Reward Operations')
 @ApiBearerAuth()
@@ -96,7 +102,7 @@ export class AdminRewardOpsController {
     summary:
       'Schedule a reward rule version (Super Admin; future market-local 00:00 only).',
     description:
-      'Validates the §7.1 rate contract (0%–0.05%/day, at most six decimals, package A–F maxima), requires a strictly future market-local 00:00 activation (market-local AND resolved UTC are returned), rejects overlapping effective windows, and delegates the insert to the frozen Phase 3 owner command. The Idempotency-Key header is mandatory: same key + same payload replays the original result; same key + different payload returns 409. The reason is mandatory and recorded in the privileged audit trail.',
+      'Phase 7 orchestration over the secured canonical Phase 3 owner command (D-050): the adapter classifies the §7.1 package maxima and converts the market-local activation date to the exact UTC instant, then delegates the entire create (RBAC, selected market, exact 0%–0.05%/day rate bounds, future market-local 00:00 activation, append-only strictly-increasing windows, operation-scoped idempotency, mandatory reason, atomic owner audit) to AdminRewardService.createRuleVersion. The Idempotency-Key header is mandatory: same key + same payload replays the original result; same key + different payload returns 409. The reason is mandatory and stored durably on the version row by the owner.',
   })
   @ApiResponse({ status: 201, description: 'Rule version scheduled.' })
   @ApiResponse({ status: 400, description: 'Invalid body or missing key.' })
@@ -144,10 +150,25 @@ export class AdminRewardOpsController {
     const requestId = (request as unknown as Record<string, unknown>)[
       'requestId'
     ];
+    // Server-owned Current Admin Market resolved by the canonical RbacGuard
+    // (marketScoped): passed through into the owner command so the create
+    // gets the exact same selected-market enforcement as the canonical
+    // route (D-050 contract).
+    const marketContext = (
+      request as Request & {
+        adminMarketContext?: { marketId: string; contextVersion: number };
+      }
+    ).adminMarketContext;
     return {
       adminUserId: actor.adminUserId,
       ipAddress,
       ...(typeof requestId === 'string' ? { requestId } : {}),
+      ...(marketContext
+        ? {
+            currentMarketId: marketContext.marketId,
+            marketContextVersion: marketContext.contextVersion,
+          }
+        : {}),
     };
   }
 
@@ -176,6 +197,9 @@ export class AdminRewardOpsController {
         case 'REWARD_MARKET_NOT_FOUND':
         case 'REWARD_RULE_VERSION_NOT_FOUND':
           throw new NotFoundException(body);
+        case 'PERMISSION_DENIED':
+        case 'MARKET_ACCESS_DENIED':
+          throw new ForbiddenException(body);
         case 'REWARD_RATE_OUT_OF_RANGE':
         case 'REWARD_RATE_PRECISION_EXCEEDED':
         case 'REWARD_RATE_EXCEEDS_GOVERNANCE_LIMIT':
@@ -184,7 +208,12 @@ export class AdminRewardOpsController {
           throw new UnprocessableEntityException(body);
         case 'REWARD_EFFECTIVE_WINDOW_OVERLAP':
         case 'REWARD_IDEMPOTENCY_CONFLICT':
+        case 'MARKET_SELECTION_REQUIRED':
+        case 'MARKET_CONTEXT_MISMATCH':
           throw new ConflictException(body);
+        case 'IDEMPOTENCY_KEY_REQUIRED':
+        case 'REASON_REQUIRED':
+          throw new BadRequestException(body);
         default:
           throw new InternalServerErrorException(body);
       }

@@ -1,23 +1,33 @@
-import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import {
-  markets,
-  merchantApiIdempotencyKeys,
-  rewardRuleVersions,
-} from '@ipoint/database';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { markets, rewardRuleVersions } from '@ipoint/database';
+import { desc, eq } from 'drizzle-orm';
 import { AdminRewardService } from '../admin-reward/admin-reward.service.js';
-import type { AdminRewardActor } from '../admin-reward/admin-reward.types.js';
+import {
+  localWallString,
+  normalizeRateString,
+  resolveLocalMidnight,
+} from '../admin-reward/admin-reward.service.js';
+import type {
+  AdminRewardActor,
+  AdminRewardRuleVersionCreateResponse,
+} from '../admin-reward/admin-reward.types.js';
+import { AdminRewardError } from '../admin-reward/admin-reward.types.js';
 import { DatabaseService } from '../database/database.service.js';
-import { AuditService } from '../platform-access/audit.service.js';
 import type { CreateRewardRuleDto } from './admin-reward-ops.dto.js';
 import {
   rewardActivationNotFutureError,
   rewardEffectiveWindowOverlapError,
   rewardIdempotencyConflictError,
+  rewardIdempotencyKeyRequiredError,
+  rewardMarketAccessDeniedError,
+  rewardMarketContextMismatchError,
   rewardMarketNotFoundError,
+  rewardMarketSelectionRequiredError,
+  rewardPermissionDeniedError,
   rewardRateExceedsGovernanceLimitError,
   rewardRateExceedsPackageMaxError,
+  rewardRatePrecisionExceededError,
+  rewardReasonRequiredError,
 } from './admin-reward-ops.errors.js';
 import {
   REWARD_PACKAGE_REFERENCE_MAX_RATE,
@@ -26,65 +36,71 @@ import {
   REWARD_RULE_SURFACE_NAME_PREFIX,
   REWARD_RULE_SURFACE_NAME_SUFFIX,
   type AdminRewardOpsActor,
+  type AdminRewardOpsError,
   type AdminRewardRuleCreateResponse,
   type AdminRewardRuleListResponse,
   type AdminRewardRuleVersionDto,
   type AdminRewardWindowStatus,
 } from './admin-reward-ops.types.js';
 
-/** Advisory-lock namespace for reward configuration serialization. */
-const REWARD_CREATE_LOCK_NAMESPACE = 0x5f7_0001n; // arbitrary domain constant
-
-/** Audit action recorded by this adapter for every scheduled version. */
-export const ADMIN_REWARD_RULE_VERSION_CREATED =
-  'ADMIN_REWARD_RULE_VERSION_CREATED';
-
-/** Idempotency scope namespace (shared mechanism table, owner pattern). */
-const REWARD_CREATE_IDEMPOTENCY_SCOPE = 'reward.rule.create';
+// ─── Canonical owner helpers (D-050) ────────────────────────────────
+// The market-local midnight resolution, the local-time rendering, the
+// rate display normalization and the canonical payload hash are all owned
+// by the frozen Phase 3 owner command (D-050). The adapter imports and
+// re-exports them so the Phase 7 surface exercises ONE implementation
+// (the owner's multi-probe DST-safe helper) and the unit spec keeps
+// testing the canonical behavior.
+export {
+  canonicalPayloadHash,
+  localWallString,
+  normalizeRateString,
+  resolveLocalMidnight,
+} from '../admin-reward/admin-reward.service.js';
 
 /**
- * P7-S6B Admin Reward Configuration adapter service.
+ * P7-S6B Admin Reward Configuration adapter service (D-050 rewiring).
  *
- * Phase 7 read projection + orchestration over the frozen Phase 3 reward
- * owner (frozen contract §7.1). The single `reward_rule_versions` insert
- * is delegated to the frozen owner command
- * (`AdminRewardService.createRuleVersion`) unchanged — the adapter never
- * mutates domain tables and never duplicates owner formulas.
+ * Phase 7 read projection + orchestration over the canonical Phase 3
+ * reward owner. The adapter NEVER enforces owner-level business controls:
+ * after the D-050 remediation every one of them lives inside the secured
+ * owner command `AdminRewardService.createRuleVersion` — RBAC re-check
+ * (`reward.rule.schedule`, SUPER_ADMIN), identity validation, selected-
+ * market enforcement (`currentMarketId`), resource-market consistency,
+ * exact 0%–0.05%/day BigInt rate bounds and six-decimal precision, future
+ * market-local 00:00 activation, strictly-increasing append-only windows
+ * under a transaction-safe advisory lock, operation-scoped idempotency
+ * with the canonical payload hash, mandatory reason (durable on the
+ * version row), and the atomic immutable owner audit.
  *
- * What the adapter adds (all Phase 7 orchestration, none of it inside the
- * frozen owner):
+ * What the adapter adds (legitimate Phase 7 orchestration/read/UI
+ * behavior only):
  *
- * 1. §7.1 validation: `%/day` exact-decimal strings, `0%`–`0.05%/day`
- *    governance range (above requires new governance), at most six input
- *    decimals, and per-package maxima (A `0.0125`, B `0.025`, C/D/E/F
- *    `0.05`).
- * 2. Activation only at a strictly future market-local `00:00`, resolved
- *    to the exact UTC instant in the market's IANA timezone.
- * 3. No-overlap enforcement (chain semantics): effective starts are
- *    strictly increasing per market scope, so two versions never share an
- *    effective day and the frozen settlement resolution (latest
- *    effective_from wins) stays deterministic. Serialized with a
- *    session-level PostgreSQL advisory lock (frozen contract §14
- *    "advisory-lock boundary" — pre-check alone is insufficient).
- * 4. Exact idempotency: the operation claims the client `Idempotency-Key`
- *    with the canonical payload hash in the shared idempotency mechanism
- *    table (`merchant_api_idempotency_keys`, unique `(scope, key)` — the
- *    exact pattern the frozen Phase 1 package owner uses). Same key + same
- *    payload replays the original result; same key + different payload is
- *    rejected with 409.
- * 5. Mandatory reason + privileged audit (frozen contract §7/§15): the
- *    operator's reason is required and recorded in the canonical audit
- *    trail on every successful create.
+ * 1. The §7.1 package-reference surface: per-package maxima (A `0.0125`,
+ *    B `0.025`, C/D/E/F `0.05` %/day) the frozen owner does not know,
+ *    plus the external-contract classification that a rate above the
+ *    0.05%/day governance ceiling is surfaced as
+ *    `REWARD_RATE_EXCEEDS_GOVERNANCE_LIMIT` (never as a package-max
+ *    error, since packages C–F share the ceiling as their maximum). The
+ *    owner remains the enforcement authority — this comparison only
+ *    selects the surface error code.
+ * 2. The market-local calendar DATE → exact UTC instant conversion using
+ *    the canonical owner helper (`resolveLocalMidnight`); the owner
+ *    re-verifies the instant is a strictly future market-local 00:00.
+ * 3. The read projection (`listRules`) with the frozen settlement window
+ *    semantics, and the create response mapping (owner-resolved UTC +
+ *    market-local activation times).
  *
- * The market is the server-owned Current Admin Market (canonical RbacGuard
- * `marketScoped` + `MARKET_CONTEXT_MISMATCH` on any client disagreement).
+ * The adapter performs NO advisory lock, NO idempotency claim/mechanism
+ * writes and NO privileged audit of its own for the create path — those
+ * are all owned by the canonical owner command (order §8; the owner's
+ * atomic audit carries the operator reason, actor, market and request
+ * correlation).
  */
 @Injectable()
 export class AdminRewardOpsService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(AdminRewardService) private readonly owner: AdminRewardService,
-    @Inject(AuditService) private readonly audit: AuditService,
   ) {}
 
   // ─── Read projection ──────────────────────────────────────────────
@@ -199,17 +215,23 @@ export class AdminRewardOpsService {
     };
   }
 
-  // ─── Orchestrated create (frozen owner command) ───────────────────
+  // ─── Orchestrated create (canonical owner command, D-050) ─────────
 
   /**
    * Schedule a new reward rule version for the selected market.
    *
-   * Validates the §7.1 rate contract and the future market-local 00:00
-   * activation, then claims the client Idempotency-Key with the canonical
-   * payload hash (unique `(scope, key)` mechanism row) and delegates the
-   * insert to the frozen Phase 3 owner command. Overlap is serialized with
-   * a market-scoped advisory lock so a concurrent race resolves to exactly
-   * one success and one stable conflict (frozen contract §14).
+   * The adapter performs ONLY Phase 7 orchestration: the §7.1 package-
+   * maximum surface check, the market row lookup and the market-local date
+   * → UTC instant conversion. EVERYTHING else is delegated to the secured
+   * canonical owner command `AdminRewardService.createRuleVersion`, which
+   * re-checks permission + identity, enforces the selected market
+   * (`currentMarketId` from the RbacGuard market context), the exact
+   * 0%–0.05%/day rate bounds/precision, the strictly-future market-local
+   * 00:00 activation, the append-only strictly-increasing windows under its
+   * transaction-safe advisory lock, the operation-scoped idempotency claim
+   * (with the canonical payload hash), the mandatory reason and the atomic
+   * owner audit — all in ONE transaction. The adapter performs no writes of
+   * its own for the create path.
    */
   async createRule(
     actor: AdminRewardOpsActor,
@@ -217,7 +239,12 @@ export class AdminRewardOpsService {
     input: CreateRewardRuleDto,
     idempotencyKey: string,
   ): Promise<AdminRewardRuleCreateResponse> {
-    // §7.1 rate validation first (pure exact-decimal checks — no DB).
+    // ── Phase 7 surface classification (pure exact-decimal comparison — no
+    //    enforcement; the owner enforces the ceiling inside its command) ──
+    // A rate above the §7.1 governance ceiling is always surfaced as
+    // REWARD_RATE_EXCEEDS_GOVERNANCE_LIMIT — never as a package-max error —
+    // because packages C–F share the ceiling as their maximum (pre-existing
+    // S6B external contract, pinned by unit + integration tests).
     const rateScaled = scaledDecimal(input.rate);
     if (rateScaled > scaledDecimal(REWARD_RATE_GOVERNANCE_MAX)) {
       throw rewardRateExceedsGovernanceLimitError();
@@ -231,166 +258,65 @@ export class AdminRewardOpsService {
       );
     }
 
+    // ── Market row for the surface's market-local resolution (the owner
+    //    re-validates the market server-side and returns the authoritative
+    //    timezone/activation in its response) ────────────────────────────
     const market = await this.marketRow(marketId);
     if (!market) throw rewardMarketNotFoundError();
 
-    // Activation only at a strictly future market-local 00:00.
+    // ── Convert the market-local DATE into the exact UTC activation instant
+    //    using the canonical owner helper (multi-probe, DST-safe). The owner
+    //    re-verifies the instant is a strictly-future market-local 00:00 and
+    //    rejects same-day/backdated/DST-skipped activations with
+    //    ADMIN_REWARD_ACTIVATION_NOT_FUTURE. ─────────────────────────────
     const effectiveFrom = resolveLocalMidnight(
       input.effective_date,
       market.timezone,
     );
-    if (!effectiveFrom || effectiveFrom.getTime() <= Date.now()) {
-      throw rewardActivationNotFutureError();
-    }
+    if (!effectiveFrom) throw rewardActivationNotFutureError();
 
-    const payloadHash = canonicalPayloadHash({
-      package_reference: input.package_reference,
-      rate: input.rate,
-      effective_date: input.effective_date,
-      reason: input.reason,
-      description: input.description ?? null,
-    });
-
-    const scope = `${REWARD_CREATE_IDEMPOTENCY_SCOPE}:${marketId}:${actor.adminUserId}`;
-    const lockKey = rewardCreateLockKey(marketId);
-
-    const client = await this.database.pool.connect();
+    // ── Delegate the ENTIRE create to the canonical owner command ────────
+    //    (D-050): RBAC re-check, identity, selected market, resource-market
+    //    consistency, exact rate bounds/precision, future market-local 00:00,
+    //    overlap + advisory lock, idempotency claim + payload hash, mandatory
+    //    reason and the atomic owner audit all live inside
+    //    `AdminRewardService.createRuleVersion`.
+    let version: AdminRewardRuleVersionCreateResponse;
     try {
-      await client.query('SELECT pg_advisory_lock($1)', [lockKey]);
-
-      // Claim the key + overlap pre-check atomically. On conflict the row
-      // already exists (replay path); on pre-check failure the throw rolls
-      // the claim back so the same key can be retried after correction.
-      const claimedId = await this.database.db.transaction(async (tx) => {
-        const claimed = await tx
-          .insert(merchantApiIdempotencyKeys)
-          .values({ scope, key: idempotencyKey, requestHash: payloadHash })
-          .onConflictDoNothing({
-            target: [
-              merchantApiIdempotencyKeys.scope,
-              merchantApiIdempotencyKeys.key,
-            ],
-          })
-          .returning({ id: merchantApiIdempotencyKeys.id });
-        if (claimed.length === 0) return null;
-
-        const latest = await tx
-          .select({ effectiveFrom: rewardRuleVersions.effectiveFrom })
-          .from(rewardRuleVersions)
-          .where(
-            and(
-              eq(rewardRuleVersions.marketId, marketId),
-              isNull(rewardRuleVersions.archivedAt),
-            ),
-          )
-          .orderBy(desc(rewardRuleVersions.effectiveFrom))
-          .limit(1);
-        if (
-          latest[0] &&
-          latest[0].effectiveFrom.getTime() >= effectiveFrom.getTime()
-        ) {
-          throw rewardEffectiveWindowOverlapError();
-        }
-        return claimed[0]?.id ?? null;
-      });
-
-      if (claimedId === null) {
-        const existing = await this.database.db
-          .select()
-          .from(merchantApiIdempotencyKeys)
-          .where(
-            and(
-              eq(merchantApiIdempotencyKeys.scope, scope),
-              eq(merchantApiIdempotencyKeys.key, idempotencyKey),
-            ),
-          )
-          .limit(1);
-        const row = existing[0];
-        if (!row || row.response === null || row.requestHash !== payloadHash) {
-          throw rewardIdempotencyConflictError();
-        }
-        return row.response as unknown as AdminRewardRuleCreateResponse;
-      }
-
-      // Delegate the single domain insert to the frozen Phase 3 owner
-      // command (unchanged). The owner commits its own insert + audit
-      // atomically; the claim is rolled back if the owner rejects.
-      let version: {
-        id: string;
-        rewardRate: string;
-        createdAt: string;
-      };
-      try {
-        version = await this.owner.createRuleVersion(this.ownerActor(actor), {
-          name: `${REWARD_RULE_SURFACE_NAME_PREFIX}${input.package_reference}${REWARD_RULE_SURFACE_NAME_SUFFIX}`,
-          description: input.description ?? undefined,
-          effectiveFrom: effectiveFrom.toISOString(),
-          rewardRate: input.rate,
-          capType: 'NONE',
-          capValue: '0',
-          minimumReward: '0',
-          marketId,
-        });
-      } catch (error) {
-        await this.database.db
-          .delete(merchantApiIdempotencyKeys)
-          .where(
-            and(
-              eq(merchantApiIdempotencyKeys.id, claimedId),
-              isNull(merchantApiIdempotencyKeys.response),
-            ),
-          );
-        throw error;
-      }
-
-      const response: AdminRewardRuleCreateResponse = {
-        id: version.id,
-        package_reference: input.package_reference,
-        reward_rate: normalizeRateString(input.rate),
-        effective_date: input.effective_date,
-        effective_from_utc: effectiveFrom.toISOString(),
-        effective_from_local: localWallString(effectiveFrom, market.timezone),
-        timezone: market.timezone,
-        market_id: marketId,
-        created_by: actor.adminUserId,
-        created_at: version.createdAt,
-      };
-
-      // Persist the original result for exact replay.
-      await this.database.db
-        .update(merchantApiIdempotencyKeys)
-        .set({ response, statusCode: 201, updatedAt: new Date() })
-        .where(eq(merchantApiIdempotencyKeys.id, claimedId));
-
-      // Privileged audit with the mandatory reason (frozen contract §7/§15).
-      await this.audit.recordPrivilegedAction({
-        actor: { type: 'ADMIN_USER', id: actor.adminUserId },
-        action: ADMIN_REWARD_RULE_VERSION_CREATED,
-        entity: { type: 'reward_rule_version', id: version.id },
+      version = await this.owner.createRuleVersion(this.ownerActor(actor), {
+        name: `${REWARD_RULE_SURFACE_NAME_PREFIX}${input.package_reference}${REWARD_RULE_SURFACE_NAME_SUFFIX}`,
+        description: input.description ?? undefined,
+        effectiveFrom: effectiveFrom.toISOString(),
+        rewardRate: input.rate,
+        capType: 'NONE',
+        capValue: '0',
+        minimumReward: '0',
         marketId,
-        after: {
-          payload_hash: payloadHash,
-          version_id: version.id,
-          package_reference: input.package_reference,
-          rate: input.rate,
-          effective_date: input.effective_date,
-          effective_from_utc: response.effective_from_utc,
-        },
         reason: input.reason,
-        result: 'SUCCESS',
-        requestId: idempotencyKey,
-        ipAddress: actor.ipAddress,
-        summary: `Administrator scheduled a ${input.rate}%/day reward rate for package ${input.package_reference}, effective ${input.effective_date} market-local 00:00 (${response.effective_from_utc}).`,
+        idempotencyKey,
       });
-
-      return response;
-    } finally {
-      try {
-        await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
-      } finally {
-        client.release();
-      }
+    } catch (error) {
+      // Surface the owner's ADMIN_REWARD_* rejections with the pre-existing
+      // S6B external codes and HTTP semantics (order §8, scope item 3).
+      if (error instanceof AdminRewardError) throw this.mapOwnerError(error);
+      throw error;
     }
+
+    // ── Adapter response: owner-resolved activation + surface fields ────
+    //    (same external shape as before the rewiring — the api-client and
+    //    Admin Web contract is unchanged).
+    return {
+      id: version.id,
+      package_reference: input.package_reference,
+      reward_rate: normalizeRateString(input.rate),
+      effective_date: input.effective_date,
+      effective_from_utc: version.effectiveFrom,
+      effective_from_local: version.effectiveFromLocal,
+      timezone: version.timezone,
+      market_id: marketId,
+      created_by: actor.adminUserId,
+      created_at: version.createdAt,
+    };
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────
@@ -406,12 +332,64 @@ export class AdminRewardOpsService {
     return rows[0];
   }
 
+  /**
+   * Adapt the surface actor into the owner actor, passing the server-owned
+   * Current Admin Market (RbacGuard `adminMarketContext`) through so the
+   * owner command applies the exact same selected-market enforcement as the
+   * canonical route (D-050 contract).
+   */
   private ownerActor(actor: AdminRewardOpsActor): AdminRewardActor {
     return {
       adminUserId: actor.adminUserId,
       ...(actor.requestId ? { requestId: actor.requestId } : {}),
       ...(actor.ipAddress ? { ipAddress: actor.ipAddress } : {}),
+      ...(actor.currentMarketId
+        ? { currentMarketId: actor.currentMarketId }
+        : {}),
+      ...(actor.marketContextVersion !== undefined
+        ? { marketContextVersion: actor.marketContextVersion }
+        : {}),
     };
+  }
+
+  /**
+   * Translate the canonical owner's ADMIN_REWARD_* rejections into the
+   * pre-existing S6B external codes. The HTTP status for each code is
+   * assigned in the controller's error mapping; every code here maps to the
+   * status the pre-rewiring surface used for the same violation
+   * (order §8, scope item 3).
+   */
+  private mapOwnerError(error: AdminRewardError): AdminRewardOpsError {
+    switch (error.code) {
+      case 'ADMIN_REWARD_IDEMPOTENCY_CONFLICT':
+        return rewardIdempotencyConflictError();
+      case 'ADMIN_REWARD_EFFECTIVE_WINDOW_OVERLAP':
+        return rewardEffectiveWindowOverlapError();
+      case 'ADMIN_REWARD_ACTIVATION_NOT_FUTURE':
+        return rewardActivationNotFutureError();
+      case 'ADMIN_REWARD_RATE_EXCEEDS_GOVERNANCE_LIMIT':
+        return rewardRateExceedsGovernanceLimitError();
+      case 'ADMIN_REWARD_RATE_PRECISION_EXCEEDED':
+        return rewardRatePrecisionExceededError();
+      case 'ADMIN_REWARD_MARKET_NOT_FOUND':
+        return rewardMarketNotFoundError();
+      case 'ADMIN_REWARD_MARKET_SELECTION_REQUIRED':
+        return rewardMarketSelectionRequiredError();
+      case 'ADMIN_REWARD_MARKET_CONTEXT_MISMATCH':
+        return rewardMarketContextMismatchError();
+      case 'ADMIN_REWARD_MARKET_ACCESS_DENIED':
+        return rewardMarketAccessDeniedError();
+      case 'ADMIN_REWARD_PERMISSION_DENIED':
+        return rewardPermissionDeniedError();
+      case 'ADMIN_REWARD_IDEMPOTENCY_KEY_REQUIRED':
+        return rewardIdempotencyKeyRequiredError();
+      case 'ADMIN_REWARD_REASON_REQUIRED':
+        return rewardReasonRequiredError();
+      default:
+        // Unknown owner codes (never thrown by the create command) propagate
+        // as-is and surface as a 500 through the controller.
+        throw error;
+    }
   }
 }
 
@@ -421,7 +399,8 @@ export class AdminRewardOpsService {
  * Scale a `%/day` decimal string to 10^6 integer units.
  *
  * Exported for direct unit testing of the §7.1 boundary math; not part of
- * the adapter's public surface.
+ * the adapter's public surface. (The DTO grammar `^\d+(\.\d{1,6})?$`
+ * guarantees the input shape before this helper runs.)
  */
 export function scaledDecimal(value: string): bigint {
   const [whole = '0', fraction = ''] = value.trim().split('.');
@@ -429,142 +408,6 @@ export function scaledDecimal(value: string): bigint {
     BigInt(whole) * BigInt(REWARD_RATE_SCALE) +
     BigInt(fraction.padEnd(6, '0') || '0')
   );
-}
-
-/**
- * Trim a stored exact-decimal rate to its significant digits for display
- * (string-only formatting — no arithmetic). Storage keeps `numeric(38,10)`;
- * the §7.1 display convention is `%/day` with at most six decimals.
- */
-export function normalizeRateString(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed.includes('.')) return trimmed;
-  const [whole = '0', fraction] = trimmed.split('.');
-  const significant = (fraction ?? '').replace(/0+$/u, '');
-  return significant === '' ? whole : `${whole}.${significant}`;
-}
-
-/**
- * Canonical payload hash (sorted keys + sha256 — owner pattern).
- *
- * Exported for direct unit testing of the idempotency correlation; not
- * part of the adapter's public surface.
- */
-export function canonicalPayloadHash(payload: Record<string, unknown>): string {
-  return createHash('sha256')
-    .update(JSON.stringify(sortJson(payload)))
-    .digest('hex');
-}
-
-function sortJson(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sortJson);
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, nested]) => [key, sortJson(nested)]),
-    );
-  }
-  return value;
-}
-
-/** Market-scoped advisory lock key (FNV-1a over a domain namespace). */
-function rewardCreateLockKey(marketId: string): bigint {
-  const input = `p7s6b:reward-rule-create:${marketId}`;
-  let hash = REWARD_CREATE_LOCK_NAMESPACE;
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= BigInt(input.charCodeAt(index));
-    hash = (hash * BigInt(1099511628211)) & BigInt('0xFFFFFFFFFFFFFFFF');
-  }
-  return hash & BigInt('0x7FFFFFFFFFFFFFFF');
-}
-
-/**
- * Resolve the UTC instant of the market-local midnight of a calendar date.
- * Returns `null` when the zone's wall clock does not land exactly on
- * 00:00:00 for that date (DST edge) — the caller rejects such dates.
- *
- * Exported for direct unit testing of the market-local/UTC resolution;
- * not part of the adapter's public surface.
- */
-export function resolveLocalMidnight(
-  dateStr: string,
-  timeZone: string,
-): Date | null {
-  const dateParts = dateStr.split('-').map((value) => Number(value));
-  const year = dateParts[0] ?? 0;
-  const month = dateParts[1] ?? 0;
-  const day = dateParts[2] ?? 0;
-  const probe = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-  const probeParts = localParts(probe, timeZone);
-  const localAsUtc = Date.UTC(
-    probeParts.year,
-    probeParts.month - 1,
-    probeParts.day,
-    probeParts.hour,
-    probeParts.minute,
-    probeParts.second,
-  );
-  const offsetMs = localAsUtc - probe.getTime();
-  const midnight = new Date(
-    Date.UTC(year, month - 1, day, 0, 0, 0, 0) - offsetMs,
-  );
-  const wall = localParts(midnight, timeZone);
-  if (
-    wall.year !== year ||
-    wall.month !== month ||
-    wall.day !== day ||
-    wall.hour !== 0 ||
-    wall.minute !== 0 ||
-    wall.second !== 0
-  ) {
-    return null;
-  }
-  return midnight;
-}
-
-interface LocalParts {
-  year: number;
-  month: number;
-  day: number;
-  hour: number;
-  minute: number;
-  second: number;
-}
-
-function localParts(at: Date, timeZone: string): LocalParts {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  });
-  const map = new Map(
-    formatter.formatToParts(at).map((part) => [part.type, part.value]),
-  );
-  return {
-    year: Number(map.get('year') ?? '0'),
-    month: Number(map.get('month') ?? '0'),
-    day: Number(map.get('day') ?? '0'),
-    hour: Number(map.get('hour') ?? '0'),
-    minute: Number(map.get('minute') ?? '0'),
-    second: Number(map.get('second') ?? '0'),
-  };
-}
-
-/**
- * Market-local wall clock "YYYY-MM-DD HH:mm:ss" for display.
- *
- * Exported for direct unit testing of the local-time rendering; not part
- * of the adapter's public surface.
- */
-export function localWallString(at: Date, timeZone: string): string {
-  const parts = localParts(at, timeZone);
-  return `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')} ${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}:${String(parts.second).padStart(2, '0')}`;
 }
 
 /**

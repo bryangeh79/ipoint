@@ -2406,6 +2406,7 @@ export const rewardRuleVersions = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
     description: text('description'),
+    reason: text('reason'),
     effectiveFrom: utcTimestamp('effective_from').notNull(),
     effectiveTo: utcTimestamp('effective_to'),
     rewardRate: numeric('reward_rate', { precision: 38, scale: 10 }).notNull(),
@@ -2442,6 +2443,10 @@ export const rewardRuleVersions = pgTable(
     check(
       'reward_rule_versions_period_check',
       sql`${table.effectiveTo} is null or ${table.effectiveTo} > ${table.effectiveFrom}`,
+    ),
+    check(
+      'chk_reward_rule_versions_reason',
+      sql`${table.reason} is null or (char_length(btrim(${table.reason})) between 1 and 500)`,
     ),
   ],
 );

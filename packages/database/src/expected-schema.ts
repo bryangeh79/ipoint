@@ -749,6 +749,7 @@ export const expectedSchema = {
     'created_by',
     'archived_at',
     'created_at',
+    'reason',
   ],
 
   // ─── Phase 3: Reward Plans ──────────────────────────────────────────

@@ -869,7 +869,7 @@ describe.skipIf(!databaseUrl)(
       );
     });
 
-    it('writes the privileged audit trail with reason + actor', async () => {
+    it('records the canonical owner audit with reason + actor + market', async () => {
       const market = await freshMarket();
       const admin = await createAdmin({
         marketIds: [market],
@@ -887,33 +887,38 @@ describe.skipIf(!databaseUrl)(
         .expect(201);
       const versionId = (body.body as { id: string }).id;
 
-      // Adapter audit record: action + mandatory reason + actor + market.
-      const auditRows = await database.db
-        .select()
-        .from(auditLogs)
-        .where(
-          and(
-            eq(auditLogs.action, 'ADMIN_REWARD_RULE_VERSION_CREATED'),
-            eq(auditLogs.marketId, market),
-          ),
-        );
-      const record = auditRows.find(
-        (row) => row.entityId === versionId && row.reason === reason,
-      );
-      expect(record).toBeTruthy();
-      expect(record?.actorId).toBe(admin.adminUserId);
-      expect(record?.requestId).toBe(key);
-      expect(record?.result).toBe('SUCCESS');
-      expect(record?.after).toMatchObject({ version_id: versionId });
-
-      // The frozen owner also records its own atomic audit row.
+      // The canonical owner writes the atomic audit row inside its create
+      // command (D-050): authenticated actor, market, operator reason and
+      // the request correlation (in-process calls fall back to the
+      // Idempotency-Key). The adapter no longer writes its own audit record
+      // for the create path (order §8 — owner-owned).
       const ownerRows = await database.db
         .select()
         .from(auditLogs)
         .where(eq(auditLogs.action, 'reward.rule_version.create'));
-      expect(ownerRows.some((row) => row.entityId === versionId)).toBe(true);
+      const record = ownerRows.find(
+        (row) => row.entityId === versionId && row.reason === reason,
+      );
+      expect(record).toBeTruthy();
+      expect(record?.actorId).toBe(admin.adminUserId);
+      expect(record?.marketId).toBe(market);
+      // The owner records the HTTP middleware request id on route calls and
+      // falls back to the Idempotency-Key only for in-process callers
+      // without one (D-050 contract). The key correlation is proven below
+      // via the mechanism row + the stored version row.
+      expect(typeof record?.requestId).toBe('string');
+      expect((record?.requestId as string).length).toBeGreaterThan(0);
+      expect(record?.result).toBe('SUCCESS');
 
-      // The idempotency mechanism row stores the exact replay payload.
+      // The version row stores the durable operator reason (migration 0030).
+      const versionRows = await database.db
+        .select()
+        .from(rewardRuleVersions)
+        .where(eq(rewardRuleVersions.id, versionId));
+      expect(versionRows[0]?.reason).toBe(reason);
+
+      // The owner-scoped idempotency mechanism row stores the exact replay
+      // payload (201 + the created version id).
       const idemRows = await database.db
         .select()
         .from(merchantApiIdempotencyKeys)

@@ -1,0 +1,208 @@
+# P7-S6B — Final Forward-Only Gate Record (Canonical Reward Owner Rewire)
+
+| Field | Value |
+|---|---|
+| **Record** | P7-S6B FINAL GATE — D-050 Phase 3 reward-rule owner remediation + canonical owner rewiring acceptance (CG-02 reward-owner gate) |
+| **Status** | `P7-S6B_DELIVERY_COMPLETE` / `P7-S6B_OPENCLAW_INTERNAL_GATE_PASSED` / `CG-02_REWARD_OWNER_GATE_PASSED` / `D-050_OWNER_REMEDIATION_INTEGRATED` / `CONTINUING_UNDER_D-047_D-048_D-049_D-050` |
+| **Order** | ChatGPT Command Center — P7-S6B FINAL REVIEW, REMOTE CHECKPOINT AND S6C RESUME ORDER (2026-08-05) |
+| **Date** | 2026-08-05 |
+| **Decisions** | D-047 (continuous execution), D-048 (subagent executor fallback), D-049 (Chinese communication), D-052 (D-050 remediation mandate) |
+| **Supersedes** | `P7-S6B_CORRECTION_PROVISIONAL_GATE.md` (provisional gate record retained, NOT amended; its provisional status is superseded by this final record) |
+
+> Forward-only record. The provisional gate record and all prior delivery
+> reports are retained unmodified. This record does not amend, delete, or
+> rewrite any previous record.
+
+---
+
+## 1. Reviewed commit ranges
+
+### 1.1 D-050 Phase 3 owner remediation range (Range A)
+
+| Item | Value |
+|---|---|
+| **Branch** | `fix/p3-p7-reward-rule-owner` |
+| **Range** | `e0958c6e..3e44b1d8` — **6 commits** |
+| **Commits** | `06e650b3` (feat(database): add reward_rule_versions.reason, migration 0030) · `74733f84` (fix(p3-reward): secure canonical reward rule owner command) · `67377d08` (fix(p3-reward): update create DTO and controller) · `e1ee2bf7` (test(p3-reward): D-050 owner evidence suite) · `d0dd5b5d` (docs(p3-reward): delivery record) · `3e44b1d8` (docs(p3-reward): prettier) |
+| **Integration** | Merge `277e7fc3` (`merge(p3-reward): integrate phase 3 reward rule owner remediation (d-050, cg-02 gate)`) into `phase/7-admin-operations`; parents `e0958c6e` + `3e44b1d8`; introduces exactly the 12 Range A files, no unrelated files |
+| **Scope** | `apps/api/src/admin-reward/**` (7 files), `packages/database/migrations/0030_p3_d050_reward_rule_reason.sql` (new, forward-only), `packages/database/migrations/checksums.json` (31), `packages/database/schema/index.ts`, `packages/database/src/expected-schema.ts`, `docs/06-phase-reports/p7-s6/P7-S6B_D050_OWNER_REMEDIATION_REPORT.md` |
+
+### 1.2 P7-S6B canonical owner rewiring range (Range B)
+
+| Item | Value |
+|---|---|
+| **Branch** | `task/p7-s6b-rewire-canonical` |
+| **Range** | `0081a2d9..3dbb34ad` — **4 commits** (base `0081a2d9` = phase HEAD incl. D-050 remediation merged at `277e7fc3`) |
+| **Commits** | `3020f907` (fix(p7-s6b): rewire reward configuration to canonical phase 3 owner command) · `993b31d9` (fix(p7-s6b): map canonical owner error codes) · `95da8ff3` (test(p7-s6b): update suites for canonical owner wiring) · `3dbb34ad` (docs(p7-s6b): record rewiring delivery) |
+| **Integration** | Fast-forward of `phase/7-admin-operations` to `3dbb34ad` at this gate (the rewire commits become ancestors of the Phase 7 HEAD) |
+| **Scope** | `apps/api/src/admin-reward-ops/**` (7 files) + `docs/06-phase-reports/p7-s6/P7-S6B_REWIRING_DELIVERY_REPORT.md` only |
+
+The review covered BOTH ranges and the merge topology — not only the final
+rewiring branch diff.
+
+---
+
+## 2. Independent reviewer
+
+| Item | Value |
+|---|---|
+| **Reviewer class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (independent reviewer, D-048) |
+| **Review date** | 2026-08-05 |
+| **Verdict** | **APPROVED** — 20/20 required findings PASS; **0 Critical, 0 High** |
+| **Verdict file** | `.local/s6b-final-gate/review/REVIEWER_VERDICT.md` (review evidence, not committed) |
+| **Notable non-blocking issues** | 1 Medium pre-existing (member-facing `POST /api/v1/rewards/rules` raw-insert path guarded only by AuthGuard — outside both reviewed ranges, disclosed in D-050 report §7 and OPEN_QUESTIONS O-13; Command Center follow-up decision required); 3 Low observations (retained governance-vs-package classification comparison; `scaledDecimal` relies on DTO grammar; cross-surface idempotency scope semantics — all documented, no security impact) |
+
+Reviewer evidence summary (file/line references in the verdict file):
+
+1. Direct Phase 3 route `POST /api/v1/admin/rewards/rules` is secured — `@UseGuards(AuthGuard, RbacGuard)` + `@RequirePermission('reward.rule.schedule')`; owner command re-enforces identity, permission, market, rate, activation, idempotency, overlap, reason, audit inside one transaction. **PASS**
+2. Direct route cannot bypass RBAC (401/403 semantics complete, owner re-check). **PASS**
+3. Direct route cannot bypass selected-market enforcement (current market, market grant, resource-market consistency 409/403/400). **PASS**
+4. Canonical owner enforces exact rate rules (BigInt `scaledDecimal`, 0%–0.05%/day, ≤6 decimals, 422 `ADMIN_REWARD_RATE_EXCEEDS_GOVERNANCE_LIMIT`). **PASS**
+5. Canonical owner enforces future market-local 00:00 activation (IANA multi-probe, DST-safe, KL/NY/Havana proven). **PASS**
+6. Canonical owner owns overlap + concurrency (`pg_advisory_xact_lock` in-transaction, strictly increasing `effective_from`, one-winner race). **PASS**
+7. Canonical owner owns idempotency + payload hashing (scope `reward.rule.owner.create:<marketId>:<adminUserId>`, mechanism table unique (scope,key), sorted-keys sha256, replay + 409 conflict). **PASS**
+8. Canonical owner requires and persists reason (DTO + command 1–500, migration 0030 column + CHECK). **PASS**
+9. Canonical owner writes immutable audit atomically (`audit.appendWithinTransaction` in the same transaction; injected-failure rollback proven). **PASS**
+10. Adapter no longer writes owner tables (no insert/update/delete in `admin-reward-ops.service.ts`; sole create path delegates to the owner). **PASS**
+11. Adapter no longer owns idempotency storage (claim/mechanism/payload-hash logic deleted). **PASS**
+12. Adapter no longer owns overlap locking (session advisory lock + overlap pre-check deleted). **PASS**
+13. Adapter no longer emits duplicate privileged audit (`ADMIN_REWARD_RULE_VERSION_CREATED` deleted; test rewired to the canonical owner audit row). **PASS**
+14. Adapter passes authenticated market, reason and idempotency inputs correctly (`currentMarketId` from RbacGuard `adminMarketContext`, `reason`, `Idempotency-Key`). **PASS**
+15. Error mapping cannot convert security/integrity failures into success (all 12 owner codes → non-2xx external codes; unknown codes rethrow → 500, never 2xx). **PASS**
+16. No raw 500 leakage for known owner errors (both controllers map every known code to 400/403/404/409/422). **PASS**
+17. Historical reward rules and issued rewards remain immutable (no update/delete, `effectiveTo` always NULL, no recalc, `reward_plans`/`reward_sources` untouched). **PASS**
+18. Frozen settlement projection unchanged (`apps/api/src/reward/**` untouched by both ranges). **PASS**
+19. No unrelated Phase 3 owner behavior changed (Range A: exactly 12 files; Range B: exactly 8 files). **PASS**
+20. Merge topology correct (`277e7fc3` integrates only the 6 D-050 commits; no unrelated files). **PASS**
+
+---
+
+## 3. Independent test gate (Section 3 of the order)
+
+Executed by OpenClaw on the host (elevated host execution, real PostgreSQL
+`ipoint-postgres-1` container) against the rewire state `3dbb34ad` (main repo
+working tree detached at the rewire tip). Fresh migrated + seeded databases
+per suite (`ipoint_gate_s6b_final`, `ipoint_gate_s6b_final_d050`,
+`ipoint_gate_s6b_final_s6a`, `ipoint_gate_s6b_final_verify` — each
+DROP/CREATE + `migrate()` + `seedFoundation()`). Raw logs:
+`.local/s6b-final-gate/evidence/*.log`.
+
+| # | Gate | Command | Result | Exit |
+|---|------|---------|--------|------|
+| 1 | Migration checksums | `pnpm --filter @ipoint/database db:checksum` | **Verified 31 immutable migration checksum(s)** (31/31) | 0 |
+| 2 | P7-S6B unit | `pnpm --filter @ipoint/api test src/admin-reward-ops/admin-reward-ops.spec.ts` | **18/18** | 0 |
+| 3 | P7-S6B PostgreSQL integration | `pnpm --filter @ipoint/api test src/admin-reward-ops/admin-reward-ops.integration.spec.ts` | **20/20** | 0 |
+| 4 | D-050 owner regression | `pnpm --filter @ipoint/api test src/admin-reward/admin-reward.owner.integration.spec.ts src/admin-reward/admin-reward.service.spec.ts` | **56/56** (33 integration + 23 unit) | 0 |
+| 5 | P7-S6A regression | `pnpm --filter @ipoint/api test src/admin-package-ops/admin-package-ops.spec.ts src/admin-package-ops/admin-package-ops.integration.spec.ts` | **36/36** (4 unit + 32 integration) | 0 |
+| 6 | API Client typecheck | `pnpm --filter @ipoint/api-client typecheck` | exit 0 | 0 |
+| 7 | API Client test | `pnpm --filter @ipoint/api-client test` | **59/59** | 0 |
+| 8 | API Client build | `pnpm --filter @ipoint/api-client build` | exit 0 | 0 |
+| 9 | Admin Web typecheck | `pnpm --filter @ipoint/admin-web typecheck` | exit 0 | 0 |
+| 10 | Admin Web test | `pnpm --filter @ipoint/admin-web test` | **185/185** (23 files) | 0 |
+| 11 | Admin Web build | `pnpm --filter @ipoint/admin-web build` | exit 0 (vite) | 0 |
+| 12 | API typecheck | `pnpm --filter @ipoint/api typecheck` | exit 0 | 0 |
+| 13 | API build | `pnpm --filter @ipoint/api build` | exit 0 | 0 |
+| 14 | OpenAPI | `pnpm --filter @ipoint/api openapi:validate` | **227 paths / 31 auth / 0 missing schemas / 0 duplicate operationIds — ✅ All runtime OpenAPI validations passed** (process does not self-exit — pre-existing outbox-worker quirk; killed after PASS output) | 0 (PASS detected) |
+| 15 | Lint (changed paths, both ranges) | `pnpm exec eslint <16 changed .ts files>` | 0 errors | 0 |
+| 16 | Format (changed paths, both ranges) | `pnpm exec prettier --check <18 changed files>` | **All matched files use Prettier code style!** (`.sql` excluded — prettier has no SQL parser, pre-existing repo-wide quirk identical on untouched 0029) | 0 |
+| 17 | Temporary gate-verification spec | `pnpm --filter @ipoint/api test src/admin-reward/s6b-gate-verification.spec.ts` | **2/2** (same-key/different-market + per-market scope semantics) | 0 |
+
+### 3.1 Additional behavioural verifications (order §3)
+
+| Check | Coverage / result |
+|---|---|
+| Direct-owner-route authorization denial | Owner integration suite: unauthenticated 401; member actor 403; admin without `reward.rule.schedule` 403; authorized admin 201 |
+| Cross-market denial | Owner suite: no current market 409 `MARKET_SELECTION_REQUIRED`; no grant 403 `MARKET_ACCESS_DENIED`; body/current mismatch 409 `MARKET_CONTEXT_MISMATCH`; missing body market 400; temp spec test 1 (same key, different market, context unchanged → 409) |
+| Missing reason denial | Owner suite: missing/blank/overlength reason → 400; 1-char/500-char accepted |
+| Same-key/different-reason rejection | Owner suite: same key + different reason → 409 `ADMIN_REWARD_IDEMPOTENCY_CONFLICT` |
+| Same-key/different-market rejection | Temp spec test 1: same key + different market while the market context is unchanged → **409** (market-context boundary). **Documented semantics**: the D-050 owner idempotency scope is per-market (`reward.rule.owner.create:<marketId>:<adminUserId>`); after a deliberate market-context switch the same key is a NEW scoped claim (temp spec test 2: 201, one row per market), while within each scope same-key/same-payload replays and same-key/different-payload → 409. No duplicate is possible within any single scope. Flagged for Command Center awareness (no security/integrity impact; frozen D-050 contract property, disclosed in D-050 report §5 and rewiring report §6.2). |
+| Concurrent overlapping creation → one valid winner | Owner suite: parallel creates → exactly one 201 + one 409, exactly one row |
+| Owner write + audit rollback together on injected DB failure | Owner suite: injected audit failure → zero version rows, zero new audit rows, zero mechanism claims; same key retries successfully after correction |
+| Admin editor invokes only the canonical owner path | Rewire unit suite (18/18): `delegates the create to the canonical owner with reason, key and market context`; adapter service has no domain-table writes (reviewer items 10–13) |
+
+### 3.2 Independent verifier
+
+| Item | Value |
+|---|---|
+| **Verifier class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (separate verifier, D-048) |
+| **Verification date** | 2026-08-05 |
+| **Verdict** | **TEST GATE PASSED** — all 17 gates pass with counts exactly matching the required expectations; all 8 behavioural checks demonstrably covered; 4 non-blocking reservations recorded (evidence-format trailers on rerun logs 05/16/17 — since appended; prettier .sql parser exclusion convention; pre-existing outbox-worker log noise; OpenAPI non-self-exit quirk) |
+| **Verdict file** | `.local/s6b-final-gate/evidence/VERIFIER_VERDICT.md` (verification evidence, not committed) |
+
+---
+
+## 4. CG-02 canonical ownership — satisfied
+
+- The frozen Phase 3 reward-rule owner command (`AdminRewardService.createRuleVersion`) is now the **sole enforcement boundary** for the direct canonical route `POST /api/v1/admin/rewards/rules` and the Phase 7 adapter create path. All 19 order §6 controls (permission, admin identity, selected-market, resource-market consistency, exact rate bounds, six-decimal precision, future market-local 00:00, resolved UTC, append-only versions, no overlap, transaction-safe concurrency, mandatory reason, durable reason storage, atomic immutable audit, operation-scoped idempotency, canonical payload hash, same-key/different-payload rejection, no historical recalculation, secured canonical route + DTO + OpenAPI) live inside the owner command.
+- The adapter no longer duplicates any owner control (rate bound [one external-contract classification comparison retained], activation pre-check, overlap pre-check, session advisory lock, idempotency claim/mechanism writes, payload hash, privileged audit — all deleted).
+- The original unsafe member-facing path `POST /api/v1/rewards/rules` (`apps/api/src/reward/**`) is NOT part of this gate's scope; it is recorded as OPEN_QUESTIONS **O-13** (HIGH, pre-existing, remediation decision pending at the Command Center — recommended follow-on owner remediation, e.g. D-053).
+
+---
+
+## 5. Hygiene confirmations
+
+| Item | Confirmation |
+|---|---|
+| Temporary file `report_files_review.txt` | **Removed** — not present in the working tree or anywhere under the repository (verified `Test-Path` + recursive search) |
+| Historical untracked artifact baseline | **Exactly 102** untracked artifacts — verified before and after this gate; no new untracked files were created in the repository tree by this gate (all gate evidence lives under gitignored `.local/`) |
+| OpenClaw production-code authorship | **None.** The D-050 remediation and the rewiring were implemented by `OPENCLAW_MANAGED_CODING_SUBAGENT` executors (D-048; see Executor Provenance Register). OpenClaw authored only: (a) governance records, (b) the temporary verification spec `s6b-gate-verification.spec.ts` (verification-only test artifact, never committed, deleted after the evidence run, content reviewed by the independent verifier). |
+| Temporary verification spec | Deleted after the evidence run; not committed; not present in any branch |
+| Main tree | Untouched: `main` remains at `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no Main PR, no Main merge, no deployment |
+| Pre-existing repository condition | `git fsck` reports 376 malformed/unreachable tree objects (historical, pre-existing; none reachable from `main`, `phase/7-admin-operations`, `task/p7-s6b-rewire-canonical`, `fix/p3-p7-reward-rule-owner` or `develop`; auto-gc repack fails on them — non-blocking for this delivery). Recorded for Command Center awareness; no history rewrite performed. |
+
+---
+
+## 6. Integration and push state
+
+| Item | Value |
+|---|---|
+| Phase 7 integration | `phase/7-admin-operations` fast-forwarded to `3dbb34ad` (includes D-050 merge `277e7fc3`, governance record `0081a2d9`, rewire commits `3020f907..3dbb34ad`) |
+| Final gate-record commit | `docs(p7-s6b): record canonical reward owner rewire final gate` (this record + registry/delivery-report updates) — new Phase 7 HEAD |
+| Branches pushed | `phase/7-admin-operations`, `task/p7-s6b-rewire-canonical`, `fix/p3-p7-reward-rule-owner` |
+| Push rules | No force push, no rebase, no amend, no reset, no clean, no stash, no identity change, no history rewrite |
+| Remote verification | See the post-push checkpoint section appended below once the push completes |
+
+---
+
+## 7. Declaration
+
+Per the order §7, OpenClaw records:
+
+```
+P7-S6B_DELIVERY_COMPLETE
+P7-S6B_OPENCLAW_INTERNAL_GATE_PASSED
+CG-02_REWARD_OWNER_GATE_PASSED
+D-050_OWNER_REMEDIATION_INTEGRATED
+CONTINUING_UNDER_D-047_D-048_D-049_D-050
+```
+
+This is an **OpenClaw internal gate declaration**, not Command Center
+acceptance. Command Center acceptance, closure or freeze of P7-S6B / Phase 7
+is not declared here.
+
+---
+
+## 8. Post-push remote checkpoint (Section 6 of the order) — COMPLETED
+
+All checks executed after the push of 2026-08-05; all **PASSED** →
+`REMOTE_CHECKPOINT_VERIFICATION_PASSED` (no failure declared).
+
+| Check | Result |
+|---|---|
+| Local Phase 7 HEAD == remote Phase 7 HEAD | **5a75794f** == **5a75794f** ✅ |
+| Remote contains full SHA `0081a2d9` | ✅ ancestor of remote Phase 7 HEAD (`merge-base --is-ancestor`) |
+| Remote contains the final S6B gate-record commit | ✅ `5a75794f` is the remote Phase 7 HEAD |
+| D-050 owner remediation commit ancestor of Phase 7 remote HEAD | ✅ `3e44b1d8` and merge `277e7fc3` ancestors |
+| Rewire commit ancestor of Phase 7 remote HEAD | ✅ `3dbb34ad` ancestor |
+| Task and remediation branch tips match local | ✅ remote `task/p7-s6b-rewire-canonical` = `3dbb34ad`; remote `fix/p3-p7-reward-rule-owner` = `3e44b1d8` |
+| Tracked modifications are zero | ✅ `git status` tracked = 0 |
+| Historical untracked artifacts exactly 102 | ✅ 102 |
+| Migration checksums remain 31/31 | ✅ `db:checksum` — "Verified 31 immutable migration checksum(s)" (post-integration re-run) |
+| Main remains `69240bf84d7d8e0cf58c86ce25a88a5aa105db05` | ✅ local and remote `main` unchanged |
+| No Main PR | ✅ `gh pr list --base main` = empty |
+| No Main Merge | ✅ main untouched (no merge) |
+| No deployment | ✅ no deployment action taken |
+| No secrets or temporary review files committed | ✅ pushed range `e0958c6e..5a75794f` file scan: D-050 + rewire + governance docs only; no `.env`/secret/`.local`/temp file; `report_files_review.txt` absent; temporary verification spec absent (deleted, never committed) |
+
+P7-S6C remains paused until the declaration in §7 (which is now recorded)
+and resumes per the order §8.

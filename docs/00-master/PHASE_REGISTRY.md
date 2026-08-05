@@ -14,7 +14,7 @@
 |---|---|---|
 | **Baseline Acknowledgment** | **APPROVED** | V1.1 Correction is binding; where conflict exists, V1.1 wins |
 | **PR #2** (docs: iPoint engineering starter pack) | **MERGED** | Squash merged to main: 3c850bd |
-| **Current Authorized Work** | **Phase 7 Full Execution** | P7-S2 through P7-S10 AUTHORIZED under D-047; continuous execution; frozen-owner remediation authorized in exact scope; Main PR/Main Merge/Push Main/Production Deployment NOT_AUTHORIZED. |
+| **Current Authorized Work** | **Phase 7 Full Execution (D-047/D-048)** | P7-S2 through P7-S10 AUTHORIZED under D-047; continuous execution; frozen-owner remediation authorized in exact scope; **D-051 (Phase 1 special-percentage reason/audit) and D-052 (Phase 3 reward-rule owner security/versioning) MANDATORY under Command Center order 2026-08-04**; **P7-S6B DELIVERY_COMPLETE / OPENCLAW INTERNAL GATE PASSED / CG-02 REWARD OWNER GATE PASSED / D-050 OWNER REMEDIATION INTEGRATED (final gate record 2026-08-05 — OpenClaw internal declaration, NOT Command Center acceptance)**; P7-S6C RESUMING; Main PR/Main Merge/Push Main/Production Deployment NOT_AUTHORIZED. |
 | **Executor Pool (Phase 7)** | **D-048 AUTHORIZED** | Codex CLI temporarily unavailable (workspace credits). OpenClaw-managed independent Coding Subagents AUTHORIZED as alternate executors for P7-S4..P7-S10 under D-048. OpenClaw remains PROHIBITED from directly writing production code. No alternate OpenAI account or authentication bypass. Testing/review/security/financial/Git requirements unchanged. Final Command Center acceptance not delegated. Executor class recorded per task in Executor Provenance Register. |
 | **Phase 1** | **COMPLETE / ACCEPTED** | Accepted at `48239fea58716c3df0facbfa2c1b4a1865c05b21`; Pull Request to main AUTHORIZED under D-013 |
 | **Phase 2** | **COMPLETE** | Approved at `d25fb1244f29573bcc008b08cd94286c7b7d0330` under D-027. P2-S1 through P2-S9 all COMPLETE / APPROVED. Phase 3 NOT_AUTHORIZED. |
@@ -170,7 +170,7 @@
 | **P7-S3** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
 | **P7-S4** | Dashboard and bounded operational read models | **AUTHORIZED** | Continuous execution under D-047; D-048 executor substitution applies. Dispatch split: P7-S4A (server read models), P7-S4B (admin web dashboard), P7-S4C (verification). |
 | **P7-S5** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
-| **P7-S6** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
+| **P7-S6** | Commercial Configuration (Merchant Package / Reward / Redemption Rate / Commission) | **S6A DELIVERED** · **S6B DELIVERY_COMPLETE / OPENCLAW_INTERNAL_GATE_PASSED / CG-02_REWARD_OWNER_GATE_PASSED / D-050_OWNER_REMEDIATION_INTEGRATED** (final forward-only gate record `P7-S6B_FINAL_GATE_RECORD.md` 2026-08-05; independent review APPROVED 20/20; independent test gate PASSED 17/17; rewire `3020f907..3dbb34ad` FF-integrated; NOT Command Center acceptance) · **S6C RESUMED (task/p7-s6c-redemption-config updated from the new Phase 7 HEAD)** · S6D NOT_AUTHORIZED until D-052 gate completion confirmed by Command Center | Continuous execution under D-047/D-048; Command Center acceptance/closure/freeze of S6B and Phase 7 NOT declared. |
 | **P7-S7** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
 | **P7-S8** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
 | **P7-S9** | Future Phase 7 implementation scope | **AUTHORIZED** | Continuous execution under D-047. |
@@ -179,6 +179,7 @@
 | **fix/p3-p7-sec01-ipoint-maker-checker** | SEC-01 iPoint Maker/Checker Remediation | **AUTHORIZED** | Exact frozen-owner remediation scope authorized under D-047. |
 | **fix/p6-r1-sec02-refund-ledger** | SEC-02 Phase 6 Refund Ledger Remediation | **AUTHORIZED** | Exact frozen-owner remediation scope authorized under D-047. |
 | **fix/p6-r2-admin-route-security** | Phase 6 Admin Route Security Remediation | **AUTHORIZED** | Exact frozen-owner remediation scope authorized under D-047. |
+| **fix/p3-p7-reward-rule-owner** | Phase 3 Reward-Rule Owner Security/Versioning Remediation (D-052, Command Center "D-050") | **INTEGRATED / CG-02 GATE PASSED (OpenClaw internal, 2026-08-05)** | Remediation `e0958c6e..3e44b1d8` integrated via merge `277e7fc3`; final gate record filed; Command Center acceptance/closure/freeze NOT declared. |
 
 ## Current allowed actions
 
@@ -210,4 +211,4 @@
 
 ---
 
-*Last updated: 2026-08-03 | Updated by: OpenClaw | Based on decisions D-001 through D-048*
+*Last updated: 2026-08-04 | Updated by: OpenClaw | Based on decisions D-001 through D-052 (incl. Command Center order 2026-08-04: S6B gate revocation, D-051/D-052 owner remediations, S6C pause)*

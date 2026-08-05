@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
   ForbiddenException,
   Get,
+  Headers,
   HttpCode,
   Inject,
   InternalServerErrorException,
@@ -14,6 +16,7 @@ import {
   Post,
   Query,
   Req,
+  UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -44,12 +47,23 @@ import type {
   AdminRewardActor,
   AdminRewardJobRunDetailResponse,
   AdminRewardJobRunListResponse,
+  AdminRewardRuleVersionCreateResponse,
   AdminRewardRuleVersionDetailResponse,
   AdminRewardRuleVersionListResponse,
   AdminRewardVersionHistoryResponse,
   AdminWalletAdjustmentResponse,
 } from './admin-reward.types.js';
 
+/**
+ * Secured Phase 3 reward-rule owner endpoints (D-052/D-050).
+ *
+ * The canonical RbacGuard enforces the `reward.rule.schedule` permission
+ * (SUPER_ADMIN only, marketScoped) and the server Current Admin Market at
+ * the transport boundary; the owner service re-enforces identity,
+ * permission, selected market, resource-market consistency, rate bounds,
+ * future market-local activation, idempotency, overlap, reason and audit
+ * INSIDE the command so no in-process caller can bypass them.
+ */
 @ApiTags('Admin Rewards')
 @ApiBearerAuth()
 @Controller('admin/rewards')
@@ -101,20 +115,38 @@ export class AdminRewardController {
   @Post('rules')
   @RequirePermission('reward.rule.schedule')
   @HttpCode(201)
-  @ApiOperation({ summary: 'Create a new reward rule version' })
-  @ApiResponse({ status: 201, description: 'Rule version created.' })
+  @ApiOperation({
+    summary: 'Create a new reward rule version (secured owner command)',
+    description:
+      'Secured Phase 3 reward-rule owner command. The Idempotency-Key header is mandatory (same key + same payload replays the original result; same key + different payload returns 409). A reason between 1 and 500 characters is required and stored durably on the version row. The reward rate must be an exact %/day decimal between 0% and 0.05% with at most six decimals. Activation must be at a strictly future market-local 00:00 in the selected market timezone; the response returns the resolved UTC instant AND the market-local wall time. Effective windows are strictly increasing per market (append-only, no overlap).',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Rule version created with local + UTC activation times.',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid body, reason, or key.' })
+  @ApiResponse({ status: 403, description: 'Permission or market denied.' })
+  @ApiResponse({
+    status: 409,
+    description: 'Market context mismatch, overlap, or idempotency conflict.',
+  })
+  @ApiResponse({
+    status: 422,
+    description: 'Rate range/precision or activation-time violation.',
+  })
   createRuleVersion(
     @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(createRuleVersionSchema))
     input: CreateRuleVersionDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Ip() ip: string,
     @Req() request: Request,
-  ): Promise<AdminRewardRuleVersionListResponse['items'][number]> {
+  ): Promise<AdminRewardRuleVersionCreateResponse> {
     return this.handle(() =>
-      this.adminReward.createRuleVersion(
-        this.adminActor(actor, request, ip),
-        input,
-      ),
+      this.adminReward.createRuleVersion(this.adminActor(actor, request, ip), {
+        ...input,
+        idempotencyKey: this.requireIdempotencyKey(idempotencyKey),
+      }),
     );
   }
 
@@ -213,11 +245,33 @@ export class AdminRewardController {
     const requestId = (request as unknown as Record<string, unknown>)[
       'requestId'
     ];
+    const marketContext = (
+      request as Request & {
+        adminMarketContext?: { marketId: string; contextVersion: number };
+      }
+    ).adminMarketContext;
     return {
       adminUserId: actor.adminUserId,
       ipAddress,
       ...(typeof requestId === 'string' ? { requestId } : {}),
+      ...(marketContext
+        ? {
+            currentMarketId: marketContext.marketId,
+            marketContextVersion: marketContext.contextVersion,
+          }
+        : {}),
     };
+  }
+
+  private requireIdempotencyKey(value: string | undefined): string {
+    const key = value?.trim();
+    if (!key || key.length > 200) {
+      throw new BadRequestException({
+        code: 'ADMIN_REWARD_IDEMPOTENCY_KEY_REQUIRED',
+        message: 'A valid Idempotency-Key header is required.',
+      });
+    }
+    return key;
   }
 
   // ─── Error Handling ────────────────────────────────────────────────
@@ -237,13 +291,25 @@ export class AdminRewardController {
         case 'ADMIN_REWARD_JOB_NOT_FOUND':
         case 'ADMIN_REWARD_WALLET_NOT_FOUND':
         case 'ADMIN_REWARD_ADJUSTMENT_NOT_FOUND':
+        case 'ADMIN_REWARD_MARKET_NOT_FOUND':
           throw new NotFoundException(body);
         case 'ADMIN_REWARD_MARKET_ACCESS_DENIED':
+        case 'ADMIN_REWARD_PERMISSION_DENIED':
           throw new ForbiddenException(body);
         case 'ADMIN_REWARD_RULE_VERSION_ARCHIVED':
         case 'ADMIN_REWARD_ADJUSTMENT_INVALID_AMOUNT':
         case 'ADMIN_REWARD_IDEMPOTENCY_CONFLICT':
+        case 'ADMIN_REWARD_MARKET_CONTEXT_MISMATCH':
+        case 'ADMIN_REWARD_MARKET_SELECTION_REQUIRED':
+        case 'ADMIN_REWARD_EFFECTIVE_WINDOW_OVERLAP':
           throw new ConflictException(body);
+        case 'ADMIN_REWARD_IDEMPOTENCY_KEY_REQUIRED':
+        case 'ADMIN_REWARD_REASON_REQUIRED':
+          throw new BadRequestException(body);
+        case 'ADMIN_REWARD_RATE_PRECISION_EXCEEDED':
+        case 'ADMIN_REWARD_RATE_EXCEEDS_GOVERNANCE_LIMIT':
+        case 'ADMIN_REWARD_ACTIVATION_NOT_FUTURE':
+          throw new UnprocessableEntityException(body);
         default:
           throw new InternalServerErrorException(body);
       }
