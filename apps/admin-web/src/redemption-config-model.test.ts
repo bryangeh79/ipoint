@@ -7,6 +7,7 @@ import {
   describeRedemptionWriteError,
   formatRedemptionWindow,
   marketLocalTomorrow,
+  redemptionCancellable,
   redemptionEffectiveDateFuture,
   redemptionRateGrammarValid,
   redemptionRateWithinBounds,
@@ -96,7 +97,16 @@ describe('window copy and permission affordances', () => {
     expect(redemptionWindowStatusLabel('SCHEDULED')).toBe('Scheduled');
     expect(redemptionWindowStatusLabel('SUPERSEDED')).toBe('Superseded');
     expect(redemptionWindowStatusLabel('EXPIRED')).toBe('Expired');
+    expect(redemptionWindowStatusLabel('CANCELLED')).toBe('Cancelled');
     expect(redemptionWindowStatusLabel('UNKNOWN')).toBe('UNKNOWN');
+  });
+
+  it('only SCHEDULED versions are cancellable (D-053 §9 affordance)', () => {
+    expect(redemptionCancellable({ window_status: 'SCHEDULED' })).toBe(true);
+    expect(redemptionCancellable({ window_status: 'ACTIVE' })).toBe(false);
+    expect(redemptionCancellable({ window_status: 'EXPIRED' })).toBe(false);
+    expect(redemptionCancellable({ window_status: 'SUPERSEDED' })).toBe(false);
+    expect(redemptionCancellable({ window_status: 'CANCELLED' })).toBe(false);
   });
 
   it('formats open and closed windows from exact server strings', () => {
@@ -143,5 +153,20 @@ describe('window copy and permission affordances', () => {
         new ApiError(409, { code: 'REDEMPTION_RATE_OVERLAP' }),
       ),
     ).toContain('immutable');
+    expect(
+      describeRedemptionWriteError(
+        new ApiError(409, { code: 'REDEMPTION_RATE_CANNOT_CANCEL_EFFECTIVE' }),
+      ),
+    ).toContain('not-yet-effective');
+    expect(
+      describeRedemptionWriteError(
+        new ApiError(409, { code: 'REDEMPTION_RATE_ALREADY_CANCELLED' }),
+      ),
+    ).toContain('already been cancelled');
+    expect(
+      describeRedemptionWriteError(
+        new ApiError(404, { code: 'REDEMPTION_RATE_VERSION_NOT_FOUND' }),
+      ),
+    ).toContain('was not found');
   });
 });

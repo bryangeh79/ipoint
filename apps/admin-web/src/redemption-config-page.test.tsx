@@ -171,7 +171,7 @@ describe('P7-S6C redemption rate configuration page', () => {
       await screen.findByText('Redemption rate 1.1234567890 scheduled.'),
     ).toBeInTheDocument();
     // The refreshed schedule shows the new scheduled version.
-    expect(await screen.findByText('Scheduled')).toBeInTheDocument();
+    expect((await screen.findAllByText('Scheduled')).length).toBeGreaterThan(0);
   });
 
   it('rejects out-of-bounds rates and missing reason before calling the server', async () => {
@@ -254,6 +254,94 @@ describe('P7-S6C redemption rate configuration page', () => {
     expect(
       await screen.findByText(
         'A redemption rate version already exists for this market. Versions are immutable and overlap is prevented.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('cancels a scheduled version with a mandatory reason (append-only)', async () => {
+    mockRedemptionConfigApi();
+    await signIn();
+    await screen.findByRole('heading', {
+      name: 'Redemption rate configuration',
+    });
+
+    // Only the SCHEDULED version offers the cancel action.
+    const cancelButtons = screen.getAllByRole('button', {
+      name: 'Cancel version',
+    });
+    expect(cancelButtons.length).toBe(1);
+
+    fireEvent.click(cancelButtons[0]!);
+    const cancelForm = await screen.findByTestId(
+      'redemption-cancel-form-22222222-2222-4222-8222-222222222224',
+    );
+    expect(cancelForm).toBeInTheDocument();
+
+    // Missing reason is a client-side stop.
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Confirm cancel' }),
+    );
+    expect(
+      await screen.findByText(
+        'A reason is mandatory for every cancelled redemption rate.',
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.change(await screen.findByLabelText('Cancel reason'), {
+      target: { value: 'Scheduled baseline no longer required' },
+    });
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Confirm cancel' }),
+    );
+
+    // Success message + refreshed schedule shows the CANCELLED badge.
+    expect(
+      await screen.findByText('Redemption rate 1.8000000000 cancelled.'),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByTestId('redemption-window-CANCELLED'),
+    ).toBeInTheDocument();
+  });
+
+  it('does not offer cancel orchestration without the manage capability gate', async () => {
+    mockRedemptionConfigApi({ permissions: ['redemption.rate.read'] });
+    await signIn();
+    await screen.findByRole('heading', {
+      name: 'Redemption rate configuration',
+    });
+
+    // Read-only actor: no create form, no cancel action on any version.
+    expect(
+      screen.queryByRole('button', { name: 'Cancel version' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Rate per 1 iPoint'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('surfaces the server already-cancelled conflict (409) with stable copy', async () => {
+    mockRedemptionConfigApi({
+      cancelFails: {
+        status: 409,
+        code: 'REDEMPTION_RATE_ALREADY_CANCELLED',
+      },
+    });
+    await signIn();
+    await screen.findByRole('heading', {
+      name: 'Redemption rate configuration',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel version' }));
+    fireEvent.change(await screen.findByLabelText('Cancel reason'), {
+      target: { value: 'Second attempt' },
+    });
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Confirm cancel' }),
+    );
+
+    expect(
+      await screen.findByText(
+        'This redemption rate version has already been cancelled.',
       ),
     ).toBeInTheDocument();
   });

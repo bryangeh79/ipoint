@@ -20,6 +20,7 @@ export const redemptionWindowStatusLabels: Readonly<Record<string, string>> = {
   ACTIVE: 'Active',
   SUPERSEDED: 'Superseded',
   EXPIRED: 'Expired',
+  CANCELLED: 'Cancelled',
 };
 
 export function redemptionWindowStatusLabel(status: string): string {
@@ -211,11 +212,22 @@ export function canViewRedemptionRates(
   return effectivePermissions.includes('redemption.rate.read');
 }
 
-/** UI affordance only — the server enforces the SUPER_ADMIN-only gate. */
+/** UI affordance only — the server enforces permission and market. */
 export function canManageRedemptionRates(
   effectivePermissions: ReadonlyArray<string>,
 ): boolean {
   return effectivePermissions.includes('redemption.rate.manage');
+}
+
+/**
+ * Only a future scheduled, not-yet-effective version is cancellable
+ * (D-053 §9). UI affordance only — the server re-checks cancellability
+ * (active/expired/historically-used versions are rejected with 409).
+ */
+export function redemptionCancellable(rate: {
+  window_status: string;
+}): boolean {
+  return rate.window_status === 'SCHEDULED';
 }
 
 export interface RedemptionPageErrorCopy {
@@ -286,6 +298,12 @@ export function describeRedemptionWriteError(error: unknown): string {
         return 'The request was retried with a different payload. Refresh and retry.';
       case 'REDEMPTION_MARKET_NOT_FOUND':
         return 'The market was not found.';
+      case 'REDEMPTION_RATE_VERSION_NOT_FOUND':
+        return 'The redemption rate version was not found.';
+      case 'REDEMPTION_RATE_CANNOT_CANCEL_EFFECTIVE':
+        return 'Only a scheduled, not-yet-effective redemption rate version can be cancelled.';
+      case 'REDEMPTION_RATE_ALREADY_CANCELLED':
+        return 'This redemption rate version has already been cancelled.';
       case 'IDEMPOTENCY_KEY_REQUIRED':
         return 'A valid Idempotency-Key header is required.';
       case 'PERMISSION_DENIED':

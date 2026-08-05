@@ -1,6 +1,7 @@
 import {
   createIdempotencyKey,
   type AdminRedemptionRateListDto,
+  type AdminRedemptionRateVersionDto,
 } from '@ipoint/api-client';
 import {
   Alert,
@@ -24,6 +25,7 @@ import {
   formatRedemptionWindow,
   marketLocalTomorrow,
   orderRedemptionRates,
+  redemptionCancellable,
   redemptionEffectiveDateFuture,
   redemptionRateGrammarValid,
   redemptionRateWithinBounds,
@@ -63,6 +65,12 @@ import {
  *   mandatory reason, and an Idempotency-Key (same key + same payload
  *   replays the original result). The server delegates the insert to the
  *   frozen Phase 6 owner command and records the privileged audit.
+ * - Cancelling a SCHEDULED (not-yet-effective) version is also
+ *   SUPER_ADMIN-only and gated by the same capability flags
+ *   (`redemption.rate.manage` + the owner write environment). The cancel
+ *   is append-only (D-053 §9): the immutable rate-version row is never
+ *   updated or deleted; the server returns the new cancellation event and
+ *   the version is projected with the CANCELLED window state.
  *
  * All rates are exact decimal strings and are never parsed client-side.
  * UI affordances are never authorization — the server enforces permission,
@@ -127,6 +135,10 @@ export function RedemptionConfigPage() {
     reason: '',
   });
   const [message, setMessage] = useState<ActionMessage | null>(null);
+  const [cancelDraft, setCancelDraft] = useState<{
+    versionId: string;
+    reason: string;
+  } | null>(null);
   const canManage = canManageRedemptionRates(permissions) && canWrite;
 
   const timezone =
@@ -212,6 +224,42 @@ export function RedemptionConfigPage() {
         text: `Redemption rate ${draft.rate_value.trim()} scheduled.`,
       });
       setDraft({ rate_value: '', effective_date: '', reason: '' });
+      retryConfig();
+    } catch (error: unknown) {
+      setMessage({ tone: 'error', text: describeRedemptionWriteError(error) });
+    }
+  }
+
+  async function cancelRate(version: AdminRedemptionRateVersionDto) {
+    if (
+      !marketId ||
+      !canManage ||
+      !cancelDraft ||
+      cancelDraft.versionId !== version.id
+    ) {
+      return;
+    }
+    const reason = cancelDraft.reason.trim();
+    if (reason.length === 0) {
+      setMessage({
+        tone: 'error',
+        text: 'A reason is mandatory for every cancelled redemption rate.',
+      });
+      return;
+    }
+    try {
+      const key = createIdempotencyKey();
+      await adminRedemptionOpsApi.cancelRate(
+        marketId,
+        version.id,
+        { reason },
+        key,
+      );
+      setMessage({
+        tone: 'success',
+        text: `Redemption rate ${version.rate_value} cancelled.`,
+      });
+      setCancelDraft(null);
       retryConfig();
     } catch (error: unknown) {
       setMessage({ tone: 'error', text: describeRedemptionWriteError(error) });
@@ -313,6 +361,7 @@ export function RedemptionConfigPage() {
                   <th scope="col">Window status</th>
                   <th scope="col">Effective window (market-local)</th>
                   <th scope="col">Resolved UTC</th>
+                  {canManage ? <th scope="col">Action</th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -341,6 +390,63 @@ export function RedemptionConfigPage() {
                         {rate.effective_from_utc}
                       </span>
                     </td>
+                    {canManage ? (
+                      <td>
+                        {redemptionCancellable(rate) ? (
+                          cancelDraft?.versionId === rate.id ? (
+                            <div
+                              className="admin-reward-form admin-reward-form--inline"
+                              data-testid={`redemption-cancel-form-${rate.id}`}
+                            >
+                              <FormField
+                                label="Cancel reason"
+                                htmlFor={`redemption-cancel-reason-${rate.id}`}
+                              >
+                                <Input
+                                  id={`redemption-cancel-reason-${rate.id}`}
+                                  aria-label="Cancel reason"
+                                  value={cancelDraft.reason}
+                                  onChange={(event) =>
+                                    setCancelDraft((current) =>
+                                      current
+                                        ? {
+                                            versionId: current.versionId,
+                                            reason: event.target.value,
+                                          }
+                                        : current,
+                                    )
+                                  }
+                                />
+                              </FormField>
+                              <Button
+                                variant="danger"
+                                onClick={() => void cancelRate(rate)}
+                              >
+                                Confirm cancel
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                onClick={() => setCancelDraft(null)}
+                              >
+                                Keep
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="secondary"
+                              onClick={() =>
+                                setCancelDraft({
+                                  versionId: rate.id,
+                                  reason: '',
+                                })
+                              }
+                            >
+                              Cancel version
+                            </Button>
+                          )
+                        ) : null}
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>

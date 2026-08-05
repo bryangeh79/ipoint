@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import type {
+  AdminRedemptionRateCancelResultDto,
   AdminRedemptionRateCreateResultDto,
   AdminRedemptionRateListDto,
 } from '@ipoint/api-client';
@@ -25,6 +26,7 @@ export interface RedemptionConfigMockOptions {
   scheduleBody?: AdminRedemptionRateListDto;
   scheduleFails?: { status: number; code: string; message?: string };
   createFails?: { status: number; code: string; message?: string };
+  cancelFails?: { status: number; code: string; message?: string };
 }
 
 export function json(body: unknown, status = 200) {
@@ -119,6 +121,55 @@ export function mockRedemptionConfigApi(
       // ── Redemption-ops adapter surface ──────────────────────────────
       const ratesMatch =
         /\/admin\/redemption-ops\/markets\/[^/]+\/rates$/u.exec(url);
+      const cancelMatch =
+        /\/admin\/redemption-ops\/markets\/[^/]+\/rates\/([^/]+)\/cancel$/u.exec(
+          url,
+        );
+      if (cancelMatch && method === 'POST') {
+        if (resolved.cancelFails) {
+          return json(
+            {
+              code: resolved.cancelFails.code,
+              message:
+                resolved.cancelFails.message ?? resolved.cancelFails.code,
+            },
+            resolved.cancelFails.status,
+          );
+        }
+        if (!permissions.includes('redemption.rate.manage')) {
+          return json({ code: 'PERMISSION_DENIED' }, 403);
+        }
+        if (!headers.get('idempotency-key')) {
+          return json({ code: 'IDEMPOTENCY_KEY_REQUIRED' }, 400);
+        }
+        const body = JSON.parse(String(init?.body ?? '{}')) as {
+          reason?: string;
+        };
+        if (!body.reason?.trim()) {
+          return json({ code: 'VALIDATION_ERROR' }, 400);
+        }
+        const versionId = cancelMatch[1] ?? '';
+        const cancelled: AdminRedemptionRateCancelResultDto = {
+          id: `cancellation-${Date.now()}`,
+          rate_version_id: versionId,
+          market_id: schedule.market_id,
+          rate_value: '1.8',
+          effective_from_utc: '2026-09-15T16:00:00.000Z',
+          reason: body.reason,
+          cancelled_by: 'admin-1',
+          cancelled_at: new Date().toISOString(),
+        };
+        schedule = {
+          ...schedule,
+          rates: (schedule.rates ?? []).map((rate) =>
+            rate.id === versionId
+              ? { ...rate, window_status: 'CANCELLED' }
+              : rate,
+          ),
+        };
+        return json(cancelled, 200);
+      }
+
       if (ratesMatch && method === 'GET') {
         if (resolved.scheduleFails) {
           return json(

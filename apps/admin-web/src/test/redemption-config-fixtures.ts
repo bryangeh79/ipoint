@@ -54,6 +54,19 @@ export const redemptionConfigFixture: AdminRedemptionRateListDto = {
       created_by: 'admin-1',
       created_at: '2026-01-01T00:00:00.000Z',
     },
+    {
+      id: '22222222-2222-4222-8222-222222222224',
+      rate_type: 'POINTS_PER_CURRENCY',
+      rate_value: '1.8000000000',
+      display_rate: '1.8',
+      effective_from_utc: '2026-09-15T16:00:00.000Z',
+      effective_from_local: '2026-09-16 00:00:00',
+      effective_until_utc: null,
+      effective_until_local: null,
+      window_status: 'SCHEDULED',
+      created_by: 'admin-1',
+      created_at: '2026-08-04T00:00:00.000Z',
+    },
   ],
 };
 

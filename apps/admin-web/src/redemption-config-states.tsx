@@ -33,7 +33,9 @@ export function RedemptionWindowStatusBadge({
         ? 'info'
         : status === 'SUPERSEDED' || status === 'EXPIRED'
           ? 'warning'
-          : 'neutral';
+          : status === 'CANCELLED'
+            ? 'error'
+            : 'neutral';
   return (
     <Badge tone={tone} data-testid={`redemption-window-${status}`}>
       {redemptionWindowStatusLabel(status)}
