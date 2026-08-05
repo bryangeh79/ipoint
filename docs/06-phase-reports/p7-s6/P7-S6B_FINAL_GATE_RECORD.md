@@ -182,6 +182,27 @@ is not declared here.
 
 ---
 
-## 8. Post-push remote checkpoint (Section 6 of the order)
+## 8. Post-push remote checkpoint (Section 6 of the order) — COMPLETED
 
-*To be completed after the push.*
+All checks executed after the push of 2026-08-05; all **PASSED** →
+`REMOTE_CHECKPOINT_VERIFICATION_PASSED` (no failure declared).
+
+| Check | Result |
+|---|---|
+| Local Phase 7 HEAD == remote Phase 7 HEAD | **5a75794f** == **5a75794f** ✅ |
+| Remote contains full SHA `0081a2d9` | ✅ ancestor of remote Phase 7 HEAD (`merge-base --is-ancestor`) |
+| Remote contains the final S6B gate-record commit | ✅ `5a75794f` is the remote Phase 7 HEAD |
+| D-050 owner remediation commit ancestor of Phase 7 remote HEAD | ✅ `3e44b1d8` and merge `277e7fc3` ancestors |
+| Rewire commit ancestor of Phase 7 remote HEAD | ✅ `3dbb34ad` ancestor |
+| Task and remediation branch tips match local | ✅ remote `task/p7-s6b-rewire-canonical` = `3dbb34ad`; remote `fix/p3-p7-reward-rule-owner` = `3e44b1d8` |
+| Tracked modifications are zero | ✅ `git status` tracked = 0 |
+| Historical untracked artifacts exactly 102 | ✅ 102 |
+| Migration checksums remain 31/31 | ✅ `db:checksum` — "Verified 31 immutable migration checksum(s)" (post-integration re-run) |
+| Main remains `69240bf84d7d8e0cf58c86ce25a88a5aa105db05` | ✅ local and remote `main` unchanged |
+| No Main PR | ✅ `gh pr list --base main` = empty |
+| No Main Merge | ✅ main untouched (no merge) |
+| No deployment | ✅ no deployment action taken |
+| No secrets or temporary review files committed | ✅ pushed range `e0958c6e..5a75794f` file scan: D-050 + rewire + governance docs only; no `.env`/secret/`.local`/temp file; `report_files_review.txt` absent; temporary verification spec absent (deleted, never committed) |
+
+P7-S6C remains paused until the declaration in §7 (which is now recorded)
+and resumes per the order §8.
