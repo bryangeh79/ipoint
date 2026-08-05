@@ -28,7 +28,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { eq, and, lte, sql } from 'drizzle-orm';
+import { desc, eq, and, lte, sql } from 'drizzle-orm';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service.js';
 import {
@@ -815,7 +815,10 @@ export class AgentActivationService {
           sql`(${commissionRateVersions.effectiveUntil} IS NULL OR ${commissionRateVersions.effectiveUntil} > ${at})`,
         ),
       )
-      .orderBy(commissionRateVersions.effectiveFrom)
+      // D-054 §9: logical half-open resolution — when a successor fee
+      // supersedes an open-ended predecessor, the LATEST effective start
+      // wins (derived [start, next_start) windows).
+      .orderBy(desc(commissionRateVersions.effectiveFrom))
       .limit(1);
 
     if (rows.length === 0) {

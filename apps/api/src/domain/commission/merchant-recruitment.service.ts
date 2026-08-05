@@ -22,7 +22,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { and, asc, eq, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, lte, sql } from 'drizzle-orm';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service.js';
 import {
@@ -499,7 +499,10 @@ export class MerchantRecruitmentCommissionService {
           sql`(${commissionRateVersions.effectiveUntil} IS NULL OR ${commissionRateVersions.effectiveUntil} > ${effectiveTime})`,
         ),
       )
-      .orderBy(commissionRateVersions.effectiveFrom)
+      // D-054 §9: logical half-open resolution — when a successor
+      // supersedes an open-ended predecessor, the LATEST effective start
+      // wins (derived [start, next_start) windows).
+      .orderBy(desc(commissionRateVersions.effectiveFrom))
       .limit(1);
 
     if (rows.length === 0) return null;

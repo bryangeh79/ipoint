@@ -28,9 +28,15 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import {
   accounts,
+  adminUsers,
   members,
   memberProfiles,
   markets,
+  marketAccess,
+  permissions,
+  roles,
+  roleAssignments,
+  rolePermissions,
   agentActivations,
   agentActivationStatusLogs,
   commissionRateVersions,
@@ -43,6 +49,7 @@ import { DatabaseService } from '../database/database.service.js';
 import { AgentActivationService } from '../domain/agent-activation/service.js';
 import { RateManagementService } from '../domain/commission/rate.service.js';
 import { AgentUpgradeCommissionService } from '../domain/commission/agent-upgrade.service.js';
+import type { CommissionRateAdminActor } from '../domain/commission/rate.types.js';
 
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL required');
 
@@ -62,6 +69,35 @@ const marketCode = (_prefix: string) =>
   LETTERS[Math.floor(Math.random() * 26)]!;
 const ADMIN_1 = '11111111-1111-1111-1111-111111111111';
 const ADMIN_2 = '22222222-2222-2222-2222-222222222222';
+
+/** Asia/Kuala_Lumpur is fixed UTC+8 (no DST). */
+const KL_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+/**
+ * UTC ISO instant of the market-local 00:00 of a KL calendar date
+ * (D-054 §8: future market-local midnight activation only).
+ */
+function klDateMidnightIso(klDate: string): string {
+  const [year, month, day] = klDate.split('-').map((value) => Number(value));
+  return new Date(
+    Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1, 0, 0, 0, 0) - KL_OFFSET_MS,
+  ).toISOString();
+}
+
+/**
+ * Server-created owner actor for the fixture admin (D-054 §5): the
+ * currentMarketId is always the server-selected market UUID — a
+ * caller-supplied actor is never honored by the owner.
+ */
+function ownerActor(marketId: string): CommissionRateAdminActor {
+  return {
+    adminUserId: ADMIN_1,
+    currentMarketId: marketId,
+    marketContextVersion: 1,
+    requestId: `p5r1-${uid()}`,
+    ipAddress: '127.0.0.1',
+  };
+}
 
 async function seedMember(suffix: string): Promise<string> {
   const s = uid();
@@ -91,7 +127,7 @@ async function seedMember(suffix: string): Promise<string> {
   return mem.id;
 }
 
-async function seedMarket(code: string, currencyCode: string): Promise<void> {
+async function seedMarket(code: string, currencyCode: string): Promise<string> {
   await db
     .insert(markets)
     .values({
@@ -103,32 +139,110 @@ async function seedMarket(code: string, currencyCode: string): Promise<void> {
       currencyCode,
     })
     .onConflictDoNothing({ target: markets.code });
+  const [row] = await db
+    .select({ id: markets.id })
+    .from(markets)
+    .where(eq(markets.code, code))
+    .limit(1);
+  if (!row) throw new Error(`seedMarket failed for ${code}`);
+  return row.id;
 }
 
 /**
- * createRate that retries with a fresh market code when another suite (running
- * in parallel on a shared CI DB) already owns the random code — keeps this
- * suite deterministic in any environment.
+ * Seed the D-054 owner grant chain for ADMIN_1 (ACTIVE admin + account,
+ * SUPER_ADMIN role already linked to commission.rate.manage, non-revoked
+ * market access) so in-process owner commands pass the real RbacService.
  */
-async function createRateCollisionSafe(
-  args: Parameters<RateManagementService['createRate']>,
-): Promise<Awaited<ReturnType<RateManagementService['createRate']>>> {
+async function seedRateAdmin(marketIds: string[]): Promise<void> {
+  const [acc] = await db
+    .insert(accounts)
+    .values({
+      publicId: `P5R1ADM-${uid()}`,
+      email: `p5r1-admin-${uid()}@t.com`,
+      accountCountry: 'MY',
+      status: 'ACTIVE',
+    })
+    .returning({ id: accounts.id });
+  await db
+    .insert(adminUsers)
+    .values({
+      id: ADMIN_1,
+      accountId: acc.id,
+      displayName: 'P5R1 Rate Owner Admin',
+      status: 'ACTIVE',
+    })
+    .onConflictDoNothing({ target: adminUsers.id });
+  const [role] = await db
+    .select({ id: roles.id })
+    .from(roles)
+    .where(eq(roles.code, 'SUPER_ADMIN'))
+    .limit(1);
+  if (!role) throw new Error('SUPER_ADMIN role not found');
+  const permRows = await db
+    .select({ id: permissions.id })
+    .from(permissions)
+    .where(eq(permissions.code, 'commission.rate.manage'))
+    .limit(1);
+  if (permRows.length === 0) {
+    const [inserted] = await db
+      .insert(permissions)
+      .values({
+        code: 'commission.rate.manage',
+        description: 'Manage prospective commission rates.',
+      })
+      .onConflictDoNothing({ target: permissions.code })
+      .returning({ id: permissions.id });
+    if (inserted) permRows.push(inserted);
+  }
+  await db
+    .insert(roleAssignments)
+    .values({ adminUserId: ADMIN_1, roleId: role.id })
+    .onConflictDoNothing();
+  if (permRows[0]) {
+    await db
+      .insert(rolePermissions)
+      .values({ roleId: role.id, permissionId: permRows[0].id })
+      .onConflictDoNothing();
+  }
+  if (marketIds.length > 0) {
+    await db
+      .insert(marketAccess)
+      .values(marketIds.map((marketId) => ({ adminUserId: ADMIN_1, marketId })))
+      .onConflictDoNothing();
+  }
+}
+
+/**
+ * Owner create that retries with a fresh market code + grant when another
+ * suite (running in parallel on a shared CI DB) already owns the random
+ * code — keeps this suite deterministic in any environment.
+ */
+async function createRateOwnerSafe(
+  build: (
+    market: string,
+    marketId: string,
+  ) => Parameters<RateManagementService['createRateVersion']>[1],
+): Promise<Awaited<ReturnType<RateManagementService['createRateVersion']>>> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = marketCode('RT');
+    const marketId = await seedMarket(code, 'MYR');
+    await seedRateAdmin([marketId]);
     try {
-      return await rates.createRate(...args);
+      return await rates.createRateVersion(
+        ownerActor(marketId),
+        build(code, marketId),
+      );
     } catch (error) {
       if (
         error instanceof Error &&
         error.message.includes('OVERLAPPING_RATE_PERIOD')
       ) {
-        args = [...args] as typeof args;
-        args[3] = marketCode('RT');
         continue;
       }
       throw error;
     }
   }
-  throw new Error('createRateCollisionSafe exhausted retries');
+  throw new Error('createRateOwnerSafe exhausted retries');
 }
 
 /** Walk a fresh activation to PENDING_APPROVAL for one member. */
@@ -171,6 +285,7 @@ beforeAll(async () => {
   // (mirrors the b/c/d specs' own isolation).
   app.get(TransactionCommissionOutboxWorker).stop();
   await seedMarket('MY', 'MYR');
+  await seedRateAdmin([]);
 });
 
 afterAll(async () => {
@@ -272,16 +387,26 @@ describe('P5-R1 4.3 activation fee versioning and snapshot', () => {
     const originalVersion = out.feeRateVersionId;
     expect(out.activationFee).toBe('388.0000000000');
 
-    // Schedule a prospective RM500.00 fee version effective 2030.
-    await rates.createRate(
-      ADMIN_1,
-      'AGENT_ACTIVATION_FEE',
-      0,
-      vx,
-      '500.00',
-      'FIXED',
-      '2030-01-01T00:00:00.000Z',
-    );
+    // Schedule a prospective RM500.00 fee version effective 2030-01-02 KL
+    // (the first market-local midnight after the v1 stored end) through the
+    // secured D-054 owner.
+    const marketRows = await db
+      .select({ id: markets.id })
+      .from(markets)
+      .where(eq(markets.code, vx))
+      .limit(1);
+    const marketId = marketRows[0]?.id ?? '';
+    await seedRateAdmin([marketId]);
+    await rates.createRateVersion(ownerActor(marketId), {
+      market: vx,
+      commissionType: 'AGENT_ACTIVATION_FEE',
+      generation: 0,
+      rateValue: '500.00',
+      rateType: 'FIXED',
+      effectiveFrom: klDateMidnightIso('2030-01-02'),
+      reason: 'P5-R1 successor fee evidence',
+      idempotencyKey: `fee-${uid()}`,
+    });
 
     // The historical activation keeps its original snapshot.
     const status = await activation.getStatus(memberId, vx);
@@ -375,73 +500,79 @@ describe('P5-R1 4.2 permission/market/actor enforcement', () => {
 
 describe('P5-R1 4.4 rate-service generation mapping (canonical P5-S0)', () => {
   it('accepts G1/G2 member consumption rates and rejects generation 0', async () => {
-    const g1 = await createRateCollisionSafe([
-      ADMIN_1,
-      'MEMBER_CONSUMPTION',
-      1,
-      marketCode('MC'),
-      '0.0100000000',
-      'PERCENTAGE',
-      '2031-01-01T00:00:00.000Z',
-    ]);
+    const g1 = await createRateOwnerSafe((market, marketId) => ({
+      market,
+      commissionType: 'MEMBER_CONSUMPTION',
+      generation: 1,
+      rateValue: '0.0100000000',
+      rateType: 'PERCENTAGE',
+      effectiveFrom: klDateMidnightIso('2031-01-01'),
+      reason: 'P5-R1 G1 member consumption evidence',
+      idempotencyKey: `mc1-${uid()}`,
+    }));
     expect(g1.generation).toBe(1);
-    const g2 = await createRateCollisionSafe([
-      ADMIN_1,
-      'MEMBER_CONSUMPTION',
-      2,
-      marketCode('MC'),
-      '0.0050000000',
-      'PERCENTAGE',
-      '2031-02-01T00:00:00.000Z',
-    ]);
+    const g2 = await createRateOwnerSafe((market, marketId) => ({
+      market,
+      commissionType: 'MEMBER_CONSUMPTION',
+      generation: 2,
+      rateValue: '0.0050000000',
+      rateType: 'PERCENTAGE',
+      effectiveFrom: klDateMidnightIso('2031-02-01'),
+      reason: 'P5-R1 G2 member consumption evidence',
+      idempotencyKey: `mc2-${uid()}`,
+    }));
     expect(g2.generation).toBe(2);
     await expect(
-      rates.createRate(
-        ADMIN_1,
-        'MEMBER_CONSUMPTION',
-        0,
-        g1.market,
-        '0.0100000000',
-        'PERCENTAGE',
-        '2031-03-01T00:00:00.000Z',
-      ),
+      rates.createRateVersion(ownerActor(g1.marketId), {
+        market: g1.market,
+        commissionType: 'MEMBER_CONSUMPTION',
+        generation: 0,
+        rateValue: '0.0100000000',
+        rateType: 'PERCENTAGE',
+        effectiveFrom: klDateMidnightIso('2031-03-01'),
+        reason: 'P5-R1 rejected generation 0 evidence',
+        idempotencyKey: `mc0-${uid()}`,
+      }),
     ).rejects.toMatchObject({ code: 'INVALID_GENERATION' });
   });
 
   it('accepts single-generation merchant recruitment (0) and rejects generation 1', async () => {
-    const g0 = await createRateCollisionSafe([
-      ADMIN_1,
-      'MERCHANT_RECRUITMENT',
-      0,
-      marketCode('MR'),
-      '0.0050000000',
-      'PERCENTAGE',
-      '2031-04-01T00:00:00.000Z',
-    ]);
+    const g0 = await createRateOwnerSafe((market, marketId) => ({
+      market,
+      commissionType: 'MERCHANT_RECRUITMENT',
+      generation: 0,
+      rateValue: '0.0050000000',
+      rateType: 'PERCENTAGE',
+      effectiveFrom: klDateMidnightIso('2031-04-01'),
+      reason: 'P5-R1 merchant recruitment evidence',
+      idempotencyKey: `mr0-${uid()}`,
+    }));
     expect(g0.generation).toBe(0);
     await expect(
-      rates.createRate(
-        ADMIN_1,
-        'MERCHANT_RECRUITMENT',
-        1,
-        g0.market,
-        '0.0050000000',
-        'PERCENTAGE',
-        '2031-05-01T00:00:00.000Z',
-      ),
+      rates.createRateVersion(ownerActor(g0.marketId), {
+        market: g0.market,
+        commissionType: 'MERCHANT_RECRUITMENT',
+        generation: 1,
+        rateValue: '0.0050000000',
+        rateType: 'PERCENTAGE',
+        effectiveFrom: klDateMidnightIso('2031-05-01'),
+        reason: 'P5-R1 rejected generation 1 evidence',
+        idempotencyKey: `mr1-${uid()}`,
+      }),
     ).rejects.toMatchObject({ code: 'INVALID_GENERATION' });
   });
 
   it('supports scheduling AGENT_ACTIVATION_FEE versions (fee editor surface)', async () => {
-    const fee = await createRateCollisionSafe([
-      ADMIN_1,
-      'AGENT_ACTIVATION_FEE',
-      0,
-      marketCode('WY'),
-      '450.0000000000',
-      'FIXED',
-      '2032-01-01T00:00:00.000Z',
-    ]);
+    const fee = await createRateOwnerSafe((market, marketId) => ({
+      market,
+      commissionType: 'AGENT_ACTIVATION_FEE',
+      generation: 0,
+      rateValue: '450.0000000000',
+      rateType: 'FIXED',
+      effectiveFrom: klDateMidnightIso('2032-01-01'),
+      reason: 'P5-R1 fee version evidence',
+      idempotencyKey: `fee2-${uid()}`,
+    }));
     expect(fee.rateType).toBe('FIXED');
     expect(fee.rateValue).toBe('450.0000000000');
   });
