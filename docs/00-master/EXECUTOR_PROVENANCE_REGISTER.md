@@ -449,3 +449,28 @@ _End of register - new entries appended above this line._
 ---
 
 _End of register - new entries appended above this line._
+
+## P7-S6C-REWIRE — Canonical Owner Rewiring + Final Gate (CG-03 passed)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S6C-REWIRE (D-053 order §15 rewiring dispatch; final gate 2026-08-05) |
+| **Sub-phase** | P7-S6C — redemption-rate configuration rewired to the D-053 secured canonical Phase 6 owner |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementing subagent + written-handoff continuation + independent reviewing subagent + separate test-verifier subagent; all D-048) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Worktree** | `.local/wt-p7-s6c-rewire` |
+| **Task branch** | `task/p7-s6c-redemption-config` (updated to latest Phase 7 HEAD incl. D-053 via merge `ee4dcb3f`) |
+| **Commit SHAs** | `6b1bebad` (refactor: rewire adapter to canonical Phase 6 owner), `8b427f91` (feat api-client: cancellation typed client), `631752e0` (feat admin-web: cancellation orchestration behind owner capability gate), `77f5b7ef` (docs: rewiring delivery report) |
+| **Allowed paths** | `apps/api/src/admin-redemption-ops/**` (8), `packages/api-client/src/**` (2), `apps/admin-web/src/**` redemption-config files (7), `docs/06-phase-reports/p7-s6/**` (1) — 18 files; `redemption/**` (owner) byte-identical; zero migration/permission-catalog change |
+| **Migration** | NONE (checksums 32/32 unchanged) |
+| **Removed (adapter-owned)** | Idempotency storage/claims, payload-hash ownership, advisory lock, overlap pre-check, rate-bound business validation (rules-map provider), privileged audit creation, direct `redemption_rate_versions` writes — adapter's DB access is read-projection only |
+| **Host test gate (2026-08-05)** | S6C unit **19/19**; S6C PostgreSQL integration **30/30**; Phase 6 redemption regression **235/235**; D-053 owner **59/59**; S6B **38/38**; S6A **36/36**; api-client **66/66**; admin-web **209/209**; checksums **32/32**; OpenAPI **237 paths / 0 missing / 0 duplicate**; api/admin-web/api-client typecheck+build exit 0; eslint 0 errors (7 admin-web ignore warnings, existing convention); prettier clean. Evidence `.local/s6c-gate/evidence/*.log`. |
+| **Independent review (order §15.9)** | `OPENCLAW_MANAGED_CODING_SUBAGENT` independent reviewer: verdict **APPROVED** — 17/17 dimensions PASS, 0 Critical/0 High (owner-only create/cancel delegation, no duplicated controls, 18/18 error mapping, D-053 contract deltas — legal successor 201 + cancel rate normalization — consistent with tests, double-gated UI, no drift, clean worktree). Verdict file `.local/s6c-gate/review/REVIEWER_VERDICT.md`. |
+| **Independent verification (order §15.10)** | `OPENCLAW_MANAGED_CODING_SUBAGENT` separate verifier: verdict **TEST GATE PASSED** — independently re-ran the key matrix on fresh isolated databases (Node v24.19.0): checksum 32/32, S6C 19/19 + 30/30, redemption 235/235, D-053 owner 59/59, S6B 38/38, S6A 36/36, api-client 66/66, admin-web 209/209, OpenAPI 237 paths / 0 errors, lint/format. Verdict file `.local/s6c-gate/evidence/VERIFIER_VERDICT.md`. |
+| **Integration commit** | `24a88c54` (merge branch 'task/p7-s6c-redemption-config' into `phase/7-admin-operations`, --no-ff, no conflicts) — pushed; local = remote; `77f5b7ef` and `09279dc5` ancestors of the Phase 7 HEAD; main untouched; untracked baseline 102; tracked modifications 0 |
+| **Declarations (order §15)** | `D-053_OWNER_REMEDIATION_INTEGRATED` / `CG-03_REDEMPTION_RATE_OWNER_GATE_PASSED` / `P7-S6C_DELIVERY_COMPLETE` / `P7-S6C_OPENCLAW_INTERNAL_GATE_PASSED` — OpenClaw internal gate, NOT Command Center acceptance |
+| **Known limitations** | Browser E2E host/CI-only; OpenAPI non-self-exit quirk; outbox-worker log noise; node v18-only `crypto is not defined` pre-existing environment item (passes under node v24); `.sql` prettier no-parser quirk; cancel pre-lock idempotency read race (F2, Low, D-053 gate) carried into this surface. |
+
+---
+
+_End of register - new entries appended above this line._
