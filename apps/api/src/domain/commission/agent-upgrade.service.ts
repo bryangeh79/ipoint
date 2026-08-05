@@ -17,7 +17,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { and, eq, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, lte, sql } from 'drizzle-orm';
 import { Inject, Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service.js';
 import {
@@ -195,8 +195,18 @@ export class AgentUpgradeCommissionService {
       activatedAt,
     );
 
-    if (!g1RateVersion && !g2RateVersion) {
+    // P5-R1 4.5 frozen contract: the AGENT_UPGRADE G1/G2 rate pair is the
+    // market's upgrade-commission configuration prerequisite. A missing
+    // REQUIRED rate must fail explicitly (AGENT_UPGRADE_RATE_NOT_FOUND),
+    // never be swallowed into a SKIPPED_INELIGIBLE success — zero partial
+    // ledger, and idempotent retry succeeds once the pair is configured.
+    // (D-054 keeps DESC/latest-valid-version resolution; this guard only
+    // restores the explicit-failure contract for an absent generation.)
+    if (!g1RateVersion) {
       throw upgradeRateNotFoundError(marketCode, 1, effectiveTime);
+    }
+    if (!g2RateVersion) {
+      throw upgradeRateNotFoundError(marketCode, 2, effectiveTime);
     }
 
     // ---------------------------------------------------------------
@@ -409,11 +419,13 @@ export class AgentUpgradeCommissionService {
           sql`(${commissionRateVersions.effectiveUntil} IS NULL OR ${commissionRateVersions.effectiveUntil} > ${effectiveTime})`,
         ),
       )
-      .orderBy(commissionRateVersions.effectiveFrom)
+      // D-054 §9: logical half-open resolution — when a successor
+      // supersedes an open-ended predecessor, the LATEST effective start
+      // wins (derived [start, next_start) windows).
+      .orderBy(desc(commissionRateVersions.effectiveFrom))
       .limit(1);
 
     if (rows.length === 0) return null;
-
     return rows[0]!;
   }
 
