@@ -97,8 +97,8 @@ describe('Admin routed shell components', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('renders a blocked prerequisite instead of an iPoint adjustment control', async () => {
-    mockAdminApi(['wallet.ipoint.adjust.maker']);
+  it('renders the S7B iPoint adjustment queue (GATE-SEC-01 released)', async () => {
+    mockAdminApi(['wallet.ipoint.read']);
     render(
       <AdminApp
         router={createAdminMemoryRouter([
@@ -107,8 +107,15 @@ describe('Admin routed shell components', () => {
       />,
     );
     await signInAndVerify();
-    expect(await screen.findByText('CAPABILITY_UNAVAILABLE')).toBeVisible();
-    expect(screen.getByText('GATE-SEC-01')).toBeVisible();
+    // P7-S7B: the frozen SEC-01 owner + Phase 7 adapter surface the real
+    // queue page; the GATE-SEC-01 capability gate was removed with the
+    // workflow implementation. The shell renders the queue route title
+    // (the adapter endpoint is covered by the ipoint-adjust page tests).
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Manual iPoint adjustment queue',
+      }),
+    ).toBeVisible();
     expect(
       screen.queryByRole('button', { name: /create|approve|execute/iu }),
     ).not.toBeInTheDocument();

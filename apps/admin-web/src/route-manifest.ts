@@ -207,12 +207,33 @@ export const adminRouteManifest = [
     'iPoint adjustment queue',
     '/admin/:marketId/ipoint-adjustments',
     'Finance',
-    'wallet.ipoint.adjust.maker',
+    'wallet.ipoint.read',
     'resource',
     'desktop-only',
     'bootstrap',
     true,
-    gate('wallet.ipoint.adjust', 'GATE-SEC-01'),
+  ),
+  route(
+    'ipoint-adjust-create',
+    'Create iPoint adjustment',
+    '/admin/:marketId/ipoint-adjustments/new',
+    'Finance',
+    'wallet.ipoint.adjust.maker',
+    'resource',
+    'desktop-only',
+    'bootstrap',
+    false,
+  ),
+  route(
+    'ipoint-adjust-detail',
+    'iPoint adjustment detail',
+    '/admin/:marketId/ipoint-adjustments/:requestId',
+    'Finance',
+    'wallet.ipoint.read',
+    'resource',
+    'desktop-only',
+    'bootstrap',
+    false,
   ),
   route(
     'reward-rates',
@@ -408,6 +429,8 @@ export type AdminRouteId =
   | 'mcp-adjustments'
   | 'ipoint-wallets'
   | 'ipoint-adjustments'
+  | 'ipoint-adjust-create'
+  | 'ipoint-adjust-detail'
   | 'reward-rates'
   | 'redemption-rates'
   | 'packages'
