@@ -7,10 +7,10 @@ import {
 import { hasEffectivePermission } from './route-guards.js';
 
 describe('P7-S3A Admin route manifest', () => {
-  it('defines exactly 34 unique stable routes with guard metadata', () => {
-    expect(adminRouteManifest).toHaveLength(34);
-    expect(new Set(adminRouteManifest.map(({ id }) => id)).size).toBe(34);
-    expect(new Set(adminRouteManifest.map(({ path }) => path)).size).toBe(34);
+  it('defines exactly 36 unique stable routes with guard metadata', () => {
+    expect(adminRouteManifest).toHaveLength(36);
+    expect(new Set(adminRouteManifest.map(({ id }) => id)).size).toBe(36);
+    expect(new Set(adminRouteManifest.map(({ path }) => path)).size).toBe(36);
     for (const route of adminRouteManifest) {
       expect(route.path).toMatch(/^\/admin\//u);
       expect(route.loader).toMatch(/^(public|bootstrap|session)$/u);
@@ -126,13 +126,19 @@ describe('P7-S3A Admin route manifest', () => {
   });
 
   it('keeps hard-gated capabilities discoverable without executable controls', () => {
+    // P7-S7B: the ipoint-adjustments route must use the canonical
+    // wallet.ipoint.read and must no longer carry the stale GATE-SEC-01
+    // gate — the Maker/Checker workflow (wallet.ipoint.adjust.maker /
+    // .checker / .execute) is now implemented by the S7B pages over the
+    // frozen SEC-01 owner.
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'ipoint-adjustments')
+        ?.permission,
+    ).toBe('wallet.ipoint.read');
     expect(
       adminRouteManifest.find(({ id }) => id === 'ipoint-adjustments')
         ?.capabilityGate,
-    ).toEqual({
-      capability: 'wallet.ipoint.adjust',
-      blockedPrerequisite: 'GATE-SEC-01',
-    });
+    ).toBeUndefined();
     expect(
       adminRouteManifest.find(({ id }) => id === 'refunds')?.capabilityGate,
     ).toMatchObject({ blockedPrerequisite: 'GATE-SEC-02' });

@@ -1,6 +1,7 @@
 import {
   AdminApiClient,
   AdminCommissionOpsApiClient,
+  AdminIpointAdjustOpsApiClient,
   AdminKycOpsApiClient,
   AdminMarketOpsApiClient,
   AdminMerchantApiClient,
@@ -90,5 +91,17 @@ export const adminCommissionOpsApi = new AdminCommissionOpsApiClient(
  * markets that are not ACTIVE (no fallback).
  */
 export const adminMarketOpsApi = new AdminMarketOpsApiClient(
+  new ApiClient(apiBaseUrl),
+);
+
+/**
+ * P7-S7B selected-market Admin iPoint Adjustment Operations client
+ * (Maker/Checker workflow over the frozen SEC-01 owner).
+ * Self-contained addition; the market is validated server-side against
+ * the Current Admin Market on every request, the create carries a
+ * mandatory Idempotency-Key, and checker decide/execute carry the fresh
+ * step-up token (x-step-up-token).
+ */
+export const adminIpointAdjustOpsApi = new AdminIpointAdjustOpsApiClient(
   new ApiClient(apiBaseUrl),
 );

@@ -51,6 +51,9 @@ import { MemberKycQueuePage } from './kyc-member-queue-page.js';
 import { PackageConfigPage } from './package-config-page.js';
 import { CommissionConfigPage } from './commission-config-page.js';
 import { MarketConfigPage } from './market-config-page.js';
+import { IpointAdjustQueuePage } from './ipoint-adjust-queue-page.js';
+import { IpointAdjustCreatePage } from './ipoint-adjust-create-page.js';
+import { IpointAdjustDetailPage } from './ipoint-adjust-detail-page.js';
 import { RedemptionConfigPage } from './redemption-config-page.js';
 import { RewardConfigPage } from './reward-config-page.js';
 import { MemberKycDetailPage } from './kyc-member-detail-page.js';
@@ -207,6 +210,10 @@ function RouteContent({ route }: { route: AdminRoute }) {
   if (route.id === 'commissions') return <CommissionConfigPage />;
   /* P7-S6E market configuration (append-only route case). */
   if (route.id === 'market') return <MarketConfigPage />;
+  /* P7-S7B manual iPoint adjustment Maker/Checker (append-only route cases). */
+  if (route.id === 'ipoint-adjustments') return <IpointAdjustQueuePage />;
+  if (route.id === 'ipoint-adjust-create') return <IpointAdjustCreatePage />;
+  if (route.id === 'ipoint-adjust-detail') return <IpointAdjustDetailPage />;
   return (
     <section aria-labelledby="admin-route-title">
       <PageHeader
