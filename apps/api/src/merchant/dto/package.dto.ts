@@ -42,6 +42,10 @@ export const createSpecialPercentageSchema = z
   .object({
     rate: decimalRate,
     description: z.string().trim().min(1).max(2000),
+    // D-051: mandatory operator reason (frozen contract §7.3). Trimmed,
+    // non-blank (whitespace-only strings fail min(1) after trim), max
+    // 500 characters. Legacy rows keep NULL and are never backfilled.
+    reason: z.string().trim().min(1).max(500),
   })
   .strict();
 

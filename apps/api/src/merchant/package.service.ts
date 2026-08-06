@@ -7,6 +7,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  adminUsers,
+  marketAccess,
+  markets,
   merchantApiIdempotencyKeys,
   merchantPackageAssignments,
   merchantPackageChangeRequests,
@@ -15,9 +18,10 @@ import {
   specialPercentages,
   type Database,
 } from '@ipoint/database';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service.js';
 import { AuditService } from '../platform-access/audit.service.js';
+import { RbacService } from '../platform-access/rbac.service.js';
 import type {
   AssignPackageDto,
   CreatePackageProfileDto,
@@ -26,17 +30,44 @@ import type {
   PackageChangeRequestDto,
   UpdatePackageVersionDto,
 } from './dto/package.dto.js';
+import {
+  specialPercentageCreateFailed,
+  specialPercentageIdempotencyConflict,
+  specialPercentageIdempotencyKeyRequired,
+  specialPercentageMarketAccessDenied,
+  specialPercentageMarketContextMismatch,
+  specialPercentageMarketNotFound,
+  specialPercentageMarketSelectionRequired,
+  specialPercentagePermissionDenied,
+  specialPercentageReasonRequired,
+} from './package.errors.js';
 import type { MerchantRequestContext } from './merchant.service.js';
+import type {
+  CreateSpecialPercentageResponse,
+  SpecialPercentageAdminActor,
+} from './package.types.js';
+
+/**
+ * D-051 owner idempotency scope namespace (shared mechanism table
+ * merchant_api_idempotency_keys, unique (scope, key)). The dedicated
+ * `owner.create` scope replaces the legacy `package.special.create:`
+ * scope so old mechanism rows (hashed against the pre-D-051 payload
+ * shape) are never replayed with the new canonical hash semantics.
+ */
+const SPECIAL_PERCENTAGE_OWNER_CREATE_SCOPE = 'package.special.owner.create';
 
 type DatabaseTransaction = Parameters<
   Parameters<Database['transaction']>[0]
 >[0];
+
+type DbExecutor = Database | DatabaseTransaction;
 
 @Injectable()
 export class PackageService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(RbacService) private readonly rbac: RbacService,
   ) {}
 
   createProfile(
@@ -343,43 +374,187 @@ export class PackageService {
     );
   }
 
-  createSpecialPercentage(
-    marketId: string,
-    adminUserId: string,
+  /**
+   * D-051 secured Phase 1 special-percentage owner create command.
+   *
+   * Every control lives HERE — in the owner command layer — so the
+   * canonical Phase 1 route AND any in-process caller get identical
+   * enforcement:
+   *
+   * 1. Identity + permission: authenticated ADMIN_USER actor with a real
+   *    adminUserId; `merchant.special_package.manage` re-checked
+   *    server-side via RbacService.isAllowed (ACTIVE admin + ACTIVE
+   *    account + non-revoked role grant; SUPER_ADMIN-only per the frozen
+   *    permission catalog).
+   * 2. Mandatory reason: trimmed, non-blank (whitespace-only rejected),
+   *    max 500 characters; persisted durably on the row (migration 0033)
+   *    and in the immutable audit. Legacy rows keep NULL, never
+   *    backfilled.
+   * 3. Market: server Current Admin Market (actor.currentMarketId)
+   *    required and must equal the command market (the route market id);
+   *    the market must be ACTIVE; an active market grant is asserted
+   *    (revoked grants deny the very next request). The client can
+   *    neither supply nor override the actor or the market.
+   * 4. Idempotency: Idempotency-Key mandatory; mechanism row in
+   *    merchant_api_idempotency_keys (scope
+   *    package.special.owner.create:<marketId>:<adminUserId>); canonical
+   *    payload hash (sorted keys + sha256) covering operation/market/
+   *    rate/description/reason/actor scope; same-key/same-payload
+   *    replays the original result; same-key/different-payload → 409.
+   * 5. Atomic immutable audit: special_percentages row + idempotency
+   *    claim + immutable audit event (SPECIAL_PERCENTAGE_CREATED with
+   *    reason/actor/market/payload-hash reference) commit in ONE
+   *    transaction; any injected failure rolls all three back.
+   * 6. Actor immutability: createdByAdminUserId comes only from the
+   *    server actor; the strict DTO rejects any actor-shaped field.
+   * 7. Pinning: creation never touches merchant_package_assignments;
+   *    existing assignments and historical transactions are untouched.
+   */
+  async createSpecialPercentage(
+    marketRouteId: string,
+    actor: SpecialPercentageAdminActor,
     input: CreateSpecialPercentageDto,
     key: string,
-    context: MerchantRequestContext,
-  ) {
-    return this.idempotent(
-      `package.special.create:${marketId}:${adminUserId}`,
-      key,
-      input,
-      async (tx) => {
-        await this.assertMarket(tx, marketId);
-        const rows = await tx
-          .insert(specialPercentages)
-          .values({
-            marketId,
-            rate: normalizeDecimal(input.rate),
-            description: input.description,
-            createdByAdminUserId: adminUserId,
-          })
-          .returning();
-        const special = rows[0];
-        if (!special)
-          throw new Error('Special percentage insert returned no row.');
-        await this.appendAudit(tx, {
-          adminUserId,
-          marketId,
-          action: 'SPECIAL_PERCENTAGE_CREATED',
-          entityType: 'SPECIAL_PERCENTAGE',
-          entityId: special.id,
-          after: special,
-          context,
-        });
-        return special;
-      },
+  ): Promise<CreateSpecialPercentageResponse> {
+    // ── 1. Identity + permission (server-side, in-process-safe) ──────
+    if (!actor?.adminUserId) specialPercentagePermissionDenied();
+    const allowed = await this.rbac.isAllowed({
+      adminUserId: actor.adminUserId,
+      permission: 'merchant.special_package.manage',
+    });
+    if (!allowed) specialPercentagePermissionDenied();
+
+    // ── 2. Mandatory reason (trim/non-blank/≤500) ─────────────────
+    const reason = input.reason?.trim() ?? '';
+    if (!reason || reason.length > 500) specialPercentageReasonRequired();
+
+    // ── 4. Operation-scoped idempotency key (mandatory) ───────────
+    const idempotencyKey = key?.trim() ?? '';
+    if (!idempotencyKey || idempotencyKey.length > 200) {
+      specialPercentageIdempotencyKeyRequired();
+    }
+
+    // ── 3. Market: Current Admin Market valid + equals command ────
+    if (!actor.currentMarketId) {
+      specialPercentageMarketSelectionRequired();
+    }
+    const marketId = actor.currentMarketId;
+    if (marketId !== marketRouteId) {
+      specialPercentageMarketContextMismatch();
+    }
+    const market = await this.marketRow(marketId);
+    if (!market) specialPercentageMarketNotFound();
+    await this.assertMarketAccess(
+      this.database.db,
+      actor.adminUserId,
+      marketId,
     );
+
+    // ── Rate normalization (frozen (0,100] · 6dp contract) ────────
+    const rate = normalizeDecimal(input.rate);
+    const description = input.description?.trim() ?? '';
+
+    // ── 4. Canonical payload hash (sorted keys + sha256) ──────────
+    const scope = `${SPECIAL_PERCENTAGE_OWNER_CREATE_SCOPE}:${marketId}:${actor.adminUserId}`;
+    const payloadHash = hashPayload({
+      operation: 'special-percentage.create',
+      marketId,
+      market: market.code,
+      rate,
+      description,
+      reason,
+      actorScope: scope,
+    });
+
+    // ── 4/5/6. Atomic create + claim + immutable audit ────────────
+    return this.database.db.transaction(async (tx) => {
+      const claimed = await tx
+        .insert(merchantApiIdempotencyKeys)
+        .values({ scope, key: idempotencyKey, requestHash: payloadHash })
+        .onConflictDoNothing({
+          target: [
+            merchantApiIdempotencyKeys.scope,
+            merchantApiIdempotencyKeys.key,
+          ],
+        })
+        .returning({ id: merchantApiIdempotencyKeys.id });
+      if (claimed.length === 0) {
+        const existing = await tx
+          .select()
+          .from(merchantApiIdempotencyKeys)
+          .where(
+            and(
+              eq(merchantApiIdempotencyKeys.scope, scope),
+              eq(merchantApiIdempotencyKeys.key, idempotencyKey),
+            ),
+          )
+          .limit(1);
+        const row = existing[0];
+        // Same key + different payload → conflict; otherwise replay
+        // the original result exactly.
+        if (!row || row.requestHash !== payloadHash || row.response === null) {
+          specialPercentageIdempotencyConflict();
+        }
+        return row.response as CreateSpecialPercentageResponse;
+      }
+
+      const rows = await tx
+        .insert(specialPercentages)
+        .values({
+          marketId,
+          rate,
+          description,
+          reason,
+          createdByAdminUserId: actor.adminUserId,
+        })
+        .returning();
+      const special = rows[0];
+      if (!special) specialPercentageCreateFailed();
+
+      // ── 5. Atomic immutable audit (same transaction) ────────────
+      await this.audit.appendWithinTransaction(tx, {
+        actor: { type: 'ADMIN_USER', id: actor.adminUserId },
+        action: 'SPECIAL_PERCENTAGE_CREATED',
+        entity: { type: 'SPECIAL_PERCENTAGE', id: special.id },
+        marketId,
+        after: this.sanitizeForAudit({
+          rate: String(special.rate),
+          description: special.description,
+          reason,
+          market: market.code,
+          // The canonical payload digest (sha256 hex). Stored under
+          // idempotencyDigest so it survives the platform
+          // audit-redaction layer, which scrubs *hash key names by
+          // design; the mechanism table stores the same digest
+          // verbatim as request_hash.
+          idempotencyDigest: payloadHash,
+        }),
+        reason,
+        result: 'SUCCESS',
+        requestId: actor.requestId ?? idempotencyKey,
+        ipAddress: actor.ipAddress,
+        summary: `Administrator created special percentage ${String(special.rate)} for market ${market.code}.`,
+      });
+
+      const response: CreateSpecialPercentageResponse = {
+        id: special.id,
+        rate: String(special.rate),
+        description: special.description,
+        reason,
+        marketId,
+        market: market.code,
+        createdBy: actor.adminUserId,
+        createdAt: new Date(special.createdAt).toISOString(),
+      };
+
+      // ── 4. Persist the original result for exact replay ─────────
+      await tx
+        .update(merchantApiIdempotencyKeys)
+        .set({ response, statusCode: 201, updatedAt: new Date() })
+        .where(eq(merchantApiIdempotencyKeys.id, claimed[0]?.id ?? ''));
+
+      return response;
+    });
   }
 
   assign(
@@ -694,6 +869,57 @@ export class PackageService {
       sql`select id from markets where id = ${marketId} and status = 'ACTIVE'`,
     );
     if (rows.rows.length !== 1) this.notFound();
+  }
+
+  /**
+   * Active market row by UUID (server Current Admin Market resolution,
+   * D-051 §1 — the current market must be a real ACTIVE market).
+   */
+  private async marketRow(
+    marketId: string,
+  ): Promise<{ id: string; code: string } | undefined> {
+    const rows = await this.database.db
+      .select({ id: markets.id, code: markets.code })
+      .from(markets)
+      .where(and(eq(markets.id, marketId), eq(markets.status, 'ACTIVE')))
+      .limit(1);
+    return rows[0];
+  }
+
+  /**
+   * Active market grant assertion (D-051 §1): ACTIVE admin + ACTIVE
+   * market + non-revoked market_access row. A revoked grant denies the
+   * very next request.
+   */
+  private async assertMarketAccess(
+    db: DbExecutor,
+    adminUserId: string,
+    marketId: string,
+  ): Promise<void> {
+    const rows = await db
+      .select({ id: adminUsers.id })
+      .from(marketAccess)
+      .innerJoin(adminUsers, eq(adminUsers.id, marketAccess.adminUserId))
+      .innerJoin(markets, eq(markets.id, marketAccess.marketId))
+      .where(
+        and(
+          eq(marketAccess.adminUserId, adminUserId),
+          eq(marketAccess.marketId, marketId),
+          isNull(marketAccess.revokedAt),
+          eq(adminUsers.status, 'ACTIVE'),
+          eq(markets.status, 'ACTIVE'),
+        ),
+      )
+      .limit(1);
+    if (!rows[0]) specialPercentageMarketAccessDenied();
+  }
+
+  private sanitizeForAudit(
+    value: Record<string, unknown>,
+  ): Record<string, unknown> {
+    return Object.fromEntries(
+      Object.entries(value).filter(([, v]) => v !== undefined && v !== null),
+    );
   }
 
   private async getProfile(tx: DatabaseTransaction, id: string) {
