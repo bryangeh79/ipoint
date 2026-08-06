@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
   ConflictException,
-  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -9,8 +8,6 @@ import {
 import {
   adminUsers,
   mcpAccounts,
-  mcpAdjustmentDecisions,
-  mcpAdjustmentRequests,
   mcpLedgerEntries,
   mcpRechargeRequests,
   mcpRefundRequests,
@@ -22,9 +19,6 @@ import { DatabaseService } from '../database/database.service.js';
 import { AuditService } from '../platform-access/audit.service.js';
 import type {
   CreateRechargeDto,
-  CreateAdjustmentDto,
-  AdjustmentDecisionDto,
-  AdjustmentActionDto,
   CreateRefundDto,
   LedgerQueryDto,
   ReviewRechargeDto,
@@ -61,6 +55,16 @@ export class McpService {
     const account = await this.accountById(
       this.database.db,
       accountId,
+      marketId,
+    );
+    return this.accountView(account);
+  }
+
+  /** Resolve the MCP account for a branch within the admin market. */
+  async adminAccountForBranch(marketId: string, branchId: string) {
+    const account = await this.accountForBranch(
+      this.database.db,
+      branchId,
       marketId,
     );
     return this.accountView(account);
@@ -253,253 +257,6 @@ export class McpService {
     return result;
   }
 
-  async createAdjustment(
-    marketId: string,
-    accountId: string,
-    adminUserId: string,
-    input: CreateAdjustmentDto,
-    key: string,
-    context: MerchantRequestContext,
-  ) {
-    const payloadHash = hash(input);
-    try {
-      return await this.database.db.transaction(async (tx) => {
-        await this.accountById(tx, accountId, marketId);
-        await this.admin(tx, adminUserId);
-        const rows = await tx
-          .insert(mcpAdjustmentRequests)
-          .values({
-            mcpAccountId: accountId,
-            marketId,
-            makerAdminUserId: adminUserId,
-            entryType: input.type,
-            amount: input.amount,
-            reason: input.reason,
-            evidence: input.evidence,
-            idempotencyKey: key,
-            payloadHash,
-          })
-          .returning();
-        const request = required(rows[0]);
-        await this.governanceAudit(
-          tx,
-          adminUserId,
-          marketId,
-          'MCP_ADJUSTMENT_CREATED',
-          'MCP_ADJUSTMENT_REQUEST',
-          request.id,
-          input.reason,
-          request,
-          context,
-        );
-        return request;
-      });
-    } catch (error) {
-      if (databaseCode(error) !== '23505') throw error;
-      const rows = await this.database.db
-        .select()
-        .from(mcpAdjustmentRequests)
-        .where(
-          and(
-            eq(mcpAdjustmentRequests.mcpAccountId, accountId),
-            eq(mcpAdjustmentRequests.idempotencyKey, key),
-          ),
-        )
-        .limit(1);
-      if (rows[0]?.payloadHash === payloadHash) return rows[0];
-      throw this.idempotencyConflict();
-    }
-  }
-
-  async createAdjustmentForBranch(
-    marketId: string,
-    branchId: string,
-    adminUserId: string,
-    input: CreateAdjustmentDto,
-    key: string,
-    context: MerchantRequestContext,
-  ) {
-    const account = await this.accountForBranch(
-      this.database.db,
-      branchId,
-      marketId,
-    );
-    return this.createAdjustment(
-      marketId,
-      account.id,
-      adminUserId,
-      input,
-      key,
-      context,
-    );
-  }
-
-  async submitAdjustment(
-    marketId: string,
-    requestId: string,
-    adminUserId: string,
-    context: MerchantRequestContext,
-  ) {
-    return this.database.db.transaction(async (tx) => {
-      const request = await this.lockAdjustment(tx, marketId, requestId);
-      if (request.maker_admin_user_id !== adminUserId)
-        throw new ForbiddenException({ code: 'MCP_ADJUSTMENT_MAKER_REQUIRED' });
-      if (request.status !== 'DRAFT') throw this.stateConflict();
-      const rows = await tx
-        .update(mcpAdjustmentRequests)
-        .set({
-          status: 'PENDING_APPROVAL',
-          version: sql`${mcpAdjustmentRequests.version} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(mcpAdjustmentRequests.id, requestId))
-        .returning();
-      const updated = required(rows[0]);
-      await this.governanceAudit(
-        tx,
-        adminUserId,
-        marketId,
-        'MCP_ADJUSTMENT_SUBMITTED',
-        'MCP_ADJUSTMENT_REQUEST',
-        requestId,
-        String(request.reason),
-        updated,
-        context,
-      );
-      return updated;
-    });
-  }
-
-  async decideAdjustment(
-    marketId: string,
-    requestId: string,
-    checkerId: string,
-    input: AdjustmentDecisionDto,
-    context: MerchantRequestContext,
-  ) {
-    const decided = await this.approveAdjustment(
-      marketId,
-      requestId,
-      checkerId,
-      input,
-      context,
-    );
-    if (input.decision === 'REJECTED') return decided;
-    return this.executeAdjustment(
-      marketId,
-      requestId,
-      checkerId,
-      { reason: input.reason },
-      context,
-    );
-  }
-
-  async approveAdjustment(
-    marketId: string,
-    requestId: string,
-    checkerId: string,
-    input: AdjustmentDecisionDto,
-    context: MerchantRequestContext,
-  ) {
-    return this.database.db.transaction(async (tx) => {
-      const request = await this.lockAdjustment(tx, marketId, requestId);
-      if (request.maker_admin_user_id === checkerId)
-        throw new ForbiddenException({
-          code: 'MCP_MAKER_CHECKER_CONFLICT',
-          message: 'Maker cannot check their own request.',
-        });
-      if (request.status !== 'PENDING_APPROVAL') throw this.stateConflict();
-      await this.admin(tx, checkerId);
-      await this.accountById(tx, String(request.mcp_account_id), marketId);
-      await tx.insert(mcpAdjustmentDecisions).values({
-        adjustmentRequestId: requestId,
-        marketId,
-        checkerAdminUserId: checkerId,
-        decision: input.decision,
-        reason: input.reason,
-      });
-      const rows = await tx
-        .update(mcpAdjustmentRequests)
-        .set({
-          status: input.decision,
-          version: sql`${mcpAdjustmentRequests.version} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(mcpAdjustmentRequests.id, requestId))
-        .returning();
-      const updated = required(rows[0]);
-      await this.governanceAudit(
-        tx,
-        checkerId,
-        marketId,
-        `MCP_ADJUSTMENT_${input.decision}`,
-        'MCP_ADJUSTMENT_REQUEST',
-        requestId,
-        input.reason,
-        updated,
-        context,
-      );
-      return updated;
-    });
-  }
-
-  async executeAdjustment(
-    marketId: string,
-    requestId: string,
-    executorId: string,
-    input: AdjustmentActionDto,
-    context: MerchantRequestContext,
-  ) {
-    return this.database.db.transaction(async (tx) => {
-      const request = await this.lockAdjustment(tx, marketId, requestId);
-      if (request.status === 'EXECUTED') return request;
-      if (request.status !== 'APPROVED') throw this.stateConflict();
-      if (request.maker_admin_user_id === executorId)
-        throw new ForbiddenException({
-          code: 'MCP_MAKER_CHECKER_CONFLICT',
-          message: 'Maker cannot execute their own request.',
-        });
-      await this.admin(tx, executorId);
-      await this.accountById(tx, String(request.mcp_account_id), marketId);
-      const debit = request.entry_type === 'MANUAL_DEBIT';
-      const delta = debit
-        ? `-${String(request.amount)}`
-        : String(request.amount);
-      const posting = await tx.execute(sql`
-        SELECT * FROM append_mcp_ledger_entry(
-          ${String(request.mcp_account_id)}::uuid, ${String(request.entry_type)}::mcp_entry_type,
-          ${debit ? 'DEBIT' : 'CREDIT'}::mcp_direction, ${String(request.amount)}::numeric,
-          ${delta}::numeric, ${delta}::numeric, 'ADJUSTMENT_REQUEST', ${requestId},
-          ${`adjustment:${requestId}`}, ${hash({ requestId, amount: request.amount, type: request.entry_type })},
-          'ADMIN_USER', ${executorId}, ${input.reason}, now())
-      `);
-      const ledgerEntryId = String(posting.rows[0]?.['entry_id']);
-      const rows = await tx
-        .update(mcpAdjustmentRequests)
-        .set({
-          status: 'EXECUTED',
-          ledgerEntryId,
-          version: sql`${mcpAdjustmentRequests.version} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(eq(mcpAdjustmentRequests.id, requestId))
-        .returning();
-      const updated = required(rows[0]);
-      await this.governanceAudit(
-        tx,
-        executorId,
-        marketId,
-        'MCP_ADJUSTMENT_EXECUTED',
-        'MCP_ADJUSTMENT_REQUEST',
-        requestId,
-        input.reason,
-        updated,
-        context,
-      );
-      return updated;
-    });
-  }
-
   async createRefund(
     branchId: string,
     requesterAccountId: string,
@@ -635,20 +392,6 @@ export class McpService {
       );
       return updated;
     });
-  }
-
-  private async lockAdjustment(
-    tx: DatabaseTransaction,
-    marketId: string,
-    requestId: string,
-  ) {
-    const result = await tx.execute(
-      sql`SELECT * FROM mcp_adjustment_requests WHERE id = ${requestId} AND market_id = ${marketId} FOR UPDATE`,
-    );
-    const request = result.rows[0] as Record<string, unknown> | undefined;
-    if (!request)
-      throw new NotFoundException({ code: 'MCP_ADJUSTMENT_NOT_FOUND' });
-    return request;
   }
 
   private async governanceAudit(

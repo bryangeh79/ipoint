@@ -1,23 +1,29 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import {
   accounts,
+  adminMfaFactors,
+  adminStepUpGrants,
   adminUsers,
   mcpAccounts,
+  mcpAdjustmentMarketRules,
+  mcpAdjustmentReasonCodes,
   merchantBranches,
   merchantKycReviews,
   merchantKycSubmissions,
   merchantStatusHistory,
   migrate,
   roles,
+  sessions,
 } from '@ipoint/database';
 import { seedFoundation } from '@ipoint/database/seeds/foundation';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Server } from 'node:http';
 import supertest from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { totpCode } from '../../auth/admin-mfa.crypto.js';
 import { AppModule } from '../../app.module.js';
 import { configureApplication } from '../../app.setup.js';
 import { AuthService } from '../../auth/auth.service.js';
@@ -25,6 +31,24 @@ import { DatabaseService } from '../../database/database.service.js';
 import { AccessAdministrationService } from '../../platform-access/access-administration.service.js';
 import { MarketService } from '../../platform-access/market.service.js';
 import { MerchantService } from '../merchant.service.js';
+
+function decodeBase32(value: string): Buffer {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let accumulator = 0;
+  let bits = 0;
+  const output: number[] = [];
+  for (const character of value.replace(/=+$/u, '').toUpperCase()) {
+    const index = alphabet.indexOf(character);
+    if (index < 0) throw new Error('Invalid base32 fixture value.');
+    accumulator = (accumulator << 5) | index;
+    bits += 5;
+    if (bits >= 8) {
+      bits -= 8;
+      output.push((accumulator >> bits) & 0xff);
+    }
+  }
+  return Buffer.from(output);
+}
 
 const databaseUrl = process.env['DATABASE_URL'];
 
@@ -43,6 +67,7 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
   let makerAdminId: string;
   let checkerAdminToken: string;
   let unprivilegedAdminToken: string;
+  let stepUpForChecker: (actionClass: string) => Promise<string>;
   const merchantEmail = `${randomUUID()}@example.com`;
   const merchantPassword = 'Merchant-Test-Password-123!';
 
@@ -89,6 +114,34 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       reason: 'Merchant integration test',
     });
 
+    // P7-S7A D-046: the conformed MCP adjustment owner reads versioned
+    // per-market caps + reason-code catalog. The Phase 1 test market is NOT
+    // the seeded MY baseline, so its rule rows are provisioned explicitly
+    // (no cross-market fallback exists by design).
+    await database.db.insert(mcpAdjustmentMarketRules).values({
+      marketCode: market.code,
+      softCap: '10000',
+      hardCap: '100000',
+      secureEvidenceAvailable: false,
+      isActive: true,
+    });
+    await database.db.insert(mcpAdjustmentReasonCodes).values([
+      {
+        marketCode: market.code,
+        code: 'OPERATIONAL_CORRECTION',
+        label: 'Operational correction of a processing error',
+        isHighRisk: false,
+        isActive: true,
+      },
+      {
+        marketCode: market.code,
+        code: 'FRAUD_RECOVERY',
+        label: 'Recovery of a fraudulent movement',
+        isHighRisk: true,
+        isActive: true,
+      },
+    ]);
+
     const administration = app.get(AccessAdministrationService);
     const authorizedAdmin = await createAdmin('Authorized Admin');
     makerAdminId = authorizedAdmin.adminUserId;
@@ -106,9 +159,41 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       marketId,
       { adminUserId: authorizedAdmin.adminUserId, reason: 'Test setup' },
     );
-    adminToken = (
-      await auth.login(authorizedAdmin.email, authorizedAdmin.password)
+
+    // P7-S2A: every marketScoped admin request resolves the server Current
+    // Admin Market from the session. Use a real ADMIN-purpose session
+    // (auth.login creates an ACCOUNT session which never satisfies the admin
+    // RbacGuard — same bootstrap as the admin-dashboard integration suite)
+    // and bind the Current Admin Market explicitly.
+    const bindCurrentMarket = async (accountId: string): Promise<void> => {
+      const sessionRows = await database.db
+        .select({ id: sessions.id })
+        .from(sessions)
+        .where(
+          and(eq(sessions.accountId, accountId), isNull(sessions.revokedAt)),
+        )
+        .orderBy(sessions.createdAt)
+        .limit(1);
+      const sessionId = sessionRows[0]?.id;
+      if (!sessionId) throw new Error('No active session for admin account.');
+      await database.db
+        .update(sessions)
+        .set({
+          currentAdminMarketId: marketId,
+          currentAdminMarketSelectedAt: new Date(),
+          marketContextVersion: 2,
+        })
+        .where(eq(sessions.id, sessionId));
+    };
+    const adminSession = (
+      await auth.createAdminSession(
+        authorizedAdmin.id,
+        authorizedAdmin.adminUserId,
+        { ipAddress: '127.0.0.1', userAgent: 'vitest' },
+      )
     ).accessToken;
+    adminToken = adminSession;
+    await bindCurrentMarket(authorizedAdmin.id);
 
     const checkerAdmin = await createAdmin('Checker Admin');
     await administration.assignRole(
@@ -120,11 +205,80 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       adminUserId: checkerAdmin.adminUserId,
       reason: 'Checker test setup',
     });
+    // MFA step-up: the conformed checker/execute permissions require a fresh
+    // step-up grant (catalog stepUpRequired), so enroll the checker admin in
+    // MFA and seed one grant per checker action below.
+    const checkerEnrollment = await supertest(server)
+      .post('/api/v1/auth/admin/mfa/enrollment/start')
+      .send({ email: checkerAdmin.email, password: checkerAdmin.password })
+      .expect(202);
+    const checkerSecret = decodeBase32(
+      new URL(checkerEnrollment.body.otpauth_uri as string).searchParams.get(
+        'secret',
+      ) ?? '',
+    );
+    await supertest(server)
+      .post('/api/v1/auth/admin/mfa/enrollment/confirm')
+      .send({
+        challenge_id: checkerEnrollment.body.enrollment_challenge_id,
+        code: totpCode(checkerSecret, Math.floor(Date.now() / 30_000)),
+      })
+      .expect(200);
     checkerAdminToken = (
-      await auth.login(checkerAdmin.email, checkerAdmin.password)
+      await auth.createAdminSession(checkerAdmin.id, checkerAdmin.adminUserId, {
+        ipAddress: '127.0.0.1',
+        userAgent: 'vitest',
+      })
     ).accessToken;
+    await bindCurrentMarket(checkerAdmin.id);
+
+    /** Seed a fresh step-up grant for a checker action (P7-S2A catalog). */
+    async function seedStepUpGrant(actionClass: string): Promise<string> {
+      const token = `stepup_${randomUUID()}${randomUUID()}`;
+      const sessionRows = await database.db
+        .select({ id: sessions.id })
+        .from(sessions)
+        .where(
+          and(
+            eq(sessions.accountId, checkerAdmin.id),
+            isNull(sessions.revokedAt),
+          ),
+        )
+        .orderBy(sessions.createdAt)
+        .limit(1);
+      const sessionId = sessionRows[0]?.id;
+      if (!sessionId) throw new Error('No active session for step-up.');
+      const factorRows = await database.db
+        .select({ id: adminMfaFactors.id })
+        .from(adminMfaFactors)
+        .where(
+          and(
+            eq(adminMfaFactors.adminUserId, checkerAdmin.adminUserId),
+            eq(adminMfaFactors.status, 'ACTIVE'),
+          ),
+        )
+        .limit(1);
+      const factorId = factorRows[0]?.id;
+      if (!factorId) throw new Error('No active MFA factor for step-up.');
+      const issuedAt = new Date();
+      await database.db.insert(adminStepUpGrants).values({
+        grantHash: createHash('sha256').update(token).digest('hex'),
+        sessionId,
+        adminUserId: checkerAdmin.adminUserId,
+        factorId,
+        actionClass,
+        marketId,
+        issuedAt,
+        expiresAt: new Date(issuedAt.getTime() + 9 * 60 * 1000),
+      });
+      return token;
+    }
+    stepUpForChecker = seedStepUpGrant;
 
     const unprivilegedAdmin = await createAdmin('Unprivileged Admin');
+    // Deliberately NO role and an ACCOUNT-purpose session (plain login): the
+    // RbacGuard sees no adminUserId and denies 403 — the original Phase 1
+    // semantics for an unprivileged caller on an admin route.
     unprivilegedAdminToken = (
       await auth.login(unprivilegedAdmin.email, unprivilegedAdmin.password)
     ).accessToken;
@@ -334,7 +488,7 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
         `/api/v1/admin/markets/${randomUUID()}/merchants/${branchId}/kyc/review`,
       )
       .set('authorization', `Bearer ${adminToken}`)
-      .expect(403);
+      .expect(409);
 
     const firstInput = {
       business_certification: {
@@ -626,8 +780,9 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       .send({
         type: 'MANUAL_CREDIT',
         amount: '0.0000000001',
-        reason: 'Reconciliation correction.',
-        evidence: { ticket: 'FIN-001' },
+        reasonCode: 'OPERATIONAL_CORRECTION',
+        explanation: 'Reconciliation correction.',
+        caseReference: 'FIN-001',
       })
       .expect(201);
     const adjustmentId = String((adjustment.body as { id: string }).id);
@@ -644,19 +799,38 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       .set('authorization', `Bearer ${adminToken}`)
       .send({ decision: 'APPROVED', reason: 'Self approval prohibited.' })
       .expect(403);
-    const executed = await supertest(server)
+    const approved = await supertest(server)
       .post(
         `/api/v1/admin/markets/${marketId}/mcp/adjustments/${adjustmentId}/decision`,
       )
       .set('authorization', `Bearer ${checkerAdminToken}`)
+      .set(
+        'x-step-up-token',
+        await stepUpForChecker('merchant.mcp.adjust.approve'),
+      )
       .send({
         decision: 'APPROVED',
         reason: 'Evidence independently verified.',
       })
       .expect(200);
+    expect(approved.body).toMatchObject({
+      makerAdminUserId: makerAdminId,
+      state: 'APPROVED',
+    });
+    // P7-S7A D-046: execution is a separate checker boundary.
+    const executed = await supertest(server)
+      .post(
+        `/api/v1/admin/markets/${marketId}/adjustments/${adjustmentId}/execute`,
+      )
+      .set('authorization', `Bearer ${checkerAdminToken}`)
+      .set(
+        'x-step-up-token',
+        await stepUpForChecker('merchant.mcp.adjust.execute'),
+      )
+      .expect(200);
     expect(executed.body).toMatchObject({
       makerAdminUserId: makerAdminId,
-      status: 'EXECUTED',
+      state: 'EXECUTED',
     });
 
     const refund = await supertest(server)
@@ -720,8 +894,9 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       .send({
         type: 'MANUAL_DEBIT',
         amount: '25.0000000002',
-        reason: 'Governed debit for reactivation test.',
-        evidence: { ticket: 'FIN-002' },
+        reasonCode: 'OPERATIONAL_CORRECTION',
+        explanation: 'Governed debit for reactivation test.',
+        caseReference: 'FIN-002',
       })
       .expect(201);
     const debitId = String((debit.body as { id: string }).id);
@@ -736,7 +911,19 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
         `/api/v1/admin/markets/${marketId}/mcp/adjustments/${debitId}/decision`,
       )
       .set('authorization', `Bearer ${checkerAdminToken}`)
+      .set(
+        'x-step-up-token',
+        await stepUpForChecker('merchant.mcp.adjust.approve'),
+      )
       .send({ decision: 'APPROVED', reason: 'Debit independently verified.' })
+      .expect(200);
+    await supertest(server)
+      .post(`/api/v1/admin/markets/${marketId}/adjustments/${debitId}/execute`)
+      .set('authorization', `Bearer ${checkerAdminToken}`)
+      .set(
+        'x-step-up-token',
+        await stepUpForChecker('merchant.mcp.adjust.execute'),
+      )
       .expect(200);
   });
 
@@ -753,7 +940,7 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       .set('authorization', `Bearer ${adminToken}`)
       .set('idempotency-key', randomUUID())
       .send({ code: `M${randomUUID().slice(0, 6)}`, name: 'Wrong Market' })
-      .expect(403);
+      .expect(409);
 
     for (const rate of ['0', '100.000001']) {
       await supertest(server)

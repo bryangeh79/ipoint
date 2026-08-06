@@ -131,6 +131,11 @@ export const adjustmentState = pgEnum('adjustment_state', [
   'REJECTED',
   'EXECUTED',
   'CANCELLED',
+  // P7-S7A D-046 conformance lifecycle values (P7-OD-03/10/11):
+  // DRAFT -> SUBMITTED -> APPROVED | REJECTED -> EXECUTING -> EXECUTED | FAILED
+  'SUBMITTED',
+  'EXECUTING',
+  'FAILED',
 ]);
 export const ipointAdjustmentState = pgEnum('ipoint_adjustment_state', [
   'DRAFT',
@@ -2268,18 +2273,118 @@ export const mcpAdjustmentRequests = pgTable(
     version: integer('version').notNull().default(1),
     createdAt: utcTimestamp('created_at').notNull().defaultNow(),
     updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+    // P7-S7A D-046 conformance columns (migration 0035). Nullable so legacy
+    // rows keep their original freeform representation; the conformed owner
+    // requires them for every NEW request.
+    reasonCode: varchar('reason_code', { length: 100 }),
+    caseReference: varchar('case_reference', { length: 200 }),
+    attachmentReference: varchar('attachment_reference', { length: 500 }),
+    checkerAdminUserId: uuid('checker_admin_user_id').references(
+      () => adminUsers.id,
+      { onDelete: 'restrict' },
+    ),
+    submittedAt: utcTimestamp('submitted_at'),
+    executedAt: utcTimestamp('executed_at'),
+    failedAt: utcTimestamp('failed_at'),
+    idempotencyScope: varchar('idempotency_scope', { length: 200 }),
+    priorRequestId: uuid('prior_request_id').references(
+      (): AnyPgColumn => mcpAdjustmentRequests.id,
+      { onDelete: 'restrict' },
+    ),
   },
   (table) => [
-    unique('mcp_adjustment_account_idempotency_unique').on(
-      table.mcpAccountId,
-      table.idempotencyKey,
-    ),
     check('mcp_adjustment_amount_check', sql`${table.amount} > 0`),
     check(
       'mcp_adjustment_entry_type_check',
       sql`${table.entryType} in ('MANUAL_CREDIT', 'MANUAL_DEBIT')`,
     ),
     check('mcp_adjustment_version_check', sql`${table.version} > 0`),
+    uniqueIndex('mcp_adjustment_idempotency_scope_key_unique')
+      .on(table.idempotencyScope, table.idempotencyKey)
+      .where(sql`${table.idempotencyScope} is not null`),
+    check(
+      'mcp_adjustment_reason_code_check',
+      sql`${table.reasonCode} is null or (char_length(btrim(${table.reasonCode})) between 1 and 100)`,
+    ),
+    check(
+      'mcp_adjustment_case_reference_check',
+      sql`${table.caseReference} is null or (char_length(btrim(${table.caseReference})) between 1 and 200)`,
+    ),
+    check(
+      'mcp_adjustment_attachment_reference_check',
+      sql`${table.attachmentReference} is null or (char_length(btrim(${table.attachmentReference})) between 1 and 500)`,
+    ),
+    // Distinct server-derived Maker/Checker identities (P7-OD-10 runtime
+    // inequality + hard database guarantee).
+    check(
+      'mcp_adjustment_checker_inequality',
+      sql`${table.checkerAdminUserId} is null or ${table.checkerAdminUserId} <> ${table.makerAdminUserId}`,
+    ),
+  ],
+);
+
+export const mcpAdjustmentMarketRules = pgTable(
+  'mcp_adjustment_market_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    marketCode: varchar('market_code', { length: 8 }).notNull(),
+    softCap: numeric('soft_cap', { precision: 38, scale: 10 }).notNull(),
+    hardCap: numeric('hard_cap', { precision: 38, scale: 10 }).notNull(),
+    secureEvidenceAvailable: boolean('secure_evidence_available')
+      .notNull()
+      .default(false),
+    isActive: boolean('is_active').notNull().default(true),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('mcp_adjustment_market_rules_market_unique').on(table.marketCode),
+    check(
+      'mcp_adjustment_market_rules_soft_cap_check',
+      sql`${table.softCap} > 0`,
+    ),
+    check(
+      'mcp_adjustment_market_rules_hard_cap_check',
+      sql`${table.hardCap} >= ${table.softCap}`,
+    ),
+    check(
+      'mcp_adjustment_market_rules_version_check',
+      sql`${table.version} > 0`,
+    ),
+  ],
+);
+
+export const mcpAdjustmentReasonCodes = pgTable(
+  'mcp_adjustment_reason_codes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    marketCode: varchar('market_code', { length: 8 }).notNull(),
+    code: varchar('code', { length: 100 }).notNull(),
+    label: varchar('label', { length: 200 }).notNull(),
+    isHighRisk: boolean('is_high_risk').notNull().default(false),
+    isActive: boolean('is_active').notNull().default(true),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('mcp_adjustment_reason_codes_market_code_unique').on(
+      table.marketCode,
+      table.code,
+    ),
+    check(
+      'mcp_adjustment_reason_codes_code_check',
+      sql`char_length(btrim(${table.code})) between 1 and 100`,
+    ),
+    check(
+      'mcp_adjustment_reason_codes_label_check',
+      sql`char_length(btrim(${table.label})) between 1 and 200`,
+    ),
+    check(
+      'mcp_adjustment_reason_codes_version_check',
+      sql`${table.version} > 0`,
+    ),
   ],
 );
 
@@ -4166,6 +4271,8 @@ export const schema = {
   mcpRefundRequests,
   mcpAdjustmentRequests,
   mcpAdjustmentDecisions,
+  mcpAdjustmentMarketRules,
+  mcpAdjustmentReasonCodes,
   ipointAdjustmentMarketRules,
   ipointAdjustmentReasonCodes,
   ipointAdjustmentRequests,

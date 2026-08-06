@@ -7,6 +7,7 @@ import {
   DevelopmentKycStorageAdapter,
   KYC_STORAGE_ADAPTER,
 } from './kyc-storage.adapter.js';
+import { McpAdjustmentOwnerService } from './mcp-adjustment.owner.service.js';
 import { MerchantController } from './merchant.controller.js';
 import { MerchantService } from './merchant.service.js';
 import { McpController } from './mcp.controller.js';
@@ -21,12 +22,13 @@ import { PackageService } from './package.service.js';
     MerchantService,
     PackageService,
     McpService,
+    McpAdjustmentOwnerService,
     MerchantOwnershipGuard,
     {
       provide: KYC_STORAGE_ADAPTER,
       useClass: DevelopmentKycStorageAdapter,
     },
   ],
-  exports: [MerchantService],
+  exports: [MerchantService, McpAdjustmentOwnerService],
 })
 export class MerchantModule {}
