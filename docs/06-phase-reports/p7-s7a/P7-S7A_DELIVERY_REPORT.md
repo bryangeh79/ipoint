@@ -17,6 +17,7 @@
 | `fbeb9b80` | feat(merchant): rewire MCP adjustment HTTP surface to the conformed owner | controller/DTO/mcp.service cleanup (−320 lines old flow), Finance queue/history projections |
 | `11075e81` | test(merchant): align Phase 1 merchant integration suite with P7-S2A sessions and D-046 contract | ADMIN sessions + step-up grants + conformed evidence contract |
 | `daeff9ed` | style(merchant): lint + prettier cleanup on P7-S7A changed files | eslint 0 problems, prettier clean |
+| `005ed4ab` | fix(merchant): map mcp adjustment owner errors to http statuses + test | H-1 fix (independent review): `handle()` owner-error→HttpException mapping in `mcp.controller.ts` + HTTP-layer error-code spec (6 tests) |
 
 ---
 
@@ -135,7 +136,18 @@ The old auto-execute `decideAdjustment` combined approve+execute was removed (D-
    - `execute(actor, {requestId})`
 2. Read projections already exposed: queue list (state-filterable, paginated) + detail with decision history (`merchant.mcp.view`).
 3. Transport contracts: `x-market-id` server context + `Idempotency-Key` on create; `x-step-up-token` for checker/execute (catalog stepUpRequired).
-4. Error-code mapping: owner throws `McpAdjustmentOwnerError` codes (`mcp-adjustment.owner.errors.ts`); S7B UI should map (404/403/409/422 per code).
+4. Error-code mapping (final — enforced at the HTTP boundary by `McpController.handle()`, the accepted market-owner / admin-commission-ops pattern; H-1 fix `005ed4ab`):
+
+   | `McpAdjustmentOwnerError` code(s) | HTTP | Meaning |
+   |---|---:|---|
+   | `MCP_ADJUSTMENT_PERMISSION_DENIED`, `MCP_ADJUSTMENT_MARKET_ACCESS_DENIED`, `MCP_ADJUSTMENT_MAKER_REQUIRED`, `MCP_ADJUSTMENT_MAKER_CHECKER_CONFLICT`, `MCP_ADJUSTMENT_CHECKER_ROUTING_DENIED` | 403 | permission / maker-checker / routing denial |
+   | `MCP_ADJUSTMENT_ACCOUNT_NOT_FOUND`, `MCP_ADJUSTMENT_REQUEST_NOT_FOUND` | 404 | resource not found |
+   | `MCP_ADJUSTMENT_MARKET_SELECTION_REQUIRED`, `MCP_ADJUSTMENT_MARKET_CONTEXT_MISMATCH`, `MCP_ADJUSTMENT_IDEMPOTENCY_CONFLICT`, `MCP_ADJUSTMENT_STATE_CONFLICT`, `MCP_ADJUSTMENT_PRIOR_REQUEST_INVALID` | 409 | market context / idempotency / state / replacement-reference conflicts |
+   | `MCP_ADJUSTMENT_IDEMPOTENCY_KEY_REQUIRED`, `MCP_ADJUSTMENT_INVALID_FIELD`, `MCP_ADJUSTMENT_DECISION_REASON_REQUIRED`, `MCP_ADJUSTMENT_INVALID_AMOUNT` | 400 | request-format / required-field errors |
+   | `MCP_ADJUSTMENT_MARKET_NOT_CONFIGURED`, `MCP_ADJUSTMENT_ABOVE_HARD_CAP`, `MCP_ADJUSTMENT_REASON_CODE_INVALID`, `MCP_ADJUSTMENT_ATTACHMENT_REQUIRED`, `MCP_ADJUSTMENT_EVIDENCE_STORAGE_UNAVAILABLE`, `MCP_ADJUSTMENT_INSUFFICIENT_BALANCE` | 422 | business / evidence / caps validation |
+   | `MCP_ADJUSTMENT_EXECUTION_FAILED` | 500 | server-side execution failure (not client-correctable; owner code preserved) |
+
+   Response body is always `{ error: { code, message, details? }, requestId, timestamp }`; unknown errors propagate unchanged (never swallowed, never mapped to 2xx). HTTP-layer assertions live in `mcp-adjustment.owner.http.integration.spec.ts` (6 tests: Maker≠Checker 403, idempotency 409, above-hard-cap 422, request-not-found 404, market-not-configured 422, state conflict 409 — status + owner code in body).
 5. Governance prerequisite: above-soft-cap execution stays disabled until secure evidence storage policy is approved (P7-OD-11) — surfaced per-market via `secure_evidence_available`.
 
 ---
@@ -146,6 +158,17 @@ The old auto-execute `decideAdjustment` combined approve+execute was removed (D-
 - **Pre-existing Phase 1 merchant integration suite debt:** on the pristine baseline the suite failed 7/10 because admin sessions were ACCOUNT-purpose (never satisfy the P7-S2A admin RbacGuard). S7A fixed the bootstrap (ADMIN sessions + Current Admin Market + step-up) so 6/10 now pass. The remaining 4 failures are upstream, not S7A regressions: (1) recharge route uses the P7-S2C-frozen deprecated `merchant.mcp.recharge.review` permission (authorizes nothing by design), (2) refund-review step in the maker-checker test uses the frozen deprecated `merchant.refund.manage` permission, (3) special-percentage route now requires step-up (P7-S2A catalog) which the old test never supplied, (4) activation status expectation `PENDING_MCP` vs the current `PENDING_KYC` policy (O-13/activation-policy drift, unrelated to MCP). Each failure was reproduced identically on the baseline with working sessions.
 - **None blocking for S7A.** Contract-interpretation note: none required for the MCP ledger owner (already direction-aware; see §2).
 - Admin Web UI intentionally not built (S7B scope); S7A delivers owner conformance + read projections + tests.
+
+---
+
+## 9. H-1 fix record (independent review remediation)
+
+- **Finding:** REVIEWER_S7A_20260806 H-1 — `McpAdjustmentOwnerError` (plain `Error`) was never converted to `HttpException`; the global `AllExceptionsFilter` therefore returned **HTTP 500 INTERNAL_ERROR** for every owner business code (Maker≠Checker, idempotency, state, above-hard-cap, market-not-configured, request-not-found, …), contradicting the §7.4 contract and the repo's accepted owner pattern.
+- **Fix commit:** `005ed4ab` — `fix(merchant): map mcp adjustment owner errors to http statuses + test`.
+  - `apps/api/src/merchant/mcp.controller.ts`: added `handle()` (market-owner / admin-commission-ops pattern) wrapping all 8 owner surface calls (create ×2, submit, decision, approve-alias, execute, queue, detail); every `McpAdjustmentOwnerError` code maps to its §7.4 HTTP status (see §7.4 table); unknown errors propagate; `MCP_ADJUSTMENT_EXECUTION_FAILED` keeps 500 with owner code (server-side failure, not client-correctable).
+  - `apps/api/src/merchant/__tests__/mcp-adjustment.owner.http.integration.spec.ts`: new HTTP-layer spec (supertest, real PG `ipoint_gate_s7a_http`) asserting status + `body.error.code` for the six contract cases.
+- **Regression:** gate evidence logs 29–39 in `/workspace/.local/s7a-gate/evidence/` — S7A unit 20/20, S7A integration 23/23, HTTP spec 6/6, Phase 1 merchant integration 6/10 (identical 4-failure upstream set as gate 04), S6E 46/46, SEC-01 40/40, typecheck/build/lint/prettier clean.
+- **Scope guard:** only `mcp.controller.ts` + new spec changed; no frozen domain, no SEC-01 wallet-adjustment.owner, no migrations, no tsconfig changes.
 
 ---
 
