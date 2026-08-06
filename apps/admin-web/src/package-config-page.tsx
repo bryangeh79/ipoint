@@ -26,15 +26,17 @@ import { adminMerchantApi, adminPackageOpsApi } from './admin-api.js';
 import { useAdminSession } from './admin-session.js';
 import {
   canAssignPackages,
+  canCreateSpecialPercentages,
   canManageSpecialPercentages,
   canManageStandardPackages,
   describePackageReadError,
+  describeSpecialPercentageWriteError,
   formatPackageTimestamp,
   formatPackageWindow,
   orderPackageProfiles,
   packageRateValid,
   packageWindowValid,
-  SPECIAL_PERCENTAGE_CREATE_BLOCKED,
+  specialPercentageFormValid,
   versionActivateable,
   type PackagePageErrorCopy,
 } from './package-config-model.js';
@@ -44,7 +46,7 @@ import {
   PackageErrorState,
   PackagePermissionDeniedState,
   PackageVersionStatusBadge,
-  SpecialPercentageCreateBlockedNotice,
+  SpecialPercentageManageBlockedNotice,
 } from './package-config-states.js';
 import {
   canPerformSensitiveAdminWrite,
@@ -59,8 +61,9 @@ import {
  *   owner commands with Idempotency-Keys — the owner normalizes exact
  *   decimals and rejects window overlap).
  * - Special percentages: privileged SUPER_ADMIN read (step-up + audited)
- *   with an explicit blocked state for creation (owner gap: the frozen
- *   command cannot record the mandatory §7.3 reason).
+ *   and — since D-051 closed the owner gap — creation through the secured
+ *   Phase 1 owner command: mandatory reason (durable on the row + atomic
+ *   immutable audit), auto Idempotency-Key, exact-decimal rate.
  * - Explicit per-merchant reassignment: assign a new version and set the
  *   default are separate audited owner actions; new versions never move
  *   existing assignments (pinning), and there is no batch migration.
@@ -96,6 +99,13 @@ interface DraftVersion {
   rate: string;
   effectiveFrom: string;
   effectiveTo: string;
+}
+
+/** Special-percentage create draft (D-051 secured owner command). */
+interface SpecialPercentageDraft {
+  rate: string;
+  description: string;
+  reason: string;
 }
 
 export function usePackageCatalog(marketId: string | undefined): {
@@ -145,7 +155,15 @@ export function PackageConfigPage() {
   const [stepUpChallenge, setStepUpChallenge] = useState<string | null>(null);
   const [stepUpCode, setStepUpCode] = useState('');
   const [stepUpToken, setStepUpToken] = useState<string | undefined>();
+  const [specialDraft, setSpecialDraft] = useState<SpecialPercentageDraft>({
+    rate: '',
+    description: '',
+    reason: '',
+  });
   const canViewSpecials = canManageSpecialPercentages(permissions);
+  // Double gate (mirrors the accepted S6D commission page): the
+  // SUPER_ADMIN-only permission AND the sensitive-write environment.
+  const canCreateSpecial = canCreateSpecialPercentages(permissions) && canWrite;
 
   const loadSpecials = useCallback(
     async (token?: string) => {
@@ -200,6 +218,51 @@ export function PackageConfigPage() {
       setStepUpCode('');
     } catch (error: unknown) {
       setSpecials({ status: 'error', ...describePackageReadError(error) });
+    }
+  }
+
+  async function createSpecialPercentage() {
+    if (!marketId || !canCreateSpecial) return;
+    if (!specialPercentageFormValid(specialDraft)) {
+      setMessage({
+        tone: 'error',
+        text: 'Rate must be an exact decimal >0% and ≤100% (max 6 decimals); description and a 1–500 character reason are required.',
+      });
+      return;
+    }
+    // The create is a step-up-gated privileged write: without a verified
+    // step-up token, start the verification flow first.
+    if (!stepUpToken) {
+      void loadSpecials();
+      setMessage({
+        tone: 'error',
+        text: 'Verify your identity first, then submit the form again.',
+      });
+      return;
+    }
+    try {
+      const key = createIdempotencyKey();
+      await adminPackageOpsApi.createSpecialPercentage(
+        marketId,
+        {
+          rate: specialDraft.rate.trim(),
+          description: specialDraft.description.trim(),
+          reason: specialDraft.reason.trim(),
+        },
+        key,
+        stepUpToken,
+      );
+      setMessage({
+        tone: 'success',
+        text: `Special percentage ${specialDraft.rate.trim()} created (reason recorded in the immutable audit).`,
+      });
+      setSpecialDraft({ rate: '', description: '', reason: '' });
+      await loadSpecials(stepUpToken);
+    } catch (error: unknown) {
+      setMessage({
+        tone: 'error',
+        text: describeSpecialPercentageWriteError(error),
+      });
     }
   }
 
@@ -526,9 +589,6 @@ export function PackageConfigPage() {
       {/* ── Special percentages ───────────────────────────────────────── */}
       <section aria-label="Special percentages">
         <h2 className="admin-package-section">Special percentages</h2>
-        <SpecialPercentageCreateBlockedNotice
-          summary={SPECIAL_PERCENTAGE_CREATE_BLOCKED.summary}
-        />
         {!canViewSpecials ? (
           <PackagePermissionDeniedState permission="merchant.special_package.manage" />
         ) : null}
@@ -600,6 +660,90 @@ export function PackageConfigPage() {
                 </tbody>
               </Table>
             )}
+          </Card>
+        ) : null}
+
+        {/* ── Create action (D-051 secured owner command) ─────────────── */}
+        {canViewSpecials && !canCreateSpecial ? (
+          <SpecialPercentageManageBlockedNotice />
+        ) : null}
+        {canViewSpecials && canCreateSpecial ? (
+          <Card>
+            <h3 className="admin-package-card__title">
+              Create a special percentage (Super Admin, audited)
+            </h3>
+            {!stepUpToken && !stepUpChallenge ? (
+              <p className="admin-package-muted">
+                Creating a special percentage is a step-up-gated privileged
+                write. Verify your identity first.
+              </p>
+            ) : null}
+            {!stepUpToken && !stepUpChallenge ? (
+              <Button variant="secondary" onClick={() => void loadSpecials()}>
+                Verify to create
+              </Button>
+            ) : null}
+            {stepUpToken ? (
+              <div className="admin-package-form">
+                <FormField
+                  label="Rate (%) — exact decimal, >0 and ≤100, max 6 decimals"
+                  htmlFor="special-rate"
+                >
+                  <Input
+                    id="special-rate"
+                    aria-label="Special percentage rate"
+                    placeholder="e.g. 12.5"
+                    value={specialDraft.rate}
+                    onChange={(event) =>
+                      setSpecialDraft((draft) => ({
+                        ...draft,
+                        rate: event.target.value,
+                      }))
+                    }
+                  />
+                </FormField>
+                <FormField
+                  label="Description"
+                  htmlFor="special-description"
+                >
+                  <Input
+                    id="special-description"
+                    aria-label="Special percentage description"
+                    placeholder="e.g. Special launch partner"
+                    value={specialDraft.description}
+                    onChange={(event) =>
+                      setSpecialDraft((draft) => ({
+                        ...draft,
+                        description: event.target.value,
+                      }))
+                    }
+                  />
+                </FormField>
+                <FormField
+                  label="Reason (mandatory, 1–500 characters)"
+                  htmlFor="special-reason"
+                >
+                  <Input
+                    id="special-reason"
+                    aria-label="Special percentage reason"
+                    placeholder="Why is this special percentage being created?"
+                    value={specialDraft.reason}
+                    onChange={(event) =>
+                      setSpecialDraft((draft) => ({
+                        ...draft,
+                        reason: event.target.value,
+                      }))
+                    }
+                  />
+                </FormField>
+                <Button
+                  variant="primary"
+                  onClick={() => void createSpecialPercentage()}
+                >
+                  Create special percentage (Super Admin, audited)
+                </Button>
+              </div>
+            ) : null}
           </Card>
         ) : null}
       </section>

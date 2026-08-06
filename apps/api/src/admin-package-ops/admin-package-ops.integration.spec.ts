@@ -12,6 +12,7 @@ import {
   merchantBranches,
   merchantGroups,
   merchantPackageAssignments,
+  merchantApiIdempotencyKeys,
   migrate,
   permissions,
   roleAssignments,
@@ -1215,8 +1216,8 @@ describe.skipIf(!databaseUrl)(
       });
     });
 
-    describe('special percentage owner-gap evidence (frozen contract §7.3 reason)', () => {
-      it('documents the gap: the owner command accepts creation without a mandatory reason', async () => {
+    describe('special percentage create — D-051 rewire (frozen contract §7.3 reason)', () => {
+      it('canonical owner route: with a reason the owner creates and persists it durably (201)', async () => {
         const admin = await createAdmin({
           marketIds: [marketA],
           permissionCodes: ['merchant.special_package.manage'],
@@ -1229,18 +1230,29 @@ describe.skipIf(!databaseUrl)(
           marketA,
         );
 
-        // The frozen Phase 1 owner route accepts a body with only rate +
-        // description — no reason field exists in its DTO.
+        // D-051 §2/§3/§5: the owner command now REQUIRES the reason and
+        // stores it on the row AND in the atomic immutable audit.
+        const reason = 'Approved ops review — special launch partner';
         const created = await supertest(server)
           .post(`/api/v1/admin/markets/${marketA}/special-percentages`)
           .set(authorized(admin.token))
           .set('x-step-up-token', stepUp)
           .set('Idempotency-Key', `special-${randomUUID()}`)
-          .send({ rate: '18.500000', description: 'Partner promotion' })
+          .send({
+            rate: '18.500000',
+            description: 'Partner promotion',
+            reason,
+          })
           .expect(201);
 
         const specialId = (created.body as { id: string }).id;
-        // The stored row has no reason column; the audit record carries none.
+        // The stored row carries the durable reason.
+        const row = await database.db
+          .select({ reason: specialPercentages.reason })
+          .from(specialPercentages)
+          .where(eq(specialPercentages.id, specialId));
+        expect(row[0]?.reason).toBe(reason);
+        // The immutable audit record carries the reason (no longer null).
         const auditRows = await database.db
           .select({ reason: auditLogs.reason, action: auditLogs.action })
           .from(auditLogs)
@@ -1251,10 +1263,10 @@ describe.skipIf(!databaseUrl)(
             ),
           );
         expect(auditRows.length).toBe(1);
-        expect(auditRows[0]?.reason).toBeNull();
+        expect(auditRows[0]?.reason).toBe(reason);
       });
 
-      it('exposes no special-percentage create/activate route on the Phase 7 surface (blocked capability)', async () => {
+      it('Phase 7 surface: POST .../special-percentages is exposed through the secured owner (201)', async () => {
         const admin = await createAdmin({
           marketIds: [marketA],
           permissionCodes: ['merchant.special_package.manage'],
@@ -1267,13 +1279,375 @@ describe.skipIf(!databaseUrl)(
           marketA,
         );
 
+        const body = await supertest(server)
+          .post(`${specialsUrl(marketA)}`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', stepUp)
+          .set('Idempotency-Key', `rewired-${randomUUID()}`)
+          .send({
+            rate: '18.500000',
+            description: 'Partner promotion',
+            reason: 'Approved ops review — special launch partner',
+          })
+          .expect(201);
+        const result = body.body as {
+          id: string;
+          rate: string;
+          description: string;
+          reason: string;
+          marketId: string;
+          market: string;
+          created_by: string;
+          created_at: string;
+        };
+        expect(result.id).toBeTruthy();
+        expect(result.rate).toBe('18.500000');
+        expect(result.description).toBe('Partner promotion');
+        expect(result.reason).toBe(
+          'Approved ops review — special launch partner',
+        );
+        expect(result.marketId).toBe(marketA);
+        expect(result.market).toBe('MA');
+        expect(result.created_by).toBe(admin.adminUserId);
+        expect(Number.isNaN(Date.parse(result.created_at))).toBe(false);
+      });
+    });
+
+    describe('special-percentage create surface (D-051 rewire) — owner delegation, idempotency, pinning', () => {
+      const createPayload = (overrides: Record<string, unknown> = {}) => ({
+        rate: '21.750000',
+        description: 'Rewire integration partner',
+        reason: 'Approved ops review — rewire evidence',
+        ...overrides,
+      });
+
+      it('creates through the secured owner: 201, exact rate, reason persisted in the atomic audit', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.special_package.manage'],
+          enrollMfa: true,
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        const stepUp = await seedStepUpGrant(
+          admin,
+          'merchant.special_package.manage',
+          marketA,
+        );
+
+        const body = await supertest(server)
+          .post(`${specialsUrl(marketA)}`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', stepUp)
+          .set('Idempotency-Key', `rewire-create-${randomUUID()}`)
+          .send(createPayload())
+          .expect(201);
+        const result = body.body as {
+          id: string;
+          rate: string;
+          reason: string;
+          created_by: string;
+        };
+        expect(result.id).toBeTruthy();
+        expect(result.rate).toBe('21.750000');
+        expect(result.reason).toBe('Approved ops review — rewire evidence');
+        expect(result.created_by).toBe(admin.adminUserId);
+
+        // The stored owner row carries the durable reason (D-051 §3).
+        const rows = await database.db
+          .select({
+            rate: specialPercentages.rate,
+            reason: specialPercentages.reason,
+            createdByAdminUserId: specialPercentages.createdByAdminUserId,
+          })
+          .from(specialPercentages)
+          .where(eq(specialPercentages.id, result.id));
+        expect(rows[0]?.rate).toBe('21.750000');
+        expect(rows[0]?.reason).toBe('Approved ops review — rewire evidence');
+        expect(rows[0]?.createdByAdminUserId).toBe(admin.adminUserId);
+
+        // The immutable audit row is the owner's atomic audit, carrying
+        // actor, market, reason and the entity reference (D-051 §5).
+        const auditRows = await database.db
+          .select()
+          .from(auditLogs)
+          .where(
+            and(
+              eq(auditLogs.action, 'SPECIAL_PERCENTAGE_CREATED'),
+              eq(auditLogs.entityId, result.id),
+            ),
+          );
+        expect(auditRows.length).toBe(1);
+        expect(auditRows[0]?.actorId).toBe(admin.adminUserId);
+        expect(auditRows[0]?.marketId).toBe(marketA);
+        expect(auditRows[0]?.reason).toBe(
+          'Approved ops review — rewire evidence',
+        );
+        expect(auditRows[0]?.result).toBe('SUCCESS');
+        expect(String(auditRows[0]?.requestId ?? '')).not.toBe('');
+      });
+
+      it('writes ONE owner-scoped mechanism row + owner audit (no adapter-side writes)', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.special_package.manage'],
+          enrollMfa: true,
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        const stepUp = await seedStepUpGrant(
+          admin,
+          'merchant.special_package.manage',
+          marketA,
+        );
+        const key = `rewire-mech-${randomUUID()}`;
+        const body = await supertest(server)
+          .post(`${specialsUrl(marketA)}`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', stepUp)
+          .set('Idempotency-Key', key)
+          .send(createPayload({ rate: '22.250000' }))
+          .expect(201);
+        const specialId = (body.body as { id: string }).id;
+
+        // The mechanism row is the OWNER's claim (scope
+        // package.special.owner.create:<marketId>:<adminUserId>), written
+        // by the owner inside its transaction — exactly ONE row.
+        const idemRows = await database.db
+          .select()
+          .from(merchantApiIdempotencyKeys)
+          .where(eq(merchantApiIdempotencyKeys.key, key));
+        expect(idemRows.length).toBe(1);
+        expect(idemRows[0]?.scope).toBe(
+          `package.special.owner.create:${marketA}:${admin.adminUserId}`,
+        );
+        expect(idemRows[0]?.statusCode).toBe(201);
+        expect((idemRows[0]?.response as { id?: string })?.id).toBe(specialId);
+        expect(idemRows[0]?.requestHash).toMatch(/^[a-f0-9]{64}$/u);
+
+        // Exactly ONE special_percentages row and exactly ONE owner audit
+        // for this key — the adapter performs no direct write of its own.
+        const specialRows = await database.db
+          .select({ id: specialPercentages.id })
+          .from(specialPercentages)
+          .where(eq(specialPercentages.id, specialId));
+        expect(specialRows.length).toBe(1);
+      });
+
+      it('replays idempotent creates and rejects key reuse with a different payload', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.special_package.manage'],
+          enrollMfa: true,
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        // Step-up grants are single-use (consumed by the guard), so every
+        // request carries a freshly seeded grant.
+        const grant = () =>
+          seedStepUpGrant(admin, 'merchant.special_package.manage', marketA);
+        const key = `rewire-idem-${randomUUID()}`;
+        const payload = createPayload({ rate: '23.500000' });
+
+        const first = await supertest(server)
+          .post(`${specialsUrl(marketA)}`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', await grant())
+          .set('Idempotency-Key', key)
+          .send(payload)
+          .expect(201);
+
+        // Same key + same payload → the owner replays the original result
+        // (same id, no second row).
+        const replay = await supertest(server)
+          .post(`${specialsUrl(marketA)}`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', await grant())
+          .set('Idempotency-Key', key)
+          .send(payload)
+          .expect(201);
+        expect((replay.body as { id: string }).id).toBe(
+          (first.body as { id: string }).id,
+        );
+
+        // Same key + different payload → owner payload-hash conflict (409).
+        const conflict = await supertest(server)
+          .post(`${specialsUrl(marketA)}`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', await grant())
+          .set('Idempotency-Key', key)
+          .send(createPayload({ rate: '24.000000' }))
+          .expect(409);
+        expect((conflict.body as ErrorBody).error.code).toBe(
+          'SPECIAL_PERCENTAGE_IDEMPOTENCY_CONFLICT',
+        );
+
+        // The conflicting request created no extra row.
+        const rows = await database.db
+          .select({ id: specialPercentages.id })
+          .from(specialPercentages)
+          .where(eq(specialPercentages.marketId, marketA));
+        expect(
+          rows.filter((row) => row.id === (first.body as { id: string }).id)
+            .length,
+        ).toBe(1);
+      });
+
+      it('denies creates without merchant.special_package.manage (403)', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.package.view'],
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+
+        const denied = await supertest(server)
+          .post(`${specialsUrl(marketA)}`)
+          .set(authorized(admin.token))
+          .set('Idempotency-Key', `rewire-deny-${randomUUID()}`)
+          .send(createPayload())
+          .expect(403);
+        expect((denied.body as ErrorBody).error.code).toBe('PERMISSION_DENIED');
+      });
+
+      it('enforces the selected-market contract: URL market differs from the Current Admin Market (409)', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.special_package.manage'],
+          enrollMfa: true,
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        const stepUp = await seedStepUpGrant(
+          admin,
+          'merchant.special_package.manage',
+          marketA,
+        );
+
+        const response = await supertest(server)
+          .post(`${specialsUrl(marketB)}`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', stepUp)
+          .set('Idempotency-Key', `rewire-market-${randomUUID()}`)
+          .send(createPayload())
+          .expect(409);
+        expect((response.body as ErrorBody).error.code).toBe(
+          'MARKET_CONTEXT_MISMATCH',
+        );
+      });
+
+      it('requires a reason and an Idempotency-Key on the write (400)', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.special_package.manage'],
+          enrollMfa: true,
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        const grant = () =>
+          seedStepUpGrant(admin, 'merchant.special_package.manage', marketA);
+
+        // Missing reason field (no reason key at all).
+        const missingReason: Record<string, unknown> = {
+          rate: '21.750000',
+          description: 'Rewire integration partner',
+        };
+        const missing = await supertest(server)
+          .post(`${specialsUrl(marketA)}`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', await grant())
+          .set('Idempotency-Key', `rewire-reason-${randomUUID()}`)
+          .send(missingReason)
+          .expect(400);
+        expect((missing.body as ErrorBody).error.code).toBe('VALIDATION_ERROR');
+
+        // Blank and whitespace-only reasons: DTO trim → min(1) fails.
+        for (const reason of ['', '   ']) {
+          const response = await supertest(server)
+            .post(`${specialsUrl(marketA)}`)
+            .set(authorized(admin.token))
+            .set('x-step-up-token', await grant())
+            .set('Idempotency-Key', `rewire-reason-${randomUUID()}`)
+            .send({ ...createPayload(), reason })
+            .expect(400);
+          expect((response.body as ErrorBody).error.code).toBe(
+            'VALIDATION_ERROR',
+          );
+        }
+
+        const missingKey = await supertest(server)
+          .post(`${specialsUrl(marketA)}`)
+          .set(authorized(admin.token))
+          .set('x-step-up-token', await grant())
+          .send(createPayload())
+          .expect(400);
+        expect((missingKey.body as ErrorBody).error.code).toBe(
+          'SPECIAL_PERCENTAGE_IDEMPOTENCY_KEY_REQUIRED',
+        );
+      });
+
+      it('rejects rate precision and range violations at the transport boundary (400)', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.special_package.manage'],
+          enrollMfa: true,
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        const grant = () =>
+          seedStepUpGrant(admin, 'merchant.special_package.manage', marketA);
+
+        for (const rate of ['12.3456789', '0', '0.000000', '100.000001']) {
+          const response = await supertest(server)
+            .post(`${specialsUrl(marketA)}`)
+            .set(authorized(admin.token))
+            .set('x-step-up-token', await grant())
+            .set('Idempotency-Key', `rewire-rate-${randomUUID()}`)
+            .send(createPayload({ rate }))
+            .expect(400);
+          expect((response.body as ErrorBody).error.code).toBe(
+            'VALIDATION_ERROR',
+          );
+        }
+      });
+
+      it('keeps merchant assignments and historical rows byte-identical (pinning)', async () => {
+        const admin = await createAdmin({
+          marketIds: [marketA],
+          permissionCodes: ['merchant.special_package.manage'],
+          enrollMfa: true,
+        });
+        await setCurrentMarket(admin.accountId, marketA);
+        const stepUp = await seedStepUpGrant(
+          admin,
+          'merchant.special_package.manage',
+          marketA,
+        );
+
+        // A pre-existing assignment + a historical special percentage.
+        const branch = await createMerchantBranch(marketA);
+        await seedAssignment(branch, marketVersionA);
+        const historicalId = await createSpecialPercentage(
+          marketA,
+          '9.500000',
+          'Historical partner',
+          admin.adminUserId,
+        );
+        const assignmentsBefore = await assignmentCount(branch);
+        const historical = await database.db
+          .select()
+          .from(specialPercentages)
+          .where(eq(specialPercentages.id, historicalId));
+
         await supertest(server)
           .post(`${specialsUrl(marketA)}`)
           .set(authorized(admin.token))
           .set('x-step-up-token', stepUp)
-          .set('Idempotency-Key', `blocked-${randomUUID()}`)
-          .send({ rate: '18.500000', description: 'x' })
-          .expect(404);
+          .set('Idempotency-Key', `rewire-pin-${randomUUID()}`)
+          .send(createPayload({ rate: '25.000000' }))
+          .expect(201);
+
+        // merchant_package_assignments: zero change.
+        expect(await assignmentCount(branch)).toBe(assignmentsBefore);
+        // Historical special-percentage row: byte-identical.
+        const after = await database.db
+          .select()
+          .from(specialPercentages)
+          .where(eq(specialPercentages.id, historicalId));
+        expect(after).toEqual(historical);
       });
     });
 
@@ -1333,13 +1707,14 @@ describe.skipIf(!databaseUrl)(
         await setCurrentMarket(admin.accountId, marketA);
         const grant = () =>
           seedStepUpGrant(admin, 'merchant.special_package.manage', marketA);
+        const reason = 'Exact decimal boundary evidence';
 
         const ok = await supertest(server)
           .post(`/api/v1/admin/markets/${marketA}/special-percentages`)
           .set(authorized(admin.token))
           .set('x-step-up-token', await grant())
           .set('Idempotency-Key', `sp-six-${randomUUID()}`)
-          .send({ rate: '12.345678', description: 'Six decimals' })
+          .send({ rate: '12.345678', description: 'Six decimals', reason })
           .expect(201);
         expect((ok.body as { rate: string }).rate).toBe('12.345678');
 
@@ -1348,25 +1723,25 @@ describe.skipIf(!databaseUrl)(
           .set(authorized(admin.token))
           .set('x-step-up-token', await grant())
           .set('Idempotency-Key', `sp-seven-${randomUUID()}`)
-          .send({ rate: '12.3456789', description: 'Seven decimals' })
+          .send({ rate: '12.3456789', description: 'Seven decimals', reason })
           .expect(400);
-        expect((seven.body as ErrorBody).error.code).toBeDefined();
+        expect((seven.body as ErrorBody).error.code).toBe('VALIDATION_ERROR');
 
         const zero = await supertest(server)
           .post(`/api/v1/admin/markets/${marketA}/special-percentages`)
           .set(authorized(admin.token))
           .set('x-step-up-token', await grant())
           .set('Idempotency-Key', `sp-zero-${randomUUID()}`)
-          .send({ rate: '0', description: 'Zero' })
+          .send({ rate: '0', description: 'Zero', reason })
           .expect(400);
-        expect((zero.body as ErrorBody).error.code).toBeDefined();
+        expect((zero.body as ErrorBody).error.code).toBe('VALIDATION_ERROR');
 
         const max = await supertest(server)
           .post(`/api/v1/admin/markets/${marketA}/special-percentages`)
           .set(authorized(admin.token))
           .set('x-step-up-token', await grant())
           .set('Idempotency-Key', `sp-max-${randomUUID()}`)
-          .send({ rate: '100.000000', description: 'Max' })
+          .send({ rate: '100.000000', description: 'Max', reason })
           .expect(201);
         expect((max.body as { rate: string }).rate).toBe('100.000000');
 
@@ -1375,9 +1750,9 @@ describe.skipIf(!databaseUrl)(
           .set(authorized(admin.token))
           .set('x-step-up-token', await grant())
           .set('Idempotency-Key', `sp-over-${randomUUID()}`)
-          .send({ rate: '100.000001', description: 'Over' })
+          .send({ rate: '100.000001', description: 'Over', reason })
           .expect(400);
-        expect((over.body as ErrorBody).error.code).toBeDefined();
+        expect((over.body as ErrorBody).error.code).toBe('VALIDATION_ERROR');
       });
     });
 

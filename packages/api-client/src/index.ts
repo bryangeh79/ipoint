@@ -2285,6 +2285,32 @@ export interface AdminSpecialPercentageListDto {
   items: AdminSpecialPercentageDto[];
 }
 
+/**
+ * Create input for a special percentage (D-051 secured owner command).
+ * The server enforces the exact-decimal rate (numeric(12,6), (0, 100]),
+ * the mandatory description and the mandatory 1..500-char reason.
+ */
+export interface AdminSpecialPercentageCreateInput {
+  /** Exact decimal string (numeric(12,6)), e.g. "12.500000". */
+  rate: string;
+  description: string;
+  /** Mandatory operator reason (frozen contract §7.3, D-051). */
+  reason: string;
+}
+
+/** Create result (owner-resolved values, S6A surface field style). */
+export interface AdminSpecialPercentageCreateResultDto {
+  id: string;
+  /** Exact decimal string (numeric(12,6)) — the owner-normalized value. */
+  rate: string;
+  description: string | null;
+  reason: string;
+  marketId: string;
+  market: string;
+  created_by: string;
+  created_at: string;
+}
+
 /** Owner command input: create a draft version of a standard package. */
 export interface AdminPackageVersionCreateInput {
   rate: string;
@@ -2303,10 +2329,12 @@ export interface AdminPackageAssignmentInput {
  * P7-S6A Admin Package Operations client.
  *
  * Read surfaces: selected-market package catalog and the privileged
- * (Super Admin, step-up, audited) special-percentage list. Write surfaces:
- * typed pass-throughs of the frozen Phase 1 owner commands used for
- * configuration and explicit per-merchant reassignment — never a direct
- * table write and never a duplicate of owner logic.
+ * (Super Admin, step-up, audited) special-percentage list. Write
+ * surfaces: typed pass-throughs of the frozen Phase 1 owner commands used
+ * for configuration and explicit per-merchant reassignment — never a
+ * direct table write and never a duplicate of owner logic. The
+ * special-percentage create delegates to the D-051-secured owner command
+ * (mandatory Idempotency-Key + reason, step-up required).
  */
 export class AdminPackageOpsApiClient {
   constructor(private readonly client: ApiClient) {}
@@ -2335,6 +2363,30 @@ export class AdminPackageOpsApiClient {
       await this.client.get<AdminSpecialPercentageListDto>(
         `/admin/package-ops/markets/${encodeURIComponent(marketId)}/special-percentages`,
         { headers },
+      )
+    ).data;
+  }
+
+  /**
+   * Create a special percentage (Super Admin only, D-051 secured owner
+   * command). The Idempotency-Key is mandatory and passed through
+   * untouched: same key + same payload replays the original result; same
+   * key + different payload returns 409. Requires a fresh step-up grant
+   * token (x-step-up-token); the server enforces the mandatory reason.
+   */
+  async createSpecialPercentage(
+    marketId: string,
+    input: AdminSpecialPercentageCreateInput,
+    idempotencyKey: string,
+    stepUpToken?: string,
+  ): Promise<AdminSpecialPercentageCreateResultDto> {
+    const headers: Record<string, string> = {};
+    if (stepUpToken) headers['x-step-up-token'] = stepUpToken;
+    return (
+      await this.client.post<AdminSpecialPercentageCreateResultDto>(
+        `/admin/package-ops/markets/${encodeURIComponent(marketId)}/special-percentages`,
+        input,
+        { idempotencyKey, headers },
       )
     ).data;
   }

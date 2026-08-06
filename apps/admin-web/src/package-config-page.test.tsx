@@ -57,9 +57,10 @@ describe('P7-S6A package configuration page', () => {
     expect(
       screen.getByText(/never move existing merchant assignments/iu),
     ).toBeInTheDocument();
-    // Blocked special-percentage creation notice is always visible.
+    // The create surface is exposed (D-051 rewire): the SUPER_ADMIN
+    // create form section renders for the seeded permissions.
     expect(
-      screen.getByText('Special percentage creation unavailable'),
+      screen.getByText('Create a special percentage (Super Admin, audited)'),
     ).toBeInTheDocument();
   });
 
@@ -113,6 +114,115 @@ describe('P7-S6A package configuration page', () => {
 
     expect(await screen.findByText('12.500000')).toBeInTheDocument();
     expect(screen.getByText('Special launch partner')).toBeInTheDocument();
+  });
+
+  it('creates a special percentage through the D-051 secured owner surface', async () => {
+    const mock = mockPackageConfigApi();
+    await signIn();
+
+    await screen.findByRole('heading', {
+      name: 'Merchant package configuration',
+    });
+    // Verify step-up first (the create is a step-up-gated write).
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Verify to create' }),
+    );
+    await screen.findByText('Verify to view special percentages');
+    fireEvent.change(
+      await screen.findByLabelText('Special percentage verification code'),
+      { target: { value: '654321' } },
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Verify' }));
+
+    fireEvent.change(
+      await screen.findByLabelText('Special percentage rate'),
+      { target: { value: '22.5' } },
+    );
+    fireEvent.change(
+      await screen.findByLabelText('Special percentage description'),
+      { target: { value: 'Rewire partner' } },
+    );
+    fireEvent.change(
+      await screen.findByLabelText('Special percentage reason'),
+      { target: { value: 'Approved ops review — rewire evidence' } },
+    );
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: 'Create special percentage (Super Admin, audited)',
+      }),
+    );
+
+    // The POST goes to the Phase 7 surface with Idempotency-Key + step-up.
+    await waitFor(() =>
+      expect(
+        mock.fetchSpy.mock.calls.some(([url, init]) => {
+          const method = (init as RequestInit | undefined)?.method ?? 'GET';
+          const headers = new Headers((init as RequestInit | undefined)?.headers);
+          return (
+            method === 'POST' &&
+            String(url).endsWith(
+              `/admin/package-ops/markets/${packageOpsMarketA}/special-percentages`,
+            ) &&
+            headers.get('idempotency-key') !== null &&
+            headers.get('x-step-up-token') === 'stepup-grant-token'
+          );
+        }),
+      ).toBe(true),
+    );
+    expect(
+      await screen.findByText(/Special percentage 22.5 created/iu),
+    ).toBeInTheDocument();
+    // The refreshed list contains the new row.
+    expect(await screen.findByText('22.500000')).toBeInTheDocument();
+  });
+
+  it('rejects an invalid special-percentage form locally before any call', async () => {
+    const mock = mockPackageConfigApi();
+    await signIn();
+
+    await screen.findByRole('heading', {
+      name: 'Merchant package configuration',
+    });
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Verify to create' }),
+    );
+    await screen.findByText('Verify to view special percentages');
+    fireEvent.change(
+      await screen.findByLabelText('Special percentage verification code'),
+      { target: { value: '654321' } },
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Verify' }));
+
+    fireEvent.change(
+      await screen.findByLabelText('Special percentage rate'),
+      { target: { value: '0' } },
+    );
+    fireEvent.change(
+      await screen.findByLabelText('Special percentage description'),
+      { target: { value: 'Rewire partner' } },
+    );
+    fireEvent.change(
+      await screen.findByLabelText('Special percentage reason'),
+      { target: { value: 'Approved' } },
+    );
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: 'Create special percentage (Super Admin, audited)',
+      }),
+    );
+
+    expect(
+      await screen.findByText(/Rate must be an exact decimal >0% and ≤100%/iu),
+    ).toBeInTheDocument();
+    expect(
+      mock.fetchSpy.mock.calls.some(([url, init]) => {
+        const method = (init as RequestInit | undefined)?.method ?? 'GET';
+        return (
+          method === 'POST' &&
+          String(url).endsWith('/special-percentages')
+        );
+      }),
+    ).toBe(false);
   });
 
   it('creates and activates a draft version through the owner commands', async () => {
