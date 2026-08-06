@@ -177,51 +177,37 @@ describe('RewardService', () => {
   // ─── Reward Rule Versions ──────────────────────────────────────────
 
   describe('createRuleVersion', () => {
-    it('creates a rule version from valid input', async () => {
-      const { service, insertReturningMock } = createService({});
-      const ruleRow = ruleVersionRow();
-      insertReturningMock.mockResolvedValue([ruleRow]);
+    it('is disabled (O-13): member-facing rule creation rejects loudly', async () => {
+      const { service } = createService({});
 
-      const result = await service.createRuleVersion({
-        name: 'MY 2026 Q3 Rate',
-        rewardRate: '0.01',
-        capType: 'FLAT',
-        capValue: '1000.00',
-        minimumReward: '0.01',
-        effectiveFrom: '2026-07-01T00:00:00.000Z',
-        effectiveTo: '2026-09-30T00:00:00.000Z',
-      });
-
-      expect(result.name).toBe('MY 2026 Q3 Rate');
-      expect(result.rewardRate).toBe('0.01');
-      expect(result.capType).toBe('FLAT');
-      expect(result.capValue).toBe('1000.00');
+      await expect(
+        service.createRuleVersion({
+          name: 'MY 2026 Q3 Rate',
+          rewardRate: '0.01',
+          capType: 'FLAT',
+          capValue: '1000.00',
+          minimumReward: '0.01',
+          effectiveFrom: '2026-07-01T00:00:00.000Z',
+          effectiveTo: '2026-09-30T00:00:00.000Z',
+        }),
+      ).rejects.toThrow('REWARD_RULE_CREATE_DISABLED');
     });
 
-    it('creates a rule version without optional fields', async () => {
+    it('never touches the database (tripwire trips before any insert)', async () => {
       const { service, insertReturningMock } = createService({});
-      const ruleRow = ruleVersionRow({
-        name: 'Default Rate',
-        description: null,
-        effectiveTo: null,
-        capType: 'NONE',
-        capValue: '0',
-        marketId: null,
-      });
-      insertReturningMock.mockResolvedValue([ruleRow]);
 
-      const result = await service.createRuleVersion({
-        name: 'Default Rate',
-        rewardRate: '0.005',
-        effectiveFrom: '2026-01-01T00:00:00.000Z',
-        capType: 'NONE',
-        capValue: '0',
-        minimumReward: '0',
-      });
+      await expect(
+        service.createRuleVersion({
+          name: 'Default Rate',
+          rewardRate: '0.005',
+          effectiveFrom: '2026-01-01T00:00:00.000Z',
+          capType: 'NONE',
+          capValue: '0',
+          minimumReward: '0',
+        }),
+      ).rejects.toThrow('REWARD_RULE_CREATE_DISABLED');
 
-      expect(result.name).toBe('Default Rate');
-      expect(result.capType).toBe('NONE');
-      expect(result.capValue).toBe('0');
+      expect(insertReturningMock).not.toHaveBeenCalled();
     });
   });
 

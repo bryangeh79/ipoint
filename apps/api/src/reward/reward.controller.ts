@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  Body,
   ConflictException,
   Controller,
   Get,
@@ -9,7 +8,6 @@ import {
   Inject,
   NotFoundException,
   Param,
-  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -24,10 +22,8 @@ import { CurrentActor } from '../auth/current-actor.decorator.js';
 import type { RequestActor } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
 import {
-  createRuleVersionSchema,
   planListQuerySchema,
   ruleListQuerySchema,
-  type CreateRuleVersionDto,
   type PlanListQueryDto,
   type RuleListQueryDto,
 } from './reward.dto.js';
@@ -85,18 +81,6 @@ export class RewardController {
   @ApiResponse({ status: 200, description: 'Rule version detail.' })
   async getRule(@Param('id') id: string) {
     return this.handle(() => this.reward.getRuleVersion(id));
-  }
-
-  @Post('rules')
-  @UseGuards(AuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a new reward rule version (admin)' })
-  @ApiResponse({ status: 201, description: 'Rule version created.' })
-  async createRule(
-    @Body(new ZodValidationPipe(createRuleVersionSchema))
-    input: CreateRuleVersionDto,
-  ) {
-    return this.handle(() => this.reward.createRuleVersion(input));
   }
 
   // ─── Error Handling ────────────────────────────────────────────────
