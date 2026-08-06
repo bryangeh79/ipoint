@@ -18,6 +18,7 @@ import {
   AdminPackageCatalogDto,
   AdminPackageOpsApiClient,
   AdminPackageVersionDto,
+  AdminSpecialPercentageCreateResultDto,
   AdminSpecialPercentageListDto,
   AdminRewardOpsApiClient,
   AdminRewardRuleListDto,
@@ -1711,6 +1712,76 @@ describe('AdminPackageOpsApiClient (P7-S6A package configuration)', () => {
       status: 403,
       body: { code: 'MFA_STEP_UP_REQUIRED' },
     });
+  });
+
+  it('creates a special percentage through the D-051 secured owner command', async () => {
+    const client = packageOpsClient();
+    const result: AdminSpecialPercentageCreateResultDto = {
+      id: 'special-new',
+      rate: '21.750000',
+      description: 'Rewire integration partner',
+      reason: 'Approved ops review — rewire evidence',
+      marketId: MARKET,
+      market: 'MA',
+      created_by: 'admin-1',
+      created_at: '2026-08-02T00:00:00.000Z',
+    };
+    const fetchMock = mockFetch(201, result);
+
+    const created = await client.createSpecialPercentage(
+      MARKET,
+      {
+        rate: '21.75',
+        description: 'Rewire integration partner',
+        reason: 'Approved ops review — rewire evidence',
+      },
+      'idem-special',
+      'stepup-token',
+    );
+
+    expect(created).toEqual(result);
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/package-ops/markets/${MARKET}/special-percentages`,
+    );
+    const initObj = init as RequestInit | undefined;
+    expect(initObj?.method ?? 'GET').toBe('POST');
+    const headers = new Headers(initObj?.headers);
+    expect(headers.get('idempotency-key')).toBe('idem-special');
+    expect(headers.get('x-step-up-token')).toBe('stepup-token');
+    expect(JSON.parse(String(initObj?.body))).toEqual({
+      rate: '21.75',
+      description: 'Rewire integration partner',
+      reason: 'Approved ops review — rewire evidence',
+    });
+  });
+
+  it('creates a special percentage without a step-up token header when absent', async () => {
+    const client = packageOpsClient();
+    const fetchMock = mockFetch(201, {
+      id: 'special-new',
+      rate: '21.750000',
+      description: 'Partner',
+      reason: 'Approved',
+      marketId: MARKET,
+      market: 'MA',
+      created_by: 'admin-1',
+      created_at: '2026-08-02T00:00:00.000Z',
+    });
+
+    await client.createSpecialPercentage(
+      MARKET,
+      { rate: '21.75', description: 'Partner', reason: 'Approved' },
+      'idem-special-2',
+    );
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/package-ops/markets/${MARKET}/special-percentages`,
+    );
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('idempotency-key')).toBe('idem-special-2');
+    expect(headers.get('x-step-up-token')).toBeNull();
   });
 });
 
