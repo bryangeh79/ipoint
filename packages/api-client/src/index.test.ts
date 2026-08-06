@@ -2710,7 +2710,7 @@ describe('AdminIpointAdjustOpsApiClient (P7-S7B manual iPoint adjustment)', () =
     const list = await client.listAdjustments(MARKET, { state: 'SUBMITTED' });
 
     expect(list.items[0]?.state).toBe('SUBMITTED');
-    let [url] = fetchSpy.mock.calls[0] ?? [];
+    const [url] = fetchSpy.mock.calls[0] ?? [];
     expect(String(url)).toBe(
       `${BASE_URL}/admin/ipoint-adjust-ops/markets/${MARKET}/adjustments?state=SUBMITTED`,
     );
