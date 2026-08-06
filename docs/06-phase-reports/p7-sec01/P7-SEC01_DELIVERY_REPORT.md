@@ -12,6 +12,8 @@
 | `b7644429` | feat(wallet): SEC-01 manual iPoint adjustment owner (P7-OD-20) | `WalletAdjustmentOwnerService` + types/errors + wallet.module registration |
 | `aa575301` | test(wallet): SEC-01 owner unit + real-PostgreSQL integration suites | 18 unit + 22 integration tests |
 | `5539eb50` | fix(admin-reward): remove the immediate iPoint adjustment endpoint (P7-AC-15) | controller/service/dto/types/errors/spec cleanup (−666 lines) |
+| `e5e934cc` | docs(sec01): record P7 SEC-01 iPoint Maker/Checker delivery report | repo copy of this report |
+| `5761b728` | test(database): drop removed `wallet.adjustment.create` from deprecated-route drift set | keeps the DB suite drift test green after endpoint removal |
 
 ## 2. Owner contract (WalletAdjustmentOwnerService — `apps/api/src/wallet/wallet-adjustment.owner.service.ts`)
 
@@ -89,6 +91,9 @@ The frozen `WalletService.createLedgerEntry` is credit-only (`ADJUSTMENT` always
 Notes: gate 02 originally ran without DATABASE_URL in the first matrix pass (env-setup requirement) and was re-run with the env set (18/18, EXIT_CODE=0). Gate 08 requires a pre-existing migrated+seeded database (S6A spec does not drop/create its own); it was bootstrapped with `create-db.mjs` + `db:migrate` + `db:seed` and re-run (54/54, EXIT_CODE=0). All other DB-heavy suites create their own isolated database in `beforeAll`.
 
 ## 8. Deviations / legacy notes
+
+- **Pre-existing upstream database-test debt (NOT introduced by SEC-01, byte-identical on the `phase/7-admin-operations` baseline):** `packages/database` suite has 4 failures on baseline AND on this branch — (1) p7-s2c catalog count 66-vs-67 (S6E added codes, test not updated), (2) frozen six-role matrix counts, (3) `phase3-schema` "should allow Phase 5 migrations" stale `^0019_` expectation, (4) `schema.unit` 20-migration list stale. The authoritative `db:checksum` gate verifies 35/35. These are upstream items for the Command Center, not SEC-01 regressions.
+- The ONE new DB-suite failure caused by SEC-01 (deprecated-route drift requiring the removed `wallet.adjustment.create` decorator) was fixed in `5761b728`; guard-level denial coverage of the literal code remains in `p7-s2c-rbac.guard.spec.ts`.
 
 - None blocking. Interpretation note in §3 (dedicated wallet ledger command).
 - `wallet.http.integration.spec.ts` tests are `.skip`-ped by default upstream (unchanged).
