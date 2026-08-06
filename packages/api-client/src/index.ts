@@ -2955,3 +2955,104 @@ export class AdminCommissionOpsApiClient {
     ).data;
   }
 }
+
+/**
+ * P7-S6E Admin Market Configuration client (secured market owner).
+ *
+ * Read surface: the selected-market registry projection (`market.read`,
+ * all Admin roles, marketScoped) — id, code, name, status, currency code,
+ * IANA timezone, default locale, timestamps and the explicit blocked
+ * state (`configured: false` for a market that is not ACTIVE — never a
+ * fallback). Write surface: a controlled update of the selected market
+ * (`market.manage`, SUPER_ADMIN only, marketScoped, step-up required,
+ * mandatory Idempotency-Key + reason) — status (ACTIVE → INACTIVE with
+ * explicit deactivation confirmation + dependency validation),
+ * name / currencyCode / timezone / defaultLocale with format validation.
+ * The server owner commits the row update + idempotency claim + privileged
+ * audit in one transaction; this client is a typed pass-through, never a
+ * direct table write.
+ */
+export interface AdminMarketDetailDto {
+  market_id: string;
+  market_code: string;
+  name: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  currency_code: string;
+  timezone: string;
+  default_locale: string;
+  created_at: string;
+  updated_at: string;
+  /**
+   * `true` when the market is present and ACTIVE; `false` means the
+   * market is blocked for configuration (explicit state, no fallback).
+   */
+  configured: boolean;
+}
+
+/** One controlled field difference applied by the update. */
+export interface AdminMarketFieldChangeDto {
+  field: string;
+  before: unknown;
+  after: unknown;
+}
+
+/** Controlled update input (at least one controlled field + reason). */
+export interface AdminMarketUpdateInput {
+  status?: 'ACTIVE' | 'INACTIVE';
+  name?: string;
+  currencyCode?: string;
+  timezone?: string;
+  defaultLocale?: string;
+  /** Mandatory privileged-write reason (1..500 chars). */
+  reason: string;
+  /** Explicit confirmation for the ACTIVE → INACTIVE transition. */
+  deactivationConfirmed?: boolean;
+}
+
+/** Secured market update result (replayed verbatim on same-key replay). */
+export interface AdminMarketUpdateResultDto {
+  id: string;
+  code: string;
+  name: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  currencyCode: string;
+  timezone: string;
+  defaultLocale: string;
+  updatedAt: string;
+  changed: AdminMarketFieldChangeDto[];
+  /** Canonical payload digest (sha256 hex) of the committed command. */
+  idempotencyDigest: string;
+}
+
+export class AdminMarketOpsApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Selected-market registry read projection (market.read). */
+  async getMarket(marketId: string): Promise<AdminMarketDetailDto> {
+    return (
+      await this.client.get<AdminMarketDetailDto>(
+        `/admin/market-ops/markets/${encodeURIComponent(marketId)}`,
+      )
+    ).data;
+  }
+
+  /**
+   * Controlled update of the selected market (Super Admin; step-up
+   * required server-side). The Idempotency-Key is mandatory and passed
+   * through untouched: same key + same payload replays the original
+   * result; same key + different payload returns 409.
+   */
+  async updateMarket(
+    marketId: string,
+    input: AdminMarketUpdateInput,
+    idempotencyKey: string,
+  ): Promise<AdminMarketUpdateResultDto> {
+    return (
+      await this.client.patch<AdminMarketUpdateResultDto>(
+        `/admin/market-ops/markets/${encodeURIComponent(marketId)}`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+}

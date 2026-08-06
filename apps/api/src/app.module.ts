@@ -9,6 +9,7 @@ import { PlatformAccessModule } from './platform-access/platform-access.module.j
 import { MerchantModule } from './merchant/merchant.module.js';
 import { ProfileModule } from './profile/profile.module.js';
 import { MarketModule } from './market/market.module.js';
+import { MarketOwnerModule } from './market/market-owner.module.js';
 import { CountryChangeModule } from './country-change/country-change.module.js';
 import { KycModule } from './kyc/kyc.module.js';
 import { AdminKycModule } from './admin-kyc/admin-kyc.module.js';
@@ -79,6 +80,7 @@ import {
     MerchantModule,
     ProfileModule,
     MarketModule,
+    MarketOwnerModule,
     CountryChangeModule,
     KycModule,
     AdminKycModule,

@@ -27,6 +27,9 @@ import {
   AdminCommissionOpsApiClient,
   AdminCommissionRateListDto,
   AdminCommissionRateCreateResultDto,
+  AdminMarketOpsApiClient,
+  AdminMarketDetailDto,
+  AdminMarketUpdateResultDto,
   AdminRedemptionOpsApiClient,
   AdminRedemptionRateListDto,
   AdminRedemptionRateCreateResultDto,
@@ -2442,5 +2445,115 @@ describe('AdminCommissionOpsApiClient (P7-S6D commission rate configuration)', (
       status: 409,
       body: { code: 'COMMISSION_RATE_IDEMPOTENCY_CONFLICT' },
     });
+  });
+});
+
+describe('AdminMarketOpsApiClient (P7-S6E market configuration)', () => {
+  const MARKET = '88888888-8888-4888-8888-888888888888';
+
+  function marketOpsClient(): AdminMarketOpsApiClient {
+    return new AdminMarketOpsApiClient(new ApiClient(BASE_URL));
+  }
+
+  it('reads the selected-market registry projection (market.read)', async () => {
+    const client = marketOpsClient();
+    const detail: AdminMarketDetailDto = {
+      market_id: MARKET,
+      market_code: 'MY',
+      name: 'Malaysia',
+      status: 'ACTIVE',
+      currency_code: 'MYR',
+      timezone: 'Asia/Kuala_Lumpur',
+      default_locale: 'en-MY',
+      created_at: '2026-01-01T00:00:00.000Z',
+      updated_at: '2026-01-01T00:00:00.000Z',
+      configured: true,
+    };
+    const fetchSpy = mockFetch(200, detail);
+
+    const result = await client.getMarket(MARKET);
+
+    expect(result.market_code).toBe('MY');
+    expect(result.currency_code).toBe('MYR');
+    expect(result.configured).toBe(true);
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe(
+      `${BASE_URL}/admin/market-ops/markets/${MARKET}`,
+    );
+  });
+
+  it('updates the market with the mandatory Idempotency-Key and reason', async () => {
+    const client = marketOpsClient();
+    const result: AdminMarketUpdateResultDto = {
+      id: MARKET,
+      code: 'MY',
+      name: 'Malaysia Renamed',
+      status: 'ACTIVE',
+      currencyCode: 'MYR',
+      timezone: 'Asia/Kuala_Lumpur',
+      defaultLocale: 'en-MY',
+      updatedAt: '2026-08-06T00:00:00.000Z',
+      changed: [
+        { field: 'name', before: 'Malaysia', after: 'Malaysia Renamed' },
+      ],
+      idempotencyDigest: 'a'.repeat(64),
+    };
+    const fetchSpy = mockFetch(200, result);
+
+    const updated = await client.updateMarket(
+      MARKET,
+      { name: 'Malaysia Renamed', reason: 'Rebranding' },
+      'idem-market-update',
+    );
+
+    expect(updated.name).toBe('Malaysia Renamed');
+    expect(updated.changed[0]).toEqual({
+      field: 'name',
+      before: 'Malaysia',
+      after: 'Malaysia Renamed',
+    });
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(`${BASE_URL}/admin/market-ops/markets/${MARKET}`);
+    expect((init as RequestInit | undefined)?.method).toBe('PATCH');
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('idempotency-key')).toBe('idem-market-update');
+    expect(JSON.parse(String((init as RequestInit | undefined)?.body))).toEqual(
+      { name: 'Malaysia Renamed', reason: 'Rebranding' },
+    );
+  });
+
+  it('passes the deactivation confirmation and status through untouched', async () => {
+    const client = marketOpsClient();
+    const result: AdminMarketUpdateResultDto = {
+      id: MARKET,
+      code: 'MY',
+      name: 'Malaysia',
+      status: 'INACTIVE',
+      currencyCode: 'MYR',
+      timezone: 'Asia/Kuala_Lumpur',
+      defaultLocale: 'en-MY',
+      updatedAt: '2026-08-06T00:00:00.000Z',
+      changed: [{ field: 'status', before: 'ACTIVE', after: 'INACTIVE' }],
+      idempotencyDigest: 'b'.repeat(64),
+    };
+    const fetchSpy = mockFetch(200, result);
+
+    const updated = await client.updateMarket(
+      MARKET,
+      { status: 'INACTIVE', deactivationConfirmed: true, reason: 'Wind-down' },
+      'idem-market-deactivate',
+    );
+
+    expect(updated.status).toBe('INACTIVE');
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(`${BASE_URL}/admin/market-ops/markets/${MARKET}`);
+    expect(JSON.parse(String((init as RequestInit | undefined)?.body))).toEqual(
+      {
+        status: 'INACTIVE',
+        deactivationConfirmed: true,
+        reason: 'Wind-down',
+      },
+    );
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('idempotency-key')).toBe('idem-market-deactivate');
   });
 });
