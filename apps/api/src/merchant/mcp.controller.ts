@@ -23,22 +23,24 @@ import { RbacGuard, RequirePermission } from '../platform-access/rbac.guard.js';
 import {
   createRechargeSchema,
   createAdjustmentSchema,
-  adjustmentActionSchema,
   adjustmentDecisionSchema,
   createRefundSchema,
   ledgerQuerySchema,
   reviewRechargeSchema,
   reviewRefundSchema,
+  adjustmentQueueQuerySchema,
   type CreateAdjustmentDto,
-  type AdjustmentActionDto,
   type AdjustmentDecisionDto,
   type CreateRefundDto,
   type CreateRechargeDto,
   type LedgerQueryDto,
   type ReviewRechargeDto,
   type ReviewRefundDto,
+  type AdjustmentQueueQueryDto,
 } from './dto/mcp.dto.js';
 import { MerchantOwnershipGuard } from './guards/merchant-ownership.guard.js';
+import { McpAdjustmentOwnerService } from './mcp-adjustment.owner.service.js';
+import type { McpAdjustmentOwnerActor } from './mcp-adjustment.owner.types.js';
 import { McpService } from './mcp.service.js';
 import {
   requireAccountActor,
@@ -48,7 +50,11 @@ import {
 
 @Controller()
 export class McpController {
-  constructor(@Inject(McpService) private readonly mcp: McpService) {}
+  constructor(
+    @Inject(McpService) private readonly mcp: McpService,
+    @Inject(McpAdjustmentOwnerService)
+    private readonly adjustmentOwner: McpAdjustmentOwnerService,
+  ) {}
 
   @Get('merchant/branches/:branchId/mcp')
   @UseGuards(AuthGuard, MerchantOwnershipGuard)
@@ -152,20 +158,26 @@ export class McpController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.mcp.createAdjustment(
-      marketId,
-      accountId,
-      requireAdminActor(actor),
-      input,
-      requireKey(key),
-      context(request, ip),
+    return this.adjustmentOwner.create(
+      ownerActor(actor, marketId, request, ip),
+      {
+        mcpAccountId: accountId,
+        entryType: input.type,
+        amount: input.amount,
+        reasonCode: input.reasonCode,
+        explanation: input.explanation,
+        caseReference: input.caseReference,
+        attachmentReference: input.attachmentReference,
+        priorRequestId: input.priorRequestId,
+        idempotencyKey: requireKey(key),
+      },
     );
   }
 
   @Post('admin/markets/:marketId/merchants/:branchId/adjustments')
   @UseGuards(AuthGuard, RbacGuard)
   @RequirePermission('merchant.mcp.adjust', { marketScoped: true })
-  createBranchAdjustment(
+  async createBranchAdjustment(
     @Param('marketId', new ParseUUIDPipe()) marketId: string,
     @Param('branchId', new ParseUUIDPipe()) branchId: string,
     @CurrentActor() actor: RequestActor | undefined,
@@ -175,13 +187,20 @@ export class McpController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.mcp.createAdjustmentForBranch(
-      marketId,
-      branchId,
-      requireAdminActor(actor),
-      input,
-      requireKey(key),
-      context(request, ip),
+    const account = await this.mcp.adminAccountForBranch(marketId, branchId);
+    return this.adjustmentOwner.create(
+      ownerActor(actor, marketId, request, ip),
+      {
+        mcpAccountId: account.id,
+        entryType: input.type,
+        amount: input.amount,
+        reasonCode: input.reasonCode,
+        explanation: input.explanation,
+        caseReference: input.caseReference,
+        attachmentReference: input.attachmentReference,
+        priorRequestId: input.priorRequestId,
+        idempotencyKey: requireKey(key),
+      },
     );
   }
 
@@ -196,12 +215,9 @@ export class McpController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.mcp.submitAdjustment(
-      marketId,
+    return this.adjustmentOwner.submit(ownerActor(actor, marketId, request, ip), {
       requestId,
-      requireAdminActor(actor),
-      context(request, ip),
-    );
+    });
   }
 
   @Post('admin/markets/:marketId/mcp/adjustments/:requestId/decision')
@@ -217,13 +233,11 @@ export class McpController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.mcp.decideAdjustment(
-      marketId,
-      requestId,
-      requireAdminActor(actor),
-      input,
-      context(request, ip),
-    );
+    return this.adjustmentOwner.decide(ownerActor(actor, marketId, request, ip), requestId, {
+      decision: input.decision,
+      reason: input.reason,
+      requireAttachment: input.requireAttachment,
+    });
   }
 
   @Post('admin/markets/:marketId/adjustments/:requestId/approve')
@@ -234,18 +248,16 @@ export class McpController {
     @Param('marketId', new ParseUUIDPipe()) marketId: string,
     @Param('requestId', new ParseUUIDPipe()) requestId: string,
     @CurrentActor() actor: RequestActor | undefined,
-    @Body(new ZodValidationPipe(adjustmentActionSchema))
-    input: AdjustmentActionDto,
+    @Body(new ZodValidationPipe(adjustmentDecisionSchema))
+    input: AdjustmentDecisionDto,
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.mcp.approveAdjustment(
-      marketId,
-      requestId,
-      requireAdminActor(actor),
-      { decision: 'APPROVED', reason: input.reason },
-      context(request, ip),
-    );
+    return this.adjustmentOwner.decide(ownerActor(actor, marketId, request, ip), requestId, {
+      decision: 'APPROVED',
+      reason: input.reason,
+      requireAttachment: input.requireAttachment,
+    });
   }
 
   @Post('admin/markets/:marketId/adjustments/:requestId/execute')
@@ -256,18 +268,37 @@ export class McpController {
     @Param('marketId', new ParseUUIDPipe()) marketId: string,
     @Param('requestId', new ParseUUIDPipe()) requestId: string,
     @CurrentActor() actor: RequestActor | undefined,
-    @Body(new ZodValidationPipe(adjustmentActionSchema))
-    input: AdjustmentActionDto,
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.mcp.executeAdjustment(
-      marketId,
+    return this.adjustmentOwner.execute(ownerActor(actor, marketId, request, ip), {
       requestId,
-      requireAdminActor(actor),
-      input,
-      context(request, ip),
-    );
+    });
+  }
+
+  @Get('admin/markets/:marketId/mcp/adjustments')
+  @UseGuards(AuthGuard, RbacGuard)
+  @RequirePermission('merchant.mcp.view', { marketScoped: true })
+  adjustmentQueue(
+    @Param('marketId', new ParseUUIDPipe()) marketId: string,
+    @Query(new ZodValidationPipe(adjustmentQueueQuerySchema))
+    query: AdjustmentQueueQueryDto,
+  ) {
+    return this.adjustmentOwner.listForMarket(marketId, {
+      state: query.state,
+      limit: query.limit,
+      offset: query.offset,
+    });
+  }
+
+  @Get('admin/markets/:marketId/mcp/adjustments/:requestId')
+  @UseGuards(AuthGuard, RbacGuard)
+  @RequirePermission('merchant.mcp.view', { marketScoped: true })
+  adjustmentDetail(
+    @Param('marketId', new ParseUUIDPipe()) marketId: string,
+    @Param('requestId', new ParseUUIDPipe()) requestId: string,
+  ) {
+    return this.adjustmentOwner.detail(marketId, requestId);
   }
 
   @Post('merchant/branches/:branchId/mcp/refunds')
@@ -368,5 +399,32 @@ function context(request: Request, ipAddress: string): MerchantRequestContext {
     ipAddress,
     userAgent: request.headers['user-agent'],
     ...(typeof requestId === 'string' ? { requestId } : {}),
+  };
+}
+function ownerActor(
+  actor: RequestActor | undefined,
+  marketId: string,
+  request: Request,
+  ipAddress: string,
+): McpAdjustmentOwnerActor {
+  const adminUserId = requireAdminActor(actor);
+  const marketContext = (
+    request as Request & {
+      adminMarketContext?: { marketId: string; contextVersion: number };
+    }
+  ).adminMarketContext;
+  return {
+    adminUserId,
+    currentMarketId: marketContext?.marketId ?? marketId,
+    marketContextVersion: marketContext?.contextVersion,
+    ipAddress,
+    ...(typeof (request as unknown as Record<string, unknown>)['requestId'] ===
+    'string'
+      ? {
+          requestId: String(
+            (request as unknown as Record<string, unknown>)['requestId'],
+          ),
+        }
+      : {}),
   };
 }

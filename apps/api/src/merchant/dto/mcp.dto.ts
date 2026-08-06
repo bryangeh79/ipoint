@@ -32,17 +32,40 @@ export const ledgerQuerySchema = z
   })
   .strict();
 
+export const adjustmentQueueQuerySchema = z
+  .object({
+    state: z
+      .enum([
+        'DRAFT',
+        'SUBMITTED',
+        'APPROVED',
+        'REJECTED',
+        'EXECUTING',
+        'EXECUTED',
+        'FAILED',
+        'PENDING_APPROVAL',
+        'CANCELLED',
+      ])
+      .optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    offset: z.coerce.number().int().min(0).default(0),
+  })
+  .strict();
+
 export const createAdjustmentSchema = z
   .object({
     type: z.enum(['MANUAL_CREDIT', 'MANUAL_DEBIT']),
     amount: mcpAmount,
-    reason: z.string().trim().min(1).max(2000),
-    evidence: z
-      .record(z.string(), z.unknown())
-      .refine(
-        (value) => Object.keys(value).length > 0,
-        'Evidence is required.',
-      ),
+    // P7-S7A D-046 evidence contract (P7-OD-11): reason code (market-scoped
+    // catalog) + detailed explanation + case/ticket reference; an opaque
+    // attachment reference is mandatory above the soft cap, for high-risk
+    // reason codes, or when the checker requests it.
+    reasonCode: z.string().trim().min(1).max(100),
+    explanation: z.string().trim().min(1).max(2000),
+    caseReference: z.string().trim().min(1).max(200),
+    attachmentReference: z.string().trim().min(1).max(500).optional(),
+    // P7-OD-18 replacement linkage: the prior REJECTED request id.
+    priorRequestId: z.string().uuid().optional(),
   })
   .strict();
 
@@ -50,6 +73,8 @@ export const adjustmentDecisionSchema = z
   .object({
     decision: z.enum(['APPROVED', 'REJECTED']),
     reason: z.string().trim().min(1).max(2000),
+    // Checker explicitly requires an opaque attachment reference (P7-OD-11).
+    requireAttachment: z.boolean().optional().default(false),
   })
   .strict();
 
@@ -74,8 +99,10 @@ export const reviewRefundSchema = z
 export type CreateRechargeDto = z.infer<typeof createRechargeSchema>;
 export type ReviewRechargeDto = z.infer<typeof reviewRechargeSchema>;
 export type LedgerQueryDto = z.infer<typeof ledgerQuerySchema>;
+export type AdjustmentQueueQueryDto = z.infer<
+  typeof adjustmentQueueQuerySchema
+>;
 export type CreateAdjustmentDto = z.infer<typeof createAdjustmentSchema>;
 export type AdjustmentDecisionDto = z.infer<typeof adjustmentDecisionSchema>;
-export type AdjustmentActionDto = z.infer<typeof adjustmentActionSchema>;
 export type CreateRefundDto = z.infer<typeof createRefundSchema>;
 export type ReviewRefundDto = z.infer<typeof reviewRefundSchema>;
