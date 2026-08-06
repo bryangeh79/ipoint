@@ -186,6 +186,60 @@ export function mockPackageConfigApi(
         return json(specials);
       }
 
+      // ── Special-percentage create (D-051 secured owner command) ──────
+      if (specialsMatch && method === 'POST') {
+        if (!permissions.includes('merchant.special_package.manage')) {
+          return json({ code: 'PERMISSION_DENIED' }, 403);
+        }
+        if (!headers.get('x-step-up-token')) {
+          return json({ code: 'MFA_STEP_UP_REQUIRED' }, 403);
+        }
+        if (!headers.get('idempotency-key')) {
+          return json(
+            { code: 'SPECIAL_PERCENTAGE_IDEMPOTENCY_KEY_REQUIRED' },
+            400,
+          );
+        }
+        const body = JSON.parse(String(init?.body ?? '{}')) as {
+          rate?: string;
+          description?: string;
+          reason?: string;
+        };
+        if (!body.reason?.trim()) {
+          return json({ code: 'VALIDATION_ERROR' }, 400);
+        }
+        if (!body.rate || !/^\d{1,3}(\.\d{1,6})?$/u.test(String(body.rate))) {
+          return json({ code: 'VALIDATION_ERROR' }, 400);
+        }
+        // Owner-style exact normalization: numeric(12,6) string.
+        const [whole = '0', fraction = ''] = String(body.rate).split('.');
+        const normalizedRate = `${BigInt(whole).toString()}.${fraction.padEnd(6, '0')}`;
+        const created = {
+          id: `special-new-${Date.now()}`,
+          rate: normalizedRate,
+          description: body.description ?? null,
+          reason: body.reason,
+          marketId: packageOpsMarketA,
+          market: 'MA',
+          created_by: 'admin-1',
+          created_at: '2026-08-02T00:00:00.000Z',
+        };
+        specials = {
+          ...specials,
+          items: [
+            {
+              id: created.id,
+              rate: created.rate,
+              description: created.description,
+              created_by_admin_user_id: 'admin-1',
+              created_at: created.created_at,
+            },
+            ...specials.items,
+          ],
+        };
+        return json(created, 201);
+      }
+
       // ── Frozen owner write routes (typed pass-through) ─────────────
       const versionCreateMatch =
         /\/admin\/markets\/[^/]+\/packages\/[^/]+\/versions$/u.exec(url);

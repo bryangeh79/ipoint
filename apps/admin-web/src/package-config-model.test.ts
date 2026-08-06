@@ -2,15 +2,17 @@ import { ApiError } from '@ipoint/api-client';
 import { describe, expect, it } from 'vitest';
 import {
   canAssignPackages,
+  canCreateSpecialPercentages,
   canManageSpecialPercentages,
   canManageStandardPackages,
   describePackageReadError,
+  describeSpecialPercentageWriteError,
   formatPackageWindow,
   orderPackageProfiles,
   packageRateValid,
   packageVersionStatusLabel,
   packageWindowValid,
-  SPECIAL_PERCENTAGE_CREATE_BLOCKED,
+  specialPercentageFormValid,
   versionActivateable,
 } from './package-config-model.js';
 
@@ -99,17 +101,85 @@ describe('P7-S6A package configuration model', () => {
       canManageSpecialPercentages(['merchant.special_package.manage']),
     ).toBe(true);
     expect(canManageSpecialPercentages(['SUPER_ADMIN'])).toBe(false);
+    expect(
+      canCreateSpecialPercentages(['merchant.special_package.manage']),
+    ).toBe(true);
+    expect(canCreateSpecialPercentages([])).toBe(false);
     expect(canAssignPackages(['merchant.package.assign'])).toBe(true);
     expect(canAssignPackages([])).toBe(false);
   });
 
-  it('keeps the special-percentage create capability explicitly blocked', () => {
-    expect(SPECIAL_PERCENTAGE_CREATE_BLOCKED.capability).toBe(
-      'merchant.special_package.create',
-    );
-    expect(SPECIAL_PERCENTAGE_CREATE_BLOCKED.blockedPrerequisite).toContain(
-      'OWNER-GAP',
-    );
+  it('validates the special-percentage create form (D-051 contract)', () => {
+    expect(
+      specialPercentageFormValid({
+        rate: '12.5',
+        description: 'Partner',
+        reason: 'Approved',
+      }),
+    ).toBe(true);
+    expect(
+      specialPercentageFormValid({
+        rate: '0',
+        description: 'Partner',
+        reason: 'Approved',
+      }),
+    ).toBe(false);
+    expect(
+      specialPercentageFormValid({
+        rate: '12.3456789',
+        description: 'Partner',
+        reason: 'Approved',
+      }),
+    ).toBe(false);
+    expect(
+      specialPercentageFormValid({
+        rate: '12.5',
+        description: '  ',
+        reason: 'Approved',
+      }),
+    ).toBe(false);
+    expect(
+      specialPercentageFormValid({
+        rate: '12.5',
+        description: 'Partner',
+        reason: '   ',
+      }),
+    ).toBe(false);
+    expect(
+      specialPercentageFormValid({
+        rate: '12.5',
+        description: 'Partner',
+        reason: 'x'.repeat(501),
+      }),
+    ).toBe(false);
+  });
+
+  it('describes special-percentage write errors with stable copy', () => {
+    expect(
+      describeSpecialPercentageWriteError(
+        new ApiError(409, { code: 'SPECIAL_PERCENTAGE_IDEMPOTENCY_CONFLICT' }),
+      ),
+    ).toContain('different payload');
+    expect(
+      describeSpecialPercentageWriteError(
+        new ApiError(400, { code: 'VALIDATION_ERROR' }),
+      ),
+    ).toContain('exact decimal');
+    expect(
+      describeSpecialPercentageWriteError(
+        new ApiError(403, { code: 'PERMISSION_DENIED' }),
+      ),
+    ).toContain('SUPER_ADMIN');
+    expect(
+      describeSpecialPercentageWriteError(
+        new ApiError(409, { code: 'MARKET_CONTEXT_MISMATCH' }),
+      ),
+    ).toContain('market changed');
+    expect(
+      describeSpecialPercentageWriteError(
+        new ApiError(503, { code: 'X' }),
+      ),
+    ).toContain('could not be completed');
   });
 
   it('describes read errors with stable copy', () => {

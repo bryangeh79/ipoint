@@ -112,15 +112,20 @@ export function PackageOfflineState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-/** Explicit unavailable state for the special-percentage create capability. */
-export function SpecialPercentageCreateBlockedNotice({
-  summary,
-}: {
-  summary: string;
-}) {
+/**
+ * Explicit notice when the role holds merchant.special_package.manage but
+ * the current environment cannot perform sensitive admin writes (D-051
+ * rewire: creation is exposed, but only on the online desktop web flow).
+ */
+export function SpecialPercentageManageBlockedNotice() {
   return (
-    <Alert tone="warning" title="Special percentage creation unavailable">
-      {summary}
+    <Alert
+      tone="warning"
+      title="Creating special percentages needs the online desktop Admin Web"
+    >
+      Your role can manage special percentages, but creating them is a
+      sensitive write: sign in on the online desktop Admin Web to create a
+      new special percentage with a mandatory reason and Idempotency-Key.
     </Alert>
   );
 }

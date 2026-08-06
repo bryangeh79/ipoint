@@ -20,16 +20,12 @@ const decimalRate = z
     /^\d{1,3}(?:\.\d{1,6})?$/u,
     'Rate must be a decimal string with at most 6 decimal places.',
   )
-  .refine(
-    (value) => {
-      if (!/^\d{1,3}(?:\.\d{1,6})?$/u.test(value)) return false;
-      const [whole = '0', fraction = ''] = value.split('.');
-      const scaled =
-        BigInt(whole) * 1_000_000n + BigInt(fraction.padEnd(6, '0'));
-      return scaled > 0n && scaled <= 100_000_000n;
-    },
-    'Rate must be greater than 0 and less than or equal to 100.',
-  );
+  .refine((value) => {
+    if (!/^\d{1,3}(?:\.\d{1,6})?$/u.test(value)) return false;
+    const [whole = '0', fraction = ''] = value.split('.');
+    const scaled = BigInt(whole) * 1_000_000n + BigInt(fraction.padEnd(6, '0'));
+    return scaled > 0n && scaled <= 100_000_000n;
+  }, 'Rate must be greater than 0 and less than or equal to 100.');
 
 export const createSpecialPercentageSchema = z
   .object({

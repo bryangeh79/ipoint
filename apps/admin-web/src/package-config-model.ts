@@ -77,7 +77,12 @@ export function canManageStandardPackages(
   return effectivePermissions.includes('merchant.package.manage');
 }
 
-/** UI affordance only — the server enforces the SUPER_ADMIN-only gate. */
+/**
+ * UI affordance only — the server enforces the SUPER_ADMIN-only gate.
+ * The page combines this permission gate with
+ * `canPerformSensitiveAdminWrite` (online desktop web) before showing the
+ * create form (double gate, mirroring the accepted S6D commission page).
+ */
 export function canManageSpecialPercentages(
   effectivePermissions: ReadonlyArray<string>,
 ): boolean {
@@ -92,17 +97,40 @@ export function canAssignPackages(
 }
 
 /**
- * P7-S6A owner-gap constant: the frozen Phase 1 owner command cannot record
- * the mandatory §7.3 reason for special-percentage creation, so the create
- * capability stays explicitly unavailable (see
- * `apps/api/src/admin-package-ops/admin-package-ops.module.ts`).
+ * Client-side validity affordance for the special-percentage create
+ * form (mirrors the server DTO): rate must be an exact decimal string in
+ * (0, 100] with at most 6 decimals, description and reason non-blank.
+ * UI affordances are never authorization — the server re-enforces every
+ * check inside the D-051 secured owner command.
  */
-export const SPECIAL_PERCENTAGE_CREATE_BLOCKED = {
-  capability: 'merchant.special_package.create',
-  blockedPrerequisite: 'P1-OWNER-GAP-MANDATORY-REASON',
-  summary:
-    'Creating special percentages is not available yet: the frozen Phase 1 owner command cannot record the mandatory reason the §7.3 contract requires. New special percentages stay read-only here until the owner command is remediated.',
-} as const;
+export function specialPercentageFormValid(input: {
+  rate: string;
+  description: string;
+  reason: string;
+}): boolean {
+  return (
+    packageRateValid(input.rate) &&
+    input.description.trim().length > 0 &&
+    input.reason.trim().length > 0 &&
+    input.reason.trim().length <= 500
+  );
+}
+
+/** UI affordance only — the server enforces the SUPER_ADMIN-only gate. */
+export function canCreateSpecialPercentages(
+  effectivePermissions: ReadonlyArray<string>,
+): boolean {
+  return canManageSpecialPercentages(effectivePermissions);
+}
+
+/**
+ * D-051 rewire: the frozen Phase 1 owner gap is closed — the secured
+ * owner command records the mandatory §7.3 reason durably, so the create
+ * capability is exposed through the S6A surface (see
+ * `apps/api/src/admin-package-ops/admin-package-ops.module.ts`). The
+ * blocked-constant is removed; the create form is gated by the
+ * SUPER_ADMIN permission AND the sensitive-write environment.
+ */
 
 export interface PackagePageErrorCopy {
   title: string;
@@ -182,4 +210,44 @@ export function versionActivateable(
   version: Pick<AdminPackageVersionDto, 'status'>,
 ): boolean {
   return version.status === 'DRAFT' || version.status === 'SCHEDULED';
+}
+
+/**
+ * Write-error copy for the special-percentage create form (D-051
+ * contract). Maps the server codes the S6A surface returns: 403
+ * permission/step-up, 400 validation/idempotency-key, 409 market /
+ * idempotency conflicts, and the generic offline/unknown fallback.
+ */
+export function describeSpecialPercentageWriteError(error: unknown): string {
+  if (error instanceof ApiError) {
+    switch (error.body.code) {
+      case 'SPECIAL_PERCENTAGE_IDEMPOTENCY_CONFLICT':
+        return 'The request was retried with a different payload. Refresh and retry.';
+      case 'SPECIAL_PERCENTAGE_MARKET_CONTEXT_MISMATCH':
+      case 'MARKET_CONTEXT_MISMATCH':
+        return 'The selected market changed. Refresh and retry.';
+      case 'SPECIAL_PERCENTAGE_MARKET_SELECTION_REQUIRED':
+      case 'MARKET_SELECTION_REQUIRED':
+        return 'Select an authorized market from the top bar first.';
+      case 'SPECIAL_PERCENTAGE_MARKET_ACCESS_DENIED':
+      case 'MARKET_ACCESS_DENIED':
+        return 'Your administrator account does not have access to this market.';
+      case 'SPECIAL_PERCENTAGE_MARKET_NOT_FOUND':
+        return 'The selected market does not exist or is not active.';
+      case 'SPECIAL_PERCENTAGE_REASON_REQUIRED':
+        return 'A reason of 1 to 500 characters is required for this privileged action.';
+      case 'SPECIAL_PERCENTAGE_IDEMPOTENCY_KEY_REQUIRED':
+        return 'A valid Idempotency-Key header is required. Refresh and retry.';
+      case 'SPECIAL_PERCENTAGE_PERMISSION_DENIED':
+      case 'PERMISSION_DENIED':
+        return 'The server denied this action: the special-package permission is SUPER_ADMIN only.';
+      case 'MFA_STEP_UP_REQUIRED':
+        return 'Verify your identity again to create special percentages.';
+      case 'VALIDATION_ERROR':
+        return 'Check the highlighted information: rate must be an exact decimal >0% and ≤100% (max 6 decimals), description and reason are required.';
+      case 'NETWORK_OFFLINE':
+        return 'You are offline. Retry when connected.';
+    }
+  }
+  return 'The action could not be completed. Retry, or try again later.';
 }
