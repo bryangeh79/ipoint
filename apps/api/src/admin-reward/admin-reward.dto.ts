@@ -88,33 +88,3 @@ export const jobListQuerySchema = z
   .strict();
 
 export type JobListQueryDto = z.infer<typeof jobListQuerySchema>;
-
-export const walletAdjustmentSchema = z
-  .object({
-    amount: z
-      .string()
-      .regex(
-        /^\d+(\.\d{1,10})?$/u,
-        'Must be a positive numeric string with up to 10 decimal places.',
-      ),
-    reason: z.string().trim().min(1).max(1000),
-    source: z.string().trim().min(1).max(200),
-    idempotencyKey: z.string().trim().min(1).max(200),
-    compensatingEntry: z.boolean().default(false),
-    compensatingReason: z.string().trim().max(1000).optional(),
-  })
-  .strict()
-  .refine(
-    (data) => {
-      if (data.compensatingEntry && !data.compensatingReason) {
-        return false;
-      }
-      return true;
-    },
-    {
-      message: 'compensatingReason is required when compensatingEntry is true',
-      path: ['compensatingReason'],
-    },
-  );
-
-export type WalletAdjustmentDto = z.infer<typeof walletAdjustmentSchema>;

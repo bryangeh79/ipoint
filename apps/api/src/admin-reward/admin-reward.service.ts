@@ -4,8 +4,6 @@ import {
   adminUsers,
   marketAccess,
   markets,
-  memberWalletAccounts,
-  memberWalletEntries,
   merchantApiIdempotencyKeys,
   rewardRuleVersions,
   type Database,
@@ -14,14 +12,9 @@ import { and, count, desc, eq, isNull, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service.js';
 import { AuditService } from '../platform-access/audit.service.js';
 import { RbacService } from '../platform-access/rbac.service.js';
-import type {
-  RuleListQueryDto,
-  JobListQueryDto,
-  WalletAdjustmentDto,
-} from './admin-reward.dto.js';
+import type { RuleListQueryDto, JobListQueryDto } from './admin-reward.dto.js';
 import {
   adminRewardActivationNotFutureError,
-  adminRewardAdjustmentInvalidAmountError,
   adminRewardEffectiveWindowOverlapError,
   adminRewardIdempotencyConflictError,
   adminRewardIdempotencyKeyRequiredError,
@@ -35,7 +28,6 @@ import {
   adminRewardRatePrecisionError,
   adminRewardReasonRequiredError,
   adminRewardRuleVersionNotFoundError,
-  adminRewardWalletNotFoundError,
 } from './admin-reward.errors.js';
 import type {
   AdminRewardActor,
@@ -46,7 +38,6 @@ import type {
   AdminRewardRuleVersionListItem,
   AdminRewardRuleVersionListResponse,
   AdminRewardVersionHistoryResponse,
-  AdminWalletAdjustmentResponse,
   CreateRuleVersionCommand,
 } from './admin-reward.types.js';
 
@@ -531,209 +522,6 @@ export class AdminRewardService {
     };
   }
 
-  // ─── Wallet Adjustment (via Ledger) ────────────────────────────────
-
-  async requestWalletAdjustment(
-    adminActor: AdminRewardActor,
-    walletId: string,
-    input: WalletAdjustmentDto,
-  ): Promise<AdminWalletAdjustmentResponse> {
-    if (Number(input.amount) <= 0)
-      throw adminRewardAdjustmentInvalidAmountError();
-
-    return this.database.runTransaction(async (tx) => {
-      // Lock the wallet account
-      const [wallet] = await tx
-        .select()
-        .from(memberWalletAccounts)
-        .where(eq(memberWalletAccounts.id, walletId))
-        .for('update')
-        .limit(1);
-
-      if (!wallet) throw adminRewardWalletNotFoundError();
-
-      // Assert market access
-      await this.assertMarketAccess(
-        tx,
-        adminActor.adminUserId,
-        wallet.marketId,
-      );
-
-      // Check idempotency
-      const existingEntry = await tx
-        .select()
-        .from(memberWalletEntries)
-        .where(eq(memberWalletEntries.idempotencyKey, input.idempotencyKey))
-        .limit(1);
-
-      if (existingEntry[0]) {
-        return {
-          ...this.mapAdjustmentResponse(existingEntry[0]),
-          adjustmentState: 'EXECUTED',
-        };
-      }
-
-      // Get next sequence number
-      const maxSeqResult = await tx
-        .select({
-          maxSeq: sql<bigint>`COALESCE(MAX(${memberWalletEntries.entrySequence}), 0) + 1`,
-        })
-        .from(memberWalletEntries)
-        .where(eq(memberWalletEntries.walletAccountId, walletId));
-
-      const nextSeq = BigInt(String(maxSeqResult[0]?.maxSeq ?? 1));
-      const amountNum = input.amount;
-      // Current balances snapshot
-      const balanceBefore = wallet.availableBalance;
-
-      // Compute new balances using SQL
-      const newAvailable = sql`CAST(${memberWalletAccounts.availableBalance} AS numeric(38,10)) + CAST(${amountNum} AS numeric(38,10))`;
-
-      // Update wallet balance with optimistic locking
-      const updatedWallets = await tx
-        .update(memberWalletAccounts)
-        .set({
-          availableBalance: newAvailable,
-          version: sql`${memberWalletAccounts.version} + 1`,
-          updatedAt: sql`NOW()`,
-        })
-        .where(
-          and(
-            eq(memberWalletAccounts.id, walletId),
-            eq(memberWalletAccounts.version, wallet.version),
-          ),
-        )
-        .returning();
-
-      if (!updatedWallets[0]) {
-        throw new Error('Concurrent wallet update detected. Please retry.');
-      }
-
-      const updatedWallet = updatedWallets[0];
-
-      // Insert the immutable ledger entry
-      const [entry] = await tx
-        .insert(memberWalletEntries)
-        .values({
-          walletAccountId: walletId,
-          memberId: wallet.memberId,
-          marketId: wallet.marketId,
-          entrySequence: nextSeq,
-          entryType: 'ADJUSTMENT',
-          amount: amountNum,
-          balanceBefore,
-          balanceAfter: updatedWallet.availableBalance,
-          idempotencyKey: input.idempotencyKey,
-          referenceType: 'ADMIN_ADJUSTMENT',
-          referenceId: walletId,
-          description: `Admin wallet adjustment: ${input.reason}`,
-          reason: input.reason,
-          actorId: adminActor.adminUserId,
-          marketTimezone: null,
-        })
-        .returning();
-
-      if (!entry) {
-        throw new Error('Failed to create wallet ledger entry');
-      }
-
-      // Audit trail
-      await this.audit.appendWithinTransaction(tx, {
-        actor: { type: 'ADMIN_USER', id: adminActor.adminUserId },
-        action: 'wallet.adjustment.create',
-        entity: { type: 'wallet', id: walletId },
-        marketId: wallet.marketId,
-        before: { availableBalance: balanceBefore },
-        after: { availableBalance: updatedWallet.availableBalance },
-        reason: input.reason,
-        result: 'SUCCESS',
-        requestId: adminActor.requestId,
-        ipAddress: adminActor.ipAddress,
-        summary: `Admin wallet adjustment of ${amountNum} on wallet ${walletId}. Source: ${input.source}`,
-      });
-
-      // Handle compensating entry if requested (reversal via compensation)
-      if (input.compensatingEntry) {
-        const compensatingReason =
-          input.compensatingReason ?? `Compensating entry for ${input.reason}`;
-
-        // Compute balance before compensation (current available)
-        const compBalanceBefore = updatedWallet.availableBalance;
-
-        const compNewAvailable = sql`CAST(${memberWalletAccounts.availableBalance} AS numeric(38,10)) - CAST(${amountNum} AS numeric(38,10))`;
-
-        const compUpdated = await tx
-          .update(memberWalletAccounts)
-          .set({
-            availableBalance: compNewAvailable,
-            version: sql`${memberWalletAccounts.version} + 1`,
-            updatedAt: sql`NOW()`,
-          })
-          .where(
-            and(
-              eq(memberWalletAccounts.id, walletId),
-              eq(memberWalletAccounts.version, updatedWallet.version),
-            ),
-          )
-          .returning();
-
-        if (compUpdated[0]) {
-          const [compEntry] = await tx
-            .insert(memberWalletEntries)
-            .values({
-              walletAccountId: walletId,
-              memberId: wallet.memberId,
-              marketId: wallet.marketId,
-              entrySequence: nextSeq + 1n,
-              entryType: 'COMPENSATION',
-              amount: amountNum,
-              balanceBefore: compBalanceBefore,
-              balanceAfter: compUpdated[0].availableBalance,
-              idempotencyKey: `${input.idempotencyKey}-comp`,
-              referenceType: 'COMPENSATING_ADJUSTMENT',
-              referenceId: entry.id,
-              description: `Compensating entry: ${compensatingReason}`,
-              reason: compensatingReason,
-              actorId: adminActor.adminUserId,
-              marketTimezone: null,
-            })
-            .returning();
-
-          if (!compEntry) {
-            throw new Error(
-              'Failed to create compensating wallet ledger entry',
-            );
-          }
-
-          // Audit trail for compensating entry
-          await this.audit.appendWithinTransaction(tx, {
-            actor: { type: 'ADMIN_USER', id: adminActor.adminUserId },
-            action: 'wallet.adjustment.compensate',
-            entity: { type: 'wallet', id: walletId },
-            marketId: wallet.marketId,
-            before: { availableBalance: compBalanceBefore },
-            after: { availableBalance: compUpdated[0].availableBalance },
-            reason: compensatingReason,
-            result: 'SUCCESS',
-            requestId: adminActor.requestId,
-            ipAddress: adminActor.ipAddress,
-            summary: `Admin compensating entry of ${amountNum} on wallet ${walletId}. Original reason: ${input.reason}`,
-          });
-
-          return {
-            ...this.mapAdjustmentResponse(entry),
-            adjustmentState: 'EXECUTED',
-          };
-        }
-      }
-
-      return {
-        ...this.mapAdjustmentResponse(entry),
-        adjustmentState: 'EXECUTED',
-      };
-    });
-  }
-
   // ─── Helpers ───────────────────────────────────────────────────────
 
   private ruleVersionConditions(query: RuleListQueryDto) {
@@ -796,25 +584,6 @@ export class AdminRewardService {
       marketId: row.marketId,
       createdBy: row.createdBy,
       isArchived: row.archivedAt !== null,
-      createdAt: row.createdAt.toISOString(),
-    };
-  }
-
-  private mapAdjustmentResponse(
-    row: typeof memberWalletEntries.$inferSelect,
-  ): Omit<AdminWalletAdjustmentResponse, 'adjustmentState'> {
-    return {
-      walletId: row.walletAccountId,
-      memberId: row.memberId,
-      marketId: row.marketId,
-      entryType: row.entryType,
-      amount: row.amount,
-      balanceBefore: row.balanceBefore,
-      balanceAfter: row.balanceAfter,
-      referenceType: row.referenceType,
-      referenceId: row.referenceId,
-      reason: row.reason,
-      actorId: row.actorId,
       createdAt: row.createdAt.toISOString(),
     };
   }

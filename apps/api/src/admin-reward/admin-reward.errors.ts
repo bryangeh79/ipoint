@@ -28,27 +28,6 @@ export function adminRewardMarketAccessDeniedError(): AdminRewardError {
   );
 }
 
-export function adminRewardWalletNotFoundError(): AdminRewardError {
-  return new AdminRewardError(
-    'ADMIN_REWARD_WALLET_NOT_FOUND',
-    'The wallet was not found.',
-  );
-}
-
-export function adminRewardAdjustmentInvalidAmountError(): AdminRewardError {
-  return new AdminRewardError(
-    'ADMIN_REWARD_ADJUSTMENT_INVALID_AMOUNT',
-    'The adjustment amount must be a positive numeric value.',
-  );
-}
-
-export function adminRewardAdjustmentNotFoundError(): AdminRewardError {
-  return new AdminRewardError(
-    'ADMIN_REWARD_ADJUSTMENT_NOT_FOUND',
-    'The wallet adjustment was not found.',
-  );
-}
-
 export function adminRewardIdempotencyConflictError(): AdminRewardError {
   return new AdminRewardError(
     'ADMIN_REWARD_IDEMPOTENCY_CONFLICT',

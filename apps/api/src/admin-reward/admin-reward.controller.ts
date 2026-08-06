@@ -35,11 +35,9 @@ import {
   createRuleVersionSchema,
   jobListQuerySchema,
   ruleListQuerySchema,
-  walletAdjustmentSchema,
   type CreateRuleVersionDto,
   type JobListQueryDto,
   type RuleListQueryDto,
-  type WalletAdjustmentDto,
 } from './admin-reward.dto.js';
 import { AdminRewardService } from './admin-reward.service.js';
 import { AdminRewardError } from './admin-reward.types.js';
@@ -51,7 +49,6 @@ import type {
   AdminRewardRuleVersionDetailResponse,
   AdminRewardRuleVersionListResponse,
   AdminRewardVersionHistoryResponse,
-  AdminWalletAdjustmentResponse,
 } from './admin-reward.types.js';
 
 /**
@@ -200,35 +197,6 @@ export class AdminRewardController {
     );
   }
 
-  // ─── Wallet Adjustment ─────────────────────────────────────────────
-
-  @Post('wallets/:id/adjustment')
-  @RequirePermission('wallet.adjustment.create')
-  @HttpCode(201)
-  @ApiOperation({
-    summary: 'Request a wallet balance adjustment via ledger entry',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Adjustment created as ledger entry.',
-  })
-  requestWalletAdjustment(
-    @CurrentActor() actor: RequestActor | undefined,
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Body(new ZodValidationPipe(walletAdjustmentSchema))
-    input: WalletAdjustmentDto,
-    @Ip() ip: string,
-    @Req() request: Request,
-  ): Promise<AdminWalletAdjustmentResponse> {
-    return this.handle(() =>
-      this.adminReward.requestWalletAdjustment(
-        this.adminActor(actor, request, ip),
-        id,
-        input,
-      ),
-    );
-  }
-
   // ─── Actor Extraction ──────────────────────────────────────────────
 
   private adminActor(
@@ -289,15 +257,12 @@ export class AdminRewardController {
       switch (error.code) {
         case 'ADMIN_REWARD_RULE_VERSION_NOT_FOUND':
         case 'ADMIN_REWARD_JOB_NOT_FOUND':
-        case 'ADMIN_REWARD_WALLET_NOT_FOUND':
-        case 'ADMIN_REWARD_ADJUSTMENT_NOT_FOUND':
         case 'ADMIN_REWARD_MARKET_NOT_FOUND':
           throw new NotFoundException(body);
         case 'ADMIN_REWARD_MARKET_ACCESS_DENIED':
         case 'ADMIN_REWARD_PERMISSION_DENIED':
           throw new ForbiddenException(body);
         case 'ADMIN_REWARD_RULE_VERSION_ARCHIVED':
-        case 'ADMIN_REWARD_ADJUSTMENT_INVALID_AMOUNT':
         case 'ADMIN_REWARD_IDEMPOTENCY_CONFLICT':
         case 'ADMIN_REWARD_MARKET_CONTEXT_MISMATCH':
         case 'ADMIN_REWARD_MARKET_SELECTION_REQUIRED':
