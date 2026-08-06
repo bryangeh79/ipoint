@@ -79,7 +79,17 @@ the foundation seed derives from the catalog directly — so no catalog, no
 seed, no migration change was needed and the migration checksum is
 unchanged (33/33).
 
-## 4. Contract notes and design decisions
+## 4. Commits (this worktree, not pushed)
+
+```
+9234cd54 feat(market): secured market owner for admin market configuration (P7-S6E)
+dbf2aeb8 test(market): add P7-S6E secured owner unit + HTTP integration suites
+cf6f42ec feat(api-client): add AdminMarketOpsApiClient (P7-S6E)
+6f027a94 feat(admin-web): add market configuration page (P7-S6E)
+91afc266 docs(market): record P7-S6E delivery report
+```
+
+## 5. Contract notes and design decisions
 
 1. **Idempotency-before-state**: the payload hash is computed from the
    REQUEST (normalized requested fields + market + reason), and the
