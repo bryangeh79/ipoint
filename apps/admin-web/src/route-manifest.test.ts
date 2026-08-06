@@ -103,6 +103,16 @@ describe('P7-S3A Admin route manifest', () => {
       adminRouteManifest.find(({ id }) => id === 'redemption-rates')
         ?.capabilityGate,
     ).toBeUndefined();
+    // P7-S6D: the commissions route must use the canonical
+    // commission.rate.read and must no longer carry the stale
+    // commission.rate.schedule gate — the manage capability
+    // (commission.rate.manage) is now implemented by the S6D page.
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'commissions')?.permission,
+    ).toBe('commission.rate.read');
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'commissions')?.capabilityGate,
+    ).toBeUndefined();
   });
 
   it('keeps hard-gated capabilities discoverable without executable controls', () => {

@@ -1,5 +1,6 @@
 import {
   AdminApiClient,
+  AdminCommissionOpsApiClient,
   AdminKycOpsApiClient,
   AdminMerchantApiClient,
   AdminPackageOpsApiClient,
@@ -62,5 +63,18 @@ export const adminRewardOpsApi = new AdminRewardOpsApiClient(
  * approved configuration return the explicit blocked state (no fallback).
  */
 export const adminRedemptionOpsApi = new AdminRedemptionOpsApiClient(
+  new ApiClient(apiBaseUrl),
+);
+
+/**
+ * P7-S6D selected-market Admin Commission Rate Configuration client.
+ * Self-contained addition; the market is validated server-side against the
+ * Current Admin Market on every request, and the SUPER_ADMIN-only rate
+ * write carries a mandatory Idempotency-Key + reason. The create delegates
+ * entirely to the secured Phase 5 owner command (D-054); the read exposes
+ * the frozen taxonomy and the per-definition current/scheduled/history
+ * windows. Markets that are not ACTIVE stay blocked (no fallback).
+ */
+export const adminCommissionOpsApi = new AdminCommissionOpsApiClient(
   new ApiClient(apiBaseUrl),
 );
