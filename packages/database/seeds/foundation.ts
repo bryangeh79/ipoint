@@ -1,5 +1,7 @@
 import type { Database } from '../src/client.js';
 import {
+  ipointAdjustmentMarketRules,
+  ipointAdjustmentReasonCodes,
   permissions,
   redemptionRateMarketRules,
   rolePermissions,
@@ -46,6 +48,61 @@ export const foundationRedemptionRateRules = [
     maximumRate: '2.0000000000',
     currency: 'MYR',
     displayUnit: 'RM per 1 iPoint',
+  },
+] as const;
+
+/**
+ * SEC-01 §B.6: versioned per-market iPoint adjustment caps (P7-OD-10).
+ *
+ * Malaysia MVP baseline: soft cap 10,000 iPoint, hard cap 100,000 iPoint
+ * per request. These are CONFIGURABLE market data — never hard-coded in
+ * service logic; every market without an explicit ACTIVE rule is blocked
+ * (no cross-market fallback). `secureEvidenceAvailable` gates execution
+ * above the soft cap: while secure evidence storage is not approved, an
+ * above-soft-cap request can be created/approved but its execution stays
+ * disabled (P7-OD-11).
+ */
+export const foundationIpointAdjustmentMarketRules = [
+  {
+    marketCode: 'MY',
+    softCap: '10000',
+    hardCap: '100000',
+    secureEvidenceAvailable: false,
+  },
+] as const;
+
+/**
+ * SEC-01 §B.6: versioned, market-scoped reason-code catalog (P7-OD-11).
+ *
+ * Malaysia MVP baseline. High-risk codes force an opaque attachment
+ * reference at the owner boundary. The catalog is CONFIGURABLE market
+ * data (service logic reads it from the database; values require Command
+ * Center approval before change).
+ */
+export const foundationIpointAdjustmentReasonCodes = [
+  {
+    marketCode: 'MY',
+    code: 'OPERATIONAL_CORRECTION',
+    label: 'Operational correction of a processing error',
+    isHighRisk: false,
+  },
+  {
+    marketCode: 'MY',
+    code: 'EXACT_OPPOSITE_COMPENSATION',
+    label: 'Exact-opposite compensation entry',
+    isHighRisk: false,
+  },
+  {
+    marketCode: 'MY',
+    code: 'FRAUD_RECOVERY',
+    label: 'Recovery of a fraudulent movement',
+    isHighRisk: true,
+  },
+  {
+    marketCode: 'MY',
+    code: 'SYSTEM_OUTAGE_REMEDY',
+    label: 'Remedy after a system outage',
+    isHighRisk: true,
   },
 ] as const;
 
@@ -121,6 +178,46 @@ export async function seedFoundation(db: Database): Promise<void> {
           displayUnit: sql`excluded.display_unit`,
           isActive: true,
           version: sql`${redemptionRateMarketRules.version} + 1`,
+          updatedAt: new Date(),
+        },
+      });
+
+    // SEC-01 §B.6: idempotent upsert of the approved Malaysia iPoint
+    // adjustment caps. A re-run refreshes the approved values and bumps
+    // the version; a missing row is inserted once.
+    await tx
+      .insert(ipointAdjustmentMarketRules)
+      .values(
+        foundationIpointAdjustmentMarketRules.map((rule) => ({ ...rule })),
+      )
+      .onConflictDoUpdate({
+        target: [ipointAdjustmentMarketRules.marketCode],
+        set: {
+          softCap: sql`excluded.soft_cap`,
+          hardCap: sql`excluded.hard_cap`,
+          secureEvidenceAvailable: sql`excluded.secure_evidence_available`,
+          isActive: true,
+          version: sql`${ipointAdjustmentMarketRules.version} + 1`,
+          updatedAt: new Date(),
+        },
+      });
+
+    // SEC-01 §B.6: idempotent upsert of the Malaysia reason-code catalog.
+    await tx
+      .insert(ipointAdjustmentReasonCodes)
+      .values(
+        foundationIpointAdjustmentReasonCodes.map((code) => ({ ...code })),
+      )
+      .onConflictDoUpdate({
+        target: [
+          ipointAdjustmentReasonCodes.marketCode,
+          ipointAdjustmentReasonCodes.code,
+        ],
+        set: {
+          label: sql`excluded.label`,
+          isHighRisk: sql`excluded.is_high_risk`,
+          isActive: true,
+          version: sql`${ipointAdjustmentReasonCodes.version} + 1`,
           updatedAt: new Date(),
         },
       });

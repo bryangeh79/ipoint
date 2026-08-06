@@ -1,13 +1,5 @@
 export type AdminRewardRuleVersionStatus = 'ACTIVE' | 'ARCHIVED';
 
-export type AdminAdjustmentState =
-  | 'DRAFT'
-  | 'PENDING_APPROVAL'
-  | 'APPROVED'
-  | 'REJECTED'
-  | 'EXECUTED'
-  | 'CANCELLED';
-
 export type AdminRewardErrorCode =
   | 'ADMIN_REWARD_RULE_VERSION_NOT_FOUND'
   | 'ADMIN_REWARD_RULE_VERSION_ARCHIVED'
@@ -177,35 +169,4 @@ export interface AdminRewardJobRunDetailResponse extends AdminRewardJobRun {
     amount: string | null;
     error: string | null;
   }>;
-}
-
-export interface AdminWalletAdjustmentResponse {
-  walletId: string;
-  memberId: string;
-  marketId: string;
-  entryType: string;
-  amount: string;
-  balanceBefore: string;
-  balanceAfter: string;
-  referenceType: string | null;
-  referenceId: string | null;
-  reason: string | null;
-  actorId: string | null;
-  createdAt: string;
-  adjustmentState: AdminAdjustmentState;
-}
-
-export interface AdminWalletAdjustmentRequest {
-  id: string;
-  walletId: string;
-  memberId: string;
-  marketId: string;
-  amount: string;
-  reason: string;
-  source: string;
-  requestedBy: string;
-  approvedBy: string | null;
-  state: AdminAdjustmentState;
-  createdAt: string;
-  updatedAt: string;
 }

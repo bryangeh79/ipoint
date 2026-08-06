@@ -13,7 +13,11 @@ import {
 import { foundationPermissions } from '../seeds/foundation.js';
 
 const deprecatedRouteCodes = new Set([
-  'wallet.adjustment.create',
+  // NOTE: 'wallet.adjustment.create' was intentionally REMOVED with the
+  // insecure immediate iPoint adjustment endpoint (P7 SEC-01 / P7-AC-15):
+  // the decorator no longer exists anywhere, which is strictly safer than
+  // a deprecated-but-present alias. Guard-level denial of the literal code
+  // is still covered by apps/api/src/platform-access/p7-s2c-rbac.guard.spec.ts.
   'commission.adjustment.maker',
   'commission.adjustment.checker',
   'merchant.mcp.recharge.review',

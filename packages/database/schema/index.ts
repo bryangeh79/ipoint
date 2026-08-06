@@ -19,6 +19,7 @@ import {
   uniqueIndex,
   uuid,
   varchar,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -130,6 +131,19 @@ export const adjustmentState = pgEnum('adjustment_state', [
   'REJECTED',
   'EXECUTED',
   'CANCELLED',
+]);
+export const ipointAdjustmentState = pgEnum('ipoint_adjustment_state', [
+  'DRAFT',
+  'SUBMITTED',
+  'APPROVED',
+  'REJECTED',
+  'EXECUTING',
+  'EXECUTED',
+  'FAILED',
+]);
+export const ipointAdjustmentDirection = pgEnum('ipoint_adjustment_direction', [
+  'CREDIT',
+  'DEBIT',
 ]);
 export const rechargeState = pgEnum('recharge_state', [
   'PENDING',
@@ -2297,6 +2311,195 @@ export const mcpAdjustmentDecisions = pgTable(
   ],
 );
 
+export const ipointAdjustmentMarketRules = pgTable(
+  'ipoint_adjustment_market_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    marketCode: varchar('market_code', { length: 8 }).notNull(),
+    softCap: numeric('soft_cap', { precision: 38, scale: 10 }).notNull(),
+    hardCap: numeric('hard_cap', { precision: 38, scale: 10 }).notNull(),
+    secureEvidenceAvailable: boolean('secure_evidence_available')
+      .notNull()
+      .default(false),
+    isActive: boolean('is_active').notNull().default(true),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('ipoint_adjustment_market_rules_market_unique').on(table.marketCode),
+    check(
+      'ipoint_adjustment_market_rules_soft_cap_check',
+      sql`${table.softCap} > 0`,
+    ),
+    check(
+      'ipoint_adjustment_market_rules_hard_cap_check',
+      sql`${table.hardCap} >= ${table.softCap}`,
+    ),
+    check(
+      'ipoint_adjustment_market_rules_version_check',
+      sql`${table.version} > 0`,
+    ),
+  ],
+);
+
+export const ipointAdjustmentReasonCodes = pgTable(
+  'ipoint_adjustment_reason_codes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    marketCode: varchar('market_code', { length: 8 }).notNull(),
+    code: varchar('code', { length: 100 }).notNull(),
+    label: varchar('label', { length: 200 }).notNull(),
+    isHighRisk: boolean('is_high_risk').notNull().default(false),
+    isActive: boolean('is_active').notNull().default(true),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('ipoint_adjustment_reason_codes_market_code_unique').on(
+      table.marketCode,
+      table.code,
+    ),
+    check(
+      'ipoint_adjustment_reason_codes_code_check',
+      sql`char_length(btrim(${table.code})) between 1 and 100`,
+    ),
+    check(
+      'ipoint_adjustment_reason_codes_label_check',
+      sql`char_length(btrim(${table.label})) between 1 and 200`,
+    ),
+    check(
+      'ipoint_adjustment_reason_codes_version_check',
+      sql`${table.version} > 0`,
+    ),
+  ],
+);
+
+export const ipointAdjustmentRequests = pgTable(
+  'ipoint_adjustment_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    walletAccountId: uuid('wallet_account_id')
+      .notNull()
+      .references(() => memberWalletAccounts.id, { onDelete: 'restrict' }),
+    memberId: uuid('member_id')
+      .notNull()
+      .references(() => members.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    direction: ipointAdjustmentDirection('direction').notNull(),
+    amount: numeric('amount', { precision: 38, scale: 10 }).notNull(),
+    state: ipointAdjustmentState('state').notNull().default('DRAFT'),
+    reasonCode: varchar('reason_code', { length: 100 }).notNull(),
+    explanation: text('explanation').notNull(),
+    caseReference: varchar('case_reference', { length: 200 }).notNull(),
+    attachmentReference: varchar('attachment_reference', { length: 500 }),
+    makerAdminUserId: uuid('maker_admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    checkerAdminUserId: uuid('checker_admin_user_id').references(
+      () => adminUsers.id,
+      { onDelete: 'restrict' },
+    ),
+    submittedAt: utcTimestamp('submitted_at'),
+    executedAt: utcTimestamp('executed_at'),
+    failedAt: utcTimestamp('failed_at'),
+    idempotencyScope: varchar('idempotency_scope', { length: 200 }).notNull(),
+    idempotencyKey: varchar('idempotency_key', { length: 200 }).notNull(),
+    payloadHash: varchar('payload_hash', { length: 64 }).notNull(),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    priorRequestId: uuid('prior_request_id').references(
+      (): AnyPgColumn => ipointAdjustmentRequests.id,
+      { onDelete: 'restrict' },
+    ),
+    ledgerEntryId: uuid('ledger_entry_id').references(
+      () => memberWalletEntries.id,
+      { onDelete: 'restrict' },
+    ),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('ipoint_adjustment_requests_idempotency_unique').on(
+      table.idempotencyScope,
+      table.idempotencyKey,
+    ),
+    check('ipoint_adjustment_requests_amount_check', sql`${table.amount} > 0`),
+    check(
+      'ipoint_adjustment_requests_version_check',
+      sql`${table.version} > 0`,
+    ),
+    check(
+      'ipoint_adjustment_requests_reason_code_check',
+      sql`char_length(btrim(${table.reasonCode})) between 1 and 100`,
+    ),
+    check(
+      'ipoint_adjustment_requests_explanation_check',
+      sql`char_length(btrim(${table.explanation})) between 1 and 2000`,
+    ),
+    check(
+      'ipoint_adjustment_requests_case_reference_check',
+      sql`char_length(btrim(${table.caseReference})) between 1 and 200`,
+    ),
+    check(
+      'ipoint_adjustment_requests_attachment_reference_check',
+      sql`${table.attachmentReference} is null or (char_length(btrim(${table.attachmentReference})) between 1 and 500)`,
+    ),
+    check(
+      'ipoint_adjustment_requests_checker_inequality',
+      sql`${table.checkerAdminUserId} is null or ${table.checkerAdminUserId} <> ${table.makerAdminUserId}`,
+    ),
+    check(
+      'ipoint_adjustment_requests_payload_hash_check',
+      sql`char_length(${table.payloadHash}) = 64`,
+    ),
+    check(
+      'ipoint_adjustment_requests_request_hash_check',
+      sql`char_length(${table.requestHash}) = 64`,
+    ),
+    index('ipoint_adjustment_requests_state_market_idx').on(
+      table.state,
+      table.marketId,
+    ),
+    index('ipoint_adjustment_requests_wallet_idx').on(table.walletAccountId),
+  ],
+);
+
+export const ipointAdjustmentDecisions = pgTable(
+  'ipoint_adjustment_decisions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    adjustmentRequestId: uuid('adjustment_request_id')
+      .notNull()
+      .references(() => ipointAdjustmentRequests.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    checkerAdminUserId: uuid('checker_admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    decision: varchar('decision', { length: 20 }).notNull(),
+    reason: text('reason').notNull(),
+    decidedAt: utcTimestamp('decided_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('ipoint_adjustment_decisions_request_unique').on(
+      table.adjustmentRequestId,
+    ),
+    check(
+      'ipoint_adjustment_decisions_value_check',
+      sql`${table.decision} in ('APPROVED', 'REJECTED')`,
+    ),
+    check(
+      'ipoint_adjustment_decisions_reason_check',
+      sql`char_length(btrim(${table.reason})) between 1 and 2000`,
+    ),
+  ],
+);
+
 export const memberWalletAccounts = pgTable(
   'member_wallet_accounts',
   {
@@ -3963,6 +4166,10 @@ export const schema = {
   mcpRefundRequests,
   mcpAdjustmentRequests,
   mcpAdjustmentDecisions,
+  ipointAdjustmentMarketRules,
+  ipointAdjustmentReasonCodes,
+  ipointAdjustmentRequests,
+  ipointAdjustmentDecisions,
   memberWalletAccounts,
   memberWalletEntries,
   rewardRuleVersions,
