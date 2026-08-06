@@ -14,6 +14,9 @@
 | `87c69919` | feat(api-client): P7-S7B manual iPoint adjustment typed client | `AdminIpointAdjustOpsApiClient` (append-only) + 5 typed tests |
 | `feefbdc1` | feat(api): P7-S7B manual iPoint adjustment Phase 7 adapter | `apps/api/src/admin-ipoint-adjust-ops/` (controller/service/dto/types/errors/module) + app.module registration; 7 unit + 8 real-PG HTTP integration tests |
 | `e4426726` | feat(admin-web): P7-S7B manual iPoint adjustment Maker/Checker UI | queue/create/detail pages, model + states, route manifest updates, admin-api/app integration; 10 model + 15 page tests |
+| `d5ced47c` | docs(p7-s7b): record manual iPoint adjustment Maker/Checker delivery report | repo copy of this report |
+| `401137ce` | fix(api): drop unnecessary type assertions in ipoint adapter projection | eslint gate cleanup in `AdminIpointAdjustOpsService.toView` |
+| `b9de3c63` | fix(api-client): prefer-const in S7B list test (eslint gate) | eslint gate cleanup in the api-client test |
 
 No push performed. Working tree clean on `task/p7-s7b-ipoint-admin`.
 
@@ -100,8 +103,8 @@ Response body always `{ error: { code, message, details? }, requestId, timestamp
 | 15 | S6E regression | `src/market/market-owner.{spec,integration}.spec.ts` (fresh DB) | 46 passed | 0 |
 | 16 | S6D regression | `src/admin-commission-ops/admin-commission-ops.{spec,integration}.spec.ts` (fresh DB) | 41 passed | 0 |
 | 17 | OpenAPI | `pnpm --filter @ipoint/api openapi:validate` | 247 paths (baseline 240 + 7 new), all validations passed | 0 (PASS_DETECTED) |
-| 18 | eslint (changed files) | `npx eslint <19 files>` | 0 problems | 0 |
-| 19 | prettier (changed files) | `npx prettier --check <19 files>` | clean | 0 |
+| 18 | eslint (changed files) | `npx eslint <25 files>` | 0 problems | 0 |
+| 19 | prettier (changed files) | `npx prettier --check <25 files>` | clean | 0 |
 
 ---
 
