@@ -2732,3 +2732,174 @@ export class AdminRedemptionOpsApiClient {
     ).data;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  P7-S6D Admin Commission Rate Configuration                         */
+/* ------------------------------------------------------------------ */
+
+/** Window status of a commission rate version inside its market chain. */
+export type AdminCommissionRateWindowStatus =
+  | 'ACTIVE'
+  | 'SCHEDULED'
+  | 'SUPERSEDED'
+  | 'EXPIRED';
+
+/** One commission rate version, projected for the selected market. */
+export interface AdminCommissionRateVersionDto {
+  id: string;
+  commission_type: string;
+  generation: number;
+  /** PERCENTAGE or FIXED (frozen commission-type contract, D-054 §6). */
+  rate_type: string;
+  /** Full technical precision (up to 10 decimals) — exact string. */
+  rate_value: string;
+  /** Display-only value with at most 6 decimals (never stored/rounded). */
+  display_rate: string;
+  /** Resolved UTC instant of the market-local 00:00 activation. */
+  effective_from_utc: string;
+  /** Market-local wall time of the activation (IANA market timezone). */
+  effective_from_local: string;
+  /**
+   * Projected window end: the earlier of the next version's start and an
+   * explicit `effective_until` (null = open window / no successor).
+   */
+  effective_until_utc: string | null;
+  effective_until_local: string | null;
+  window_status: AdminCommissionRateWindowStatus;
+  /** Durable operator reason (D-054 §11); null on legacy pre-0032 rows. */
+  reason: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+/** Frozen taxonomy entry for the configuration UI (D-054 §6). */
+export interface AdminCommissionTaxonomyEntryDto {
+  commission_type: string;
+  /** FIXED or PERCENTAGE — the frozen rate type for this commission type. */
+  rate_type: string;
+  /** Allowed generations for this commission type (0, 1 and/or 2). */
+  generations: number[];
+}
+
+/**
+ * One (commission_type, generation) definition of the selected market:
+ * the current effective version, the scheduled future versions and the
+ * full immutable history.
+ */
+export interface AdminCommissionRateDefinitionDto {
+  commission_type: string;
+  generation: number;
+  /** Frozen rate type for this commission type. */
+  rate_type: string;
+  /** The version whose window covers now (owner resolution), or null. */
+  current: AdminCommissionRateVersionDto | null;
+  /** Strictly-future versions, soonest first. */
+  scheduled: AdminCommissionRateVersionDto[];
+  /** Every version of this definition, newest first. */
+  history: AdminCommissionRateVersionDto[];
+}
+
+/** Selected-market commission rate configuration read model. */
+export interface AdminCommissionRateListDto {
+  market_id: string;
+  market_code: string;
+  timezone: string;
+  /** Market currency — FIXED rates are denominated in it. */
+  currency: string;
+  /**
+   * `true` when the market is present and ACTIVE (the owner only manages
+   * ACTIVE markets); `false` means the market is blocked for rate
+   * management (explicit state, never a fallback to another market).
+   */
+  configured: boolean;
+  /** Frozen commission taxonomy (display/UI only — the owner enforces). */
+  taxonomy: AdminCommissionTaxonomyEntryDto[];
+  /** Per (commission_type, generation) configuration of the market. */
+  definitions: AdminCommissionRateDefinitionDto[];
+}
+
+/** Create input: frozen taxonomy fields, exact rate, date, reason. */
+export interface AdminCommissionRateCreateInput {
+  /** AGENT_UPGRADE | MEMBER_CONSUMPTION | MERCHANT_RECRUITMENT | AGENT_ACTIVATION_FEE. */
+  commission_type:
+    | 'AGENT_UPGRADE'
+    | 'MEMBER_CONSUMPTION'
+    | 'MERCHANT_RECRUITMENT'
+    | 'AGENT_ACTIVATION_FEE';
+  /** Generation (0 | 1 | 2) — membership per type is the owner's enforcement. */
+  generation: number;
+  /** PERCENTAGE or FIXED — the frozen match with the type is the owner's. */
+  rate_type: 'PERCENTAGE' | 'FIXED';
+  /** Exact decimal string (NUMERIC(38,10) compatible), ≤10 decimals. */
+  rate_value: string;
+  /** Market-local calendar date (YYYY-MM-DD) of the activation 00:00. */
+  effective_date: string;
+  /** Mandatory privileged-write reason (1..500 chars, D-054 §11). */
+  reason: string;
+}
+
+export interface AdminCommissionRateCreateResultDto {
+  id: string;
+  commission_type: string;
+  generation: number;
+  rate_type: string;
+  /** Full technical precision (up to 10 decimals) — exact string. */
+  rate_value: string;
+  /** Display-only value with at most 6 decimals. */
+  display_rate: string;
+  effective_date: string;
+  effective_from_utc: string;
+  effective_from_local: string;
+  timezone: string;
+  market_id: string;
+  created_by: string;
+  created_at: string;
+}
+
+/**
+ * P7-S6D Admin Commission Rate Configuration client.
+ *
+ * Read surface: selected-market commission rate configuration with the
+ * frozen taxonomy, every (commission_type, generation) definition
+ * (current effective version, scheduled versions, full immutable history)
+ * and the projected windows in market-local time AND resolved UTC (all
+ * admin roles holding `commission.rate.read`). Write surface: create a
+ * rate version (SUPER_ADMIN-only `commission.rate.manage`, mandatory
+ * Idempotency-Key + reason). The server delegates the single
+ * `commission_rate_version` insert to the secured Phase 5 owner command
+ * (`RateManagementService.createRateVersion`, D-054) — this client is a
+ * typed pass-through, never a direct table write. Rates are exact decimal
+ * strings and are never parsed.
+ */
+export class AdminCommissionOpsApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Selected-market commission rate configuration + definitions. */
+  async listRates(marketId: string): Promise<AdminCommissionRateListDto> {
+    return (
+      await this.client.get<AdminCommissionRateListDto>(
+        `/admin/commission-ops/markets/${encodeURIComponent(marketId)}/rates`,
+      )
+    ).data;
+  }
+
+  /**
+   * Create a commission rate version (Super Admin only). The
+   * Idempotency-Key is mandatory and passed through untouched: same key +
+   * same payload replays the original result; same key + different payload
+   * returns 409.
+   */
+  async createRate(
+    marketId: string,
+    input: AdminCommissionRateCreateInput,
+    idempotencyKey: string,
+  ): Promise<AdminCommissionRateCreateResultDto> {
+    return (
+      await this.client.post<AdminCommissionRateCreateResultDto>(
+        `/admin/commission-ops/markets/${encodeURIComponent(marketId)}/rates`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+}
