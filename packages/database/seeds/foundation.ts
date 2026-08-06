@@ -2,6 +2,8 @@ import type { Database } from '../src/client.js';
 import {
   ipointAdjustmentMarketRules,
   ipointAdjustmentReasonCodes,
+  mcpAdjustmentMarketRules,
+  mcpAdjustmentReasonCodes,
   permissions,
   redemptionRateMarketRules,
   rolePermissions,
@@ -80,6 +82,60 @@ export const foundationIpointAdjustmentMarketRules = [
  * Center approval before change).
  */
 export const foundationIpointAdjustmentReasonCodes = [
+  {
+    marketCode: 'MY',
+    code: 'OPERATIONAL_CORRECTION',
+    label: 'Operational correction of a processing error',
+    isHighRisk: false,
+  },
+  {
+    marketCode: 'MY',
+    code: 'EXACT_OPPOSITE_COMPENSATION',
+    label: 'Exact-opposite compensation entry',
+    isHighRisk: false,
+  },
+  {
+    marketCode: 'MY',
+    code: 'FRAUD_RECOVERY',
+    label: 'Recovery of a fraudulent movement',
+    isHighRisk: true,
+  },
+  {
+    marketCode: 'MY',
+    code: 'SYSTEM_OUTAGE_REMEDY',
+    label: 'Remedy after a system outage',
+    isHighRisk: true,
+  },
+] as const;
+
+/**
+ * P7-S7A: versioned per-market MCP adjustment caps (P7-OD-10).
+ *
+ * Malaysia MVP baseline: soft cap 10,000 MCP, hard cap 100,000 MCP per
+ * request. CONFIGURABLE market data — never hard-coded in service logic;
+ * every market without an explicit ACTIVE rule is blocked (no cross-market
+ * fallback). `secureEvidenceAvailable` gates execution above the soft cap:
+ * while secure evidence storage is not approved, an above-soft-cap request
+ * can be created/approved but its execution stays disabled (P7-OD-11).
+ */
+export const foundationMcpAdjustmentMarketRules = [
+  {
+    marketCode: 'MY',
+    softCap: '10000',
+    hardCap: '100000',
+    secureEvidenceAvailable: false,
+  },
+] as const;
+
+/**
+ * P7-S7A: versioned, market-scoped MCP reason-code catalog (P7-OD-11).
+ *
+ * Malaysia MVP baseline. High-risk codes force an opaque attachment
+ * reference at the owner boundary. CONFIGURABLE market data (service logic
+ * reads it from the database; values require Command Center approval before
+ * change).
+ */
+export const foundationMcpAdjustmentReasonCodes = [
   {
     marketCode: 'MY',
     code: 'OPERATIONAL_CORRECTION',
@@ -218,6 +274,46 @@ export async function seedFoundation(db: Database): Promise<void> {
           isHighRisk: sql`excluded.is_high_risk`,
           isActive: true,
           version: sql`${ipointAdjustmentReasonCodes.version} + 1`,
+          updatedAt: new Date(),
+        },
+      });
+
+    // P7-S7A: idempotent upsert of the approved Malaysia MCP adjustment
+    // caps. A re-run refreshes the approved values and bumps the version;
+    // a missing row is inserted once.
+    await tx
+      .insert(mcpAdjustmentMarketRules)
+      .values(
+        foundationMcpAdjustmentMarketRules.map((rule) => ({ ...rule })),
+      )
+      .onConflictDoUpdate({
+        target: [mcpAdjustmentMarketRules.marketCode],
+        set: {
+          softCap: sql`excluded.soft_cap`,
+          hardCap: sql`excluded.hard_cap`,
+          secureEvidenceAvailable: sql`excluded.secure_evidence_available`,
+          isActive: true,
+          version: sql`${mcpAdjustmentMarketRules.version} + 1`,
+          updatedAt: new Date(),
+        },
+      });
+
+    // P7-S7A: idempotent upsert of the Malaysia MCP reason-code catalog.
+    await tx
+      .insert(mcpAdjustmentReasonCodes)
+      .values(
+        foundationMcpAdjustmentReasonCodes.map((code) => ({ ...code })),
+      )
+      .onConflictDoUpdate({
+        target: [
+          mcpAdjustmentReasonCodes.marketCode,
+          mcpAdjustmentReasonCodes.code,
+        ],
+        set: {
+          label: sql`excluded.label`,
+          isHighRisk: sql`excluded.is_high_risk`,
+          isActive: true,
+          version: sql`${mcpAdjustmentReasonCodes.version} + 1`,
           updatedAt: new Date(),
         },
       });

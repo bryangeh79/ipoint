@@ -724,6 +724,15 @@ export const expectedSchema = {
     'created_at',
     'updated_at',
     'payload_hash',
+    'reason_code',
+    'case_reference',
+    'attachment_reference',
+    'checker_admin_user_id',
+    'submitted_at',
+    'executed_at',
+    'failed_at',
+    'idempotency_scope',
+    'prior_request_id',
   ],
   mcp_adjustment_decisions: [
     'id',
@@ -733,6 +742,30 @@ export const expectedSchema = {
     'decision',
     'reason',
     'decided_at',
+  ],
+
+  // ─── P7-S7A: Manual MCP Adjustment D-046 conformance ──────────────
+  mcp_adjustment_market_rules: [
+    'id',
+    'market_code',
+    'soft_cap',
+    'hard_cap',
+    'secure_evidence_available',
+    'is_active',
+    'version',
+    'created_at',
+    'updated_at',
+  ],
+  mcp_adjustment_reason_codes: [
+    'id',
+    'market_code',
+    'code',
+    'label',
+    'is_high_risk',
+    'is_active',
+    'version',
+    'created_at',
+    'updated_at',
   ],
 
   // ─── P7 SEC-01: Manual iPoint Adjustment Maker/Checker ─────────────
