@@ -496,5 +496,31 @@ _End of register - new entries appended above this line._
 | **Independent verification** | **TEST_GATE_PASSED** — 12 gates re-run on fresh isolated DBs (Node v24.19.0). Verdict `.local/d054-gate/evidence/VERIFIER_VERDICT.md`. |
 | **Integration commit** | `ab297a4d` (merge into `phase/7-admin-operations`, --no-ff, no conflicts) — pushed; local = remote; main untouched; untracked 102; tracked 0 |
 | **Declarations** | `D-054_OWNER_REMEDIATION_INTEGRATED` / `CG-04_COMMISSION_RATE_OWNER_GATE_PASSED` (OpenClaw internal; NOT Command Center acceptance) |
-| **Known limitations** | 4 Low reviewer observations; fixture-collision lesson recorded (isolated DBs mandatory for high-risk suites); pre-existing node-v18-only crypto item; OpenAPI non-self-exit quirk; browser E2E host/CI-only. |
+| **Known limitations** | 4 Low reviewer observations; fixture-collision lesson recorded (isolated DBs mandatory for high-risk suites); pre-existing node-v18-only crypto item; OpenAPI non-self-exit quirk; browser E2E host/CI-only.
+
+---
+
+_End of register - new entries appended above this line._
+
+## P7-S6D — Commission Configuration Adapter + Final Gate (CG-04 surface)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S6D (D-054 §16 adapter dispatch; D-055 continuous authorization) |
+| **Sub-phase** | P7-S6D — Admin commission-rate configuration adapter over the D-054 secured Phase 5 owner |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementing subagent — written handoff continuation; independent reviewing subagent; separate test-verifier subagent; all D-048) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session start time** | 2026-08-05 (implementation) / 2026-08-06 (review + verification + integration) MYT |
+| **Worktree** | `.local/wt-p7-s6d-commission` |
+| **Task branch** | `task/p7-s6d-commission-config` (base `70be0c9a` = phase HEAD incl. D-054 integration) |
+| **Commit SHAs** | `3e1c6d3f` (feat(api): admin commission-ops adapter), `d8ddca7e` (feat(api-client): typed client), `235b7048` (feat(admin-web): configuration page), `ef37eec3` (docs: delivery report) |
+| **Allowed paths** | `apps/api/src/admin-commission-ops/**` (9), `apps/api/src/app.module.ts` (1), `packages/api-client/src/index.ts` + `index.test.ts` (2), `apps/admin-web/src/**` commission-config files + route-manifest/admin-api/admin-app (11), `docs/06-phase-reports/p7-s6/**` (2) — 24 files; `apps/api/src/domain/commission/**` (owner) byte-identical; `packages/database` untouched; zero migration/permission-catalog change |
+| **Migration** | NONE (checksums 33/33 unchanged) |
+| **Adapter boundary** | All writes through D-054 owner `RateManagementService.createRateVersion` (reason + Idempotency-Key + RbacGuard adminMarketContext); adapter zero insert/update/delete; no duplicated owner controls (RBAC/market/taxonomy/bounds/overlap/lock/idempotency-persistence/hashing/audit); error mapping identity + documented 422 taxonomy deviation; read projection with explicit blocked state; UI double gate |
+| **Host test gate (2026-08-05/06)** | S6D unit **17/17**; S6D PostgreSQL integration **24/24**; D-054 owner **51/51** (isolated DB); P5-R1 **13/13** (isolated); B/C/D **35/35** (isolated); commission domain **199/199**; S6B **38/38**; S6C **49/49**; redemption domain **235/235** (isolated); api-client **70/70**; admin-web **232/232**; checksums **33/33**; OpenAPI **238 paths / 0 missing / 0 duplicate**; api/admin-web/api-client typecheck+build exit 0; lint 0 errors; prettier clean. Evidence `.local/s6d-gate/evidence/*.log`. |
+| **Independent review** | `OPENCLAW_MANAGED_CODING_SUBAGENT` independent reviewer: verdict **APPROVED** — 16/16 dimensions PASS, 0 Critical/0 High/0 Medium, 3 Low (dead-code state components; initial matrix.out exit=1 from pre-bootstrap DB; OpenAPI non-self-exit quirk). Verdict `.local/s6d-gate/review/REVIEWER_VERDICT.md`. |
+| **Independent verification** | `OPENCLAW_MANAGED_CODING_SUBAGENT` separate verifier: verdict **TEST GATE PASSED** — full 19-gate matrix re-run on fresh isolated DBs `ipoint_ver_s6d_*` (Node v24.19.0, different version from implementer): checksum 33/33, S6D 17/17 + 24/24, D-054 owner 51/51, P5-R1 13/13, B/C/D 35/35, commission 199/199, S6B 38/38, S6C 49/49, redemption 235/235, api-client 70/70, admin-web 232/232 (one environmental flake on first parallel run — async race in `redemption-config-page.test.tsx`; isolated re-run 12/12 ×3 + full re-run 232/232; NOT a code defect), OpenAPI 238 paths / 0 errors, drift clean. Verdict `.local/s6d-gate/evidence/VERIFIER_VERDICT.md`. |
+| **Integration commit** | `999c6438` (merge branch 'task/p7-s6d-commission-config' into `phase/7-admin-operations`, --no-ff, no conflicts) — local integration complete; **push PENDING** (host push channel temporarily unavailable at gate time — webchat elevated flipped per D-055 §6; commits + integration complete locally; push + local=remote verification scheduled on first available host channel before the Phase 7 final delivery report) |
+| **Declarations** | `P7-S6D_DELIVERY_COMPLETE` / `P7-S6D_OPENCLAW_INTERNAL_GATE_PASSED` / `CG-04_COMMISSION_RATE_OWNER_GATE_PASSED` (OpenClaw internal; NOT Command Center acceptance) |
+| **Known limitations** | 3 Low reviewer observations; admin-web test suite has one environmental async-race flake (isolated re-run stable; same-class precedent S6B/S6C); OpenAPI non-self-exit quirk; browser E2E host/CI-only; push pending channel restoration (no repository-content blocker). | |
 
