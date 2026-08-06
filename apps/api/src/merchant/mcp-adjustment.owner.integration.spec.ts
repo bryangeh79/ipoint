@@ -323,10 +323,7 @@ describe.skipIf(!databaseUrl)(
 
       vi.stubEnv('DATABASE_URL', databaseUrl ?? '');
       vi.stubEnv('REDIS_URL', 'redis://localhost:6379');
-      vi.stubEnv(
-        'AUTH_OTP_PEPPER',
-        's7a-owner-pepper-at-least-32-characters',
-      );
+      vi.stubEnv('AUTH_OTP_PEPPER', 's7a-owner-pepper-at-least-32-characters');
       vi.stubEnv(
         'REDEMPTION_VOUCHER_ENCRYPTION_KEY',
         '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
@@ -421,7 +418,9 @@ describe.skipIf(!databaseUrl)(
         expect(approved.state).toBe('APPROVED');
         expect(approved.checkerAdminUserId).toBe(financeApprover.adminUserId);
 
-        const executed = await owner.execute(checker, { requestId: created.id });
+        const executed = await owner.execute(checker, {
+          requestId: created.id,
+        });
         expect(executed.state).toBe('EXECUTED');
         expect(executed.executedAt).not.toBeNull();
         expect(executed.ledgerEntryId).not.toBeNull();
@@ -446,9 +445,7 @@ describe.skipIf(!databaseUrl)(
         const decisionRows = await database.db
           .select()
           .from(mcpAdjustmentDecisions)
-          .where(
-            eq(mcpAdjustmentDecisions.adjustmentRequestId, created.id),
-          );
+          .where(eq(mcpAdjustmentDecisions.adjustmentRequestId, created.id));
         expect(decisionRows).toHaveLength(1);
         expect(decisionRows[0]?.decision).toBe('APPROVED');
         expect(decisionRows[0]?.checkerAdminUserId).toBe(
@@ -479,7 +476,9 @@ describe.skipIf(!databaseUrl)(
           reason: 'Exact-opposite debit',
           requireAttachment: false,
         });
-        const executed = await owner.execute(checker, { requestId: created.id });
+        const executed = await owner.execute(checker, {
+          requestId: created.id,
+        });
         expect(executed.state).toBe('EXECUTED');
         expect(normalizeDecimal(await accountBalance())).toBe('5050');
 
@@ -920,9 +919,7 @@ describe.skipIf(!databaseUrl)(
         const decisionRows = await database.db
           .select()
           .from(mcpAdjustmentDecisions)
-          .where(
-            eq(mcpAdjustmentDecisions.adjustmentRequestId, created.id),
-          );
+          .where(eq(mcpAdjustmentDecisions.adjustmentRequestId, created.id));
         expect(decisionRows).toHaveLength(1);
       });
     });
@@ -1042,9 +1039,9 @@ describe.skipIf(!databaseUrl)(
           limit: 50,
           offset: 0,
         });
-        expect(
-          submitted.items.some((item) => item.id === created.id),
-        ).toBe(false);
+        expect(submitted.items.some((item) => item.id === created.id)).toBe(
+          false,
+        );
         const approved = await owner.listForMarket(marketId, {
           state: 'APPROVED',
           limit: 50,

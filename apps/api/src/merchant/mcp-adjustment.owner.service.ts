@@ -27,7 +27,6 @@ import {
   mcpAdjustmentExecutionFailedError,
   mcpAdjustmentIdempotencyConflictError,
   mcpAdjustmentIdempotencyKeyRequiredError,
-  mcpAdjustmentInsufficientBalanceError,
   mcpAdjustmentInvalidAmountError,
   mcpAdjustmentInvalidFieldError,
   mcpAdjustmentMakerCheckerConflictError,
@@ -59,12 +58,8 @@ type DbExecutor = Database | DbTransaction;
 /** Idempotency scope namespace for the OWNER create command. */
 const ADJUSTMENT_OWNER_IDEMPOTENCY_SCOPE = 'mcp.adjustment.owner.create';
 
-/** Entry reference type written on the immutable MCP ledger entry. */
-const LEDGER_REFERENCE_TYPE = 'MCP_ADJUSTMENT';
-
 /** Amount grammar: positive exact decimal, at most 10 decimal places. */
 const AMOUNT_PATTERN = /^\d+(?:\.\d{1,10})?$/u;
-
 interface MarketRuleRow {
   marketCode: string;
   softCap: string;
@@ -270,7 +265,11 @@ export class McpAdjustmentOwnerService {
           entity: { type: 'MCP_ADJUSTMENT_REQUEST', id: request.id },
           marketId: account.marketId,
           before: null,
-          after: { state: request.status, amount, entryType: request.entryType },
+          after: {
+            state: request.status,
+            amount,
+            entryType: request.entryType,
+          },
           reason: explanation,
           result: 'SUCCESS',
           requestId: actor.requestId ?? idempotencyKey,
@@ -684,7 +683,11 @@ export class McpAdjustmentOwnerService {
     `);
     const entryId = String(posting.rows[0]?.['entry_id']);
     if (!entryId) throw mcpAdjustmentExecutionFailedError();
-    const balanceBefore = String(posting.rows[0]?.['projected_total_balance'] ?? '');
+    const projected = posting.rows[0]?.['projected_total_balance'];
+    const balanceBefore =
+      typeof projected === 'string' || typeof projected === 'number'
+        ? String(projected)
+        : '';
     // The append returns the projected balances; derive before/after from
     // the delta so the audit records the exact snapshots.
     const before = subtractDecimal(balanceBefore, delta);
@@ -712,9 +715,7 @@ export class McpAdjustmentOwnerService {
   }> {
     const conditions = [eq(mcpAdjustmentRequests.marketId, marketId)];
     if (options.state) {
-      conditions.push(
-        eq(mcpAdjustmentRequests.status, options.state as never),
-      );
+      conditions.push(eq(mcpAdjustmentRequests.status, options.state as never));
     }
     const rows = await this.database.db
       .select()

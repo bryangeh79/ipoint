@@ -225,11 +225,10 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       })
       .expect(200);
     checkerAdminToken = (
-      await auth.createAdminSession(
-        checkerAdmin.id,
-        checkerAdmin.adminUserId,
-        { ipAddress: '127.0.0.1', userAgent: 'vitest' },
-      )
+      await auth.createAdminSession(checkerAdmin.id, checkerAdmin.adminUserId, {
+        ipAddress: '127.0.0.1',
+        userAgent: 'vitest',
+      })
     ).accessToken;
     await bindCurrentMarket(checkerAdmin.id);
 
@@ -805,7 +804,10 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
         `/api/v1/admin/markets/${marketId}/mcp/adjustments/${adjustmentId}/decision`,
       )
       .set('authorization', `Bearer ${checkerAdminToken}`)
-      .set('x-step-up-token', await stepUpForChecker('merchant.mcp.adjust.approve'))
+      .set(
+        'x-step-up-token',
+        await stepUpForChecker('merchant.mcp.adjust.approve'),
+      )
       .send({
         decision: 'APPROVED',
         reason: 'Evidence independently verified.',
@@ -821,7 +823,10 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
         `/api/v1/admin/markets/${marketId}/adjustments/${adjustmentId}/execute`,
       )
       .set('authorization', `Bearer ${checkerAdminToken}`)
-      .set('x-step-up-token', await stepUpForChecker('merchant.mcp.adjust.execute'))
+      .set(
+        'x-step-up-token',
+        await stepUpForChecker('merchant.mcp.adjust.execute'),
+      )
       .expect(200);
     expect(executed.body).toMatchObject({
       makerAdminUserId: makerAdminId,
@@ -906,15 +911,19 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
         `/api/v1/admin/markets/${marketId}/mcp/adjustments/${debitId}/decision`,
       )
       .set('authorization', `Bearer ${checkerAdminToken}`)
-      .set('x-step-up-token', await stepUpForChecker('merchant.mcp.adjust.approve'))
+      .set(
+        'x-step-up-token',
+        await stepUpForChecker('merchant.mcp.adjust.approve'),
+      )
       .send({ decision: 'APPROVED', reason: 'Debit independently verified.' })
       .expect(200);
     await supertest(server)
-      .post(
-        `/api/v1/admin/markets/${marketId}/adjustments/${debitId}/execute`,
-      )
+      .post(`/api/v1/admin/markets/${marketId}/adjustments/${debitId}/execute`)
       .set('authorization', `Bearer ${checkerAdminToken}`)
-      .set('x-step-up-token', await stepUpForChecker('merchant.mcp.adjust.execute'))
+      .set(
+        'x-step-up-token',
+        await stepUpForChecker('merchant.mcp.adjust.execute'),
+      )
       .expect(200);
   });
 

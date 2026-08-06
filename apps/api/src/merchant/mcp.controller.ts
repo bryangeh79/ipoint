@@ -215,9 +215,12 @@ export class McpController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.adjustmentOwner.submit(ownerActor(actor, marketId, request, ip), {
-      requestId,
-    });
+    return this.adjustmentOwner.submit(
+      ownerActor(actor, marketId, request, ip),
+      {
+        requestId,
+      },
+    );
   }
 
   @Post('admin/markets/:marketId/mcp/adjustments/:requestId/decision')
@@ -233,11 +236,15 @@ export class McpController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.adjustmentOwner.decide(ownerActor(actor, marketId, request, ip), requestId, {
-      decision: input.decision,
-      reason: input.reason,
-      requireAttachment: input.requireAttachment,
-    });
+    return this.adjustmentOwner.decide(
+      ownerActor(actor, marketId, request, ip),
+      requestId,
+      {
+        decision: input.decision,
+        reason: input.reason,
+        requireAttachment: input.requireAttachment,
+      },
+    );
   }
 
   @Post('admin/markets/:marketId/adjustments/:requestId/approve')
@@ -253,11 +260,15 @@ export class McpController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.adjustmentOwner.decide(ownerActor(actor, marketId, request, ip), requestId, {
-      decision: 'APPROVED',
-      reason: input.reason,
-      requireAttachment: input.requireAttachment,
-    });
+    return this.adjustmentOwner.decide(
+      ownerActor(actor, marketId, request, ip),
+      requestId,
+      {
+        decision: 'APPROVED',
+        reason: input.reason,
+        requireAttachment: input.requireAttachment,
+      },
+    );
   }
 
   @Post('admin/markets/:marketId/adjustments/:requestId/execute')
@@ -271,9 +282,12 @@ export class McpController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.adjustmentOwner.execute(ownerActor(actor, marketId, request, ip), {
-      requestId,
-    });
+    return this.adjustmentOwner.execute(
+      ownerActor(actor, marketId, request, ip),
+      {
+        requestId,
+      },
+    );
   }
 
   @Get('admin/markets/:marketId/mcp/adjustments')

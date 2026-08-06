@@ -371,7 +371,9 @@ describe('execute: permission gate and terminal replay contract', () => {
     createService({});
     rbac.isAllowed.mockResolvedValue(false);
     await expect(
-      service.execute(ACTOR, { requestId: '99999999-9999-4999-8999-999999999999' }),
+      service.execute(ACTOR, {
+        requestId: '99999999-9999-4999-8999-999999999999',
+      }),
     ).rejects.toMatchObject({ code: 'MCP_ADJUSTMENT_PERMISSION_DENIED' });
   });
 

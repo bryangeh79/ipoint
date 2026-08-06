@@ -283,9 +283,7 @@ export async function seedFoundation(db: Database): Promise<void> {
     // a missing row is inserted once.
     await tx
       .insert(mcpAdjustmentMarketRules)
-      .values(
-        foundationMcpAdjustmentMarketRules.map((rule) => ({ ...rule })),
-      )
+      .values(foundationMcpAdjustmentMarketRules.map((rule) => ({ ...rule })))
       .onConflictDoUpdate({
         target: [mcpAdjustmentMarketRules.marketCode],
         set: {
@@ -301,9 +299,7 @@ export async function seedFoundation(db: Database): Promise<void> {
     // P7-S7A: idempotent upsert of the Malaysia MCP reason-code catalog.
     await tx
       .insert(mcpAdjustmentReasonCodes)
-      .values(
-        foundationMcpAdjustmentReasonCodes.map((code) => ({ ...code })),
-      )
+      .values(foundationMcpAdjustmentReasonCodes.map((code) => ({ ...code })))
       .onConflictDoUpdate({
         target: [
           mcpAdjustmentReasonCodes.marketCode,
