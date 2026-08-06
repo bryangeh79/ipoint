@@ -31,5 +31,6 @@
   "0029_p5_r1_agent_fee_version_snapshot.sql": "a1a284728a49e98b8fd6e40989c8bcd7df537dfcbf8ea67ec00543992b76f57c",
   "0030_p3_d050_reward_rule_reason.sql": "8387b392b6a357da43e04dfffc03bc1bf280381c099475f7a6384325cb068696",
   "0031_p6_d053_redemption_rate_owner.sql": "38380e121cf8dae130bbc4aa345cee90b40c938b453687796f30a94baf570c5b",
-  "0032_p5_d054_commission_rate_reason.sql": "555e84065ef0c76df06366725b266d0cd72312cebd81833e628a8dc1f852a950"
+  "0032_p5_d054_commission_rate_reason.sql": "555e84065ef0c76df06366725b266d0cd72312cebd81833e628a8dc1f852a950",
+  "0033_p1_d051_special_percentage_reason.sql": "ce6534088be4f4542d813591ef64c87af8b8a69338178ee99ceb4ed0be641320"
 }

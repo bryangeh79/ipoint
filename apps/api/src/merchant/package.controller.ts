@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
   Inject,
@@ -40,6 +41,7 @@ import {
   type MerchantRequestContext,
 } from './merchant.service.js';
 import { PackageService } from './package.service.js';
+import type { SpecialPercentageAdminActor } from './package.types.js';
 
 @Controller()
 export class PackageController {
@@ -176,12 +178,15 @@ export class PackageController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
+    // D-051 §1/§6: the owner command receives the SERVER-resolved actor
+    // (adminUserId from the authenticated session, currentMarketId from
+    // the canonical RbacGuard market context). The client can neither
+    // supply nor override either value.
     return this.packages.createSpecialPercentage(
       marketId,
-      requireAdminActor(actor),
+      specialPercentageActor(actor, request, ip),
       input,
       requireKey(key),
-      context(request, ip),
     );
   }
 
@@ -307,6 +312,46 @@ function requireKey(value: string | undefined): string {
     });
   }
   return key;
+}
+
+/**
+ * D-051 — server-resolved actor for the special-percentage owner
+ * command. `adminUserId` comes from the authenticated ADMIN_USER session
+ * and `currentMarketId` from the canonical RbacGuard market context
+ * (`adminMarketContext`, set only when the guard verified the Current
+ * Admin Market + active grant + route consistency). No client-supplied
+ * value is accepted.
+ */
+function specialPercentageActor(
+  actor: RequestActor | undefined,
+  request: Request,
+  ipAddress: string,
+): SpecialPercentageAdminActor {
+  if (actor?.type !== 'ADMIN_USER' || !actor.adminUserId) {
+    throw new ForbiddenException({
+      code: 'PERMISSION_DENIED',
+      message: 'You do not have permission for this action.',
+    });
+  }
+  const requestId = (request as unknown as Record<string, unknown>)[
+    'requestId'
+  ];
+  const marketContext = (
+    request as Request & {
+      adminMarketContext?: { marketId: string; contextVersion: number };
+    }
+  ).adminMarketContext;
+  return {
+    adminUserId: actor.adminUserId,
+    ipAddress,
+    ...(typeof requestId === 'string' ? { requestId } : {}),
+    ...(marketContext
+      ? {
+          currentMarketId: marketContext.marketId,
+          marketContextVersion: marketContext.contextVersion,
+        }
+      : {}),
+  };
 }
 
 function context(request: Request, ipAddress: string): MerchantRequestContext {

@@ -618,6 +618,7 @@ export const expectedSchema = {
     'description',
     'market_id',
     'created_at',
+    'reason',
   ],
   merchant_package_assignments: [
     'id',

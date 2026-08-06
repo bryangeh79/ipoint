@@ -21,6 +21,7 @@ describe('service-fee decimal validation', () => {
         createSpecialPercentageSchema.safeParse({
           rate,
           description: 'Approved special rate',
+          reason: 'D-051 owner remediation evidence',
         }).success,
       ).toBe(true);
     },
@@ -35,4 +36,59 @@ describe('service-fee decimal validation', () => {
       ).toBe(false);
     },
   );
+});
+
+describe('D-051 mandatory special-percentage reason (DTO)', () => {
+  const valid = {
+    rate: '12.500000',
+    description: 'Approved special rate',
+  };
+
+  it('accepts a trimmed non-blank reason up to 500 characters', () => {
+    expect(
+      createSpecialPercentageSchema.safeParse({
+        ...valid,
+        reason: '  Partner promotion 2026  ',
+      }).success,
+    ).toBe(true);
+    expect(
+      createSpecialPercentageSchema.safeParse({
+        ...valid,
+        reason: 'a'.repeat(500),
+      }).success,
+    ).toBe(true);
+    // trim is applied by the schema
+    const parsed = createSpecialPercentageSchema.safeParse({
+      ...valid,
+      reason: '  Partner promotion  ',
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.reason).toBe('Partner promotion');
+  });
+
+  it.each([
+    undefined,
+    '',
+    '   ',
+    '\t\n ',
+    'a'.repeat(501),
+    42,
+    { text: 'reason' },
+  ])('rejects reason %j', (reason) => {
+    expect(
+      createSpecialPercentageSchema.safeParse({ ...valid, reason }).success,
+    ).toBe(false);
+  });
+
+  it('rejects actor-shaped fields (client cannot forge the actor)', () => {
+    expect(
+      createSpecialPercentageSchema.safeParse({
+        ...valid,
+        reason: 'Valid reason',
+        createdByAdminUserId: '00000000-0000-0000-0000-000000000000',
+        adminUserId: '00000000-0000-0000-0000-000000000000',
+        marketId: '00000000-0000-0000-0000-000000000000',
+      }).success,
+    ).toBe(false);
+  });
 });

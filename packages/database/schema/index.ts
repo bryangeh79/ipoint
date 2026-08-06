@@ -1968,6 +1968,10 @@ export const specialPercentages = pgTable(
       onDelete: 'restrict',
     }),
     createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    // D-051: durable mandatory operator reason (migration 0033). Legacy
+    // rows keep NULL (never backfilled); new rows are enforced 1..500 by
+    // the owner command and the DB CHECK.
+    reason: text('reason'),
   },
   (table) => [
     check(
