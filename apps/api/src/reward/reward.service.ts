@@ -49,40 +49,26 @@ export class RewardService {
 
   // ─── Reward Rule Versions ──────────────────────────────────────────
 
+  // O-13 (HIGH security): the member-facing create route `POST
+  // /api/v1/rewards/rules` was removed. This method is retained as a tripwire
+  // (deep defense): it must never be reachable — the only previous caller was
+  // the removed controller route (grep-verified). Any future accidental call
+  // fails loudly instead of writing an uncontrolled `reward_rule_versions`
+  // row (no RBAC, no market enforcement, no 0.05%/day governance cap, no
+  // 6-decimal rate bound, no reason, no audit, no idempotency, forgeable
+  // createdBy). Creation is exclusively served by the secured Phase 3 owner
+  // `AdminRewardService.createRuleVersion` (D-052, exercised by P7-S6B).
   async createRuleVersion(
     input: CreateRuleVersionDto,
   ): Promise<RewardRuleVersionResponse> {
-    const effectiveFrom = new Date(input.effectiveFrom);
-    const effectiveTo = input.effectiveTo
-      ? new Date(input.effectiveTo)
-      : undefined;
-
-    if (Number.isNaN(effectiveFrom.getTime())) {
-      throw rewardRuleVersionNotFoundError();
-    }
-
-    const [version] = await this.database.db
-      .insert(rewardRuleVersions)
-      .values({
-        name: input.name,
-        description: input.description ?? null,
-        effectiveFrom: effectiveFrom,
-        effectiveTo: effectiveTo ?? null,
-        rewardRate: input.rewardRate,
-        capType: input.capType,
-        capValue: input.capValue,
-        minimumReward: input.minimumReward,
-        marketId: input.marketId ?? null,
-        createdBy: input.createdBy ?? '00000000-0000-0000-0000-000000000000',
-        archivedAt: null,
-      })
-      .returning();
-
-    if (!version) {
-      throw rewardRuleVersionNotFoundError();
-    }
-
-    return this.mapRuleVersion(version);
+    await Promise.reject(
+      new Error(
+        `REWARD_RULE_CREATE_DISABLED: member-facing reward rule creation is removed (O-13); attempted rule "${input.name}" — use AdminRewardService.createRuleVersion`,
+      ),
+    );
+    // Unreachable — guards the declared Promise<RewardRuleVersionResponse>
+    // contract so the tripwire can never return a value.
+    throw new Error('REWARD_RULE_CREATE_DISABLED: unreachable');
   }
 
   async getRuleVersions(
