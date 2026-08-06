@@ -23,6 +23,9 @@ import {
   AdminRewardRuleListDto,
   AdminRewardRuleVersionDto,
   AdminRewardRuleCreateResultDto,
+  AdminCommissionOpsApiClient,
+  AdminCommissionRateListDto,
+  AdminCommissionRateCreateResultDto,
   AdminRedemptionOpsApiClient,
   AdminRedemptionRateListDto,
   AdminRedemptionRateCreateResultDto,
@@ -2165,6 +2168,208 @@ describe('AdminRedemptionOpsApiClient (P7-S6C redemption rate configuration)', (
     ).rejects.toMatchObject({
       status: 404,
       body: { code: 'REDEMPTION_RATE_VERSION_NOT_FOUND' },
+    });
+  });
+});
+
+describe('AdminCommissionOpsApiClient (P7-S6D commission rate configuration)', () => {
+  const MARKET = '77777777-7777-4777-8777-777777777777';
+
+  function commissionOpsClient(): AdminCommissionOpsApiClient {
+    return new AdminCommissionOpsApiClient(new ApiClient(BASE_URL));
+  }
+
+  it('reads the selected-market configuration with taxonomy + definitions', async () => {
+    const client = commissionOpsClient();
+    const config: AdminCommissionRateListDto = {
+      market_id: MARKET,
+      market_code: 'MY',
+      timezone: 'Asia/Kuala_Lumpur',
+      currency: 'MYR',
+      configured: true,
+      taxonomy: [
+        {
+          commission_type: 'AGENT_UPGRADE',
+          rate_type: 'FIXED',
+          generations: [1, 2],
+        },
+      ],
+      definitions: [
+        {
+          commission_type: 'AGENT_UPGRADE',
+          generation: 1,
+          rate_type: 'FIXED',
+          current: {
+            id: 'version-1',
+            commission_type: 'AGENT_UPGRADE',
+            generation: 1,
+            rate_type: 'FIXED',
+            rate_value: '388.0000000000',
+            display_rate: '388',
+            effective_from_utc: '2026-07-24T16:00:00.000Z',
+            effective_from_local: '2026-07-25 00:00:00',
+            effective_until_utc: null,
+            effective_until_local: null,
+            window_status: 'ACTIVE',
+            reason: null,
+            created_by: 'admin-1',
+            created_at: '2026-07-24T00:00:00.000Z',
+          },
+          scheduled: [],
+          history: [],
+        },
+      ],
+    };
+    const fetchSpy = mockFetch(200, config);
+
+    const result = await client.listRates(MARKET);
+
+    expect(result.market_code).toBe('MY');
+    expect(result.taxonomy[0]?.generations).toEqual([1, 2]);
+    expect(result.definitions[0]?.current?.rate_value).toBe('388.0000000000');
+    expect(result.definitions[0]?.current?.display_rate).toBe('388');
+    expect(result.definitions[0]?.current?.window_status).toBe('ACTIVE');
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe(
+      `${BASE_URL}/admin/commission-ops/markets/${MARKET}/rates`,
+    );
+  });
+
+  it('creates a rate version with the mandatory Idempotency-Key and reason', async () => {
+    const client = commissionOpsClient();
+    const result: AdminCommissionRateCreateResultDto = {
+      id: 'version-2',
+      commission_type: 'MEMBER_CONSUMPTION',
+      generation: 1,
+      rate_type: 'PERCENTAGE',
+      rate_value: '1.1234567890',
+      display_rate: '1.123457',
+      effective_date: '2026-09-01',
+      effective_from_utc: '2026-08-31T16:00:00.000Z',
+      effective_from_local: '2026-09-01 00:00:00',
+      timezone: 'Asia/Kuala_Lumpur',
+      market_id: MARKET,
+      created_by: 'admin-1',
+      created_at: '2026-08-30T00:00:00.000Z',
+    };
+    const fetchMock = mockFetch(201, result);
+
+    const created = await client.createRate(
+      MARKET,
+      {
+        commission_type: 'MEMBER_CONSUMPTION',
+        generation: 1,
+        rate_type: 'PERCENTAGE',
+        rate_value: '1.1234567890',
+        effective_date: '2026-09-01',
+        reason: 'Q3 rate review',
+      },
+      'idem-commission-create',
+    );
+
+    expect(created.id).toBe('version-2');
+    expect(created.rate_value).toBe('1.1234567890');
+    expect(created.display_rate).toBe('1.123457');
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/commission-ops/markets/${MARKET}/rates`,
+    );
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('idempotency-key')).toBe('idem-commission-create');
+    expect(JSON.parse(String((init as RequestInit | undefined)?.body))).toEqual(
+      {
+        commission_type: 'MEMBER_CONSUMPTION',
+        generation: 1,
+        rate_type: 'PERCENTAGE',
+        rate_value: '1.1234567890',
+        effective_date: '2026-09-01',
+        reason: 'Q3 rate review',
+      },
+    );
+  });
+
+  it('passes exact decimal strings through untouched (never parsed)', async () => {
+    const client = commissionOpsClient();
+    const config: AdminCommissionRateListDto = {
+      market_id: MARKET,
+      market_code: 'MY',
+      timezone: 'UTC',
+      currency: 'MYR',
+      configured: true,
+      taxonomy: [],
+      definitions: [
+        {
+          commission_type: 'AGENT_ACTIVATION_FEE',
+          generation: 0,
+          rate_type: 'FIXED',
+          current: {
+            id: 'version-3',
+            commission_type: 'AGENT_ACTIVATION_FEE',
+            generation: 0,
+            rate_type: 'FIXED',
+            rate_value: '0.0000010000',
+            display_rate: '0.000001',
+            effective_from_utc: '2026-09-01T00:00:00.000Z',
+            effective_from_local: '2026-09-01 00:00:00',
+            effective_until_utc: null,
+            effective_until_local: null,
+            window_status: 'ACTIVE',
+            reason: null,
+            created_by: 'admin-1',
+            created_at: '2026-08-04T00:00:00.000Z',
+          },
+          scheduled: [],
+          history: [],
+        },
+      ],
+    };
+    const fetchSpy = mockFetch(200, config);
+
+    const result = await client.listRates(MARKET);
+
+    // Ten-decimal exact strings survive the round trip byte-for-byte.
+    expect(result.definitions[0]?.current?.rate_value).toBe('0.0000010000');
+    const [url] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toContain('/admin/commission-ops/markets/');
+  });
+
+  it('propagates permission and idempotency errors from the write surface', async () => {
+    const client = commissionOpsClient();
+    mockFetch(403, { code: 'COMMISSION_RATE_PERMISSION_DENIED' });
+    await expect(
+      client.createRate(
+        MARKET,
+        {
+          commission_type: 'AGENT_UPGRADE',
+          generation: 1,
+          rate_type: 'FIXED',
+          rate_value: '88',
+          effective_date: '2026-09-01',
+          reason: 'Ops review',
+        },
+        'idem-conflict',
+      ),
+    ).rejects.toMatchObject({
+      status: 403,
+      body: { code: 'COMMISSION_RATE_PERMISSION_DENIED' },
+    });
+
+    mockFetch(409, { code: 'COMMISSION_RATE_IDEMPOTENCY_CONFLICT' });
+    await expect(
+      client.createRate(
+        MARKET,
+        {
+          commission_type: 'AGENT_UPGRADE',
+          generation: 1,
+          rate_type: 'FIXED',
+          rate_value: '88',
+          effective_date: '2026-09-01',
+          reason: 'Ops review',
+        },
+        'idem-conflict',
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      body: { code: 'COMMISSION_RATE_IDEMPOTENCY_CONFLICT' },
     });
   });
 });

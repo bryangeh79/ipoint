@@ -22,6 +22,7 @@ import { AdminKycOpsModule } from './admin-kyc-ops/admin-kyc-ops.module.js';
 import { AdminPackageOpsModule } from './admin-package-ops/admin-package-ops.module.js';
 import { AdminRedemptionOpsModule } from './admin-redemption-ops/admin-redemption-ops.module.js';
 import { AdminRewardOpsModule } from './admin-reward-ops/admin-reward-ops.module.js';
+import { AdminCommissionOpsModule } from './admin-commission-ops/admin-commission-ops.module.js';
 import { RewardModule } from './reward/reward.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
 import { DailyJobModule } from './daily-job/job.module.js';
@@ -91,6 +92,7 @@ import {
     AdminPackageOpsModule,
     AdminRedemptionOpsModule,
     AdminRewardOpsModule,
+    AdminCommissionOpsModule,
     RewardModule,
     WalletModule,
     DailyJobModule,

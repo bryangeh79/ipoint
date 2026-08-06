@@ -255,7 +255,6 @@ export const adminRouteManifest = [
     'read-only',
     'bootstrap',
     true,
-    gate('commission.rate.schedule', 'GATE-P5-01'),
   ),
   route(
     'redemption-orders',
