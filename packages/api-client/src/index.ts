@@ -3056,3 +3056,280 @@ export class AdminMarketOpsApiClient {
     ).data;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  P7-S7B Admin iPoint Adjustment Operations client                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * P7-S7B Admin iPoint Adjustment Operations client (SEC-01 §6 / P7-S1
+ * §17; frozen owner `WalletAdjustmentOwnerService` behind the Phase 7
+ * adapter `AdminIpointAdjustOpsController`).
+ *
+ * Maker/Checker workflow: create (durable DRAFT) → submit (DRAFT →
+ * SUBMITTED) → decide (SUBMITTED → APPROVED | REJECTED) → execute
+ * (APPROVED → EXECUTING → EXECUTED | FAILED). The typed methods are
+ * pass-throughs of the frozen SEC-01 owner commands — never a direct
+ * table write and never a duplicate of owner logic.
+ *
+ * Transport contracts (SEC-01 §6.3): the server Current Admin Market is
+ * enforced by the canonical RbacGuard (`marketScoped` permissions); the
+ * `Idempotency-Key` header is mandatory on create (same key + same
+ * payload replays the stored request; same key + different payload
+ * returns 409); checker decide/execute require a fresh step-up grant via
+ * the `x-step-up-token` header (catalog `stepUpRequired`).
+ */
+
+/** One iPoint adjustment request row (owner view, projected). */
+export interface AdminIpointAdjustmentDto {
+  id: string;
+  walletAccountId: string;
+  memberId: string;
+  marketId: string;
+  direction: 'CREDIT' | 'DEBIT';
+  /** Exact decimal string (numeric(38,10)) — never parsed client-side. */
+  amount: string;
+  state:
+    | 'DRAFT'
+    | 'SUBMITTED'
+    | 'APPROVED'
+    | 'REJECTED'
+    | 'EXECUTING'
+    | 'EXECUTED'
+    | 'FAILED';
+  reasonCode: string;
+  explanation: string;
+  caseReference: string;
+  /** Opaque attachment reference (never contents). */
+  attachmentReference: string | null;
+  makerAdminUserId: string;
+  checkerAdminUserId: string | null;
+  submittedAt: string | null;
+  executedAt: string | null;
+  failedAt: string | null;
+  priorRequestId: string | null;
+  ledgerEntryId: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Immutable decision history row (P7-OD-11/18). */
+export interface AdminIpointAdjustmentDecisionDto {
+  id: string;
+  adjustmentRequestId: string;
+  marketId: string;
+  checkerAdminUserId: string;
+  decision: 'APPROVED' | 'REJECTED';
+  reason: string;
+  decidedAt: string;
+}
+
+/** Bounded Finance queue projection (state-filterable, paginated). */
+export interface AdminIpointAdjustmentQueueDto {
+  marketId: string;
+  items: AdminIpointAdjustmentDto[];
+  limit: number;
+  offset: number;
+}
+
+/** Request detail incl. the immutable decision history. */
+export interface AdminIpointAdjustmentDetailDto {
+  request: AdminIpointAdjustmentDto;
+  decisions: AdminIpointAdjustmentDecisionDto[];
+}
+
+/** Maker create command input (P7-OD-11 evidence contract). */
+export interface AdminIpointAdjustmentCreateInput {
+  walletAccountId: string;
+  direction: 'CREDIT' | 'DEBIT';
+  /** Exact decimal string (≤10 decimals, >0). */
+  amount: string;
+  reasonCode: string;
+  explanation: string;
+  caseReference: string;
+  /** Opaque attachment reference (≤500 chars; never contents). */
+  attachmentReference?: string;
+  /** Replacement linkage for an immutable REJECTED request (P7-OD-18). */
+  priorRequestId?: string;
+}
+
+/** Checker decision command input. */
+export interface AdminIpointAdjustmentDecisionInput {
+  decision: 'APPROVED' | 'REJECTED';
+  /** Mandatory 1..2000 chars. */
+  reason: string;
+  /** Checker explicitly requires an opaque attachment reference. */
+  requireAttachment?: boolean;
+}
+
+/** Maker-form support projection (market rules + reason codes). */
+export interface AdminIpointAdjustmentConfigDto {
+  marketId: string;
+  marketCode: string;
+  timezone: string;
+  currency: string;
+  /**
+   * `true` when the market is ACTIVE and has a rules row; `false` means
+   * the market is blocked for adjustments (explicit state, no fallback).
+   */
+  configured: boolean;
+  rule: {
+    marketCode: string;
+    softCap: string;
+    hardCap: string;
+    secureEvidenceAvailable: boolean;
+    isActive: boolean;
+  } | null;
+  reasonCodes: {
+    code: string;
+    label: string;
+    isHighRisk: boolean;
+    isActive: boolean;
+  }[];
+}
+
+/** Wallet/member lookup row for the maker screen (masked). */
+export interface AdminIpointWalletLookupDto {
+  walletId: string;
+  memberId: string;
+  memberPublicId: string;
+  displayName: string | null;
+  marketId: string;
+  /** Exact decimal string — never parsed client-side. */
+  availableBalance: string;
+  archived: boolean;
+}
+
+export class AdminIpointAdjustOpsApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /**
+   * Maker create (durable DRAFT). The Idempotency-Key is mandatory and
+   * passed through untouched: same key + same payload replays the stored
+   * request; same key + different payload returns 409.
+   */
+  async createAdjustment(
+    marketId: string,
+    input: AdminIpointAdjustmentCreateInput,
+    idempotencyKey: string,
+  ): Promise<AdminIpointAdjustmentDto> {
+    return (
+      await this.client.post<AdminIpointAdjustmentDto>(
+        `/admin/ipoint-adjust-ops/markets/${encodeURIComponent(marketId)}/adjustments`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  /** Maker submit (DRAFT -> SUBMITTED). */
+  async submitAdjustment(
+    marketId: string,
+    requestId: string,
+  ): Promise<AdminIpointAdjustmentDto> {
+    return (
+      await this.client.post<AdminIpointAdjustmentDto>(
+        `/admin/ipoint-adjust-ops/markets/${encodeURIComponent(marketId)}/adjustments/${encodeURIComponent(requestId)}/submit`,
+      )
+    ).data;
+  }
+
+  /**
+   * Checker decide (SUBMITTED -> APPROVED | REJECTED). Requires a fresh
+   * step-up grant token (`x-step-up-token`); the server enforces the
+   * maker/checker inequality, caps routing and evidence rules.
+   */
+  async decideAdjustment(
+    marketId: string,
+    requestId: string,
+    input: AdminIpointAdjustmentDecisionInput,
+    stepUpToken?: string,
+  ): Promise<AdminIpointAdjustmentDto> {
+    const headers: Record<string, string> = {};
+    if (stepUpToken) headers['x-step-up-token'] = stepUpToken;
+    return (
+      await this.client.post<AdminIpointAdjustmentDto>(
+        `/admin/ipoint-adjust-ops/markets/${encodeURIComponent(marketId)}/adjustments/${encodeURIComponent(requestId)}/decision`,
+        input,
+        { headers },
+      )
+    ).data;
+  }
+
+  /**
+   * Checker execute (APPROVED -> EXECUTING -> EXECUTED | FAILED).
+   * Requires a fresh step-up grant token (`x-step-up-token`). Above-soft
+   * execution stays disabled until secure evidence storage is enabled
+   * server-side.
+   */
+  async executeAdjustment(
+    marketId: string,
+    requestId: string,
+    stepUpToken?: string,
+  ): Promise<AdminIpointAdjustmentDto> {
+    const headers: Record<string, string> = {};
+    if (stepUpToken) headers['x-step-up-token'] = stepUpToken;
+    return (
+      await this.client.post<AdminIpointAdjustmentDto>(
+        `/admin/ipoint-adjust-ops/markets/${encodeURIComponent(marketId)}/adjustments/${encodeURIComponent(requestId)}/execute`,
+        undefined,
+        { headers },
+      )
+    ).data;
+  }
+
+  /** Finance queue projection (state-filterable, paginated, newest first). */
+  async listAdjustments(
+    marketId: string,
+    options: { state?: string; limit?: number; offset?: number } = {},
+  ): Promise<AdminIpointAdjustmentQueueDto> {
+    const params = new URLSearchParams();
+    if (options.state) params.set('state', options.state);
+    if (options.limit !== undefined) params.set('limit', String(options.limit));
+    if (options.offset !== undefined)
+      params.set('offset', String(options.offset));
+    const suffix = params.toString();
+    return (
+      await this.client.get<AdminIpointAdjustmentQueueDto>(
+        `/admin/ipoint-adjust-ops/markets/${encodeURIComponent(marketId)}/adjustments${suffix ? `?${suffix}` : ''}`,
+      )
+    ).data;
+  }
+
+  /** Request detail incl. the immutable decision history. */
+  async getAdjustment(
+    marketId: string,
+    requestId: string,
+  ): Promise<AdminIpointAdjustmentDetailDto> {
+    return (
+      await this.client.get<AdminIpointAdjustmentDetailDto>(
+        `/admin/ipoint-adjust-ops/markets/${encodeURIComponent(marketId)}/adjustments/${encodeURIComponent(requestId)}`,
+      )
+    ).data;
+  }
+
+  /** Maker-form support projection (market rules + reason codes). */
+  async getAdjustmentConfig(
+    marketId: string,
+  ): Promise<AdminIpointAdjustmentConfigDto> {
+    return (
+      await this.client.get<AdminIpointAdjustmentConfigDto>(
+        `/admin/ipoint-adjust-ops/markets/${encodeURIComponent(marketId)}/config`,
+      )
+    ).data;
+  }
+
+  /** Wallet/member lookup for the maker screen (masked). */
+  async searchWallets(
+    marketId: string,
+    query: string,
+  ): Promise<AdminIpointWalletLookupDto[]> {
+    const params = new URLSearchParams({ query });
+    return (
+      await this.client.get<AdminIpointWalletLookupDto[]>(
+        `/admin/ipoint-adjust-ops/markets/${encodeURIComponent(marketId)}/wallets?${params.toString()}`,
+      )
+    ).data;
+  }
+}

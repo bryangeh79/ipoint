@@ -30,6 +30,10 @@ import {
   AdminMarketOpsApiClient,
   AdminMarketDetailDto,
   AdminMarketUpdateResultDto,
+  AdminIpointAdjustOpsApiClient,
+  AdminIpointAdjustmentDto,
+  AdminIpointAdjustmentQueueDto,
+  AdminIpointAdjustmentDetailDto,
   AdminRedemptionOpsApiClient,
   AdminRedemptionRateListDto,
   AdminRedemptionRateCreateResultDto,
@@ -2555,5 +2559,214 @@ describe('AdminMarketOpsApiClient (P7-S6E market configuration)', () => {
     );
     const headers = new Headers((init as RequestInit | undefined)?.headers);
     expect(headers.get('idempotency-key')).toBe('idem-market-deactivate');
+  });
+});
+
+describe('AdminIpointAdjustOpsApiClient (P7-S7B manual iPoint adjustment)', () => {
+  const MARKET = '99999999-9999-4999-8999-999999999999';
+  const REQUEST = '88888888-8888-4888-8888-888888888888';
+
+  function ipointClient(): AdminIpointAdjustOpsApiClient {
+    return new AdminIpointAdjustOpsApiClient(new ApiClient(BASE_URL));
+  }
+
+  function requestView(
+    overrides: Partial<AdminIpointAdjustmentDto> = {},
+  ): AdminIpointAdjustmentDto {
+    return {
+      id: REQUEST,
+      walletAccountId: '77777777-7777-4777-8777-777777777777',
+      memberId: '66666666-6666-4666-8666-666666666666',
+      marketId: MARKET,
+      direction: 'CREDIT',
+      amount: '5000',
+      state: 'DRAFT',
+      reasonCode: 'OPERATIONAL_CORRECTION',
+      explanation: 'Ops correction for a processing error.',
+      caseReference: 'CASE-001',
+      attachmentReference: null,
+      makerAdminUserId: '11111111-1111-4111-8111-111111111111',
+      checkerAdminUserId: null,
+      submittedAt: null,
+      executedAt: null,
+      failedAt: null,
+      priorRequestId: null,
+      ledgerEntryId: null,
+      version: 1,
+      createdAt: '2026-08-06T00:00:00.000Z',
+      updatedAt: '2026-08-06T00:00:00.000Z',
+      ...overrides,
+    };
+  }
+
+  it('creates an adjustment with the mandatory Idempotency-Key (maker)', async () => {
+    const client = ipointClient();
+    const fetchSpy = mockFetch(201, requestView());
+
+    const created = await client.createAdjustment(
+      MARKET,
+      {
+        walletAccountId: '77777777-7777-4777-8777-777777777777',
+        direction: 'CREDIT',
+        amount: '5000',
+        reasonCode: 'OPERATIONAL_CORRECTION',
+        explanation: 'Ops correction for a processing error.',
+        caseReference: 'CASE-001',
+      },
+      'idem-ipoint-create-1',
+    );
+
+    expect(created.state).toBe('DRAFT');
+    expect(created.amount).toBe('5000');
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/ipoint-adjust-ops/markets/${MARKET}/adjustments`,
+    );
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('idempotency-key')).toBe('idem-ipoint-create-1');
+    expect(JSON.parse(String((init as RequestInit | undefined)?.body))).toEqual(
+      {
+        walletAccountId: '77777777-7777-4777-8777-777777777777',
+        direction: 'CREDIT',
+        amount: '5000',
+        reasonCode: 'OPERATIONAL_CORRECTION',
+        explanation: 'Ops correction for a processing error.',
+        caseReference: 'CASE-001',
+      },
+    );
+  });
+
+  it('passes the exact amount string through untouched (never parsed)', async () => {
+    const client = ipointClient();
+    const fetchSpy = mockFetch(201, requestView({ amount: '0.0000000001' }));
+
+    const created = await client.createAdjustment(
+      MARKET,
+      {
+        walletAccountId: '77777777-7777-4777-8777-777777777777',
+        direction: 'DEBIT',
+        amount: '0.0000000001',
+        reasonCode: 'EXACT_OPPOSITE_COMPENSATION',
+        explanation: 'Tiny exact-opposite correction.',
+        caseReference: 'CASE-002',
+      },
+      'idem-ipoint-create-2',
+    );
+
+    expect(created.amount).toBe('0.0000000001');
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toContain('/admin/ipoint-adjust-ops/markets/');
+    expect(
+      JSON.parse(String((init as RequestInit | undefined)?.body)),
+    ).toMatchObject({ amount: '0.0000000001' });
+  });
+
+  it('passes the step-up token for checker decide and execute (x-step-up-token)', async () => {
+    const client = ipointClient();
+    const decided = requestView({ state: 'APPROVED' });
+    const fetchSpy = mockFetch(200, decided);
+
+    await client.decideAdjustment(
+      MARKET,
+      REQUEST,
+      { decision: 'APPROVED', reason: 'Evidence verified.' },
+      'stepup-checker-1',
+    );
+    let [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/ipoint-adjust-ops/markets/${MARKET}/adjustments/${REQUEST}/decision`,
+    );
+    let headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('x-step-up-token')).toBe('stepup-checker-1');
+    expect(JSON.parse(String((init as RequestInit | undefined)?.body))).toEqual(
+      {
+        decision: 'APPROVED',
+        reason: 'Evidence verified.',
+      },
+    );
+
+    // Execute: no body, step-up token still passed.
+    mockFetch(200, requestView({ state: 'EXECUTED' }));
+    await client.executeAdjustment(MARKET, REQUEST, 'stepup-execute-1');
+    [url, init] = fetchSpy.mock.calls[1] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/ipoint-adjust-ops/markets/${MARKET}/adjustments/${REQUEST}/execute`,
+    );
+    headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('x-step-up-token')).toBe('stepup-execute-1');
+    expect((init as RequestInit | undefined)?.body).toBeUndefined();
+  });
+
+  it('lists the Finance queue with state filter and reads the detail', async () => {
+    const client = ipointClient();
+    const queue: AdminIpointAdjustmentQueueDto = {
+      marketId: MARKET,
+      items: [requestView({ state: 'SUBMITTED' })],
+      limit: 50,
+      offset: 0,
+    };
+    const fetchSpy = mockFetch(200, queue);
+
+    const list = await client.listAdjustments(MARKET, { state: 'SUBMITTED' });
+
+    expect(list.items[0]?.state).toBe('SUBMITTED');
+    let [url] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/ipoint-adjust-ops/markets/${MARKET}/adjustments?state=SUBMITTED`,
+    );
+
+    const detail: AdminIpointAdjustmentDetailDto = {
+      request: requestView({ state: 'REJECTED' }),
+      decisions: [
+        {
+          id: '55555555-5555-4555-8555-555555555555',
+          adjustmentRequestId: REQUEST,
+          marketId: MARKET,
+          checkerAdminUserId: '22222222-2222-4222-8222-222222222222',
+          decision: 'REJECTED',
+          reason: 'Missing supporting evidence.',
+          decidedAt: '2026-08-06T01:00:00.000Z',
+        },
+      ],
+    };
+    mockFetch(200, detail);
+    const got = await client.getAdjustment(MARKET, REQUEST);
+    expect(got.request.state).toBe('REJECTED');
+    expect(got.decisions[0]?.decision).toBe('REJECTED');
+  });
+
+  it('propagates maker/checker conflict (403) and idempotency conflict (409) with owner codes', async () => {
+    const client = ipointClient();
+    mockFetch(403, { code: 'WALLET_ADJUSTMENT_MAKER_CHECKER_CONFLICT' });
+    await expect(
+      client.decideAdjustment(
+        MARKET,
+        REQUEST,
+        { decision: 'APPROVED', reason: 'Self approval must fail.' },
+        'stepup-self',
+      ),
+    ).rejects.toMatchObject({
+      status: 403,
+      body: { code: 'WALLET_ADJUSTMENT_MAKER_CHECKER_CONFLICT' },
+    });
+
+    mockFetch(409, { code: 'WALLET_ADJUSTMENT_IDEMPOTENCY_CONFLICT' });
+    await expect(
+      client.createAdjustment(
+        MARKET,
+        {
+          walletAccountId: '77777777-7777-4777-8777-777777777777',
+          direction: 'CREDIT',
+          amount: '5000',
+          reasonCode: 'OPERATIONAL_CORRECTION',
+          explanation: 'Same key, different payload.',
+          caseReference: 'CASE-003',
+        },
+        'idem-conflict-1',
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      body: { code: 'WALLET_ADJUSTMENT_IDEMPOTENCY_CONFLICT' },
+    });
   });
 });
