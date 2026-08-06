@@ -2,6 +2,7 @@ import {
   AdminApiClient,
   AdminCommissionOpsApiClient,
   AdminKycOpsApiClient,
+  AdminMarketOpsApiClient,
   AdminMerchantApiClient,
   AdminPackageOpsApiClient,
   AdminRedemptionOpsApiClient,
@@ -65,7 +66,6 @@ export const adminRewardOpsApi = new AdminRewardOpsApiClient(
 export const adminRedemptionOpsApi = new AdminRedemptionOpsApiClient(
   new ApiClient(apiBaseUrl),
 );
-
 /**
  * P7-S6D selected-market Admin Commission Rate Configuration client.
  * Self-contained addition; the market is validated server-side against the
@@ -76,5 +76,19 @@ export const adminRedemptionOpsApi = new AdminRedemptionOpsApiClient(
  * windows. Markets that are not ACTIVE stay blocked (no fallback).
  */
 export const adminCommissionOpsApi = new AdminCommissionOpsApiClient(
+  new ApiClient(apiBaseUrl),
+);
+
+/**
+ * P7-S6E selected-market Admin Market Configuration client.
+ * Self-contained addition; the market is validated server-side against the
+ * Current Admin Market on every request, and the SUPER_ADMIN-only update
+ * carries a mandatory Idempotency-Key + reason (step-up required
+ * server-side). The secured market owner commits the row update +
+ * idempotency claim + privileged audit in one transaction; the read
+ * exposes the registry projection with the explicit blocked state for
+ * markets that are not ACTIVE (no fallback).
+ */
+export const adminMarketOpsApi = new AdminMarketOpsApiClient(
   new ApiClient(apiBaseUrl),
 );

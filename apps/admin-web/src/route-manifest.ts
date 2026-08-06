@@ -257,6 +257,17 @@ export const adminRouteManifest = [
     true,
   ),
   route(
+    'market',
+    'Market configuration',
+    '/admin/:marketId/config/market',
+    'Configuration',
+    'market.read',
+    'selected',
+    'read-only',
+    'bootstrap',
+    true,
+  ),
+  route(
     'redemption-orders',
     'Redemption orders',
     '/admin/:marketId/redemptions/orders',
@@ -401,6 +412,7 @@ export type AdminRouteId =
   | 'redemption-rates'
   | 'packages'
   | 'commissions'
+  | 'market'
   | 'redemption-orders'
   | 'fulfilment-exceptions'
   | 'refunds'

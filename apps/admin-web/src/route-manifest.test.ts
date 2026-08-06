@@ -7,10 +7,10 @@ import {
 import { hasEffectivePermission } from './route-guards.js';
 
 describe('P7-S3A Admin route manifest', () => {
-  it('defines exactly 33 unique stable routes with guard metadata', () => {
-    expect(adminRouteManifest).toHaveLength(33);
-    expect(new Set(adminRouteManifest.map(({ id }) => id)).size).toBe(33);
-    expect(new Set(adminRouteManifest.map(({ path }) => path)).size).toBe(33);
+  it('defines exactly 34 unique stable routes with guard metadata', () => {
+    expect(adminRouteManifest).toHaveLength(34);
+    expect(new Set(adminRouteManifest.map(({ id }) => id)).size).toBe(34);
+    expect(new Set(adminRouteManifest.map(({ path }) => path)).size).toBe(34);
     for (const route of adminRouteManifest) {
       expect(route.path).toMatch(/^\/admin\//u);
       expect(route.loader).toMatch(/^(public|bootstrap|session)$/u);
@@ -112,6 +112,16 @@ describe('P7-S3A Admin route manifest', () => {
     ).toBe('commission.rate.read');
     expect(
       adminRouteManifest.find(({ id }) => id === 'commissions')?.capabilityGate,
+    ).toBeUndefined();
+    // P7-S6E: the market route must use the canonical market.read and must
+    // carry no capability gate (the market.manage capability is
+    // implemented by the S6E secured owner surface; SUPER_ADMIN + step-up
+    // is enforced server-side).
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'market')?.permission,
+    ).toBe('market.read');
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'market')?.capabilityGate,
     ).toBeUndefined();
   });
 
