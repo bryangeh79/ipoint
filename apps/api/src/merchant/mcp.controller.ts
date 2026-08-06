@@ -1,17 +1,22 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
   HttpCode,
   Inject,
+  InternalServerErrorException,
   Ip,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
   Query,
   Req,
+  UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
@@ -40,7 +45,10 @@ import {
 } from './dto/mcp.dto.js';
 import { MerchantOwnershipGuard } from './guards/merchant-ownership.guard.js';
 import { McpAdjustmentOwnerService } from './mcp-adjustment.owner.service.js';
-import type { McpAdjustmentOwnerActor } from './mcp-adjustment.owner.types.js';
+import {
+  McpAdjustmentOwnerError,
+  type McpAdjustmentOwnerActor,
+} from './mcp-adjustment.owner.types.js';
 import { McpService } from './mcp.service.js';
 import {
   requireAccountActor,
@@ -158,9 +166,8 @@ export class McpController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.adjustmentOwner.create(
-      ownerActor(actor, marketId, request, ip),
-      {
+    return this.handle(() =>
+      this.adjustmentOwner.create(ownerActor(actor, marketId, request, ip), {
         mcpAccountId: accountId,
         entryType: input.type,
         amount: input.amount,
@@ -170,7 +177,7 @@ export class McpController {
         attachmentReference: input.attachmentReference,
         priorRequestId: input.priorRequestId,
         idempotencyKey: requireKey(key),
-      },
+      }),
     );
   }
 
@@ -188,9 +195,8 @@ export class McpController {
     @Req() request: Request,
   ) {
     const account = await this.mcp.adminAccountForBranch(marketId, branchId);
-    return this.adjustmentOwner.create(
-      ownerActor(actor, marketId, request, ip),
-      {
+    return this.handle(() =>
+      this.adjustmentOwner.create(ownerActor(actor, marketId, request, ip), {
         mcpAccountId: account.id,
         entryType: input.type,
         amount: input.amount,
@@ -200,7 +206,7 @@ export class McpController {
         attachmentReference: input.attachmentReference,
         priorRequestId: input.priorRequestId,
         idempotencyKey: requireKey(key),
-      },
+      }),
     );
   }
 
@@ -215,11 +221,10 @@ export class McpController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.adjustmentOwner.submit(
-      ownerActor(actor, marketId, request, ip),
-      {
+    return this.handle(() =>
+      this.adjustmentOwner.submit(ownerActor(actor, marketId, request, ip), {
         requestId,
-      },
+      }),
     );
   }
 
@@ -236,14 +241,16 @@ export class McpController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.adjustmentOwner.decide(
-      ownerActor(actor, marketId, request, ip),
-      requestId,
-      {
-        decision: input.decision,
-        reason: input.reason,
-        requireAttachment: input.requireAttachment,
-      },
+    return this.handle(() =>
+      this.adjustmentOwner.decide(
+        ownerActor(actor, marketId, request, ip),
+        requestId,
+        {
+          decision: input.decision,
+          reason: input.reason,
+          requireAttachment: input.requireAttachment,
+        },
+      ),
     );
   }
 
@@ -260,14 +267,16 @@ export class McpController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.adjustmentOwner.decide(
-      ownerActor(actor, marketId, request, ip),
-      requestId,
-      {
-        decision: 'APPROVED',
-        reason: input.reason,
-        requireAttachment: input.requireAttachment,
-      },
+    return this.handle(() =>
+      this.adjustmentOwner.decide(
+        ownerActor(actor, marketId, request, ip),
+        requestId,
+        {
+          decision: 'APPROVED',
+          reason: input.reason,
+          requireAttachment: input.requireAttachment,
+        },
+      ),
     );
   }
 
@@ -282,11 +291,10 @@ export class McpController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.adjustmentOwner.execute(
-      ownerActor(actor, marketId, request, ip),
-      {
+    return this.handle(() =>
+      this.adjustmentOwner.execute(ownerActor(actor, marketId, request, ip), {
         requestId,
-      },
+      }),
     );
   }
 
@@ -298,11 +306,13 @@ export class McpController {
     @Query(new ZodValidationPipe(adjustmentQueueQuerySchema))
     query: AdjustmentQueueQueryDto,
   ) {
-    return this.adjustmentOwner.listForMarket(marketId, {
-      state: query.state,
-      limit: query.limit,
-      offset: query.offset,
-    });
+    return this.handle(() =>
+      this.adjustmentOwner.listForMarket(marketId, {
+        state: query.state,
+        limit: query.limit,
+        offset: query.offset,
+      }),
+    );
   }
 
   @Get('admin/markets/:marketId/mcp/adjustments/:requestId')
@@ -312,7 +322,7 @@ export class McpController {
     @Param('marketId', new ParseUUIDPipe()) marketId: string,
     @Param('requestId', new ParseUUIDPipe()) requestId: string,
   ) {
-    return this.adjustmentOwner.detail(marketId, requestId);
+    return this.handle(() => this.adjustmentOwner.detail(marketId, requestId));
   }
 
   @Post('merchant/branches/:branchId/mcp/refunds')
@@ -397,6 +407,64 @@ export class McpController {
       context(request, ip),
     );
   }
+
+  /**
+   * Owner-error -> HTTP mapping for the conformed MCP adjustment owner
+   * (same accepted pattern as market-owner.controller `handle()` and
+   * admin-commission-ops `handle()`). Every `McpAdjustmentOwnerError` code
+   * is mapped to the D-046 / P7-S7A §7.4 HTTP contract — 403 permission &
+   * maker/checker conflicts, 404 not found, 409 state/idempotency/
+   * market-context conflicts, 422 business/evidence validation, 400 request
+   * format; server-side execution failure surfaces as 500 with the owner
+   * code preserved. Unknown errors propagate unchanged (never swallowed).
+   */
+  private async handle<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!(error instanceof McpAdjustmentOwnerError)) throw error;
+      const body = {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+      };
+      switch (error.code) {
+        case 'MCP_ADJUSTMENT_PERMISSION_DENIED':
+        case 'MCP_ADJUSTMENT_MARKET_ACCESS_DENIED':
+        case 'MCP_ADJUSTMENT_MAKER_REQUIRED':
+        case 'MCP_ADJUSTMENT_MAKER_CHECKER_CONFLICT':
+        case 'MCP_ADJUSTMENT_CHECKER_ROUTING_DENIED':
+          throw new ForbiddenException(body);
+        case 'MCP_ADJUSTMENT_ACCOUNT_NOT_FOUND':
+        case 'MCP_ADJUSTMENT_REQUEST_NOT_FOUND':
+          throw new NotFoundException(body);
+        case 'MCP_ADJUSTMENT_MARKET_SELECTION_REQUIRED':
+        case 'MCP_ADJUSTMENT_MARKET_CONTEXT_MISMATCH':
+        case 'MCP_ADJUSTMENT_IDEMPOTENCY_CONFLICT':
+        case 'MCP_ADJUSTMENT_STATE_CONFLICT':
+        case 'MCP_ADJUSTMENT_PRIOR_REQUEST_INVALID':
+          throw new ConflictException(body);
+        case 'MCP_ADJUSTMENT_IDEMPOTENCY_KEY_REQUIRED':
+        case 'MCP_ADJUSTMENT_INVALID_FIELD':
+        case 'MCP_ADJUSTMENT_DECISION_REASON_REQUIRED':
+        case 'MCP_ADJUSTMENT_INVALID_AMOUNT':
+          throw new BadRequestException(body);
+        case 'MCP_ADJUSTMENT_MARKET_NOT_CONFIGURED':
+        case 'MCP_ADJUSTMENT_ABOVE_HARD_CAP':
+        case 'MCP_ADJUSTMENT_REASON_CODE_INVALID':
+        case 'MCP_ADJUSTMENT_ATTACHMENT_REQUIRED':
+        case 'MCP_ADJUSTMENT_EVIDENCE_STORAGE_UNAVAILABLE':
+        case 'MCP_ADJUSTMENT_INSUFFICIENT_BALANCE':
+          throw new UnprocessableEntityException(body);
+        // Server-side execution failure (ledger append failed, request
+        // durably FAILED): not a client-correctable business error, so it
+        // surfaces as 500 but keeps the owner code for observability.
+        case 'MCP_ADJUSTMENT_EXECUTION_FAILED':
+        default:
+          throw new InternalServerErrorException(body);
+      }
+    }
+  }
 }
 
 function requireKey(value: string | undefined): string {
@@ -405,6 +473,7 @@ function requireKey(value: string | undefined): string {
     throw new BadRequestException({ code: 'IDEMPOTENCY_KEY_REQUIRED' });
   return key;
 }
+
 function context(request: Request, ipAddress: string): MerchantRequestContext {
   const requestId = (request as unknown as Record<string, unknown>)[
     'requestId'
