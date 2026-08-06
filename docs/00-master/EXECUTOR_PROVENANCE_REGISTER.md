@@ -522,5 +522,29 @@ _End of register - new entries appended above this line._
 | **Independent verification** | `OPENCLAW_MANAGED_CODING_SUBAGENT` separate verifier: verdict **TEST GATE PASSED** — full 19-gate matrix re-run on fresh isolated DBs `ipoint_ver_s6d_*` (Node v24.19.0, different version from implementer): checksum 33/33, S6D 17/17 + 24/24, D-054 owner 51/51, P5-R1 13/13, B/C/D 35/35, commission 199/199, S6B 38/38, S6C 49/49, redemption 235/235, api-client 70/70, admin-web 232/232 (one environmental flake on first parallel run — async race in `redemption-config-page.test.tsx`; isolated re-run 12/12 ×3 + full re-run 232/232; NOT a code defect), OpenAPI 238 paths / 0 errors, drift clean. Verdict `.local/s6d-gate/evidence/VERIFIER_VERDICT.md`. |
 | **Integration commit** | `999c6438` (merge branch 'task/p7-s6d-commission-config' into `phase/7-admin-operations`, --no-ff, no conflicts) — local integration complete; **push PENDING** (host push channel temporarily unavailable at gate time — webchat elevated flipped per D-055 §6; commits + integration complete locally; push + local=remote verification scheduled on first available host channel before the Phase 7 final delivery report) |
 | **Declarations** | `P7-S6D_DELIVERY_COMPLETE` / `P7-S6D_OPENCLAW_INTERNAL_GATE_PASSED` / `CG-04_COMMISSION_RATE_OWNER_GATE_PASSED` (OpenClaw internal; NOT Command Center acceptance) |
-| **Known limitations** | 3 Low reviewer observations; admin-web test suite has one environmental async-race flake (isolated re-run stable; same-class precedent S6B/S6C); OpenAPI non-self-exit quirk; browser E2E host/CI-only; push pending channel restoration (no repository-content blocker). | |
+| **Known limitations** | 3 Low reviewer observations; admin-web test suite has one environmental async-race flake (isolated re-run stable; same-class precedent S6B/S6C); OpenAPI non-self-exit quirk; browser E2E host/CI-only; push pending channel restoration (no repository-content blocker). |
+
+---
+
+_End of register - new entries appended above this line._
+
+## P7-S6A-REWIRE — Special-Percentage Create Surface over D-051 Owner + Final Gate
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S6A-REWIRE (D-055 §3 S6A special-percentage canonical rewire + final gate) |
+| **Sub-phase** | P7-S6A — special-percentage create surface restored over the D-051 secured Phase 1 owner |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementing subagent; independent reviewing subagent; separate test-verifier subagent; all D-048) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Worktree** | `.local/wt-p7-s6a-rewire` |
+| **Task branch** | `task/p7-s6a-rewire` (base `1b60a810` = phase HEAD incl. D-051 integration) |
+| **Commit SHAs** | `7ecc79cf` (feat(api): expose create over secured owner — incl. prettier-formatted dto amend), `645fb40c` (feat(api-client): typed client), `583f5db4` (feat(admin-web): enable creation UI) |
+| **Allowed paths** | `apps/api/src/admin-package-ops/**` (10 incl. new dto/errors), `packages/api-client/src/**` (2), `apps/admin-web/src/**` package-config files (6) — 16 files; Phase 1 owner (`apps/api/src/merchant/**`) byte-identical; `packages/database` untouched; zero migration change |
+| **Blocked-surface resolution** | `SPECIAL_PERCENTAGE_CREATE_BLOCKED` (404 + UI blocked) replaced by functional POST surface (SUPER_ADMIN, step-up, Idempotency-Key, mandatory reason) delegating entirely to the D-051 owner; the two S6A owner-gap tests updated to assert the D-051 contract (400 on missing/blank reason) |
+| **Host test gate** | S6A integration **40/40**; admin-web **235/235**; OpenAPI ✅ 238 paths / 0 missing / 0 dup (GET+POST same-path grouping — POST registered) |
+| **Independent review** | `OPENCLAW_MANAGED_CODING_SUBAGENT` reviewer: verdict **APPROVED** — 12/12 dimensions PASS, 0 Critical/0 High. Verdict `.local/s6a-rewire-gate/review/REVIEWER_VERDICT.md` |
+| **Independent verification** | `OPENCLAW_MANAGED_CODING_SUBAGENT` verifier: verdict **TEST GATE PASSED** — full matrix on fresh isolated DBs (Node v24.19.0; single-process sequential after discarding a contaminated first run): checksum 34/34, S6A unit 14/14 + integration 40/40, S6D 41/41, S6C 49/49, S6B 38/38, D-051 27/27, D-054 51/51, P5-R1 13/13, api-client 72/72, admin-web 235/235, OpenAPI 238 paths / 0 errors, eslint 0 errors. Verdict `.local/s6a-rewire-gate/evidence/VERIFIER_VERDICT.md` |
+| **Integration commit** | `64ac2a34` (merge branch 'task/p7-s6a-rewire' into `phase/7-admin-operations`, --no-ff, no conflicts) — local; **push PENDING** (host channel restoration, same note as S6D) |
+| **Declarations** | `P7-S6A_DELIVERY_COMPLETE` / `P7-S6A_OPENCLAW_INTERNAL_GATE_PASSED` / `D-051_OWNER_REMEDIATION_INTEGRATED` / `P7-S6A_REWIRE_INTEGRATED` (OpenClaw internal; NOT Command Center acceptance) |
+| **Known limitations** | 6 of 7 non-clean prettier files at verify time were inherited from base (style debt; rewire reduced deviation) — the 1 new file was formatted and amended post-verification; OpenAPI non-self-exit quirk; browser E2E host/CI-only; push pending channel restoration. | |
 
