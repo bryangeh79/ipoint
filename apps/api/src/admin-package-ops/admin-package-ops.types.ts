@@ -1,21 +1,38 @@
 /**
  * P7-S6A Admin Package Operations adapter types.
  *
- * Phase 7 selected-market read projections for the merchant package
- * configuration surface (frozen contract §7.3). Every value is a read-only
- * projection of immutable Phase 1 owner-owned rows: standard package
- * profiles/versions (`service_fee_profiles` / `service_fee_versions`) and
- * special percentages (`special_percentages`). Rates are carried as exact
- * decimal strings (PostgreSQL `numeric(12,6)` values, never floats).
+ * Phase 7 selected-market package configuration surface (frozen contract
+ * §7.3): read projections over the frozen Phase 1 owner-owned rows
+ * (standard package profiles/versions and special percentages) and one
+ * orchestrated create for special percentages. Every value is a
+ * read-only projection of immutable Phase 1 owner-owned rows; rates are
+ * carried as exact decimal strings (PostgreSQL `numeric(12,6)` values,
+ * never floats).
  *
- * This surface never writes domain state: all configuration writes stay on
- * the frozen Phase 1 owner commands (`merchant.package.manage`,
- * `merchant.package.assign`, `merchant.special_package.manage`). The
- * special-percentage *creation* command is intentionally NOT exposed here —
- * see the module docs for the owner-gap record (mandatory reason).
+ * The special-percentage CREATE is exposed through the D-051-secured
+ * Phase 1 owner command (`PackageService.createSpecialPercentage`): the
+ * adapter performs only Phase 7 orchestration (server actor + market
+ * context passthrough) and delegates the ENTIRE create to the owner —
+ * RBAC re-check, selected-market enforcement, mandatory reason (durable
+ * on the row + immutable audit), operation-scoped idempotency with the
+ * canonical payload hash and the atomic owner audit. The adapter never
+ * writes domain state, never persists idempotency claims, never creates
+ * audit records and takes no advisory lock. All other configuration
+ * writes stay on the frozen Phase 1 owner commands
+ * (`merchant.package.manage`, `merchant.package.assign`).
  */
 
-export type AdminPackageOpsErrorCode = 'PACKAGE_OPS_MARKET_MISMATCH';
+export type AdminPackageOpsErrorCode =
+  | 'PACKAGE_OPS_MARKET_MISMATCH'
+  | 'SPECIAL_PERCENTAGE_PERMISSION_DENIED'
+  | 'SPECIAL_PERCENTAGE_MARKET_SELECTION_REQUIRED'
+  | 'SPECIAL_PERCENTAGE_MARKET_CONTEXT_MISMATCH'
+  | 'SPECIAL_PERCENTAGE_MARKET_NOT_FOUND'
+  | 'SPECIAL_PERCENTAGE_MARKET_ACCESS_DENIED'
+  | 'SPECIAL_PERCENTAGE_REASON_REQUIRED'
+  | 'SPECIAL_PERCENTAGE_IDEMPOTENCY_KEY_REQUIRED'
+  | 'SPECIAL_PERCENTAGE_IDEMPOTENCY_CONFLICT'
+  | 'SPECIAL_PERCENTAGE_CREATE_FAILED';
 
 export class AdminPackageOpsError extends Error {
   constructor(
@@ -35,11 +52,25 @@ export function packageOpsMarketMismatch(): never {
   );
 }
 
-/** Adapter actor (mirrors the owner admin-actor contract). */
+/**
+ * Adapter actor (mirrors the owner admin-actor contract, D-051 §1/§6).
+ * Built by the controller exclusively from the authenticated session
+ * (CurrentActor), the RbacGuard-resolved Current Admin Market
+ * (`adminMarketContext`), the request correlation id and the IP address.
+ * Client input never reaches the actor object.
+ */
 export interface AdminPackageOpsActor {
   adminUserId: string;
   requestId?: string;
   ipAddress?: string;
+  /**
+   * Server-owned Current Admin Market resolved by the canonical RbacGuard
+   * (marketScoped). Passed through into the secured owner command so it
+   * applies the exact same selected-market enforcement as the canonical
+   * Phase 1 route (D-051 §1).
+   */
+  currentMarketId?: string;
+  marketContextVersion?: number;
 }
 
 /** Immutable standard-package version (owner-owned row projection). */
@@ -83,4 +114,23 @@ export interface AdminSpecialPercentageDto {
 export interface AdminSpecialPercentageListDto {
   marketId: string;
   items: AdminSpecialPercentageDto[];
+}
+
+/**
+ * Owner create result mapped onto the Phase 7 surface. The exact stored
+ * rate and the reason come from the immutable owner row — never derived
+ * or re-rounded by the adapter.
+ */
+export interface AdminSpecialPercentageCreateResponse {
+  id: string;
+  /** Exact decimal string (numeric(12,6)) — the owner-normalized value. */
+  rate: string;
+  description: string | null;
+  /** Durable operator reason (D-051 §3), recorded on the row + audit. */
+  reason: string;
+  marketId: string;
+  /** Market code (e.g. "MA") — resolved by the owner. */
+  market: string;
+  created_by: string;
+  created_at: string;
 }
