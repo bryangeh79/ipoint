@@ -353,7 +353,7 @@ export const adminRouteManifest = [
     'Basic reports',
     '/admin/:marketId/reports',
     'Governance',
-    'report.basic.read',
+    'report.read',
     'selected',
     'read-only',
   ),

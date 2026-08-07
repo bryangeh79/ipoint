@@ -185,6 +185,21 @@ describe('P7-S3A Admin route manifest', () => {
     expect(
       adminRouteManifest.find(({ id }) => id === 'refund-detail')?.permission,
     ).toBe('redemption.order.read');
+    // P7-S9: the audit route uses the canonical audit.read and the reports
+    // route uses the canonical report.read (the stale report.basic.read
+    // code does not exist in the catalog — P7-S8 Review 2 drift, fixed
+    // here). Both permissions are marketScoped and catalog-owned.
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'audit')?.permission,
+    ).toBe('audit.read');
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'reports')?.permission,
+    ).toBe('report.read');
+    expect(
+      adminRouteManifest.some(
+        ({ permission }) => permission === 'report.basic.read',
+      ),
+    ).toBe(false);
     // Zero drift: the three non-canonical codes must not be required by
     // any manifest route.
     for (const staleCode of [
