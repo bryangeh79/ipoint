@@ -733,3 +733,30 @@ _End of register - new entries appended above this line._
 ---
 
 _End of register - new entries appended above this line._
+
+---
+
+## P7-S10 - Final Full Gate (Phase 7 complete verification, Command Center §8)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S10 (task/p7-s10-final-gate; Command Center 2026-08-07 §8, D-055 final sub-phase) |
+| **Sub-phase** | P7-S10 - 21-item final gate matrix (checksum/drift, typecheck+build x4, lint/format, OpenAPI, unit, integration real-PG, browser/E2E, RBAC matrix, MFA/session, multi-market, idempotency/concurrency, Maker/Checker, atomicity, regressions, immutability, no fallback/bypass, secrets, Critical/High, git state) + auto-fix of Phase 7-scope issues |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (gate runner subagent; D-048) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session start time** | 2026-08-07/08 MYT |
+| **Worktree** | main workspace (branch task/p7-s10-final-gate) |
+| **Task branch** | `task/p7-s10-final-gate` (base `cf42f843` = phase HEAD incl. P7-S9 gate) |
+| **Commit SHAs** | `ca09b56d` (style: full-repo prettier 38 files) - `b247e4c6` (test: database snapshot alignment) - `9ce701e9` (test: member auth contract + catalog snapshot) - `cd5b94cb` (test: repo-wide RBAC matrix scan) - `ff0206bd` (style: prettier rbac spec) - all test/spec/doc-only, zero production behavior change, zero migration |
+| **Migration** | NONE (checksums 37/37 unchanged) |
+| **Scope** | 46 files (38 prettier formatting + snapshot/catalog test alignments + new RBAC matrix scan suite apps/api/src/__tests__/p7-s10-rbac-matrix.spec.ts + docs formatting); frozen owners untouched |
+| **Host test gate** | 21/21 matrix PASS: checksum 37/37 + drift clean; api/admin-web/api-client typecheck+build; eslint 0 errors + prettier clean; OpenAPI PASS; unit 1030+124+95+320+271 = 1840; integration 1701 real-PG fresh DBs (P1-P7 full matrix incl. D-051/053/054, SEC-01/02, O-13, P6-R2, S7A/B/C, S8, S9); RBAC scan 46/46 controllers guarded+catalog+marketScoped; MFA 20/20; multi-market 55/55; idempotency/concurrency 35/35; Maker/Checker 31/31; atomicity 36/36; regressions 82/82; immutability 48/48; 292-file static scan 0 fallback/bypass; no secrets; 0 Critical/High |
+| **Independent review** | Per-task reviewer verdicts all APPROVED 0C/0H across S0-S10 (aggregated in final report); P7-S10 gate runner evidence logs 87 files in .local/p7-s10-gate/evidence/ |
+| **Independent verification** | Gate matrix executed by gate runner on fresh isolated DBs (Node v26.4.0; per-suite fresh DBs); K-01 pre-existing frozen-owner test fixture staleness A/B-proven not a Phase 7 regression (documented precedent S6A/S6B/S6C/D-051/S7A); K-02 browser/E2E host/CI-only |
+| **Integration commit** | `13741b0a` (merge --no-ff, ort, no conflicts into `phase/7-admin-operations`) |
+| **Declarations** | `P7-S10_GATE_COMPLETE` / `P7-S10_OPENCLAW_INTERNAL_GATE_PASSED` / `PHASE_7_READY_FOR_COMMAND_CENTER_ACCEPTANCE` (OpenClaw internal recommendation; NOT Command Center acceptance) |
+| **Known limitations** | K-01 frozen-owner test fixture staleness (3 suites, Command Center decision needed); K-02 browser/E2E host/CI-only; K-03 untracked p6-s1 suite preserved; K-04 permission-drift decisions pending (AUTH_REFRESH_REUSED alias, reports/settings route perms); K-05/K-06 Low observations + 2 eslint warnings; push pending host channel (35 commits local ahead; sandbox lacks HTTPS transport libcurl-gnutls + credentials). |
+
+---
+
+_End of register - new entries appended above this line._
