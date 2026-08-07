@@ -548,7 +548,8 @@ describe.skipIf(!databaseUrl)(
         amount: '10.0000000000',
         state: 'EXECUTED',
         reasonCode: 'CUSTOMER_GOODWILL',
-        explanation: 'Reports fixture iPoint adjustment with a long enough explanation',
+        explanation:
+          'Reports fixture iPoint adjustment with a long enough explanation',
         caseReference: `CASE_${randomUUID().slice(0, 12)}`,
         makerAdminUserId: actorAdminUserId,
         idempotencyScope: 'REPORTS_FIXTURE',
@@ -748,11 +749,13 @@ describe.skipIf(!databaseUrl)(
         'READY_FOR_PICKUP',
       );
       await createFulfilmentForOrder(
-        (await database.db
-          .select({ orderReference: redemptionOrders.orderReference })
-          .from(redemptionOrders)
-          .where(eq(redemptionOrders.status, 'READY_FOR_PICKUP'))
-          .limit(1))[0]?.orderReference ?? '',
+        (
+          await database.db
+            .select({ orderReference: redemptionOrders.orderReference })
+            .from(redemptionOrders)
+            .where(eq(redemptionOrders.status, 'READY_FOR_PICKUP'))
+            .limit(1)
+        )[0]?.orderReference ?? '',
         'COMPLETED',
       );
       await database.db.insert(agentActivations).values({
@@ -774,12 +777,10 @@ describe.skipIf(!databaseUrl)(
         confirmedAt: new Date(),
       });
       await database.db.insert(agentActivations).values({
-        memberId: (
-          await database.db
-            .select({ id: members.id })
-            .from(members)
-            .limit(1)
-        )[0]?.id ?? '',
+        memberId:
+          (
+            await database.db.select({ id: members.id }).from(members).limit(1)
+          )[0]?.id ?? '',
         status: 'PENDING_APPROVAL',
         market: 'SG',
         currency: 'SGD',
@@ -801,7 +802,9 @@ describe.skipIf(!databaseUrl)(
 
     it('rejects unauthenticated requests (401)', async () => {
       await supertest(server).get(reportsUrl(marketA)).expect(401);
-      await supertest(server).get(`${reportsUrl(marketA)}/R01`).expect(401);
+      await supertest(server)
+        .get(`${reportsUrl(marketA)}/R01`)
+        .expect(401);
     });
 
     it('rejects a member session (403)', async () => {
@@ -841,7 +844,7 @@ describe.skipIf(!databaseUrl)(
           item.freshnessClass === 'QUEUE' ? QUEUE_SLA_MS : KPI_SLA_MS;
         expect(item.queryDurationMs! < target).toBe(true);
         console.log(
-          `[P7-S9 perf] ${item.id} (${item.freshnessClass}) queryDurationMs=${item.queryDurationMs} (SLA ${target}ms)`,
+          `[P7-S9 perf] ${item.id} (${String(item.freshnessClass)}) queryDurationMs=${item.queryDurationMs} (SLA ${target}ms)`,
         );
       }
     });
@@ -946,7 +949,11 @@ describe.skipIf(!databaseUrl)(
       const value = body.value as {
         kind: string;
         windowDays: number;
-        days: Array<{ date: string; registrations: number; activations: number }>;
+        days: Array<{
+          date: string;
+          registrations: number;
+          activations: number;
+        }>;
         totals: { registrations: number; activations: number };
       };
       expect(value.kind).toBe('TREND');

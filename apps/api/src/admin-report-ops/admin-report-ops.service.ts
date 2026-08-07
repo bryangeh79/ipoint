@@ -13,7 +13,6 @@ import type {
   ReportCatalogResponse,
   ReportDefinition,
   ReportDetailResponse,
-  ReportFreshnessState,
   ReportId,
   ReportState,
   ReportValue,
@@ -354,10 +353,7 @@ export class AdminReportOpsService {
           (sum, entry) => sum + entry.registrations,
           0,
         ),
-        activations: days.reduce(
-          (sum, entry) => sum + entry.activations,
-          0,
-        ),
+        activations: days.reduce((sum, entry) => sum + entry.activations, 0),
       },
     };
   }
