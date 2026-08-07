@@ -507,7 +507,7 @@ export const redemptionOrders = pgTable(
     ),
     check(
       'chk_order_refund_state',
-      sql`(${table.status} = 'REFUND_PENDING' AND ${table.walletEntryId} IS NULL) OR (${table.status} = 'REFUNDED' AND ${table.walletEntryId} IS NOT NULL) OR (${table.status} NOT IN ('REFUND_PENDING', 'REFUNDED'))`,
+      sql`(${table.status} = 'REFUND_PENDING' AND ${table.walletEntryId} IS NOT NULL) OR (${table.status} = 'REFUNDED' AND ${table.walletEntryId} IS NOT NULL) OR (${table.status} NOT IN ('REFUND_PENDING', 'REFUNDED'))`,
     ),
     index('idx_order_member').on(table.memberId),
     index('idx_order_status').on(table.status),
@@ -576,7 +576,18 @@ export const redemptionRefundRequests = pgTable(
       () => memberWalletEntries.id,
       { onDelete: 'restrict' },
     ),
+    refundWalletEntryId: uuid('refund_wallet_entry_id').references(
+      () => memberWalletEntries.id,
+      { onDelete: 'restrict' },
+    ),
     decidedAt: utcTimestamp('decided_at'),
+    idempotencyScope: varchar('idempotency_scope', { length: 200 }),
+    idempotencyKey: varchar('idempotency_key', { length: 200 }),
+    payloadHash: varchar('payload_hash', { length: 64 }),
+    priorOrderStatus: varchar('prior_order_status', { length: 32 }),
+    executedAt: utcTimestamp('executed_at'),
+    failedAt: utcTimestamp('failed_at'),
+    failureReason: text('failure_reason'),
     createdAt: utcTimestamp('created_at').notNull().defaultNow(),
     updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
   },
@@ -587,9 +598,24 @@ export const redemptionRefundRequests = pgTable(
       sql`${table.checkerId} IS NULL OR ${table.makerId} <> ${table.checkerId}`,
     ),
     check(
-      'chk_refund_decided_fields',
-      sql`(${table.status} = 'PENDING_CHECKER' AND ${table.checkerId} IS NULL AND ${table.decidedAt} IS NULL AND ${table.walletEntryId} IS NULL) OR (${table.status} = 'APPROVED' AND ${table.checkerId} IS NOT NULL AND ${table.decidedAt} IS NOT NULL AND ${table.walletEntryId} IS NOT NULL) OR (${table.status} = 'REJECTED' AND ${table.checkerId} IS NOT NULL AND ${table.decidedAt} IS NOT NULL AND ${table.walletEntryId} IS NULL)`,
+      'chk_refund_prior_status',
+      sql`${table.priorOrderStatus} IS NULL OR ${table.priorOrderStatus} IN ('CONFIRMED', 'PROCESSING', 'READY_FOR_PICKUP', 'BACKORDERED', 'FULFILMENT_SUSPENDED', 'FULFILMENT_EXCEPTION', 'REFUND_PENDING', 'REFUNDED', 'FULFILLED')`,
     ),
+    check(
+      'chk_refund_reason_present',
+      sql`char_length(btrim(${table.reason})) BETWEEN 1 AND 500`,
+    ),
+    check(
+      'chk_refund_decided_fields',
+      sql`(${table.status} = 'PENDING_CHECKER' AND ${table.checkerId} IS NULL AND ${table.decidedAt} IS NULL AND ${table.walletEntryId} IS NULL AND ${table.refundWalletEntryId} IS NULL AND ${table.executedAt} IS NULL AND ${table.failedAt} IS NULL) OR (${table.status} = 'EXECUTING' AND ${table.checkerId} IS NOT NULL AND ${table.decidedAt} IS NOT NULL AND ${table.walletEntryId} IS NULL AND ${table.refundWalletEntryId} IS NULL AND ${table.executedAt} IS NULL AND ${table.failedAt} IS NULL) OR (${table.status} = 'COMPLETED' AND ${table.checkerId} IS NOT NULL AND ${table.decidedAt} IS NOT NULL AND ${table.walletEntryId} IS NOT NULL AND ${table.refundWalletEntryId} IS NOT NULL AND ${table.executedAt} IS NOT NULL AND ${table.failedAt} IS NULL) OR (${table.status} = 'FAILED' AND ${table.checkerId} IS NOT NULL AND ${table.decidedAt} IS NOT NULL AND ${table.failedAt} IS NOT NULL AND ${table.walletEntryId} IS NULL AND ${table.refundWalletEntryId} IS NULL AND ${table.executedAt} IS NULL) OR (${table.status} = 'REJECTED' AND ${table.checkerId} IS NOT NULL AND ${table.decidedAt} IS NOT NULL AND ${table.walletEntryId} IS NULL AND ${table.refundWalletEntryId} IS NULL AND ${table.executedAt} IS NULL AND ${table.failedAt} IS NULL)`,
+    ),
+    uniqueIndex('ux_refund_idempotency').on(
+      table.idempotencyScope,
+      table.idempotencyKey,
+    ),
+    uniqueIndex('ux_refund_order_active')
+      .on(table.orderId)
+      .where(sql`${table.status} IN ('PENDING_CHECKER', 'EXECUTING')`),
     index('idx_refund_order').on(table.orderId),
     index('idx_refund_status').on(table.status),
   ],

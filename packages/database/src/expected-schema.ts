@@ -1445,6 +1445,13 @@ export const expectedSchema = {
     'created_at',
     'updated_at',
     'refund_wallet_entry_id',
+    'idempotency_scope',
+    'idempotency_key',
+    'payload_hash',
+    'prior_order_status',
+    'executed_at',
+    'failed_at',
+    'failure_reason',
   ],
   redemption_audit_log: [
     'id',

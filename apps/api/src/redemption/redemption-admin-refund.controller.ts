@@ -5,10 +5,12 @@ import {
   Body,
   Param,
   Query,
+  Req,
   UseGuards,
   Inject,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AdminGuard } from '../auth/admin.guard.js';
 import { AuthenticatedAdmin } from '../auth/authenticated-admin.decorator.js';
@@ -24,6 +26,12 @@ interface CreateRefundDto {
   totalPointCost: string;
   reason: string;
   makerNotes?: string;
+  /**
+   * SEC-02: required operation-level idempotency key. The owner enforces it;
+   * same key + same payload replays, same key + different payload is
+   * rejected with a conflict.
+   */
+  idempotencyKey: string;
 }
 
 interface ApproveRefundDto {
@@ -48,8 +56,13 @@ export class AdminRedemptionRefundController {
     private readonly svc: RedemptionRefundService,
   ) {}
 
-  private actor(adminId: string): ActorInfo {
-    return { actorType: 'ADMIN', actorId: adminId };
+  private actor(adminId: string, request?: Request): ActorInfo {
+    const requestId =
+      typeof request?.headers?.['x-request-id'] === 'string'
+        ? request.headers['x-request-id']
+        : undefined;
+    const ipAddress = typeof request?.ip === 'string' ? request.ip : undefined;
+    return { actorType: 'ADMIN', actorId: adminId, requestId, ipAddress };
   }
 
   // ─── Maker: Create Refund Request (OD-17) ─────────────────────────────
@@ -57,11 +70,13 @@ export class AdminRedemptionRefundController {
   @Post()
   @ApiOperation({
     summary: 'Create refund request (Maker) (OD-17)',
-    description: 'Full refund only (OD-12). Requires Checker approval.',
+    description:
+      'Full refund only (OD-12). Requires Checker approval. Idempotency-Key semantics: same key + same payload replays the stored request.',
   })
   async createRefundRequest(
     @Body() dto: CreateRefundDto,
     @AuthenticatedAdmin() adminId: string,
+    @Req() request: Request,
   ): Promise<RefundRequestRecord> {
     return this.svc.createRefundRequest(
       {
@@ -72,8 +87,9 @@ export class AdminRedemptionRefundController {
         reason: dto.reason,
         makerId: adminId,
         makerNotes: dto.makerNotes,
+        idempotencyKey: dto.idempotencyKey,
       },
-      this.actor(adminId),
+      this.actor(adminId, request),
     );
   }
 
@@ -84,6 +100,7 @@ export class AdminRedemptionRefundController {
   async approveRefundRequest(
     @Body() dto: ApproveRefundDto,
     @AuthenticatedAdmin() adminId: string,
+    @Req() request: Request,
   ): Promise<RefundRequestRecord> {
     return this.svc.approveRefundRequest(
       {
@@ -91,7 +108,7 @@ export class AdminRedemptionRefundController {
         checkerId: adminId,
         checkerNotes: dto.checkerNotes,
       },
-      this.actor(adminId),
+      this.actor(adminId, request),
     );
   }
 
