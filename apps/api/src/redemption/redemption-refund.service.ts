@@ -320,7 +320,10 @@ export class RedemptionRefundService {
       }
 
       // Server-side truth: the claimed member/market must match the order.
-      if (params.memberId !== order.memberId || params.marketId !== order.marketId) {
+      if (
+        params.memberId !== order.memberId ||
+        params.marketId !== order.marketId
+      ) {
         redemptionBadRequest(
           redemptionErrorCodes.refundOrderMismatch,
           'The claimed member or market does not match the order.',
@@ -442,10 +445,7 @@ export class RedemptionRefundService {
         }
 
         if (request.status !== 'PENDING_CHECKER') {
-          if (
-            request.status === 'APPROVED' ||
-            request.status === 'COMPLETED'
-          ) {
+          if (request.status === 'APPROVED' || request.status === 'COMPLETED') {
             redemptionConflict(
               redemptionErrorCodes.refundAlreadyApproved,
               'Refund already approved',
@@ -490,7 +490,8 @@ export class RedemptionRefundService {
           .from(redemptionRefundRequests)
           .where(eq(redemptionRefundRequests.id, params.refundRequestId))
           .limit(1);
-        if (!updated) throw new Error('Refund request row missing after execution');
+        if (!updated)
+          throw new Error('Refund request row missing after execution');
 
         await this.audit(
           tx,
@@ -521,7 +522,11 @@ export class RedemptionRefundService {
       // completely (no partial ledger, no balance change, order untouched).
       // Durably mark the request FAILED so a retry can never re-execute it,
       // then surface the failure to the caller.
-      const failed = await this.markFailed(params.refundRequestId, actor, error);
+      const failed = await this.markFailed(
+        params.refundRequestId,
+        actor,
+        error,
+      );
       if (failed) {
         redemptionBadRequest(
           redemptionErrorCodes.refundExecutionFailed,
@@ -587,8 +592,8 @@ export class RedemptionRefundService {
     }
 
     // 5. Exact-opposite compensating ledger entry (REDEMPTION_REFUND)
-    const balanceBefore = wallet.availableBalance as string;
-    const refundAmount = request.refundAmount as string;
+    const balanceBefore = wallet.availableBalance;
+    const refundAmount = request.refundAmount;
     const balanceAfter = addDecimal(balanceBefore, refundAmount);
 
     const maxSeq = await tx
@@ -716,10 +721,7 @@ export class RedemptionRefundService {
         );
       }
       if (request.status !== 'PENDING_CHECKER') {
-        if (
-          request.status === 'APPROVED' ||
-          request.status === 'COMPLETED'
-        ) {
+        if (request.status === 'APPROVED' || request.status === 'COMPLETED') {
           redemptionConflict(
             redemptionErrorCodes.refundAlreadyApproved,
             'Refund already approved',
@@ -838,10 +840,7 @@ export class RedemptionRefundService {
       .where(eq(redemptionRefundRequests.orderId, orderId))
       .limit(1);
     if (other) {
-      if (
-        other.status === 'PENDING_CHECKER' ||
-        other.status === 'EXECUTING'
-      ) {
+      if (other.status === 'PENDING_CHECKER' || other.status === 'EXECUTING') {
         redemptionConflict(
           redemptionErrorCodes.refundAlreadyProcessed,
           'Refund request already pending checker',

@@ -18,7 +18,10 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ConfigService } from '../config/config.service.js';
 import type { DatabaseService } from '../database/database.service.js';
-import { RedemptionRefundService, canonicalHash } from './redemption-refund.service.js';
+import {
+  RedemptionRefundService,
+  canonicalHash,
+} from './redemption-refund.service.js';
 import type { ActorInfo } from './redemption.types.js';
 
 type MockTransactionCallback = (tx: unknown) => unknown;
@@ -394,9 +397,7 @@ describe('RedemptionRefundService — SEC-02 owner controls', () => {
             makeTx({
               limit: vi
                 .fn()
-                .mockResolvedValueOnce([
-                  createOrderRow({ status: 'REFUNDED' }),
-                ]) // order
+                .mockResolvedValueOnce([createOrderRow({ status: 'REFUNDED' })]) // order
                 .mockResolvedValueOnce([]), // idempotency claim lookup
             }),
           ),
@@ -610,11 +611,11 @@ describe('RedemptionRefundService — SEC-02 owner controls', () => {
         returning: vi.fn().mockResolvedValue([failedRow]),
       });
       mockDb.runTransaction
-        .mockImplementationOnce(
-          async (cb: MockTransactionCallback) => cb(firstTx),
+        .mockImplementationOnce(async (cb: MockTransactionCallback) =>
+          cb(firstTx),
         )
-        .mockImplementationOnce(
-          async (cb: MockTransactionCallback) => cb(secondTx),
+        .mockImplementationOnce(async (cb: MockTransactionCallback) =>
+          cb(secondTx),
         );
 
       await expect(
@@ -625,7 +626,7 @@ describe('RedemptionRefundService — SEC-02 owner controls', () => {
       ).rejects.toThrow(/Refund execution failed/i);
 
       const failedUpdate = (secondTx.recorded['update'] ?? []).find(
-        (values) => values['status'] === 'FAILED',
+        (values: Record<string, unknown>) => values['status'] === 'FAILED',
       );
       expect(failedUpdate).toBeDefined();
       expect(failedUpdate!['checkerId']).toBe(checkerUserId);
@@ -674,7 +675,8 @@ describe('RedemptionRefundService — SEC-02 owner controls', () => {
       expect(result.status).toBe('COMPLETED');
 
       const executedAudit = (tx.recorded['insert'] ?? []).find(
-        (values) => values['action'] === 'REFUND_EXECUTED',
+        (values: Record<string, unknown>) =>
+          values['action'] === 'REFUND_EXECUTED',
       );
       expect(executedAudit).toBeDefined();
       expect(executedAudit!['actorType']).toBe('ADMIN');
@@ -683,9 +685,9 @@ describe('RedemptionRefundService — SEC-02 owner controls', () => {
       expect(executedAudit!['result']).toBe('SUCCESS');
       expect(executedAudit!['reason']).toBe('Item out of stock');
       expect(executedAudit!['before']).toEqual({ status: 'PENDING_CHECKER' });
-      expect((executedAudit!['after'] as Record<string, unknown>)['status']).toBe(
-        'COMPLETED',
-      );
+      expect(
+        (executedAudit!['after'] as Record<string, unknown>)['status'],
+      ).toBe('COMPLETED');
       expect(executedAudit!['requestId']).toBe('req-2');
       expect(executedAudit!['ipAddress']).toBe('127.0.0.1');
     });
@@ -727,7 +729,7 @@ describe('RedemptionRefundService — SEC-02 owner controls', () => {
       expect(result.checkerId).toBe(checkerUserId);
 
       const orderUpdate = (tx.recorded['update'] ?? []).find(
-        (values) =>
+        (values: Record<string, unknown>) =>
           Object.prototype.hasOwnProperty.call(values, 'status') &&
           values['checkerId'] === undefined,
       );
@@ -735,7 +737,8 @@ describe('RedemptionRefundService — SEC-02 owner controls', () => {
       expect(orderUpdate!['status']).toBe('FULFILMENT_SUSPENDED');
 
       const rejectedAudit = (tx.recorded['insert'] ?? []).find(
-        (values) => values['action'] === 'REFUND_REJECTED',
+        (values: Record<string, unknown>) =>
+          values['action'] === 'REFUND_REJECTED',
       );
       expect(rejectedAudit).toBeDefined();
       expect(rejectedAudit!['result']).toBe('SUCCESS');

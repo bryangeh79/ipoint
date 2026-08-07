@@ -178,9 +178,14 @@ describe.skipIf(!databaseUrl)(
       const member = await createMember();
       const itemId = await createItem();
       const { input } = await quoteAndInput(member.memberId, itemId);
-      const order = await service.confirmOrder(member.memberId, marketId, input, {
-        ipAddress: '127.0.0.1',
-      });
+      const order = await service.confirmOrder(
+        member.memberId,
+        marketId,
+        input,
+        {
+          ipAddress: '127.0.0.1',
+        },
+      );
       const status = options?.status ?? 'FULFILMENT_EXCEPTION';
       await db.execute(sql`
         UPDATE redemption_orders
@@ -194,7 +199,8 @@ describe.skipIf(!databaseUrl)(
         WHERE id = ${member.walletId}
       `);
       const balanceBefore = walletRow.rows[0]?.available_balance as string;
-      const idempotencyKey = options?.idempotencyKey ?? `sec02-create-${token()}`;
+      const idempotencyKey =
+        options?.idempotencyKey ?? `sec02-create-${token()}`;
       const request = await refundService.createRefundRequest(
         {
           orderId: order.id,
@@ -365,16 +371,17 @@ describe.skipIf(!databaseUrl)(
       expect(actions).toContain('REFUND_REQUESTED');
       expect(actions).toContain('REFUND_EXECUTED');
       const executed = audits.rows.find(
-        (row) => (row as Record<string, unknown>)['action'] === 'REFUND_EXECUTED',
+        (row) =>
+          (row as Record<string, unknown>)['action'] === 'REFUND_EXECUTED',
       ) as Record<string, unknown>;
       expect(executed['actor_type']).toBe('ADMIN');
       expect(executed['actor_id']).toBe(checkerAdminId);
       expect(executed['result']).toBe('SUCCESS');
       expect(executed['reason']).toBe('Item out of stock - verified');
       expect(executed['before']).toEqual({ status: 'PENDING_CHECKER' });
-      expect(
-        (executed['after'] as Record<string, unknown>)['status'],
-      ).toBe('COMPLETED');
+      expect((executed['after'] as Record<string, unknown>)['status']).toBe(
+        'COMPLETED',
+      );
     });
 
     // ═══════════════════════════════════════════════════════════════════
@@ -385,9 +392,14 @@ describe.skipIf(!databaseUrl)(
       const member = await createMember();
       const itemId = await createItem();
       const { input } = await quoteAndInput(member.memberId, itemId);
-      const order = await service.confirmOrder(member.memberId, marketId, input, {
-        ipAddress: '127.0.0.1',
-      });
+      const order = await service.confirmOrder(
+        member.memberId,
+        marketId,
+        input,
+        {
+          ipAddress: '127.0.0.1',
+        },
+      );
       await db.execute(sql`
         UPDATE redemption_orders
         SET status = 'FULFILMENT_EXCEPTION'::redemption_order_status
@@ -707,9 +719,14 @@ describe.skipIf(!databaseUrl)(
       const member = await createMember();
       const itemId = await createItem();
       const { input } = await quoteAndInput(member.memberId, itemId);
-      const order = await service.confirmOrder(member.memberId, marketId, input, {
-        ipAddress: '127.0.0.1',
-      });
+      const order = await service.confirmOrder(
+        member.memberId,
+        marketId,
+        input,
+        {
+          ipAddress: '127.0.0.1',
+        },
+      );
       await expect(
         refundService.createRefundRequest(
           {

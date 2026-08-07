@@ -615,9 +615,7 @@ export const redemptionRefundRequests = pgTable(
     ),
     uniqueIndex('ux_refund_order_active')
       .on(table.orderId)
-      .where(
-        sql`${table.status} IN ('PENDING_CHECKER', 'EXECUTING')`,
-      ),
+      .where(sql`${table.status} IN ('PENDING_CHECKER', 'EXECUTING')`),
     index('idx_refund_order').on(table.orderId),
     index('idx_refund_status').on(table.status),
   ],

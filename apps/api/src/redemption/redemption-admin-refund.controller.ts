@@ -61,8 +61,7 @@ export class AdminRedemptionRefundController {
       typeof request?.headers?.['x-request-id'] === 'string'
         ? request.headers['x-request-id']
         : undefined;
-    const ipAddress =
-      typeof request?.ip === 'string' ? request.ip : undefined;
+    const ipAddress = typeof request?.ip === 'string' ? request.ip : undefined;
     return { actorType: 'ADMIN', actorId: adminId, requestId, ipAddress };
   }
 
