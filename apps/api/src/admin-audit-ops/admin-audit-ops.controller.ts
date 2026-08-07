@@ -110,7 +110,10 @@ export class AdminAuditOpsController {
       'Full stored evidence (before/after, source IP, request id) for one immutable audit entry. Requires audit.sensitive-diff.view: the RbacGuard enforces the recorded sensitive-access reason and a fresh MFA step-up grant, and the Support template is not granted this permission (support never reads raw ledgers). Read-only; the view performs no writes.',
   })
   @ApiResponse({ status: 200, description: 'Raw audit evidence.' })
-  @ApiResponse({ status: 403, description: 'Permission, reason or step-up denied.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Permission, reason or step-up denied.',
+  })
   @ApiResponse({ status: 404, description: 'Entry not found in market.' })
   getRawEntry(
     @Param('marketId', new ParseUUIDPipe()) marketId: string,

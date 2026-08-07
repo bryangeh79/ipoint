@@ -155,10 +155,13 @@ export class AdminAuditOpsService {
       clauses.push(`action ILIKE ${bind(`%${escapeLike(query.action)}%`)}`);
     }
     if (query.entityType) {
-      clauses.push(`entity_type ILIKE ${bind(`%${escapeLike(query.entityType)}%`)}`);
+      clauses.push(
+        `entity_type ILIKE ${bind(`%${escapeLike(query.entityType)}%`)}`,
+      );
     }
     if (query.result) clauses.push(`result = ${bind(query.result)}`);
-    if (query.from) clauses.push(`occurred_at >= ${bind(new Date(query.from))}`);
+    if (query.from)
+      clauses.push(`occurred_at >= ${bind(new Date(query.from))}`);
     if (query.to) clauses.push(`occurred_at <= ${bind(new Date(query.to))}`);
     if (query.q) {
       const pattern = `%${escapeLike(query.q)}%`;

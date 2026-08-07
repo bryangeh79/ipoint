@@ -290,35 +290,34 @@ export function mockP7S9OpsApi(options: P7S9OpsMockOptions = {}) {
           );
         }
         return json(
-          options.auditRaw ?? {
-            id: P7S9_ENTRY_ID,
-            occurredAt: '2026-08-07T12:00:00.000Z',
-            actorType: 'ADMIN_USER',
-            actorId: P7S9_ACTOR_ID,
-            marketId: P7S9_MARKET_ID,
-            action: 'REDEMPTION_REFUND_APPROVE',
-            entityType: 'redemption_order',
-            entityId: '33333333-3333-4333-8333-333333333333',
-            result: 'SUCCESS',
-            reason: 'documented reason',
-            requestId: 'req-1',
-            ipAddress: '203.0.113.9',
-            raw: true,
-            before: { status: 'PENDING_CHECKER' },
-            after: {
-              status: 'APPROVED',
-              id_number: '800101-14-5678',
-              access_token:
-                'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
-              note: 'approved by checker',
-            },
-          } satisfies AdminAuditRawEntryDto,
+          options.auditRaw ??
+            ({
+              id: P7S9_ENTRY_ID,
+              occurredAt: '2026-08-07T12:00:00.000Z',
+              actorType: 'ADMIN_USER',
+              actorId: P7S9_ACTOR_ID,
+              marketId: P7S9_MARKET_ID,
+              action: 'REDEMPTION_REFUND_APPROVE',
+              entityType: 'redemption_order',
+              entityId: '33333333-3333-4333-8333-333333333333',
+              result: 'SUCCESS',
+              reason: 'documented reason',
+              requestId: 'req-1',
+              ipAddress: '203.0.113.9',
+              raw: true,
+              before: { status: 'PENDING_CHECKER' },
+              after: {
+                status: 'APPROVED',
+                id_number: '800101-14-5678',
+                access_token:
+                  'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+                note: 'approved by checker',
+              },
+            } satisfies AdminAuditRawEntryDto),
         );
       }
       if (url.includes(auditBase) && url.includes('/entries/')) {
-        return json(
-          options.auditEntry ?? maskedAuditEntryFixture(),
-        );
+        return json(options.auditEntry ?? maskedAuditEntryFixture());
       }
 
       // P7-S9 basic reports

@@ -92,9 +92,10 @@ export function AuditPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [raw, setRaw] = useState<RawState | null>(null);
 
-  const rawPermitted = session.bootstrap?.effectivePermissions.includes(
-    'audit.sensitive-diff.view',
-  ) ?? false;
+  const rawPermitted =
+    session.bootstrap?.effectivePermissions.includes(
+      'audit.sensitive-diff.view',
+    ) ?? false;
 
   const loadEntries = useCallback(async () => {
     if (!marketId) return;
@@ -104,7 +105,9 @@ export function AuditPage() {
         ...(query.trim() ? { q: query.trim() } : {}),
         ...(action.trim() ? { action: action.trim() } : {}),
         ...(entityType.trim() ? { entityType: entityType.trim() } : {}),
-        ...(resultFilter !== 'ALL' ? { result: resultFilter as 'SUCCESS' } : {}),
+        ...(resultFilter !== 'ALL'
+          ? { result: resultFilter as 'SUCCESS' }
+          : {}),
         ...(actorFilter !== 'ALL'
           ? { actorType: actorFilter as 'ADMIN_USER' }
           : {}),
@@ -116,7 +119,16 @@ export function AuditPage() {
     } catch (error: unknown) {
       setLoad({ status: 'error', ...describeAuditReadError(error) });
     }
-  }, [marketId, query, action, entityType, resultFilter, actorFilter, from, to]);
+  }, [
+    marketId,
+    query,
+    action,
+    entityType,
+    resultFilter,
+    actorFilter,
+    from,
+    to,
+  ]);
 
   useEffect(() => {
     void loadEntries();
@@ -140,10 +152,14 @@ export function AuditPage() {
     }
     setRaw({ ...raw, phase: 'loading', message: null });
     try {
-      const evidence = await adminAuditOpsApi.getRawEntry(marketId, raw.entryId, {
-        reason: trimmed,
-        ...(stepUpToken ? { stepUpToken } : {}),
-      });
+      const evidence = await adminAuditOpsApi.getRawEntry(
+        marketId,
+        raw.entryId,
+        {
+          reason: trimmed,
+          ...(stepUpToken ? { stepUpToken } : {}),
+        },
+      );
       setRaw({
         ...raw,
         phase: 'done',
@@ -163,7 +179,12 @@ export function AuditPage() {
             action_class: 'audit.sensitive-diff.view',
             ...(marketId ? { market_id: marketId } : {}),
           });
-          setRaw({ ...raw, phase: 'stepup', challenge: started, message: null });
+          setRaw({
+            ...raw,
+            phase: 'stepup',
+            challenge: started,
+            message: null,
+          });
         } catch (stepUpError: unknown) {
           setRaw({
             ...raw,
@@ -291,7 +312,9 @@ export function AuditPage() {
         />
       ) : null}
 
-      {load.status === 'ready' && items.length === 0 ? <AuditEmptyState /> : null}
+      {load.status === 'ready' && items.length === 0 ? (
+        <AuditEmptyState />
+      ) : null}
 
       {load.status === 'ready' && items.length > 0 ? (
         <Card>
@@ -400,11 +423,11 @@ function RawEvidenceSection({
   if (!permitted) {
     return (
       <p className="admin-audit-locked" role="status" data-testid="raw-locked">
-        <strong>Raw evidence is locked.</strong> Viewing the full audit
-        evidence requires the <code>audit.sensitive-diff.view</code>{' '}
-        permission, a recorded reason and MFA step-up. The Support template is
-        not granted this permission — support never reads raw ledgers. Masked
-        evidence remains available above.
+        <strong>Raw evidence is locked.</strong> Viewing the full audit evidence
+        requires the <code>audit.sensitive-diff.view</code> permission, a
+        recorded reason and MFA step-up. The Support template is not granted
+        this permission — support never reads raw ledgers. Masked evidence
+        remains available above.
       </p>
     );
   }
@@ -519,8 +542,8 @@ function RawEvidenceSection({
         />
       </FormField>
       <p className="admin-kyc-muted">
-        Reason must be 8–500 characters. MFA step-up is required and every
-        view is audited.
+        Reason must be 8–500 characters. MFA step-up is required and every view
+        is audited.
       </p>
       <div className="admin-kyc-action__buttons">
         <Button type="submit" disabled={active.phase === 'loading'}>

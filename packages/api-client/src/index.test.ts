@@ -3269,31 +3269,30 @@ describe('AdminAuditOpsApiClient (P7-S9 audit viewer)', () => {
     const entry = await client.getEntry(MARKET, ENTRY);
     expect(entry.id).toBe(ENTRY);
     expect(entry.masked).toBe(true);
-    expect((entry as unknown as Record<string, unknown>)['ipAddress']).toBeUndefined();
+    expect(
+      (entry as unknown as Record<string, unknown>)['ipAddress'],
+    ).toBeUndefined();
   });
 
   it('reads the raw evidence with the recorded reason + step-up token headers', async () => {
     const client = auditClient();
-    const fetchSpy = mockFetch(
-      200,
-      {
-        id: ENTRY,
-        occurredAt: '2026-08-07T12:00:00.000Z',
-        actorType: 'ADMIN_USER',
-        actorId: null,
-        marketId: MARKET,
-        action: 'REDEMPTION_REFUND_APPROVE',
-        entityType: 'redemption_order',
-        entityId: '22222222-2222-4222-8222-222222222222',
-        result: 'SUCCESS',
-        reason: 'documented reason',
-        requestId: 'req-1',
-        ipAddress: '203.0.113.9',
-        raw: true,
-        before: { status: 'PENDING_CHECKER' },
-        after: { status: 'APPROVED', id_number: '800101-14-5678' },
-      } satisfies AdminAuditRawEntryDto,
-    );
+    const fetchSpy = mockFetch(200, {
+      id: ENTRY,
+      occurredAt: '2026-08-07T12:00:00.000Z',
+      actorType: 'ADMIN_USER',
+      actorId: null,
+      marketId: MARKET,
+      action: 'REDEMPTION_REFUND_APPROVE',
+      entityType: 'redemption_order',
+      entityId: '22222222-2222-4222-8222-222222222222',
+      result: 'SUCCESS',
+      reason: 'documented reason',
+      requestId: 'req-1',
+      ipAddress: '203.0.113.9',
+      raw: true,
+      before: { status: 'PENDING_CHECKER' },
+      after: { status: 'APPROVED', id_number: '800101-14-5678' },
+    } satisfies AdminAuditRawEntryDto);
 
     const raw = await client.getRawEntry(MARKET, ENTRY, {
       reason: 'Refund approval evidence review',
@@ -3323,36 +3322,33 @@ describe('AdminReportOpsApiClient (P7-S9 basic reports)', () => {
 
   it('lists the report catalog with per-report freshness state', async () => {
     const client = reportClient();
-    const fetchSpy = mockFetch(
-      200,
-      {
-        asOf: '2026-08-07T12:00:00.000Z',
-        marketId: MARKET,
-        items: [
-          {
-            id: 'R01',
-            key: 'transaction-counts',
-            name: 'Transaction counts',
-            definition: 'Transaction counts for the selected market.',
-            definitionVersion: 1,
-            freshnessClass: 'KPI',
-            permission: 'report.read',
-            source: 'transactions.',
-            state: 'FRESH',
-            stale: false,
-            unavailable: false,
-            asOf: '2026-08-07T12:00:00.000Z',
-            queryDurationMs: 1.8,
-            value: {
-              kind: 'STATUS_COUNTS',
-              windowDays: 30,
-              total: 2,
-              counts: { CONFIRMED: 2 },
-            },
+    const fetchSpy = mockFetch(200, {
+      asOf: '2026-08-07T12:00:00.000Z',
+      marketId: MARKET,
+      items: [
+        {
+          id: 'R01',
+          key: 'transaction-counts',
+          name: 'Transaction counts',
+          definition: 'Transaction counts for the selected market.',
+          definitionVersion: 1,
+          freshnessClass: 'KPI',
+          permission: 'report.read',
+          source: 'transactions.',
+          state: 'FRESH',
+          stale: false,
+          unavailable: false,
+          asOf: '2026-08-07T12:00:00.000Z',
+          queryDurationMs: 1.8,
+          value: {
+            kind: 'STATUS_COUNTS',
+            windowDays: 30,
+            total: 2,
+            counts: { CONFIRMED: 2 },
           },
-        ],
-      } satisfies AdminReportCatalogDto,
-    );
+        },
+      ],
+    } satisfies AdminReportCatalogDto);
 
     const result = await client.listReports(MARKET);
 
@@ -3367,25 +3363,22 @@ describe('AdminReportOpsApiClient (P7-S9 basic reports)', () => {
 
   it('reads one report detail and preserves the unavailable/stale flags', async () => {
     const client = reportClient();
-    mockFetch(
-      200,
-      {
-        id: 'R04',
-        key: 'registration-activation-trend',
-        name: 'Registration / activation trend',
-        definition: '14-day trend.',
-        definitionVersion: 1,
-        freshnessClass: 'KPI',
-        permission: 'report.read',
-        source: 'member_market_preferences + agent_activation.',
-        state: 'UNAVAILABLE',
-        unavailableReason: 'SOURCE_QUERY_FAILED',
-        stale: false,
-        unavailable: true,
-        asOf: '2026-08-07T12:00:00.000Z',
-        marketId: MARKET,
-      } satisfies AdminReportDetailDto,
-    );
+    mockFetch(200, {
+      id: 'R04',
+      key: 'registration-activation-trend',
+      name: 'Registration / activation trend',
+      definition: '14-day trend.',
+      definitionVersion: 1,
+      freshnessClass: 'KPI',
+      permission: 'report.read',
+      source: 'member_market_preferences + agent_activation.',
+      state: 'UNAVAILABLE',
+      unavailableReason: 'SOURCE_QUERY_FAILED',
+      stale: false,
+      unavailable: true,
+      asOf: '2026-08-07T12:00:00.000Z',
+      marketId: MARKET,
+    } satisfies AdminReportDetailDto);
 
     const detail = await client.getReport(MARKET, 'R04');
 

@@ -298,7 +298,10 @@ describe.skipIf(!databaseUrl)(
         .select({ id: sessions.id })
         .from(sessions)
         .where(
-          and(eq(sessions.accountId, admin.accountId), isNull(sessions.revokedAt)),
+          and(
+            eq(sessions.accountId, admin.accountId),
+            isNull(sessions.revokedAt),
+          ),
         )
         .orderBy(sessions.createdAt)
         .limit(1);
@@ -510,9 +513,10 @@ describe.skipIf(!databaseUrl)(
       const body = response.body as AuditListBody;
       expect(body.marketId).toBe(marketA);
       expect(body.total).toBe(2); // entryA + entryDenied (market A only)
-      const item = body.items.find(
-        (entry) => entry['id'] === entryA,
-      ) as Record<string, unknown>;
+      const item = body.items.find((entry) => entry['id'] === entryA) as Record<
+        string,
+        unknown
+      >;
       expect(item['masked']).toBe(true);
       expect(item['ipAddress']).toBeUndefined();
       expect(item['before']).toBeUndefined();
@@ -549,12 +553,16 @@ describe.skipIf(!databaseUrl)(
       const from = new Date(Date.now() - 60_000).toISOString();
       const to = new Date().toISOString();
       const ranged = await supertest(server)
-        .get(`${entriesUrl(marketA)}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
+        .get(
+          `${entriesUrl(marketA)}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        )
         .set(authorized(supportAdmin.token))
         .expect(200);
       expect((ranged.body as AuditListBody).total).toBe(2);
       const inverted = await supertest(server)
-        .get(`${entriesUrl(marketA)}?from=${encodeURIComponent(to)}&to=${encodeURIComponent(from)}`)
+        .get(
+          `${entriesUrl(marketA)}?from=${encodeURIComponent(to)}&to=${encodeURIComponent(from)}`,
+        )
         .set(authorized(supportAdmin.token))
         .expect(400);
       expect((inverted.body as ErrorBody).error.code).toBe('VALIDATION_ERROR');
@@ -645,9 +653,9 @@ describe.skipIf(!databaseUrl)(
       expect(body['id']).toBe(entryA);
       expect(body['ipAddress']).toBe('203.0.113.9');
       expect(body['after']).toEqual(SENSITIVE_AFTER);
-      expect(
-        (body['after'] as Record<string, unknown>)['id_number'],
-      ).toBe('800101-14-5678');
+      expect((body['after'] as Record<string, unknown>)['id_number']).toBe(
+        '800101-14-5678',
+      );
     });
 
     it('consumes the step-up grant exactly once (second raw view needs a new grant)', async () => {
@@ -668,7 +676,9 @@ describe.skipIf(!databaseUrl)(
         .set('x-step-up-token', grant)
         .set('x-sensitive-access-reason', 'Rejected refund evidence review')
         .expect(403);
-      expect((second.body as ErrorBody).error.code).toBe('MFA_STEP_UP_REQUIRED');
+      expect((second.body as ErrorBody).error.code).toBe(
+        'MFA_STEP_UP_REQUIRED',
+      );
     });
 
     // ─── Read-only by construction ───────────────────────────────────

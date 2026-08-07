@@ -72,7 +72,9 @@ describe('P7-S9 basic reports page', () => {
     expect(within(r01).getByTestId('count-CONFIRMED')).toHaveTextContent('2');
     expect(within(r01).getByTestId('count-total')).toHaveTextContent('2');
     // Trend values.
-    expect(screen.getByText(/Totals: 2 registrations · 1 activations/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Totals: 2 registrations · 1 activations/i),
+    ).toBeInTheDocument();
     // No export affordance anywhere (Command Center §7: no CSV/download).
     expect(
       screen.queryByRole('button', { name: /download|csv|export/i }),
@@ -106,9 +108,7 @@ describe('P7-S9 basic reports page', () => {
       'never fabricated',
     );
     // The unavailable report shows no counts table and no zero.
-    expect(screen.getByTestId('report-R03').textContent).not.toContain(
-      'Count',
-    );
+    expect(screen.getByTestId('report-R03').textContent).not.toContain('Count');
   });
 
   it('marks a report STALE with the explicit stale snapshot line', async () => {

@@ -1,4 +1,7 @@
-import type { AdminReportCatalogDto, AdminReportStateDto } from '@ipoint/api-client';
+import type {
+  AdminReportCatalogDto,
+  AdminReportStateDto,
+} from '@ipoint/api-client';
 import { Card, PageHeader, Table } from '@ipoint/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -152,9 +155,15 @@ function ReportValueTable({ report }: { report: AdminReportStateDto }) {
     return (
       <div className="admin-audit-detail">
         <h3>MCP adjustments ({value.windowDays ?? 90} days)</h3>
-        <CountsTable counts={value.mcp?.counts ?? {}} total={value.mcp?.total ?? 0} />
+        <CountsTable
+          counts={value.mcp?.counts ?? {}}
+          total={value.mcp?.total ?? 0}
+        />
         <h3>iPoint adjustments ({value.windowDays ?? 90} days)</h3>
-        <CountsTable counts={value.ipoint?.counts ?? {}} total={value.ipoint?.total ?? 0} />
+        <CountsTable
+          counts={value.ipoint?.counts ?? {}}
+          total={value.ipoint?.total ?? 0}
+        />
       </div>
     );
   }
@@ -192,7 +201,8 @@ function CountsTable({
   if (entries.length === 0) {
     return (
       <p className="admin-reward-muted">
-        No rows in the bounded window{windowDays ? ` (${windowDays} days)` : ''}.
+        No rows in the bounded window{windowDays ? ` (${windowDays} days)` : ''}
+        .
       </p>
     );
   }

@@ -3925,8 +3925,7 @@ export class AdminAuditOpsApiClient {
     if (options.from) params.set('from', options.from);
     if (options.to) params.set('to', options.to);
     if (options.q) params.set('q', options.q);
-    if (options.limit !== undefined)
-      params.set('limit', String(options.limit));
+    if (options.limit !== undefined) params.set('limit', String(options.limit));
     if (options.offset !== undefined)
       params.set('offset', String(options.offset));
     const suffix = params.toString();

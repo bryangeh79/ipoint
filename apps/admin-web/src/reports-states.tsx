@@ -63,7 +63,10 @@ export function ReportFreshnessBadge({ state }: { state: string }) {
           ? 'Unavailable'
           : state;
   return (
-    <Badge tone={freshnessTones[state] ?? 'neutral'} data-testid={`report-${state}`}>
+    <Badge
+      tone={freshnessTones[state] ?? 'neutral'}
+      data-testid={`report-${state}`}
+    >
       {label}
     </Badge>
   );
@@ -73,7 +76,11 @@ export function ReportFreshnessBadge({ state }: { state: string }) {
  * Freshness disclosure line: asOf + explicit stale/unavailable markers.
  * An UNAVAILABLE report never shows a fabricated zero — only the reason.
  */
-export function ReportFreshnessLine({ report }: { report: AdminReportStateDto }) {
+export function ReportFreshnessLine({
+  report,
+}: {
+  report: AdminReportStateDto;
+}) {
   if (report.unavailable) {
     return (
       <p className="admin-reward-muted" data-testid="report-unavailable-line">
@@ -89,8 +96,8 @@ export function ReportFreshnessLine({ report }: { report: AdminReportStateDto })
     return (
       <p className="admin-reward-muted" data-testid="report-stale-line">
         <strong>Stale snapshot</strong> — the live source failed; the previous
-        snapshot (as of {formatReportAsOf(report.asOf)}) is shown and must
-        not be treated as current.
+        snapshot (as of {formatReportAsOf(report.asOf)}) is shown and must not
+        be treated as current.
       </p>
     );
   }

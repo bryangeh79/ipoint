@@ -33,11 +33,10 @@ export type ReportUnavailableReason =
 export type ReportId = 'R01' | 'R02' | 'R03' | 'R04';
 
 /** Frozen freshness SLA (P7-OD-16): 60s queues, 5m KPIs. */
-export const REPORT_FRESHNESS_BOUND_MS: Record<ReportFreshnessClass, number> =
-  {
-    QUEUE: 60_000,
-    KPI: 5 * 60_000,
-  } as const;
+export const REPORT_FRESHNESS_BOUND_MS: Record<ReportFreshnessClass, number> = {
+  QUEUE: 60_000,
+  KPI: 5 * 60_000,
+} as const;
 
 export interface ReportDefinition {
   id: ReportId;

@@ -30,7 +30,8 @@ function dbMock(
           };
         }
         if (overrides.fail) throw new Error('connection refused');
-        if (/SELECT count/u.test(sqlText)) return { rows: [{ total: rows.length }] };
+        if (/SELECT count/u.test(sqlText))
+          return { rows: [{ total: rows.length }] };
         return { rows };
       },
     },
@@ -51,7 +52,8 @@ function auditRow(overrides: Record<string, unknown> = {}) {
     after: {
       status: 'APPROVED',
       id_number: '800101-14-5678',
-      access_token: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+      access_token:
+        'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
       note: 'approved by checker',
     },
     reason: 'documented reason',
@@ -141,7 +143,9 @@ describe('AdminAuditOpsService (P7-S9)', () => {
     expect(response.total).toBe(1);
     const item = response.items[0];
     expect(item?.masked).toBe(true);
-    expect((item as unknown as Record<string, unknown>)['ipAddress']).toBeUndefined();
+    expect(
+      (item as unknown as Record<string, unknown>)['ipAddress'],
+    ).toBeUndefined();
     expect(item?.beforeMasked).toEqual({ status: 'PENDING_CHECKER' });
     const after = item?.afterMasked as Record<string, unknown>;
     expect(after['id_number']).toBe('[MASKED]');
@@ -154,7 +158,9 @@ describe('AdminAuditOpsService (P7-S9)', () => {
     const entry = await service.getEntry(ACTOR, MARKET_ID, ENTRY_ID);
     expect(entry.id).toBe(ENTRY_ID);
     expect(entry.masked).toBe(true);
-    expect((entry as unknown as Record<string, unknown>)['ipAddress']).toBeUndefined();
+    expect(
+      (entry as unknown as Record<string, unknown>)['ipAddress'],
+    ).toBeUndefined();
   });
 
   it('returns the raw evidence view with stored values (raw view)', async () => {
@@ -166,9 +172,7 @@ describe('AdminAuditOpsService (P7-S9)', () => {
   });
 
   it('throws AUDIT_ENTRY_NOT_FOUND for a missing market', async () => {
-    const service = new AdminAuditOpsService(
-      dbMock({ marketRow: false }),
-    );
+    const service = new AdminAuditOpsService(dbMock({ marketRow: false }));
     await expect(
       service.listEntries(ACTOR, MARKET_ID, { limit: 50, offset: 0 }),
     ).rejects.toMatchObject({ code: 'AUDIT_ENTRY_NOT_FOUND' });

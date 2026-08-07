@@ -10,11 +10,9 @@ export function reportMarketNotFoundError(): ReportError {
 
 /** The report id is not part of the server-owned catalog. */
 export function reportUndefinedError(reportId: string): ReportError {
-  return new ReportError(
-    'REPORT_UNDEFINED',
-    `Unknown report: ${reportId}`,
-    { reportId },
-  );
+  return new ReportError('REPORT_UNDEFINED', `Unknown report: ${reportId}`, {
+    reportId,
+  });
 }
 
 /**

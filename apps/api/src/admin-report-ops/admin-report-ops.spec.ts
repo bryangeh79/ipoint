@@ -12,7 +12,9 @@ import {
 } from './admin-report-ops.types.js';
 
 const MARKET_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-const ACTOR: ReportActor = { adminUserId: '22222222-2222-4222-8222-222222222222' };
+const ACTOR: ReportActor = {
+  adminUserId: '22222222-2222-4222-8222-222222222222',
+};
 const MARKET_ROW = { id: MARKET_ID, code: 'MA' };
 
 const FIXED_NOW = new Date('2026-08-07T12:00:00.000Z');
@@ -69,9 +71,11 @@ describe('report catalog integrity (P7-S9)', () => {
   });
 
   it('assigns the frozen freshness classes (P7-OD-16: queues 60s, KPIs 5m)', () => {
-    const queueReports = new Set(reportCatalog
-      .filter((report) => report.freshnessClass === 'QUEUE')
-      .map((report) => report.id));
+    const queueReports = new Set(
+      reportCatalog
+        .filter((report) => report.freshnessClass === 'QUEUE')
+        .map((report) => report.id),
+    );
     expect(queueReports).toEqual(new Set(['R03']));
     for (const report of reportCatalog) {
       if (report.freshnessClass === 'QUEUE') {

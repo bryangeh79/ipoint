@@ -35,7 +35,10 @@ const resultTones: Readonly<
 
 export function AuditResultBadge({ result }: { result: string }) {
   return (
-    <Badge tone={resultTones[result] ?? 'neutral'} data-testid={`audit-result-${result}`}>
+    <Badge
+      tone={resultTones[result] ?? 'neutral'}
+      data-testid={`audit-result-${result}`}
+    >
       {auditResultLabel(result)}
     </Badge>
   );
@@ -47,8 +50,8 @@ export function AuditEmptyState() {
       <div className="admin-state" data-testid="audit-empty">
         <h3 className="admin-reward-muted">No audit entries</h3>
         <p>
-          No immutable audit entries match the current filters for this
-          market. Widen the filters or time range to see more.
+          No immutable audit entries match the current filters for this market.
+          Widen the filters or time range to see more.
         </p>
       </div>
     </Card>

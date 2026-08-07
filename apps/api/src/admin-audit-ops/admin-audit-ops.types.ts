@@ -21,11 +21,7 @@
 
 export const AUDIT_VIEWER_VERSION = 1;
 
-export const AUDIT_ACTOR_TYPES = [
-  'ACCOUNT',
-  'ADMIN_USER',
-  'SYSTEM',
-] as const;
+export const AUDIT_ACTOR_TYPES = ['ACCOUNT', 'ADMIN_USER', 'SYSTEM'] as const;
 
 export const AUDIT_RESULTS = ['SUCCESS', 'FAILURE', 'DENIED'] as const;
 
@@ -108,7 +104,8 @@ const sensitiveKey =
 const identityKey =
   /(?:nric|passport|national_id|identity_card|id_card|ic_number|id_number|document_number|ssn)/iu;
 
-const jwtLike = /^eyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}$/u;
+const jwtLike =
+  /^eyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}$/u;
 
 /**
  * Mask one audit JSON value for the limited view.

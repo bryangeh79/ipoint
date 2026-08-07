@@ -48,7 +48,9 @@ describe('P7-S9 audit viewer page', () => {
     await signIn(AUDIT_URL);
 
     await screen.findByRole('heading', { name: 'Audit viewer' });
-    expect(screen.getByTestId('audit-total')).toHaveTextContent('1 audit entry');
+    expect(screen.getByTestId('audit-total')).toHaveTextContent(
+      '1 audit entry',
+    );
     expect(screen.getByText('REDEMPTION_REFUND_APPROVE')).toBeInTheDocument();
     expect(screen.getByTestId('audit-result-SUCCESS')).toHaveTextContent(
       'Success',
@@ -58,7 +60,9 @@ describe('P7-S9 audit viewer page', () => {
     fireEvent.click(screen.getByTestId(`audit-row-${P7S9_ENTRY_ID}`));
     await screen.findByTestId('audit-entry-detail');
     const evidenceBlocks = screen.getAllByTestId('masked-evidence');
-    const evidenceText = evidenceBlocks.map((block) => block.textContent).join('\n');
+    const evidenceText = evidenceBlocks
+      .map((block) => block.textContent)
+      .join('\n');
     expect(evidenceText).toContain('[MASKED]');
     expect(evidenceText).toContain('[REDACTED]');
     expect(evidenceText).not.toContain('800101-14-5678');
@@ -94,12 +98,8 @@ describe('P7-S9 audit viewer page', () => {
 
     fireEvent.click(screen.getByTestId(`audit-row-${P7S9_ENTRY_ID}`));
     await screen.findByTestId('raw-locked');
-    expect(
-      screen.getByText(/Raw evidence is locked/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByTestId('raw-open'),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText(/Raw evidence is locked/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('raw-open')).not.toBeInTheDocument();
   });
 
   it('shows the raw evidence flow with a recorded reason (super admin)', async () => {
