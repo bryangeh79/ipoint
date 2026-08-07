@@ -188,8 +188,9 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
             makeTx({
               limit: vi
                 .fn()
-                .mockResolvedValueOnce([orderRow])
-                .mockResolvedValueOnce([]),
+                .mockResolvedValueOnce([orderRow]) // order
+                .mockResolvedValueOnce([]) // idempotency claim lookup
+                .mockResolvedValueOnce([]), // no existing refund request
               returning: vi.fn().mockResolvedValue([requestRow]),
             }),
           ),
@@ -217,7 +218,10 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
             makeTx({
               limit: vi
                 .fn()
-                .mockResolvedValue([createOrderRow({ status: 'CONFIRMED' })]),
+                .mockResolvedValueOnce([
+                  createOrderRow({ status: 'CONFIRMED' }),
+                ])
+                .mockResolvedValueOnce([]),
             }),
           ),
       );
@@ -245,7 +249,10 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
             makeTx({
               limit: vi
                 .fn()
-                .mockResolvedValue([createOrderRow({ status: 'FULFILLED' })]),
+                .mockResolvedValueOnce([
+                  createOrderRow({ status: 'FULFILLED' }),
+                ])
+                .mockResolvedValueOnce([]),
             }),
           ),
       );
@@ -301,7 +308,8 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
             makeTx({
               limit: vi
                 .fn()
-                .mockResolvedValueOnce([createOrderRow()])
+                .mockResolvedValueOnce([createOrderRow()]) // order
+                .mockResolvedValueOnce([]) // idempotency claim lookup
                 .mockResolvedValueOnce([existing]),
             }),
           ),
@@ -335,7 +343,8 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
             makeTx({
               limit: vi
                 .fn()
-                .mockResolvedValueOnce([createOrderRow()])
+                .mockResolvedValueOnce([createOrderRow()]) // order
+                .mockResolvedValueOnce([]) // idempotency claim lookup
                 .mockResolvedValueOnce([existing]),
             }),
           ),

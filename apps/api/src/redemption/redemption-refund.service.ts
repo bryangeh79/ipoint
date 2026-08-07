@@ -243,35 +243,46 @@ export class RedemptionRefundService {
         );
       }
 
+      const scope = `${REFUND_IDEMPOTENCY_SCOPE_PREFIX}:${order.id}`;
+      const payloadHash = canonicalHash({
+        operation: 'redemption.refund.create',
+        orderId: order.id,
+        memberId: order.memberId,
+        marketId: order.marketId,
+        totalPointCost: amount,
+        reason,
+        makerId,
+        makerNotes,
+      });
+
+      // Idempotency claim FIRST: a stored request for the same key replays
+      // regardless of the current order state (duplicate requests return the
+      // same result, P6-S0 §27.1); a different payload under the same key is
+      // rejected before any validation can change the outcome.
+      const [claim] = await tx
+        .select()
+        .from(redemptionRefundRequests)
+        .where(
+          and(
+            eq(redemptionRefundRequests.idempotencyScope, scope),
+            eq(redemptionRefundRequests.idempotencyKey, idempotencyKey),
+          ),
+        )
+        .limit(1);
+      if (claim) {
+        if (claim.payloadHash !== payloadHash) {
+          redemptionConflict(
+            redemptionErrorCodes.refundIdempotencyConflict,
+            'The idempotency key was already used with a different payload.',
+          );
+        }
+        return this.toRecord(claim);
+      }
+
       if (order.status === 'REFUNDED') {
         redemptionConflict(
           redemptionErrorCodes.refundAlreadyRefunded,
           'Order already refunded',
-        );
-      }
-
-      const status = order.status as string;
-      if (!REFUNDABLE_STATUSES.includes(status)) {
-        redemptionBadRequest(
-          redemptionErrorCodes.refundOrderNotRefundable,
-          `Order ${params.orderId} is '${status}'. Only FULFILMENT_EXCEPTION or FULFILMENT_SUSPENDED orders are refundable.`,
-        );
-      }
-
-      // Server-side truth: the claimed member/market must match the order.
-      if (params.memberId !== order.memberId || params.marketId !== order.marketId) {
-        redemptionBadRequest(
-          redemptionErrorCodes.refundOrderMismatch,
-          'The claimed member or market does not match the order.',
-        );
-      }
-
-      // Full refund only (OD-12 PENDING): exact-opposite of the original
-      // debit amount (order total points) — never float arithmetic.
-      if (normalizeDecimal(amount) !== normalizeDecimal(order.totalPoints)) {
-        redemptionBadRequest(
-          redemptionErrorCodes.refundPartialRefundNotAllowed,
-          `Full refund only: the refund amount must equal the order total of ${order.totalPoints} points, received ${amount}.`,
         );
       }
 
@@ -300,17 +311,30 @@ export class RedemptionRefundService {
         }
       }
 
-      const scope = `${REFUND_IDEMPOTENCY_SCOPE_PREFIX}:${order.id}`;
-      const payloadHash = canonicalHash({
-        operation: 'redemption.refund.create',
-        orderId: order.id,
-        memberId: order.memberId,
-        marketId: order.marketId,
-        totalPointCost: amount,
-        reason,
-        makerId,
-        makerNotes,
-      });
+      const status = order.status as string;
+      if (!REFUNDABLE_STATUSES.includes(status)) {
+        redemptionBadRequest(
+          redemptionErrorCodes.refundOrderNotRefundable,
+          `Order ${params.orderId} is '${status}'. Only FULFILMENT_EXCEPTION or FULFILMENT_SUSPENDED orders are refundable.`,
+        );
+      }
+
+      // Server-side truth: the claimed member/market must match the order.
+      if (params.memberId !== order.memberId || params.marketId !== order.marketId) {
+        redemptionBadRequest(
+          redemptionErrorCodes.refundOrderMismatch,
+          'The claimed member or market does not match the order.',
+        );
+      }
+
+      // Full refund only (OD-12 PENDING): exact-opposite of the original
+      // debit amount (order total points) — never float arithmetic.
+      if (normalizeDecimal(amount) !== normalizeDecimal(order.totalPoints)) {
+        redemptionBadRequest(
+          redemptionErrorCodes.refundPartialRefundNotAllowed,
+          `Full refund only: the refund amount must equal the order total of ${order.totalPoints} points, received ${amount}.`,
+        );
+      }
 
       try {
         const inserted = await tx

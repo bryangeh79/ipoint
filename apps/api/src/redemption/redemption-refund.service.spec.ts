@@ -182,6 +182,7 @@ describe('RedemptionRefundService', () => {
             limit: vi
               .fn()
               .mockResolvedValueOnce([orderRow]) // order exists
+              .mockResolvedValueOnce([]) // idempotency claim lookup
               .mockResolvedValueOnce([]), // no existing refund request
             insert: vi.fn().mockReturnThis(),
             values: vi.fn().mockReturnThis(),

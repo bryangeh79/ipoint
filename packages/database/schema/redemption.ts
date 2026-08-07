@@ -507,7 +507,7 @@ export const redemptionOrders = pgTable(
     ),
     check(
       'chk_order_refund_state',
-      sql`(${table.status} = 'REFUND_PENDING' AND ${table.walletEntryId} IS NULL) OR (${table.status} = 'REFUNDED' AND ${table.walletEntryId} IS NOT NULL) OR (${table.status} NOT IN ('REFUND_PENDING', 'REFUNDED'))`,
+      sql`(${table.status} = 'REFUND_PENDING' AND ${table.walletEntryId} IS NOT NULL) OR (${table.status} = 'REFUNDED' AND ${table.walletEntryId} IS NOT NULL) OR (${table.status} NOT IN ('REFUND_PENDING', 'REFUNDED'))`,
     ),
     index('idx_order_member').on(table.memberId),
     index('idx_order_status').on(table.status),

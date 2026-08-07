@@ -93,3 +93,23 @@ ALTER TABLE redemption_refund_requests
       AND wallet_entry_id IS NULL AND refund_wallet_entry_id IS NULL
       AND executed_at IS NULL AND failed_at IS NULL)
   );
+
+-- ── 3. Correct the order refund-state invariant (frozen machine fix) ──────
+--
+-- The 0020 constraint required REFUND_PENDING to have wallet_entry_id IS
+-- NULL, but a refundable order always carries its original debit entry
+-- (points are debited at CONFIRMED, P6-S0 §20.3). As written, the frozen
+-- REFUND_PENDING -> REFUNDED transition was unexecutable for any real
+-- order. 0036 corrects the encoding of the frozen P6-S0 state machine:
+-- REFUND_PENDING now REQUIRES the original debit reference and REFUNDED
+-- keeps its existing debit requirement. Forward-only: the old constraint
+-- is dropped and re-added with the corrected invariant; no historical
+-- migration is rewritten.
+ALTER TABLE redemption_orders
+  DROP CONSTRAINT IF EXISTS chk_order_refund_state;
+ALTER TABLE redemption_orders
+  ADD CONSTRAINT chk_order_refund_state CHECK (
+    (status = 'REFUND_PENDING' AND wallet_entry_id IS NOT NULL)
+    OR (status = 'REFUNDED' AND wallet_entry_id IS NOT NULL)
+    OR (status NOT IN ('REFUND_PENDING', 'REFUNDED'))
+  );
