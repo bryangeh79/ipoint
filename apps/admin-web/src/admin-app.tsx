@@ -61,6 +61,8 @@ import { MerchantKycQueuePage } from './kyc-merchant-queue-page.js';
 import { MerchantKycDetailPage } from './kyc-merchant-detail-page.js';
 import { AgentOpsListPage } from './agent-ops-list-page.js';
 import { AgentOpsDetailPage } from './agent-ops-detail-page.js';
+import { AuditPage } from './audit-page.js';
+import { ReportsPage } from './reports-page.js';
 import { RedemptionQueuesPage } from './redemption-queues-page.js';
 import { RedemptionOrderDetailPage } from './redemption-order-detail-page.js';
 import { RedemptionRefundsPage } from './redemption-refunds-page.js';
@@ -232,6 +234,10 @@ function RouteContent({ route }: { route: AdminRoute }) {
     return <RedemptionOrderDetailPage />;
   if (route.id === 'refunds') return <RedemptionRefundsPage />;
   if (route.id === 'refund-detail') return <RedemptionRefundDetailPage />;
+  /* P7-S9 audit viewer + basic reports (append-only route cases, Command
+     Center 2026-08-07 §7). */
+  if (route.id === 'audit') return <AuditPage />;
+  if (route.id === 'reports') return <ReportsPage />;
   return (
     <section aria-labelledby="admin-route-title">
       <PageHeader

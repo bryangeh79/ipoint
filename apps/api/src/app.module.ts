@@ -27,6 +27,8 @@ import { AdminCommissionOpsModule } from './admin-commission-ops/admin-commissio
 import { AdminIpointAdjustOpsModule } from './admin-ipoint-adjust-ops/admin-ipoint-adjust-ops.module.js';
 import { AdminAgentOpsModule } from './admin-agent-ops/admin-agent-ops.module.js';
 import { AdminRedemptionFulfilmentOpsModule } from './admin-redemption-fulfilment-ops/admin-redemption-fulfilment-ops.module.js';
+import { AdminAuditOpsModule } from './admin-audit-ops/admin-audit-ops.module.js';
+import { AdminReportOpsModule } from './admin-report-ops/admin-report-ops.module.js';
 import { RewardModule } from './reward/reward.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
 import { DailyJobModule } from './daily-job/job.module.js';
@@ -101,6 +103,8 @@ import {
     AdminIpointAdjustOpsModule,
     AdminAgentOpsModule,
     AdminRedemptionFulfilmentOpsModule,
+    AdminAuditOpsModule,
+    AdminReportOpsModule,
     RewardModule,
     WalletModule,
     DailyJobModule,

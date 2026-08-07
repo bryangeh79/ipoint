@@ -1,6 +1,7 @@
 import {
   AdminAgentOpsApiClient,
   AdminApiClient,
+  AdminAuditOpsApiClient,
   AdminCommissionOpsApiClient,
   AdminIpointAdjustOpsApiClient,
   AdminKycOpsApiClient,
@@ -9,6 +10,7 @@ import {
   AdminPackageOpsApiClient,
   AdminRedemptionFulfilmentOpsApiClient,
   AdminRedemptionOpsApiClient,
+  AdminReportOpsApiClient,
   AdminRewardOpsApiClient,
   ApiClient,
 } from '@ipoint/api-client';
@@ -130,3 +132,26 @@ export const adminAgentOpsApi = new AdminAgentOpsApiClient(
  */
 export const adminRedemptionFulfilmentOpsApi =
   new AdminRedemptionFulfilmentOpsApiClient(new ApiClient(apiBaseUrl));
+
+/**
+ * P7-S9 selected-market Audit Viewer client.
+ * Read-only, market-scoped projections over the immutable audit log: the
+ * masked limited view for every role incl. Support, and the raw evidence
+ * view (audit.sensitive-diff.view) carrying the recorded reason + fresh
+ * step-up token. The market is validated server-side against the Current
+ * Admin Market on every request.
+ */
+export const adminAuditOpsApi = new AdminAuditOpsApiClient(
+  new ApiClient(apiBaseUrl),
+);
+
+/**
+ * P7-S9 selected-market Basic Reports client.
+ * On-screen, market-scoped, bounded operational reports (report.read) with
+ * honest freshness (asOf / freshness / stale / unavailable, never a
+ * fabricated zero). There is deliberately no export method — Command
+ * Center §7 prohibits CSV/download export.
+ */
+export const adminReportOpsApi = new AdminReportOpsApiClient(
+  new ApiClient(apiBaseUrl),
+);

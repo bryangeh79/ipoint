@@ -3835,3 +3835,211 @@ export class AdminRedemptionFulfilmentOpsApiClient {
     ).data;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  P7-S9 Admin Audit Viewer                                           */
+/* ------------------------------------------------------------------ */
+
+/** Masked limited-view audit entry (every role incl. Support). */
+export interface AdminAuditEntryDto {
+  id: string;
+  occurredAt: string;
+  actorType: string;
+  actorId: string | null;
+  marketId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  result: string;
+  reason: string | null;
+  requestId: string | null;
+  masked: true;
+  beforeMasked: unknown;
+  afterMasked: unknown;
+}
+
+/** Full stored evidence (audit.sensitive-diff.view, step-up + reason). */
+export interface AdminAuditRawEntryDto {
+  id: string;
+  occurredAt: string;
+  actorType: string;
+  actorId: string | null;
+  marketId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  result: string;
+  reason: string | null;
+  requestId: string | null;
+  ipAddress: string | null;
+  raw: true;
+  before: unknown;
+  after: unknown;
+}
+
+export interface AdminAuditListDto {
+  asOf: string;
+  marketId: string;
+  items: AdminAuditEntryDto[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminAuditListQuery {
+  actorType?: 'ACCOUNT' | 'ADMIN_USER' | 'SYSTEM';
+  action?: string;
+  entityType?: string;
+  result?: 'SUCCESS' | 'FAILURE' | 'DENIED';
+  from?: string;
+  to?: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * P7-S9 Admin Audit Viewer client.
+ *
+ * Read-only, market-scoped projections over the immutable audit_logs table
+ * (`audit.read`): filtered/searchable masked list and single-entry masked
+ * view. The raw evidence view (`audit.sensitive-diff.view`) carries the
+ * recorded sensitive-access reason and a fresh MFA step-up token as
+ * headers; the Support template is not granted that permission (support
+ * never reads raw ledgers). No write method exists on this client — the
+ * surface is read-only by construction.
+ */
+export class AdminAuditOpsApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Selected-market masked audit list (filters + free-text + pagination). */
+  async listEntries(
+    marketId: string,
+    options: AdminAuditListQuery = {},
+  ): Promise<AdminAuditListDto> {
+    const params = new URLSearchParams();
+    if (options.actorType) params.set('actorType', options.actorType);
+    if (options.action) params.set('action', options.action);
+    if (options.entityType) params.set('entityType', options.entityType);
+    if (options.result) params.set('result', options.result);
+    if (options.from) params.set('from', options.from);
+    if (options.to) params.set('to', options.to);
+    if (options.q) params.set('q', options.q);
+    if (options.limit !== undefined) params.set('limit', String(options.limit));
+    if (options.offset !== undefined)
+      params.set('offset', String(options.offset));
+    const suffix = params.toString();
+    return (
+      await this.client.get<AdminAuditListDto>(
+        `/admin/audit-ops/markets/${encodeURIComponent(marketId)}/entries${suffix ? `?${suffix}` : ''}`,
+      )
+    ).data;
+  }
+
+  /** One masked audit entry. */
+  async getEntry(
+    marketId: string,
+    entryId: string,
+  ): Promise<AdminAuditEntryDto> {
+    return (
+      await this.client.get<AdminAuditEntryDto>(
+        `/admin/audit-ops/markets/${encodeURIComponent(marketId)}/entries/${encodeURIComponent(entryId)}`,
+      )
+    ).data;
+  }
+
+  /**
+   * Raw audit evidence (`audit.sensitive-diff.view`). The reason is
+   * mandatory (recorded, 8–500 chars) and a fresh step-up grant token is
+   * required; the server enforces both plus the permission (Support is
+   * denied).
+   */
+  async getRawEntry(
+    marketId: string,
+    entryId: string,
+    input: { reason: string; stepUpToken?: string },
+  ): Promise<AdminAuditRawEntryDto> {
+    const headers: Record<string, string> = {
+      'x-sensitive-access-reason': input.reason,
+    };
+    if (input.stepUpToken) headers['x-step-up-token'] = input.stepUpToken;
+    return (
+      await this.client.get<AdminAuditRawEntryDto>(
+        `/admin/audit-ops/markets/${encodeURIComponent(marketId)}/entries/${encodeURIComponent(entryId)}/raw`,
+        { headers },
+      )
+    ).data;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  P7-S9 Admin Basic Reports                                          */
+/* ------------------------------------------------------------------ */
+
+export type AdminReportFreshnessState = 'FRESH' | 'STALE' | 'UNAVAILABLE';
+
+export type AdminReportUnavailableReason =
+  | 'NO_DURABLE_SOURCE'
+  | 'SOURCE_QUERY_FAILED';
+
+export interface AdminReportStateDto {
+  id: string;
+  key: string;
+  name: string;
+  definition: string;
+  definitionVersion: number;
+  freshnessClass: 'QUEUE' | 'KPI';
+  permission: 'report.read';
+  source: string;
+  state: AdminReportFreshnessState;
+  unavailableReason?: AdminReportUnavailableReason;
+  stale: boolean;
+  unavailable: boolean;
+  asOf: string;
+  queryDurationMs?: number;
+  value?: Record<string, unknown>;
+}
+
+export interface AdminReportCatalogDto {
+  asOf: string;
+  marketId: string;
+  items: AdminReportStateDto[];
+}
+
+export interface AdminReportDetailDto extends AdminReportStateDto {
+  marketId: string;
+}
+
+/**
+ * P7-S9 Admin Basic Reports client.
+ *
+ * Market-scoped, on-screen, bounded operational reports (`report.read`):
+ * the catalog discloses asOf / freshness / stale / unavailable per report
+ * and an unavailable source is never presented as a fabricated zero.
+ * There is deliberately NO export method on this client — Command Center
+ * §7 explicitly prohibits CSV/download export.
+ */
+export class AdminReportOpsApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Selected-market report catalog with per-report freshness state. */
+  async listReports(marketId: string): Promise<AdminReportCatalogDto> {
+    return (
+      await this.client.get<AdminReportCatalogDto>(
+        `/admin/report-ops/markets/${encodeURIComponent(marketId)}/reports`,
+      )
+    ).data;
+  }
+
+  /** One report detail (503 when UNAVAILABLE or explicitly STALE). */
+  async getReport(
+    marketId: string,
+    reportId: string,
+  ): Promise<AdminReportDetailDto> {
+    return (
+      await this.client.get<AdminReportDetailDto>(
+        `/admin/report-ops/markets/${encodeURIComponent(marketId)}/reports/${encodeURIComponent(reportId)}`,
+      )
+    ).data;
+  }
+}
