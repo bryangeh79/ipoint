@@ -165,6 +165,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
       for: vi.fn().mockReturnThis(),
       insert: vi.fn().mockReturnThis(),
       values: vi.fn().mockReturnThis(),
+      onConflictDoNothing: vi.fn().mockReturnThis(),
       returning: vi.fn(),
       update: vi.fn().mockReturnThis(),
       set: vi.fn().mockReturnThis(),
@@ -202,6 +203,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
           totalPointCost: '5000',
           reason: 'Test',
           makerId: adminUserId,
+          idempotencyKey: `refund-create-${orderId}`,
         },
         { actorType: 'ADMIN', actorId: adminUserId },
       );
@@ -229,6 +231,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
             totalPointCost: '5000',
             reason: 'Test',
             makerId: adminUserId,
+            idempotencyKey: `refund-create-${orderId}`,
           },
           { actorType: 'ADMIN', actorId: adminUserId },
         ),
@@ -256,6 +259,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
             totalPointCost: '5000',
             reason: 'Test',
             makerId: adminUserId,
+            idempotencyKey: `refund-create-${orderId}`,
           },
           { actorType: 'ADMIN', actorId: adminUserId },
         ),
@@ -281,6 +285,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
             totalPointCost: '5000',
             reason: 'Test',
             makerId: adminUserId,
+            idempotencyKey: `refund-create-${orderId}`,
           },
           { actorType: 'ADMIN', actorId: adminUserId },
         ),
@@ -311,6 +316,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
             totalPointCost: '5000',
             reason: 'Test',
             makerId: adminUserId,
+            idempotencyKey: `refund-create-${orderId}`,
           },
           { actorType: 'ADMIN', actorId: adminUserId },
         ),
@@ -344,6 +350,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
             totalPointCost: '5000',
             reason: 'Test',
             makerId: adminUserId,
+            idempotencyKey: `refund-create-${orderId}`,
           },
           { actorType: 'ADMIN', actorId: adminUserId },
         ),
@@ -369,7 +376,18 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
                 .mockResolvedValueOnce([requestRow]) // 1: SELECT refund request FOR UPDATE
                 .mockResolvedValueOnce([orderRow]) // 2: SELECT order FOR NO KEY UPDATE
                 .mockResolvedValueOnce([
-                  // 3: SELECT inventory
+                  // 3: SELECT wallet FOR UPDATE
+                  {
+                    id: randomUUID(),
+                    memberId,
+                    marketId,
+                    availableBalance: '10000.0000000000',
+                    version: 1,
+                    archivedAt: null,
+                  },
+                ])
+                .mockResolvedValueOnce([
+                  // 4: SELECT inventory
                   {
                     id: randomUUID(),
                     itemId: randomUUID(),
@@ -380,7 +398,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
                   },
                 ])
                 .mockResolvedValueOnce([
-                  // 4: final SELECT updated refund request
+                  // 5: final SELECT updated refund request
                   {
                     ...requestRow,
                     status: 'APPROVED',
@@ -388,7 +406,23 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
                     decidedAt: new Date(),
                   },
                 ]),
-              returning: vi.fn(),
+              returning: vi.fn().mockResolvedValue([
+                {
+                  id: randomUUID(),
+                  walletAccountId: randomUUID(),
+                  memberId,
+                  marketId,
+                  entrySequence: '2',
+                  entryType: 'REDEMPTION_REFUND',
+                  amount: '5000.0000000000',
+                  balanceBefore: '10000.0000000000',
+                  balanceAfter: '15000.0000000000',
+                  idempotencyKey: `redemption-refund:${refundRequestId}`,
+                  referenceType: 'REDEMPTION_ORDER',
+                  referenceId: orderId,
+                  createdAt: new Date(),
+                },
+              ]),
               update: vi.fn().mockReturnThis(),
               set: vi.fn().mockReturnThis(),
               for: vi.fn().mockReturnThis(),
@@ -574,7 +608,18 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
                 .mockResolvedValueOnce([requestRow]) // 1: SELECT refund request FOR UPDATE
                 .mockResolvedValueOnce([orderRow]) // 2: SELECT order FOR NO KEY UPDATE
                 .mockResolvedValueOnce([
-                  // 3: SELECT inventory
+                  // 3: SELECT wallet FOR UPDATE
+                  {
+                    id: randomUUID(),
+                    memberId,
+                    marketId,
+                    availableBalance: '10000.0000000000',
+                    version: 1,
+                    archivedAt: null,
+                  },
+                ])
+                .mockResolvedValueOnce([
+                  // 4: SELECT inventory
                   {
                     id: randomUUID(),
                     itemId: randomUUID(),
@@ -585,7 +630,7 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
                   },
                 ])
                 .mockResolvedValueOnce([
-                  // 4: final SELECT updated refund request
+                  // 5: final SELECT updated refund request
                   {
                     ...requestRow,
                     status: 'APPROVED',
@@ -593,7 +638,23 @@ describe('RedemptionRefundService — P6 Checkpoint E', () => {
                     decidedAt: new Date(),
                   },
                 ]),
-              returning: vi.fn(),
+              returning: vi.fn().mockResolvedValue([
+                {
+                  id: randomUUID(),
+                  walletAccountId: randomUUID(),
+                  memberId,
+                  marketId,
+                  entrySequence: '2',
+                  entryType: 'REDEMPTION_REFUND',
+                  amount: '5000.0000000000',
+                  balanceBefore: '10000.0000000000',
+                  balanceAfter: '15000.0000000000',
+                  idempotencyKey: `redemption-refund:${refundRequestId}`,
+                  referenceType: 'REDEMPTION_ORDER',
+                  referenceId: orderId,
+                  createdAt: new Date(),
+                },
+              ]),
               update: vi.fn().mockReturnThis(),
               set: vi.fn().mockReturnThis(),
               for: vi.fn().mockReturnThis(),

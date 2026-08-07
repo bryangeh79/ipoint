@@ -60,6 +60,7 @@ describe('RedemptionRefundService', () => {
       quoteId: randomUUID(),
       status: 'FULFILMENT_EXCEPTION',
       pointsCost: '5000.0000000000',
+      totalPoints: '5000.0000000000',
       currencyCost: null,
       quantity: 1,
       backorderQuantity: 0,
@@ -89,6 +90,7 @@ describe('RedemptionRefundService', () => {
       marketId,
       walletEntryId: null,
       amountPoints: '5000.0000000000',
+      refundAmount: '5000.0000000000',
       reason: 'Item out of stock',
       status: 'PENDING_CHECKER',
       makerId: adminUserId,
@@ -183,6 +185,7 @@ describe('RedemptionRefundService', () => {
               .mockResolvedValueOnce([]), // no existing refund request
             insert: vi.fn().mockReturnThis(),
             values: vi.fn().mockReturnThis(),
+            onConflictDoNothing: vi.fn().mockReturnThis(),
             returning: vi.fn().mockResolvedValue([requestRow]),
             update: vi.fn().mockReturnThis(),
             set: vi.fn().mockReturnThis(),
@@ -198,6 +201,7 @@ describe('RedemptionRefundService', () => {
           reason: 'Item out of stock - verified by admin',
           makerId: adminUserId,
           makerNotes: 'Customer contacted about stock issue',
+          idempotencyKey: `refund-create-${orderId}`,
         },
         { actorType: 'ADMIN', actorId: adminUserId },
       );
@@ -234,6 +238,7 @@ describe('RedemptionRefundService', () => {
             totalPointCost: '5000',
             reason: 'Test',
             makerId: adminUserId,
+            idempotencyKey: `refund-create-${orderId}`,
           },
           { actorType: 'ADMIN', actorId: adminUserId },
         ),
@@ -267,6 +272,7 @@ describe('RedemptionRefundService', () => {
             totalPointCost: '5000',
             reason: 'Test',
             makerId: adminUserId,
+            idempotencyKey: `refund-create-${orderId}`,
           },
           { actorType: 'ADMIN', actorId: adminUserId },
         ),
@@ -309,8 +315,9 @@ describe('RedemptionRefundService', () => {
               .fn()
               .mockResolvedValueOnce([refundRequestRow]) // 1: find refund request
               .mockResolvedValueOnce([orderRow]) // 2: lock order (in executeAtomicRefund)
-              .mockResolvedValueOnce([inventoryRow]) // 3: inventory lookup (in executeAtomicRefund)
-              .mockResolvedValueOnce([completedRefundRow]), // 4: final SELECT after refund
+              .mockResolvedValueOnce([walletRow]) // 3: lock wallet (in executeAtomicRefund)
+              .mockResolvedValueOnce([inventoryRow]) // 4: inventory lookup (in executeAtomicRefund)
+              .mockResolvedValueOnce([completedRefundRow]), // 5: final SELECT after refund
             insert: vi.fn().mockReturnThis(),
             values: vi.fn().mockReturnThis(),
             returning: vi.fn().mockResolvedValue([refundEntryRow]),
@@ -412,6 +419,7 @@ describe('RedemptionRefundService', () => {
             returning: vi.fn().mockResolvedValue([rejectedRow]),
             update: vi.fn().mockReturnThis(),
             set: vi.fn().mockReturnThis(),
+            for: vi.fn().mockReturnThis(),
           }),
       );
 
