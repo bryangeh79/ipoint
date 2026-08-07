@@ -3333,3 +3333,505 @@ export class AdminIpointAdjustOpsApiClient {
     ).data;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  P7-S8 Admin Agent Operations                                       */
+/* ------------------------------------------------------------------ */
+
+/** Agent lifecycle statuses (frozen P5-S2 contract, read projection). */
+export type AdminAgentOpsStatus =
+  | 'PENDING_PAYMENT'
+  | 'PAYMENT_CONFIRMED'
+  | 'COURSE_PENDING'
+  | 'COURSE_COMPLETED'
+  | 'PENDING_APPROVAL'
+  | 'ACTIVE'
+  | 'SUSPENDED'
+  | 'DEACTIVATED'
+  | 'REJECTED';
+
+/** Explicit agent capability state of the selected market (no fallback). */
+export type AdminAgentOpsCapabilityState =
+  | 'CONFIGURED'
+  | 'AGENT_FEE_NOT_CONFIGURED';
+
+export interface AdminAgentOpsCapabilityDto {
+  state: AdminAgentOpsCapabilityState;
+  activation_fee: string | null;
+  currency: string | null;
+  fee_rate_version_id: string | null;
+}
+
+export interface AdminAgentListItemDto {
+  agent_id: string;
+  member_id: string;
+  public_member_id: string;
+  member_display_name: string | null;
+  status: AdminAgentOpsStatus;
+  market: string;
+  activation_fee: string | null;
+  activation_fee_currency: string;
+  activated_at: string | null;
+  created_at: string;
+}
+
+export interface AdminAgentListQuery {
+  q?: string;
+  status?: AdminAgentOpsStatus;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AdminAgentListDto {
+  market_id: string;
+  market_code: string;
+  capability: AdminAgentOpsCapabilityDto;
+  items: AdminAgentListItemDto[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminAgentStatusHistoryEntryDto {
+  log_id: string;
+  from_status: AdminAgentOpsStatus | null;
+  to_status: AdminAgentOpsStatus;
+  changed_by: string | null;
+  changed_by_type: string;
+  reason: string | null;
+  changed_at: string;
+}
+
+export interface AdminAgentDetailDto extends AdminAgentListItemDto {
+  payment_reference: string | null;
+  payment_confirmed_at: string | null;
+  course_reference: string | null;
+  course_enrolled_at: string | null;
+  course_completed_at: string | null;
+  course_confirmed_by: string | null;
+  approved_at: string | null;
+  activated_by: string | null;
+  fee_rate_version_id: string | null;
+  rejection_reason: string | null;
+  reactivation_count: number;
+  revoked_at: string | null;
+  revoked_by: string | null;
+  revocation_reason: string | null;
+  updated_at: string;
+  status_history: AdminAgentStatusHistoryEntryDto[];
+}
+
+export interface AdminAgentStatusActionInput {
+  reason?: string;
+}
+
+export interface AdminAgentStatusActionResultDto {
+  agent_id: string;
+  status: AdminAgentOpsStatus;
+  updated_at: string;
+}
+
+/**
+ * P7-S8 Admin Agent Operations client.
+ *
+ * Read surface: market-scoped agent list/search/detail projection
+ * (`agent.read`) with the explicit capability state — a market is
+ * agent-capable only when an effective AGENT_ACTIVATION_FEE version
+ * exists; otherwise `AGENT_FEE_NOT_CONFIGURED` (never a fallback fee).
+ * Write surface: suspend/reactivate/deactivate (`agent.activation.manage`)
+ * delegate 1:1 to the frozen Phase 5 owner commands with the server
+ * Current Admin Market; the reason is mandatory for suspend/deactivate.
+ * Agent Reapplication Policy is OPEN (not implemented) — no reapplication
+ * surface exists here.
+ */
+export class AdminAgentOpsApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Selected-market agent list/search (status + free-text filters). */
+  async listAgents(
+    marketId: string,
+    options: AdminAgentListQuery = {},
+  ): Promise<AdminAgentListDto> {
+    const params = new URLSearchParams();
+    if (options.q) params.set('q', options.q);
+    if (options.status) params.set('status', options.status);
+    if (options.limit !== undefined) params.set('limit', String(options.limit));
+    if (options.offset !== undefined)
+      params.set('offset', String(options.offset));
+    const suffix = params.toString();
+    return (
+      await this.client.get<AdminAgentListDto>(
+        `/admin/agent-ops/markets/${encodeURIComponent(marketId)}/agents${suffix ? `?${suffix}` : ''}`,
+      )
+    ).data;
+  }
+
+  /** Agent detail with the append-only owner status history. */
+  async getAgent(
+    marketId: string,
+    agentId: string,
+  ): Promise<AdminAgentDetailDto> {
+    return (
+      await this.client.get<AdminAgentDetailDto>(
+        `/admin/agent-ops/markets/${encodeURIComponent(marketId)}/agents/${encodeURIComponent(agentId)}`,
+      )
+    ).data;
+  }
+
+  /** Suspend an ACTIVE agent (reason required; owner transition + log). */
+  async suspendAgent(
+    marketId: string,
+    agentId: string,
+    reason: string,
+  ): Promise<AdminAgentStatusActionResultDto> {
+    return (
+      await this.client.post<AdminAgentStatusActionResultDto>(
+        `/admin/agent-ops/markets/${encodeURIComponent(marketId)}/agents/${encodeURIComponent(agentId)}/suspend`,
+        { reason },
+      )
+    ).data;
+  }
+
+  /** Reactivate a SUSPENDED agent (owner increments the reactivation count). */
+  async reactivateAgent(
+    marketId: string,
+    agentId: string,
+  ): Promise<AdminAgentStatusActionResultDto> {
+    return (
+      await this.client.post<AdminAgentStatusActionResultDto>(
+        `/admin/agent-ops/markets/${encodeURIComponent(marketId)}/agents/${encodeURIComponent(agentId)}/reactivate`,
+      )
+    ).data;
+  }
+
+  /** Deactivate an ACTIVE agent (reason required; terminal state). */
+  async deactivateAgent(
+    marketId: string,
+    agentId: string,
+    reason: string,
+  ): Promise<AdminAgentStatusActionResultDto> {
+    return (
+      await this.client.post<AdminAgentStatusActionResultDto>(
+        `/admin/agent-ops/markets/${encodeURIComponent(marketId)}/agents/${encodeURIComponent(agentId)}/deactivate`,
+        { reason },
+      )
+    ).data;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  P7-S8 Admin Redemption Fulfilment Operations                       */
+/* ------------------------------------------------------------------ */
+
+/** The six operational fulfilment/refund status queues (P7-S8 §6.2). */
+export type AdminFulfilmentQueueStatus =
+  | 'READY_FOR_PICKUP'
+  | 'BACKORDERED'
+  | 'FULFILMENT_SUSPENDED'
+  | 'FULFILMENT_EXCEPTION'
+  | 'REFUND_PENDING'
+  | 'REFUNDED';
+
+export interface AdminFulfilmentLinkDto {
+  fulfilment_id: string;
+  fulfilment_type: string;
+  fulfilment_status: string;
+  tracking_number: string | null;
+  courier: string | null;
+  failure_reason: string | null;
+  retry_count: number;
+  max_retries: number;
+  created_at: string;
+}
+
+export interface AdminRefundLinkDto {
+  refund_request_id: string;
+  refund_status: string;
+  refund_amount: string;
+  maker_id: string;
+  checker_id: string | null;
+  decided_at: string | null;
+  executed_at: string | null;
+  failed_at: string | null;
+  failure_reason: string | null;
+}
+
+export interface AdminShippingRecoveryLinkDto {
+  recovery_id: string;
+  recovery_status: string;
+  amount: string;
+  currency: string;
+  retry_count: number;
+  max_retries: number;
+  failed_at: string | null;
+}
+
+export interface AdminFulfilmentQueueItemDto {
+  order_id: string;
+  order_reference: string;
+  member_id: string;
+  public_member_id: string;
+  item_name: string;
+  item_sku: string | null;
+  total_points: string;
+  quantity: string;
+  backorder_quantity: string;
+  status: string;
+  confirmed_at: string | null;
+  ready_for_pickup_at: string | null;
+  backordered_at: string | null;
+  fulfilled_at: string | null;
+  updated_at: string;
+  fulfilment: AdminFulfilmentLinkDto | null;
+  refund: AdminRefundLinkDto | null;
+  shipping_recovery: AdminShippingRecoveryLinkDto | null;
+}
+
+export interface AdminFulfilmentQueueDto {
+  market_id: string;
+  market_code: string;
+  status: AdminFulfilmentQueueStatus;
+  /** Active redemption rate rule present (canonical D-053 §6 source). */
+  rate_configured: boolean;
+  items: AdminFulfilmentQueueItemDto[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminFulfilmentQueueOverviewDto {
+  market_id: string;
+  market_code: string;
+  rate_configured: boolean;
+  counts: Record<AdminFulfilmentQueueStatus, number>;
+}
+
+export interface AdminOrderAuditEntryDto {
+  id: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  actor_type: string;
+  actor_id: string | null;
+  reason: string | null;
+  result: string;
+  request_id: string | null;
+  occurred_at: string;
+}
+
+export interface AdminRedemptionOrderDto {
+  order_id: string;
+  order_reference: string;
+  member_id: string;
+  public_member_id: string;
+  item_name: string;
+  item_sku: string | null;
+  status: string;
+  total_points: string;
+  quantity: string;
+  backorder_quantity: string;
+  rate_value: string;
+  confirmed_at: string | null;
+  ready_for_pickup_at: string | null;
+  backordered_at: string | null;
+  fulfilled_at: string | null;
+  cancelled_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminOrderDetailDto {
+  market_id: string;
+  market_code: string;
+  order: AdminRedemptionOrderDto;
+  fulfilment: AdminFulfilmentLinkDto | null;
+  refund: AdminRefundLinkDto | null;
+  shipping_recovery: AdminShippingRecoveryLinkDto | null;
+  audit: AdminOrderAuditEntryDto[];
+}
+
+export interface AdminFulfilmentOperationResultDto {
+  ok: true;
+  order_id?: string;
+  fulfilment_id?: string;
+  status?: string;
+  updated_at: string;
+}
+
+export interface AdminRefundRequestViewDto {
+  refund_request_id: string;
+  order_id: string;
+  order_reference: string;
+  status: string;
+  refund_amount: string;
+  reason: string;
+  maker_id: string;
+  checker_id: string | null;
+  maker_notes: string | null;
+  checker_notes: string | null;
+  prior_order_status: string | null;
+  decided_at: string | null;
+  executed_at: string | null;
+  failed_at: string | null;
+  failure_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminRefundQueueDto {
+  market_id: string;
+  market_code: string;
+  items: AdminRefundRequestViewDto[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminRefundStatusHistoryEntryDto {
+  id: string;
+  action: string;
+  reason: string | null;
+  result: string;
+  actor_id: string | null;
+  occurred_at: string;
+}
+
+export interface AdminRefundDetailDto extends AdminRefundRequestViewDto {
+  status_history: AdminRefundStatusHistoryEntryDto[];
+}
+
+/**
+ * P7-S8 Admin Redemption Fulfilment Operations client.
+ *
+ * Read surface (`redemption.order.read`): the six fulfilment status
+ * queues + overview counts, order detail with the owner-owned audit
+ * history, and the SEC-02 refund queue/detail/status-history read face.
+ * Write surface (`redemption.fulfilment.manage`): suspend/resume/retry
+ * delegate 1:1 to the frozen Phase 6 owner commands; the reason is
+ * mandatory for suspend. No refund write exists on this surface.
+ */
+export class AdminRedemptionFulfilmentOpsApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Six-status fulfilment queue overview (counts + rate capability). */
+  async queueOverview(
+    marketId: string,
+  ): Promise<AdminFulfilmentQueueOverviewDto> {
+    return (
+      await this.client.get<AdminFulfilmentQueueOverviewDto>(
+        `/admin/redemption-fulfilment-ops/markets/${encodeURIComponent(marketId)}/queues`,
+      )
+    ).data;
+  }
+
+  /** One operational status queue (paginated, newest first). */
+  async queue(
+    marketId: string,
+    status: AdminFulfilmentQueueStatus,
+    options: { limit?: number; offset?: number } = {},
+  ): Promise<AdminFulfilmentQueueDto> {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set('limit', String(options.limit));
+    if (options.offset !== undefined)
+      params.set('offset', String(options.offset));
+    const suffix = params.toString();
+    return (
+      await this.client.get<AdminFulfilmentQueueDto>(
+        `/admin/redemption-fulfilment-ops/markets/${encodeURIComponent(marketId)}/queues/${status}${suffix ? `?${suffix}` : ''}`,
+      )
+    ).data;
+  }
+
+  /** Order detail with fulfilment, refund, recovery and owner audit. */
+  async orderDetail(
+    marketId: string,
+    orderId: string,
+  ): Promise<AdminOrderDetailDto> {
+    return (
+      await this.client.get<AdminOrderDetailDto>(
+        `/admin/redemption-fulfilment-ops/markets/${encodeURIComponent(marketId)}/orders/${encodeURIComponent(orderId)}`,
+      )
+    ).data;
+  }
+
+  /** Order audit history (owner-owned immutable rows, newest first). */
+  async orderAudit(
+    marketId: string,
+    orderId: string,
+  ): Promise<AdminOrderAuditEntryDto[]> {
+    return (
+      await this.client.get<AdminOrderAuditEntryDto[]>(
+        `/admin/redemption-fulfilment-ops/markets/${encodeURIComponent(marketId)}/orders/${encodeURIComponent(orderId)}/audit`,
+      )
+    ).data;
+  }
+
+  /** Suspend an order (reason required; owner transition + audit). */
+  async suspendOrder(
+    marketId: string,
+    orderId: string,
+    reason: string,
+  ): Promise<AdminFulfilmentOperationResultDto> {
+    return (
+      await this.client.post<AdminFulfilmentOperationResultDto>(
+        `/admin/redemption-fulfilment-ops/markets/${encodeURIComponent(marketId)}/orders/${encodeURIComponent(orderId)}/suspend`,
+        { reason },
+      )
+    ).data;
+  }
+
+  /** Resume a suspended order (owner resolves the target status). */
+  async resumeOrder(
+    marketId: string,
+    orderId: string,
+  ): Promise<AdminFulfilmentOperationResultDto> {
+    return (
+      await this.client.post<AdminFulfilmentOperationResultDto>(
+        `/admin/redemption-fulfilment-ops/markets/${encodeURIComponent(marketId)}/orders/${encodeURIComponent(orderId)}/resume`,
+      )
+    ).data;
+  }
+
+  /** Retry a FAILED fulfilment (admin failure recovery, OD-26). */
+  async retryFulfilment(
+    marketId: string,
+    fulfilmentId: string,
+  ): Promise<AdminFulfilmentOperationResultDto> {
+    return (
+      await this.client.post<AdminFulfilmentOperationResultDto>(
+        `/admin/redemption-fulfilment-ops/markets/${encodeURIComponent(marketId)}/fulfilments/${encodeURIComponent(fulfilmentId)}/retry`,
+      )
+    ).data;
+  }
+
+  /** Refund queue (SEC-02 read face; status-filterable). */
+  async refundQueue(
+    marketId: string,
+    options: { status?: string; limit?: number; offset?: number } = {},
+  ): Promise<AdminRefundQueueDto> {
+    const params = new URLSearchParams();
+    if (options.status) params.set('status', options.status);
+    if (options.limit !== undefined) params.set('limit', String(options.limit));
+    if (options.offset !== undefined)
+      params.set('offset', String(options.offset));
+    const suffix = params.toString();
+    return (
+      await this.client.get<AdminRefundQueueDto>(
+        `/admin/redemption-fulfilment-ops/markets/${encodeURIComponent(marketId)}/refunds${suffix ? `?${suffix}` : ''}`,
+      )
+    ).data;
+  }
+
+  /** Refund detail with the REFUND_* status history (SEC-02 read face). */
+  async refundDetail(
+    marketId: string,
+    refundRequestId: string,
+  ): Promise<AdminRefundDetailDto> {
+    return (
+      await this.client.get<AdminRefundDetailDto>(
+        `/admin/redemption-fulfilment-ops/markets/${encodeURIComponent(marketId)}/refunds/${encodeURIComponent(refundRequestId)}`,
+      )
+    ).data;
+  }
+}
