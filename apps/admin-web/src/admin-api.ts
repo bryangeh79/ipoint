@@ -1,4 +1,5 @@
 import {
+  AdminAgentOpsApiClient,
   AdminApiClient,
   AdminCommissionOpsApiClient,
   AdminIpointAdjustOpsApiClient,
@@ -6,6 +7,7 @@ import {
   AdminMarketOpsApiClient,
   AdminMerchantApiClient,
   AdminPackageOpsApiClient,
+  AdminRedemptionFulfilmentOpsApiClient,
   AdminRedemptionOpsApiClient,
   AdminRewardOpsApiClient,
   ApiClient,
@@ -105,3 +107,26 @@ export const adminMarketOpsApi = new AdminMarketOpsApiClient(
 export const adminIpointAdjustOpsApi = new AdminIpointAdjustOpsApiClient(
   new ApiClient(apiBaseUrl),
 );
+
+/**
+ * P7-S8 selected-market Admin Agent Operations client.
+ * Self-contained addition; the market is validated server-side against
+ * the Current Admin Market on every request, and suspend/deactivate carry
+ * the mandatory reason. Agent status operations delegate 1:1 to the frozen
+ * Phase 5 owner commands (P5-R1 actor attribution).
+ */
+export const adminAgentOpsApi = new AdminAgentOpsApiClient(
+  new ApiClient(apiBaseUrl),
+);
+
+/**
+ * P7-S8 selected-market Admin Redemption Fulfilment Operations client.
+ * Self-contained addition; the market is validated server-side against
+ * the Current Admin Market on every request. The six fulfilment queues,
+ * the order detail/audit and the SEC-02 refund queue/detail/status-history
+ * read face are bounded projections; suspend/resume/retry delegate 1:1 to
+ * the frozen Phase 6 owner commands. No refund write exists on this
+ * surface.
+ */
+export const adminRedemptionFulfilmentOpsApi =
+  new AdminRedemptionFulfilmentOpsApiClient(new ApiClient(apiBaseUrl));

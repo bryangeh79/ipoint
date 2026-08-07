@@ -161,7 +161,6 @@ export const adminRouteManifest = [
     'read-only',
     'bootstrap',
     true,
-    gate('agent.activation.manage', 'GATE-P5-01'),
   ),
   route(
     'agent-detail',
@@ -173,7 +172,6 @@ export const adminRouteManifest = [
     'read-only',
     'bootstrap',
     false,
-    gate('agent.activation.manage', 'GATE-P5-01'),
   ),
   route(
     'mcp',
@@ -298,6 +296,17 @@ export const adminRouteManifest = [
     'read-only',
   ),
   route(
+    'redemption-order-detail',
+    'Redemption order detail',
+    '/admin/:marketId/redemptions/orders/:orderId',
+    'Redemption',
+    'redemption.order.read',
+    'resource',
+    'read-only',
+    'bootstrap',
+    false,
+  ),
+  route(
     'fulfilment-exceptions',
     'Fulfilment exceptions',
     '/admin/:marketId/redemptions/exceptions',
@@ -307,7 +316,6 @@ export const adminRouteManifest = [
     'read-only',
     'bootstrap',
     true,
-    gate('redemption.fulfilment.manage', 'SEC-03/15'),
   ),
   route(
     'refunds',
@@ -319,7 +327,17 @@ export const adminRouteManifest = [
     'read-only',
     'bootstrap',
     true,
-    gate('redemption.refund.approve', 'GATE-SEC-02'),
+  ),
+  route(
+    'refund-detail',
+    'Refund detail',
+    '/admin/:marketId/redemptions/refunds/:refundId',
+    'Redemption',
+    'redemption.refund.read',
+    'resource',
+    'read-only',
+    'bootstrap',
+    false,
   ),
   route(
     'audit',
@@ -437,8 +455,10 @@ export type AdminRouteId =
   | 'commissions'
   | 'market'
   | 'redemption-orders'
+  | 'redemption-order-detail'
   | 'fulfilment-exceptions'
   | 'refunds'
+  | 'refund-detail'
   | 'audit'
   | 'reports'
   | 'admin-users'
