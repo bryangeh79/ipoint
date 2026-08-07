@@ -653,3 +653,30 @@ _End of register - new entries appended above this line._
 ---
 
 _End of register - new entries appended above this line._
+
+---
+
+## P6-R2 - Phase 6 Admin Route Security Remediation (D-055 bounded hardening)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P6-R2 (fix/p6-r2-admin-route-security; Command Center 2026-08-07 §5, D-055 sequence after SEC-02) |
+| **Sub-phase** | Phase 6 Admin Route Security - 34 admin redemption routes hardened (canonical RbacGuard chain + catalog permissions + marketScoped + step-up + resource-market consistency); 3 owner-level minimal fixes |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementing subagent; independent reviewing subagent; separate test-verifier subagent; all D-048) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session start time** | 2026-08-07 MYT |
+| **Worktree** | main workspace (branch fix/p6-r2-admin-route-security) |
+| **Task branch** | `fix/p6-r2-admin-route-security` (base `7f898b52` = phase HEAD incl. SEC-02 gate) |
+| **Commit SHAs** | `724de28e` (feat: RBAC + market scoping on fulfilment/refund routes) - `3caebd2a` (feat: resource-market consistency on catalog/pickup routes) - `ac17c617` (fix: market-scope read projections + member payment IDOR closure) - `e062a900` (test: HTTP evidence matrix, real PostgreSQL) |
+| **Migration** | NONE (checksums 37/37 unchanged; zero migration change) |
+| **Scope** | 8 files all in apps/api/src/redemption/: admin-redemption / admin-fulfilment / admin-refund controllers (34 routes), redemption.controller.ts + redemption.service.ts (member IDOR closure +17), redemption-refund.service.ts + redemption-fulfilment.service.ts (market-scoped read projections, additive filters), new redemption-admin-route-security.integration.spec.ts (1066 lines). No wallet/commission/market/reward/agent code; no B/C/D tests; TS strict unchanged |
+| **Host test gate** | New suite 29/29 (real HTTP + real PG); rate 59; refund owner 31; hardening 40; integration 28; atomicity 17; concurrency 8; security 20; commission 22; units 55; checkpointE 65; S6C 49; regression total 403 passed / 0 failed / 0 skipped; checksums 37/37; drift clean; OpenAPI 247 paths; typecheck+build api/admin-web/api-client green; eslint 0; prettier clean |
+| **Independent review** | `OPENCLAW_MANAGED_CODING_SUBAGENT` reviewer: verdict **APPROVED** - 0 Critical / 0 High / 0 Medium / 4 Low (informational); all 10 Command Center §5 requirements PASS; RBAC codes verified against canonical permission-catalog.ts; step-up single-use + hashed-only; **three owner-level minimal fixes ENDORSED** (market isolation + identity authorization scope, read-projection/identity-check only); reviewer independently re-ran 68 tests green. Verdict `.local/p6-route-sec-gate/review/REVIEWER_VERDICT.md` |
+| **Independent verification** | `OPENCLAW_MANAGED_CODING_SUBAGENT` verifier: verdict **TEST GATE PASSED** - 25/25 gates / 435 tests / 0 failed / 0 skipped on fresh isolated DBs `ipoint_ver_p6r2_*` (22 DBs; Node v24.19.0 vs implementer v26.4.0); behavior spot-checks (Maker approve 403, cross-market 409, member IDOR 409 MISMATCH, missing step-up 403) all confirmed. Verdict `.local/p6-route-sec-gate/ver-evidence/VERIFIER_VERDICT.md` |
+| **Integration commit** | `8502065d` (merge --no-ff, ort, no conflicts into `phase/7-admin-operations`) |
+| **Declarations** | `P6_R2_ADMIN_ROUTE_SECURITY_COMPLETE` / `P6_R2_COMPLETE_OPENCLAW_INTERNAL` (OpenClaw internal; NOT Command Center acceptance) |
+| **Known limitations** | 4 Low reviewer observations (non-blocking: IDOR 409-vs-404 convention; grant consumed on later route failure - fail-safe; optional create-path negative test; pre-existing host working-tree dirtiness outside branch); push pending host channel (batch push before Phase 7 final delivery report). |
+
+---
+
+_End of register - new entries appended above this line._
