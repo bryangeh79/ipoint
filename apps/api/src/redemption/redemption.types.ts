@@ -480,6 +480,12 @@ export interface CreateRefundRequestParams {
   reason: string;
   makerId: string;
   makerNotes?: string;
+  /**
+   * SEC-02: required operation-level idempotency key (enforced in the
+   * owner, never only at the transport). Same key + same payload replays;
+   * same key + different payload is rejected.
+   */
+  idempotencyKey?: string;
 }
 
 export interface ApproveRefundRequestParams {

@@ -75,6 +75,14 @@ export const redemptionErrorCodes = {
   refundMakerCheckerSame: 'REDEMPTION_REFUND_MAKER_CHECKER_SAME',
   refundExecutionFailed: 'REDEMPTION_REFUND_EXECUTION_FAILED',
   refundAlreadyRefunded: 'REDEMPTION_ALREADY_REFUNDED',
+  // SEC-02 refund owner (GATE-SEC-02)
+  refundPermissionDenied: 'REDEMPTION_REFUND_PERMISSION_DENIED',
+  refundReasonRequired: 'REDEMPTION_REFUND_REASON_REQUIRED',
+  refundIdempotencyKeyRequired: 'REDEMPTION_REFUND_IDEMPOTENCY_KEY_REQUIRED',
+  refundIdempotencyConflict: 'REDEMPTION_REFUND_IDEMPOTENCY_CONFLICT',
+  refundPartialRefundNotAllowed: 'REDEMPTION_PARTIAL_REFUND_NOT_ALLOWED',
+  refundInvalidAmount: 'REDEMPTION_REFUND_INVALID_AMOUNT',
+  refundOrderMismatch: 'REDEMPTION_REFUND_ORDER_MISMATCH',
 
   // Shipping Payment Recovery
   shippingPaymentNotFound: 'REDEMPTION_SHIPPING_PAYMENT_NOT_FOUND',
