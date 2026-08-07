@@ -94,7 +94,7 @@ describe('P7-S8 agent operations pages', () => {
   });
 
   it('denies the agent list without the agent.read permission', async () => {
-    // The route also requires agent.activation.read; the route guard shows
+    // The route requires the canonical agent.read; the route guard shows
     // the permission-denied shell before the page fetch is attempted.
     mockP7S8OpsApi({ permissions: ['redemption.order.read'] });
     await signIn(LIST_URL);
@@ -134,11 +134,7 @@ describe('P7-S8 agent operations pages', () => {
 
   it('blocks status actions without agent.activation.manage (permission denied)', async () => {
     mockP7S8OpsApi({
-      permissions: [
-        'agent.activation.read',
-        'agent.read',
-        'redemption.order.read',
-      ],
+      permissions: ['agent.read', 'redemption.order.read'],
       agentDetail: agentDetailFixture(),
     });
     await signIn(DETAIL_URL);

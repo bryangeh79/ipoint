@@ -180,8 +180,9 @@ describe('P7-S8 redemption operations pages', () => {
   });
 
   it('denies the queue read without redemption.order.read', async () => {
-    // The route also requires redemption.fulfilment.read; the route guard
-    // shows the permission-denied shell before the page fetch is attempted.
+    // The route requires the canonical redemption.order.read; the route
+    // guard shows the permission-denied shell before the page fetch is
+    // attempted.
     mockP7S8OpsApi({ permissions: ['agent.read'] });
     await signIn(QUEUES_URL);
 

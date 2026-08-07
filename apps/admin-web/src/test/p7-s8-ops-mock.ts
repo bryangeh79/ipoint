@@ -15,7 +15,10 @@ import type {
  * adapter endpoints. Permission enforcement mirrors the canonical
  * catalog: `agent.read` for agent reads, `agent.activation.manage` for
  * agent status writes, `redemption.order.read` for queue/order/refund
- * reads, `redemption.fulfilment.manage` for suspend/resume/retry.
+ * reads, `redemption.fulfilment.manage` for suspend/resume/retry. Only
+ * canonical catalog codes are ever granted (High-1 fix: the stale
+ * agent.activation.read / redemption.fulfilment.read /
+ * redemption.refund.read codes do not exist in the catalog).
  */
 
 export const P7S8_MARKET_ID = '11111111-1111-4111-8111-111111111111';
@@ -305,13 +308,10 @@ export function refundDetailFixture(): AdminRefundDetailDto {
 
 export function mockP7S8OpsApi(options: P7S8OpsMockOptions = {}) {
   const permissions = options.permissions ?? [
-    'agent.activation.read',
     'agent.read',
     'agent.activation.manage',
     'redemption.order.read',
     'redemption.fulfilment.manage',
-    'redemption.fulfilment.read',
-    'redemption.refund.read',
   ];
   const market = {
     id: P7S8_MARKET_ID,

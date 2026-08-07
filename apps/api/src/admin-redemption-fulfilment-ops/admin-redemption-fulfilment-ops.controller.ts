@@ -117,10 +117,10 @@ export class AdminRedemptionFulfilmentOpsController {
   @ApiOperation({
     summary: 'One fulfilment status queue (current market).',
     description:
-      'Bounded read projection of the selected operational status queue with the linked fulfilment, refund request and shipping-payment recovery records, paginated (newest first). Only the six operational statuses are valid; anything else returns 422 REDEMPTION_QUEUE_STATUS_INVALID.',
+      'Bounded read projection of the selected operational status queue with the linked fulfilment, refund request and shipping-payment recovery records, paginated (newest first). Only the six operational statuses are valid; the ZodValidationPipe rejects anything else with 400 VALIDATION_ERROR.',
   })
   @ApiResponse({ status: 200, description: 'Queue page.' })
-  @ApiResponse({ status: 422, description: 'Invalid queue status.' })
+  @ApiResponse({ status: 400, description: 'Invalid queue status.' })
   queue(
     @Param('marketId', new ParseUUIDPipe()) marketId: string,
     @Param('status', new ZodValidationPipe(queueStatusSchema))

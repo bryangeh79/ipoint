@@ -164,8 +164,37 @@ describe('P7-S3A Admin route manifest', () => {
       adminRouteManifest.find(({ id }) => id === 'redemption-order-detail')
         ?.permission,
     ).toBe('redemption.order.read');
+    // P7-S8 High-1 fix: every P7-S8 route must reference a canonical
+    // catalog permission (packages/database/src/permission-catalog.ts).
+    // The stale agent.activation.read / redemption.fulfilment.read /
+    // redemption.refund.read codes do not exist in the catalog, so they
+    // could never be granted and the routes were permanently denied.
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'agents')?.permission,
+    ).toBe('agent.read');
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'agent-detail')?.permission,
+    ).toBe('agent.read');
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'fulfilment-exceptions')
+        ?.permission,
+    ).toBe('redemption.order.read');
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'refunds')?.permission,
+    ).toBe('redemption.order.read');
     expect(
       adminRouteManifest.find(({ id }) => id === 'refund-detail')?.permission,
-    ).toBe('redemption.refund.read');
+    ).toBe('redemption.order.read');
+    // Zero drift: the three non-canonical codes must not be required by
+    // any manifest route.
+    for (const staleCode of [
+      'agent.activation.read',
+      'redemption.fulfilment.read',
+      'redemption.refund.read',
+    ]) {
+      expect(
+        adminRouteManifest.some(({ permission }) => permission === staleCode),
+      ).toBe(false);
+    }
   });
 });
