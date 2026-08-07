@@ -626,3 +626,30 @@ _End of register - new entries appended above this line._
 ---
 
 _End of register - new entries appended above this line._
+
+---
+
+## SEC-02 - Phase 6 Refund Ledger Owner Remediation (GATE-SEC-02)
+
+| Field | Value |
+|---|---|
+| **Task ID** | SEC-02 (fix/p6-r1-sec02-refund-ledger; D-047 exact frozen-owner scope + D-055 sequence + Command Center SEC-02 order 2026-08-07) |
+| **Sub-phase** | SEC-02 - secured Phase 6 refund ledger canonical owner (full-refund/identity guard/idempotency/atomic ledger+wallet+inventory/durable FAILED/before-after audit) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementing subagent; independent reviewing subagent; separate test-verifier subagent; all D-048) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session start time** | 2026-08-07 MYT |
+| **Worktree** | `.local/wt-sec02-refund-ledger` |
+| **Task branch** | `fix/p6-r1-sec02-refund-ledger` (base `e55af0f2` = phase HEAD incl. S7C gate record) |
+| **Commit SHAs** | `4dfa006f` (feat(database): migration 0036) - `7178cddc` (feat(redemption): SEC-02 secured refund owner) - `3761252a` (test: align refund unit mocks) - `c2d677bc` (test: owner unit + real-PG integration suites) - `37644369` (style) - `3c1698a4` (docs) |
+| **Migration** | `0036_p6_sec02_refund_ledger_owner.sql` (forward-only; SEC-02 sole owner; highest actual on base = 0035, checksums 36/36 verified -> 37/37; 0000-0035 byte-identical; `chk_order_refund_state` encoding fix unlocks frozen REFUND_PENDING->REFUNDED path) |
+| **Scope** | `apps/api/src/redemption/redemption-refund.service.ts` + errors (+7 codes) + types + admin-refund controller (idempotencyKey/requestId/ip) + 2 new suites (20 unit + 11 real-PG integration) + mock alignment + `packages/database` (0036 + checksums + schema/redemption.ts + expected-schema) + docs - 13 files, 2575+/192- |
+| **Host test gate** | SEC-02 owner unit 20/20; owner integration 11/11; P6-S6 atomicity 17/17; hardening 40/40; redemption integration 28/28; rate-owner 59/59; concurrency 8/8; security 20/20; commission 22/22; refund 52/52; checksum 37/37; drift clean |
+| **Independent review** | `OPENCLAW_MANAGED_CODING_SUBAGENT` reviewer: verdict **APPROVED** - 0 Critical / 0 High; 3 Medium + 2 Low non-blocking; reviewer independently re-ran all suites on fresh DBs, inspected migration constraints in real DB, endorsed the encoding fix. Verdict `.local/sec02-gate/review/REVIEWER_VERDICT.md` |
+| **Independent verification** | `OPENCLAW_MANAGED_CODING_SUBAGENT` verifier: verdict **TEST GATE PASSED** - 31/31 gates on 38 fresh isolated DBs (Node v24.19.0 vs implementer v26.4.0; clean re-run cross-confirmed). Verdict `.local/sec02-gate/ver-evidence/VERIFIER_VERDICT.md` |
+| **Integration commit** | `acd83556` (merge --no-ff, ort, no conflicts into `phase/7-admin-operations`) - local; **push PENDING** (host channel restoration, same note as S7C) |
+| **Declarations** | `SEC02_OWNER_REMEDIATION_INTEGRATED` / `SEC-02_COMPLETE_OPENCLAW_INTERNAL` (OpenClaw internal; NOT Command Center acceptance) |
+| **Known limitations** | 3 Medium reviewer observations (durable-FAILED recovery path as follow-up; reject-path audit requestId/ip; commit hygiene) - non-blocking; browser E2E host/CI-only; push pending channel restoration. |
+
+---
+
+_End of register - new entries appended above this line._
