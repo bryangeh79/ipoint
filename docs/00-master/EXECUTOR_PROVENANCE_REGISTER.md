@@ -548,3 +548,81 @@ _End of register - new entries appended above this line._
 | **Declarations** | `P7-S6A_DELIVERY_COMPLETE` / `P7-S6A_OPENCLAW_INTERNAL_GATE_PASSED` / `D-051_OWNER_REMEDIATION_INTEGRATED` / `P7-S6A_REWIRE_INTEGRATED` (OpenClaw internal; NOT Command Center acceptance) |
 | **Known limitations** | 6 of 7 non-clean prettier files at verify time were inherited from base (style debt; rewire reduced deviation) — the 1 new file was formatted and amended post-verification; OpenAPI non-self-exit quirk; browser E2E host/CI-only; push pending channel restoration. | |
 
+
+---
+
+## SEC-01 - Manual iPoint Adjustment Maker/Checker Owner Remediation (P7-OD-20)
+
+| Field | Value |
+|---|---|
+| **Task ID** | SEC-01 (fix/p3-p7-sec01-ipoint-maker-checker; D-047 exact frozen-owner scope + D-055 sequence) |
+| **Sub-phase** | SEC-01 - manual iPoint adjustment Maker/Checker canonical owner remediation (P7-AC-15) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementing subagent; independent reviewing subagent; separate test-verifier subagent; all D-048) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session start time** | 2026-08-06 MYT |
+| **Worktree** | `.local/wt-sec01-ipoint-maker-checker` |
+| **Task branch** | `fix/p3-p7-sec01-ipoint-maker-checker` (base `8192fbdd` = phase HEAD incl. S6E final gate record) |
+| **Commit SHAs** | `b0640b4c` (feat(database): migration 0034) - `b7644429` (feat(wallet): SEC-01 adjustment owner) - `aa575301` (test: owner unit + integration suites) - `5539eb50` (fix(admin-reward): remove immediate adjustment endpoint) - `e5e934cc`/`5761b728`/`e5601e3e` (docs + drift cleanup) |
+| **Migration** | `0034_*` (forward-only; SEC-01 sole owner; 0000-0033 byte-identical; checksums 34/34 -> 35/35; drift clean) |
+| **Scope** | `apps/api/src/wallet/wallet-adjustment.owner.*` (5) + `wallet.module.ts` + `apps/api/src/admin-reward/*` (6, endpoint removal) + `packages/database` (0034 + checksums + schema + seed + expected-schema + p7-s2c test) + `docs/06-phase-reports/p7-sec01/` - 19 files; `wallet.service.ts` (frozen Phase 3) byte-identical |
+| **Host test gate** | SEC-01 unit 18/18; SEC-01 integration 22/22 (real PG); S6E 46/46; S6D 41/41; S6A 54/54; S6B 38/38; S6C 49/49; D-051 27/27; D-054 51/51; Phase 3 wallet invariants 68/68; reward-domain 37/37; api-client 75/75; admin-web 250/250; checksums 35/35; OpenAPI 238 paths; lint 0; prettier clean |
+| **Independent review** | `OPENCLAW_MANAGED_CODING_SUBAGENT` reviewer: verdict **APPROVED** - 0 Critical / 0 High / 0 Medium / 3 Low + 1 informational (13/13 dimensions PASS). Verdict `.local/sec01-gate/review/REVIEWER_VERDICT.md` |
+| **Independent verification** | `OPENCLAW_MANAGED_CODING_SUBAGENT` verifier: verdict **TEST GATE PASSED** - 21/21 gates PASS on fresh isolated DBs `ipoint_ver_sec01_*` (Node v24.19.0, different from implementer v26.4.0). Verdict `.local/sec01-gate/evidence/VERIFIER_VERDICT.md` |
+| **Integration commit** | `167dc216` (merge --no-ff, ort, no conflicts into `phase/7-admin-operations`) - pushed |
+| **Declarations** | `SEC01_OWNER_REMEDIATION_INTEGRATED` / `GATE-SEC-01_RELEASE_PREPARED` / `P7-AC-15_SATISFIED` (OpenClaw internal; NOT Command Center acceptance) |
+| **Known limitations** | 3 Low + 1 informational reviewer observations (non-blocking); browser E2E host/CI-only. |
+
+---
+
+_End of register - new entries appended above this line._
+
+## P7-S7A - Manual MCP Adjustment Conformance (D-046)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S7A (task/p7-s7a-mcp-conformance; D-055 sequence) |
+| **Sub-phase** | P7-S7A - McpAdjustmentOwnerService D-046 conformance (Maker/Checker, caps, evidence, idempotency, atomic execution) + Finance queue read projections |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementing subagent; independent reviewing subagent x2; separate test-verifier subagent; all D-048) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session start time** | 2026-08-06/07 MYT |
+| **Worktree** | `.local/wt-p7-s7a-mcp-conformance` |
+| **Task branch** | `task/p7-s7a-mcp-conformance` (base `0fa7322c` = phase HEAD incl. SEC-01 gate record) |
+| **Commit SHAs** | `b09c5b9b` (feat(database): migration 0035) - `8054a05f` (feat(merchant): McpAdjustmentOwnerService) - `885ef523` (test: 20 unit + 23 real-PG integration) - `fbeb9b80` (feat: controller/DTO rewiring + Finance queue/detail read projections) - `11075e81` (test: Phase 1 suite alignment) - `daeff9ed` (style) - `a9ac3a52` (docs) - H-1 fix: `005ed4ab` + `3a3e76e4` |
+| **Migration** | `0035_*` (forward-only; S7A sole owner; 0000-0034 byte-identical; checksums 35/35 -> 36/36; drift clean) |
+| **Scope** | `apps/api/src/merchant/` (mcp-adjustment.owner.* + mcp.controller/service/dto rewiring + tests) + `packages/database` (0035 + checksums + schema + seeds + expected-schema) + report - 17 paths; frozen `append_mcp_ledger_entry` (Phase 1 owner) zero-touch |
+| **Host test gate** | S7A unit 20/20; S7A integration 23/23; HTTP mapping 6/6; Phase 1 merchant unit 36/36; S6E 46/46; SEC-01 40/40; S6D 41/41; S6A 54/54; S6B 38/38; S6C 49/49; D-051 27/27; D-054 51/51; checksums 36/36; OpenAPI 240 paths / 0 missing / 0 duplicate; lint 0; prettier clean |
+| **Independent review** | Review 1 (`REVIEWER_S7A_20260806`): NOT APPROVED - 1 High (H-1 error mapping) + 2 Low; Review 2 (`REVIEWER_S7A_REVIEW2_20260807`): **APPROVED** - H-1 closed, 0 Critical / 0 High; 23/23 codes mapped; fix delta exactly 3 files. Verdict `.local/s7a-gate/review/REVIEWER_VERDICT.md` |
+| **Independent verification** | `OPENCLAW_MANAGED_CODING_SUBAGENT` verifier: verdict **TEST GATE PASSED** - 20/20 gates on fresh isolated DBs `ipoint_ver_s7a_*` (Node v24.19.0 vs implementer v26.4.0). Verdict `.local/s7a-gate/evidence/VERIFIER_VERDICT.md` |
+| **Integration commit** | `5a326f11` (merge --no-ff, ort, no conflicts into `phase/7-admin-operations`) - pushed |
+| **Declarations** | `P7-S7A_DELIVERY_COMPLETE` / `P7-S7A_OPENCLAW_INTERNAL_GATE_PASSED` (OpenClaw internal; NOT Command Center acceptance) |
+| **Known limitations** | Phase 1 merchant integration 6/10 with identical pre-existing upstream-debt set; browser E2E host/CI-only. |
+
+---
+
+_End of register - new entries appended above this line._
+
+## P7-S7B - Manual iPoint Adjustment Admin UI + Phase 7 Adapter (over SEC-01 owner)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S7B (task/p7-s7b-ipoint-admin; D-055 sequence) |
+| **Sub-phase** | P7-S7B - Phase 7 adapter (admin-ipoint-adjust-ops) + Admin Web Maker/Checker UI over the frozen SEC-01 owner |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementing subagent; independent reviewing subagent; separate test-verifier subagent; all D-048) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session start time** | 2026-08-07 MYT |
+| **Worktree** | `.local/wt-p7-s7b-ipoint-admin` |
+| **Task branch** | `task/p7-s7b-ipoint-admin` (base `a9fe4fbb` = phase HEAD incl. S7A gate record) |
+| **Commit SHAs** | `87c69919` (feat(api-client): typed client) - `feefbdc1` (feat(api): Phase 7 adapter `admin-ipoint-adjust-ops`) - `e4426726` (feat(admin-web): Maker/Checker UI) - `d5ced47c` + `3fc5b190` (docs) - `401137ce` + `b9de3c63` (fix: lint cleanups) |
+| **Migration** | NONE (checksums 36/36 unchanged; packages/database untouched) |
+| **Scope** | `apps/api/src/admin-ipoint-adjust-ops/**` (8) + `app.module.ts` (registration only) + `packages/api-client` (2) + `apps/admin-web/src/` ipoint-adjust-* + admin-api/admin-app/route-manifest (13) + report - 26 files; frozen SEC-01 owner (`wallet-adjustment.owner.*`) blob-identical (sha256 verified) |
+| **Adapter contract** | read-only projections only (queue/detail/config/wallet-lookup); create/submit/decide/execute delegate 1:1 to frozen `WalletAdjustmentOwnerService` with server-derived actor; zero direct insert/update/delete; no idempotency persistence, no audit creation, no advisory lock; 23 owner codes + 2 adapter-native codes mapped (403x5/404x4/409x5/400x4/422x6/500 default) |
+| **Host test gate** | adapter unit 7/7; HTTP integration 8/8; SEC-01 40/40; S7A 43; S6E 46/46; S6D 41/41; S6A 54/54; S6B 38/38; S6C 49/49; api-client 80/80; admin-web 275/275; checksums 36/36; OpenAPI 247 paths / 0 missing / 0 duplicate; lint 0; prettier clean |
+| **Independent review** | `OPENCLAW_MANAGED_CODING_SUBAGENT` reviewer: verdict **APPROVED** - 0 Critical / 0 High / 0 Medium / 4 Low (non-blocking). Verdict `.local/s7b-gate/review/REVIEWER_VERDICT.md` |
+| **Independent verification** | `OPENCLAW_MANAGED_CODING_SUBAGENT` verifier: verdict **TEST GATE PASSED** - 22/22 gates / 681 tests / 0 failed / 0 skipped on fresh isolated DBs `ipoint_ver_s7b_*` (Node v24.19.0 vs implementer v26.4.0). Verdict `.local/s7b-gate/evidence/VERIFIER_VERDICT.md` |
+| **Integration commit** | `03b4ce69` (merge --no-ff, ort, no conflicts into `phase/7-admin-operations`) - pushed |
+| **Declarations** | `P7-S7B_DELIVERY_COMPLETE` / `P7-S7B_OPENCLAW_INTERNAL_GATE_PASSED` (OpenClaw internal; NOT Command Center acceptance) |
+| **Known limitations** | 4 Low reviewer observations (non-blocking); browser E2E host/CI-only. |
+
+---
+
+_End of register - new entries appended above this line._
