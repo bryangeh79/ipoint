@@ -270,7 +270,7 @@ describe.skipIf(!databaseUrl)('auth foundation integration', () => {
     await expect(
       auth.rotateRefreshToken(first.refreshToken),
     ).rejects.toMatchObject({
-      code: 'AUTH_REFRESH_REUSED',
+      code: 'SESSION_REUSE_DETECTED',
     });
     await expect(auth.resolveActor(second.accessToken)).rejects.toMatchObject({
       code: 'AUTH_SESSION_INVALID',

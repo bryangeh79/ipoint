@@ -961,7 +961,7 @@ describe.skipIf(!databaseUrl)('Auth HTTP integration', () => {
         .post('/api/v1/auth/member/refresh')
         .send({ refresh_token: originalRefreshToken })
         .expect(401);
-      expectErrorCode(response.body, 'AUTH_REFRESH_REUSED');
+      expectErrorCode(response.body, 'SESSION_REUSE_DETECTED');
     });
 
     it('rejects refresh after the current member session is logged out', async () => {
@@ -987,7 +987,7 @@ describe.skipIf(!databaseUrl)('Auth HTTP integration', () => {
         .post('/api/v1/auth/member/refresh')
         .send({ refresh_token: refreshToken })
         .expect(401);
-      expectErrorCode(response.body, 'AUTH_REFRESH_REUSED');
+      expectErrorCode(response.body, 'SESSION_REUSE_DETECTED');
     });
 
     it('rejects repeat member logout after the session has been revoked', async () => {
@@ -1071,7 +1071,7 @@ describe.skipIf(!databaseUrl)('Auth HTTP integration', () => {
         .post('/api/v1/auth/member/refresh')
         .send({ refresh_token: refreshToken })
         .expect(401);
-      expectErrorCode(refreshResponse.body, 'AUTH_REFRESH_REUSED');
+      expectErrorCode(refreshResponse.body, 'SESSION_REUSE_DETECTED');
     });
 
     it('rejects using a registration OTP for password reset verification', async () => {
