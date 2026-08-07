@@ -18,7 +18,10 @@
 import { readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { canonicalPermissionCodes, permissionDefinition } from '@ipoint/database';
+import {
+  canonicalPermissionCodes,
+  permissionDefinition,
+} from '@ipoint/database';
 import { RbacGuard } from '../platform-access/rbac.guard.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AdminGuard } from '../auth/admin.guard.js';
@@ -76,9 +79,7 @@ describe('P7-S10 RBAC matrix — every controller handler is guarded + permissio
       );
       expect(Controller, `controller class not found in ${rel}`).toBeTruthy();
       const Ctor = Controller as new (...args: never[]) => unknown;
-      const classPath = Reflect.getMetadata('path', Ctor) as
-        | string
-        | undefined;
+      const classPath = Reflect.getMetadata('path', Ctor) as string | undefined;
       const guards = (Reflect.getMetadata('__guards__', Ctor) ??
         []) as unknown[];
       const prototype = Ctor.prototype as Record<string, unknown>;
@@ -88,7 +89,10 @@ describe('P7-S10 RBAC matrix — every controller handler is guarded + permissio
           typeof prototype[key] === 'function' &&
           Reflect.getMetadata('path', prototype[key] as object) !== undefined,
       );
-      expect(routeKeys.length, `${rel} must expose at least one route`).toBeGreaterThan(0);
+      expect(
+        routeKeys.length,
+        `${rel} must expose at least one route`,
+      ).toBeGreaterThan(0);
 
       const hasRbac = guards.some((g) => g === RbacGuard);
       const hasAuth = guards.some((g) => g === AuthGuard);
@@ -101,7 +105,8 @@ describe('P7-S10 RBAC matrix — every controller handler is guarded + permissio
       // whose every route is public by design).
       const routeGuardStrict = routeKeys.every((key) => {
         const handler = prototype[key] as object;
-        const hg = (Reflect.getMetadata('__guards__', handler) ?? []) as unknown[];
+        const hg = (Reflect.getMetadata('__guards__', handler) ??
+          []) as unknown[];
         const req = Reflect.getMetadata(permissionKey, handler);
         const handlerPath = Reflect.getMetadata('path', handler) ?? '';
         return (
@@ -120,7 +125,12 @@ describe('P7-S10 RBAC matrix — every controller handler is guarded + permissio
       // Public/unauthenticated controllers (health, auth login surface) are
       // exempt from permission metadata but must not pretend to be protected.
       expect(
-        hasRbac || hasAuth || hasAdmin || isPublic || routeGuardStrict || publicSurface,
+        hasRbac ||
+          hasAuth ||
+          hasAdmin ||
+          isPublic ||
+          routeGuardStrict ||
+          publicSurface,
         `${rel} must mount RbacGuard/AuthGuard/AdminGuard or be @Public`,
       ).toBe(true);
 
@@ -149,9 +159,7 @@ describe('P7-S10 RBAC matrix — every controller handler is guarded + permissio
           const permCode = (requirement as { permission: string }).permission;
           const isDeprecated = deprecatedCodes.has(permCode);
           expect(
-            canonical.has(
-              permCode as Parameters<typeof canonical.has>[0],
-            ) ||
+            canonical.has(permCode as Parameters<typeof canonical.has>[0]) ||
               isDeprecated,
             `${rel}.${key} permission ${permCode} must be in the canonical catalog or the accepted deprecated set`,
           ).toBe(true);
@@ -184,10 +192,7 @@ describe('P7-S10 RBAC matrix — every controller handler is guarded + permissio
           // Member/merchant-scoped surface: AuthGuard required either at
           // class level or on the handler itself, unless the handler is a
           // known public endpoint (self-registration).
-          const handlerPath = [
-            classPath,
-            Reflect.getMetadata('path', handler),
-          ]
+          const handlerPath = [classPath, Reflect.getMetadata('path', handler)]
             .filter(Boolean)
             .join('/');
           expect(
