@@ -707,3 +707,30 @@ _End of register - new entries appended above this line._
 ---
 
 _End of register - new entries appended above this line._
+
+---
+
+## P7-S9 - Audit Viewer + Basic Reports (Phase 7 read-only integration layer)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S9 (task/p7-s9-audit-reports; Command Center 2026-08-07 §7, D-055 sequence after P7-S8) |
+| **Sub-phase** | P7-S9 - Audit Viewer (market-scoped immutable audit viewing/filter/search, sensitive masking, raw view permission, Support restricted, GET-only) + Basic Reports (on-screen bounded aggregates, no export, asOf/freshness/stale/unavailable, no fabricated zero, SLA 60s/5m) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementing subagent; lint/format fix subagent; independent reviewing subagent; separate test-verifier subagent; all D-048) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session start time** | 2026-08-07 MYT |
+| **Worktree** | main workspace (branch task/p7-s9-audit-reports) |
+| **Task branch** | `task/p7-s9-audit-reports` (base `f662d56e` = phase HEAD incl. P7-S8 gate) |
+| **Commit SHAs** | `14087e68` (feat: admin audit viewer + basic reports adapters) - `8971402a` (feat(api-client): typed clients) - `7d71f3ac` (feat(admin-web): audit + reports pages, route-permission drift fix report.basic.read -> report.read) - `ba26b17d` (fix(api): eslint errors) - `e0a93ec0` (style: prettier formatting 17 files) |
+| **Migration** | NONE (checksums 37/37 unchanged; zero migration change) |
+| **Scope** | 37 files +6,225: apps/api/src/admin-audit-ops/** (8) + admin-report-ops/** (9) + app.module.ts (registration only) + packages/api-client (2) + apps/admin-web/src/ (15) + lint/format fixes (2 + 17); zero new permission codes (audit.read / audit.sensitive-diff.view / report.read pre-existing in catalog); frozen owners untouched; no export endpoints; no DEFERRED/OPEN; no B/C/D test change; TS strict intact |
+| **Host test gate** | audit unit 13 + HTTP 13; report unit 13 + HTTP 14; regressions P7-S8 / P6-R2 29 / SEC-01 40 / S6E 46 / S6D 41 / S7A 43 / S5B+S5C+S4A; api-client 95; admin-web 320; checksums 37/37; OpenAPI GET-only PASS; typecheck+build all green; drift clean |
+| **Independent review** | `OPENCLAW_MANAGED_CODING_SUBAGENT` reviewer: verdict **APPROVED** - 0 Critical / 0 High / 0 Medium / 4 Low (informational); all Command Center §7 requirements PASS; masking/raw-view/freshness semantics verified; zero new permission codes; reviewer independently re-ran unit 26/26 + admin-web 320/320 + api-client 95/95. Verdict `.local/p7-s9-gate/review/REVIEWER_VERDICT.md` |
+| **Independent verification** | `OPENCLAW_MANAGED_CODING_SUBAGENT` verifier: functional **14/14 gates + behavior 6/6 PASS** on fresh isolated DBs `ipoint_ver_p7s9_*` (Node v24.19.0 vs implementer v26.4.0; counts identical); **TEST GATE FAILED on lint/format only** (eslint 2 errors + prettier 19 files; implementer lint-claim had no evidence log - provenance gap noted). Lint/format fixed (`ba26b17d`+`e0a93ec0`, formatting-only token-level verified) and re-gated green (eslint 0, prettier clean, tests identical). Verdict `.local/p7-s9-gate/ver-evidence/VERIFIER_VERDICT.md` + `.local/p7-s9-gate/lint-fix-evidence/LINT_FIX_REPORT.md` |
+| **Integration commit** | `76d373bf` (merge --no-ff, ort, no conflicts into `phase/7-admin-operations`) |
+| **Declarations** | `P7-S9_DELIVERY_COMPLETE` / `P7-S9_OPENCLAW_INTERNAL_GATE_PASSED` (OpenClaw internal; NOT Command Center acceptance) |
+| **Known limitations** | 4 Low reviewer observations (non-blocking: NULL-market platform audit rows excluded from market view; support raw-ledger convention; diagnostic console.log in spec; report naming); lint-claim provenance gap corrected by fix subagent evidence logs; push pending host channel (batch push before Phase 7 final delivery report). |
+
+---
+
+_End of register - new entries appended above this line._
