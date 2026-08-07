@@ -49,6 +49,13 @@ import {
   AdminOrderDetailDto,
   AdminRefundQueueDto,
   AdminRefundDetailDto,
+  AdminAuditOpsApiClient,
+  AdminAuditEntryDto,
+  AdminAuditListDto,
+  AdminAuditRawEntryDto,
+  AdminReportOpsApiClient,
+  AdminReportCatalogDto,
+  AdminReportDetailDto,
   ApiClient,
   ApiError,
 } from './index.js';
@@ -3196,5 +3203,194 @@ describe('AdminRedemptionFulfilmentOpsApiClient (P7-S8 redemption operations)', 
     const detail = await client.refundDetail(MARKET, REFUND);
     expect(detail.status).toBe('COMPLETED');
     expect(detail.status_history[0]?.action).toBe('REFUND_EXECUTED');
+  });
+});
+
+describe('AdminAuditOpsApiClient (P7-S9 audit viewer)', () => {
+  const MARKET = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const ENTRY = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+
+  function auditClient(): AdminAuditOpsApiClient {
+    return new AdminAuditOpsApiClient(new ApiClient(BASE_URL));
+  }
+
+  function maskedEntry(): AdminAuditEntryDto {
+    return {
+      id: ENTRY,
+      occurredAt: '2026-08-07T12:00:00.000Z',
+      actorType: 'ADMIN_USER',
+      actorId: '11111111-1111-4111-8111-111111111111',
+      marketId: MARKET,
+      action: 'REDEMPTION_REFUND_APPROVE',
+      entityType: 'redemption_order',
+      entityId: '22222222-2222-4222-8222-222222222222',
+      result: 'SUCCESS',
+      reason: 'documented reason',
+      requestId: 'req-1',
+      masked: true,
+      beforeMasked: { status: 'PENDING_CHECKER' },
+      afterMasked: { status: 'APPROVED', id_number: '[MASKED]' },
+    };
+  }
+
+  it('lists masked entries with filters, free-text and pagination', async () => {
+    const client = auditClient();
+    const fetchSpy = mockFetch(200, {
+      asOf: '2026-08-07T12:00:00.000Z',
+      marketId: MARKET,
+      items: [maskedEntry()],
+      total: 1,
+      limit: 25,
+      offset: 0,
+    } satisfies AdminAuditListDto);
+
+    const result = await client.listEntries(MARKET, {
+      actorType: 'ADMIN_USER',
+      result: 'SUCCESS',
+      q: 'refund',
+      limit: 25,
+    });
+
+    expect(result.total).toBe(1);
+    expect(result.items[0]?.masked).toBe(true);
+    expect(result.items[0]?.afterMasked).toEqual({
+      status: 'APPROVED',
+      id_number: '[MASKED]',
+    });
+    const [url] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/audit-ops/markets/${MARKET}/entries?actorType=ADMIN_USER&result=SUCCESS&q=refund&limit=25`,
+    );
+  });
+
+  it('reads one masked entry (no raw fields on the limited view)', async () => {
+    const client = auditClient();
+    mockFetch(200, maskedEntry() satisfies AdminAuditEntryDto);
+    const entry = await client.getEntry(MARKET, ENTRY);
+    expect(entry.id).toBe(ENTRY);
+    expect(entry.masked).toBe(true);
+    expect((entry as unknown as Record<string, unknown>)['ipAddress']).toBeUndefined();
+  });
+
+  it('reads the raw evidence with the recorded reason + step-up token headers', async () => {
+    const client = auditClient();
+    const fetchSpy = mockFetch(
+      200,
+      {
+        id: ENTRY,
+        occurredAt: '2026-08-07T12:00:00.000Z',
+        actorType: 'ADMIN_USER',
+        actorId: null,
+        marketId: MARKET,
+        action: 'REDEMPTION_REFUND_APPROVE',
+        entityType: 'redemption_order',
+        entityId: '22222222-2222-4222-8222-222222222222',
+        result: 'SUCCESS',
+        reason: 'documented reason',
+        requestId: 'req-1',
+        ipAddress: '203.0.113.9',
+        raw: true,
+        before: { status: 'PENDING_CHECKER' },
+        after: { status: 'APPROVED', id_number: '800101-14-5678' },
+      } satisfies AdminAuditRawEntryDto,
+    );
+
+    const raw = await client.getRawEntry(MARKET, ENTRY, {
+      reason: 'Refund approval evidence review',
+      stepUpToken: 'stepup-abc',
+    });
+
+    expect(raw.raw).toBe(true);
+    expect(raw.ipAddress).toBe('203.0.113.9');
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/audit-ops/markets/${MARKET}/entries/${ENTRY}/raw`,
+    );
+    const headers = new Headers((init as RequestInit | undefined)?.headers);
+    expect(headers.get('x-sensitive-access-reason')).toBe(
+      'Refund approval evidence review',
+    );
+    expect(headers.get('x-step-up-token')).toBe('stepup-abc');
+  });
+});
+
+describe('AdminReportOpsApiClient (P7-S9 basic reports)', () => {
+  const MARKET = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+
+  function reportClient(): AdminReportOpsApiClient {
+    return new AdminReportOpsApiClient(new ApiClient(BASE_URL));
+  }
+
+  it('lists the report catalog with per-report freshness state', async () => {
+    const client = reportClient();
+    const fetchSpy = mockFetch(
+      200,
+      {
+        asOf: '2026-08-07T12:00:00.000Z',
+        marketId: MARKET,
+        items: [
+          {
+            id: 'R01',
+            key: 'transaction-counts',
+            name: 'Transaction counts',
+            definition: 'Transaction counts for the selected market.',
+            definitionVersion: 1,
+            freshnessClass: 'KPI',
+            permission: 'report.read',
+            source: 'transactions.',
+            state: 'FRESH',
+            stale: false,
+            unavailable: false,
+            asOf: '2026-08-07T12:00:00.000Z',
+            queryDurationMs: 1.8,
+            value: {
+              kind: 'STATUS_COUNTS',
+              windowDays: 30,
+              total: 2,
+              counts: { CONFIRMED: 2 },
+            },
+          },
+        ],
+      } satisfies AdminReportCatalogDto,
+    );
+
+    const result = await client.listReports(MARKET);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.state).toBe('FRESH');
+    expect(result.items[0]?.stale).toBe(false);
+    const [url] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/report-ops/markets/${MARKET}/reports`,
+    );
+  });
+
+  it('reads one report detail and preserves the unavailable/stale flags', async () => {
+    const client = reportClient();
+    mockFetch(
+      200,
+      {
+        id: 'R04',
+        key: 'registration-activation-trend',
+        name: 'Registration / activation trend',
+        definition: '14-day trend.',
+        definitionVersion: 1,
+        freshnessClass: 'KPI',
+        permission: 'report.read',
+        source: 'member_market_preferences + agent_activation.',
+        state: 'UNAVAILABLE',
+        unavailableReason: 'SOURCE_QUERY_FAILED',
+        stale: false,
+        unavailable: true,
+        asOf: '2026-08-07T12:00:00.000Z',
+        marketId: MARKET,
+      } satisfies AdminReportDetailDto,
+    );
+
+    const detail = await client.getReport(MARKET, 'R04');
+
+    expect(detail.state).toBe('UNAVAILABLE');
+    expect(detail.unavailable).toBe(true);
+    expect(detail.value).toBeUndefined(); // never a fabricated zero
   });
 });
