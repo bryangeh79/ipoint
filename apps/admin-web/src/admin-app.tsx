@@ -59,6 +59,12 @@ import { RewardConfigPage } from './reward-config-page.js';
 import { MemberKycDetailPage } from './kyc-member-detail-page.js';
 import { MerchantKycQueuePage } from './kyc-merchant-queue-page.js';
 import { MerchantKycDetailPage } from './kyc-merchant-detail-page.js';
+import { AgentOpsListPage } from './agent-ops-list-page.js';
+import { AgentOpsDetailPage } from './agent-ops-detail-page.js';
+import { RedemptionQueuesPage } from './redemption-queues-page.js';
+import { RedemptionOrderDetailPage } from './redemption-order-detail-page.js';
+import { RedemptionRefundsPage } from './redemption-refunds-page.js';
+import { RedemptionRefundDetailPage } from './redemption-refund-detail-page.js';
 
 const routeObjects: RouteObject[] = [
   { path: '/', element: <Navigate replace to="/admin/login" /> },
@@ -214,6 +220,18 @@ function RouteContent({ route }: { route: AdminRoute }) {
   if (route.id === 'ipoint-adjustments') return <IpointAdjustQueuePage />;
   if (route.id === 'ipoint-adjust-create') return <IpointAdjustCreatePage />;
   if (route.id === 'ipoint-adjust-detail') return <IpointAdjustDetailPage />;
+  /* P7-S8 agent operations + redemption fulfilment/refund operations
+     (append-only route cases, Command Center 2026-08-07 §6). */
+  if (route.id === 'agents') return <AgentOpsListPage />;
+  if (route.id === 'agent-detail') return <AgentOpsDetailPage />;
+  if (route.id === 'redemption-orders')
+    return <RedemptionQueuesPage initialStatus="FULFILMENT_EXCEPTION" />;
+  if (route.id === 'fulfilment-exceptions')
+    return <RedemptionQueuesPage initialStatus="FULFILMENT_EXCEPTION" />;
+  if (route.id === 'redemption-order-detail')
+    return <RedemptionOrderDetailPage />;
+  if (route.id === 'refunds') return <RedemptionRefundsPage />;
+  if (route.id === 'refund-detail') return <RedemptionRefundDetailPage />;
   return (
     <section aria-labelledby="admin-route-title">
       <PageHeader

@@ -38,6 +38,17 @@ import {
   AdminRedemptionRateListDto,
   AdminRedemptionRateCreateResultDto,
   AdminRedemptionRateCancelResultDto,
+  AdminAgentOpsApiClient,
+  AdminAgentListDto,
+  AdminAgentDetailDto,
+  AdminAgentListItemDto,
+  AdminRedemptionFulfilmentOpsApiClient,
+  AdminFulfilmentQueueOverviewDto,
+  AdminFulfilmentQueueDto,
+  AdminFulfilmentQueueItemDto,
+  AdminOrderDetailDto,
+  AdminRefundQueueDto,
+  AdminRefundDetailDto,
   ApiClient,
   ApiError,
 } from './index.js';
@@ -2768,5 +2779,422 @@ describe('AdminIpointAdjustOpsApiClient (P7-S7B manual iPoint adjustment)', () =
       status: 409,
       body: { code: 'WALLET_ADJUSTMENT_IDEMPOTENCY_CONFLICT' },
     });
+  });
+});
+
+describe('AdminAgentOpsApiClient (P7-S8 agent operations)', () => {
+  const MARKET = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const AGENT = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
+  function agentClient(): AdminAgentOpsApiClient {
+    return new AdminAgentOpsApiClient(new ApiClient(BASE_URL));
+  }
+
+  function agentItem(): AdminAgentListItemDto {
+    return {
+      agent_id: AGENT,
+      member_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      public_member_id: 'AG-ALICE',
+      member_display_name: 'Alice Agent',
+      status: 'ACTIVE',
+      market: 'MY',
+      activation_fee: '388.0000000000',
+      activation_fee_currency: 'MYR',
+      activated_at: '2026-08-01T00:00:00.000Z',
+      created_at: '2026-07-01T00:00:00.000Z',
+    };
+  }
+
+  it('lists agents of the selected market with the capability state', async () => {
+    const client = agentClient();
+    const list: AdminAgentListDto = {
+      market_id: MARKET,
+      market_code: 'MY',
+      capability: {
+        state: 'CONFIGURED',
+        activation_fee: '388.0000000000',
+        currency: 'MYR',
+        fee_rate_version_id: 'fee-1',
+      },
+      items: [agentItem()],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    };
+    const fetchSpy = mockFetch(200, list);
+
+    const result = await client.listAgents(MARKET, {
+      q: 'ALICE',
+      status: 'ACTIVE',
+      limit: 10,
+    });
+
+    expect(result.capability.state).toBe('CONFIGURED');
+    expect(result.items[0]?.agent_id).toBe(AGENT);
+    const [url] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/agent-ops/markets/${MARKET}/agents?q=ALICE&status=ACTIVE&limit=10`,
+    );
+  });
+
+  it('surfaces the explicit blocked capability state (no fallback fee)', async () => {
+    const client = agentClient();
+    mockFetch(200, {
+      market_id: MARKET,
+      market_code: 'SG',
+      capability: {
+        state: 'AGENT_FEE_NOT_CONFIGURED',
+        activation_fee: null,
+        currency: null,
+        fee_rate_version_id: null,
+      },
+      items: [],
+      total: 0,
+      limit: 50,
+      offset: 0,
+    } satisfies AdminAgentListDto);
+
+    const result = await client.listAgents(MARKET);
+
+    expect(result.capability.state).toBe('AGENT_FEE_NOT_CONFIGURED');
+    expect(result.capability.activation_fee).toBeNull();
+  });
+
+  it('reads the agent detail with the append-only status history', async () => {
+    const client = agentClient();
+    mockFetch(200, {
+      ...agentItem(),
+      payment_reference: null,
+      payment_confirmed_at: null,
+      course_reference: null,
+      course_enrolled_at: null,
+      course_completed_at: null,
+      course_confirmed_by: null,
+      approved_at: null,
+      activated_by: null,
+      fee_rate_version_id: 'fee-1',
+      rejection_reason: null,
+      reactivation_count: 0,
+      revoked_at: null,
+      revoked_by: null,
+      revocation_reason: null,
+      updated_at: '2026-08-01T00:00:00.000Z',
+      status_history: [
+        {
+          log_id: 'log-1',
+          from_status: 'PENDING_APPROVAL',
+          to_status: 'ACTIVE',
+          changed_by: null,
+          changed_by_type: 'SYSTEM',
+          reason: null,
+          changed_at: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+    } satisfies AdminAgentDetailDto);
+
+    const result = await client.getAgent(MARKET, AGENT);
+
+    expect(result.status).toBe('ACTIVE');
+    expect(result.status_history[0]?.to_status).toBe('ACTIVE');
+  });
+
+  it('suspends an agent with the mandatory reason (owner orchestration)', async () => {
+    const client = agentClient();
+    const fetchSpy = mockFetch(200, {
+      agent_id: AGENT,
+      status: 'SUSPENDED',
+      updated_at: '2026-08-02T00:00:00.000Z',
+    });
+
+    const result = await client.suspendAgent(
+      MARKET,
+      AGENT,
+      'Compliance review.',
+    );
+
+    expect(result.status).toBe('SUSPENDED');
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/agent-ops/markets/${MARKET}/agents/${AGENT}/suspend`,
+    );
+    expect(JSON.parse(String((init as RequestInit | undefined)?.body))).toEqual(
+      {
+        reason: 'Compliance review.',
+      },
+    );
+  });
+
+  it('reactivates and deactivates agents (owner transitions)', async () => {
+    const client = agentClient();
+    mockFetch(200, {
+      agent_id: AGENT,
+      status: 'ACTIVE',
+      updated_at: '2026-08-03T00:00:00.000Z',
+    });
+    const reactivated = await client.reactivateAgent(MARKET, AGENT);
+    expect(reactivated.status).toBe('ACTIVE');
+
+    mockFetch(200, {
+      agent_id: AGENT,
+      status: 'DEACTIVATED',
+      updated_at: '2026-08-03T00:00:00.000Z',
+    });
+    const deactivated = await client.deactivateAgent(
+      MARKET,
+      AGENT,
+      'Program ended.',
+    );
+    expect(deactivated.status).toBe('DEACTIVATED');
+  });
+});
+
+describe('AdminRedemptionFulfilmentOpsApiClient (P7-S8 redemption operations)', () => {
+  const MARKET = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  const ORDER = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const FULFILMENT = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+  const REFUND = '11111111-1111-4111-8111-111111111111';
+
+  function redemptionOpsClient(): AdminRedemptionFulfilmentOpsApiClient {
+    return new AdminRedemptionFulfilmentOpsApiClient(new ApiClient(BASE_URL));
+  }
+
+  function queueItem(): AdminFulfilmentQueueItemDto {
+    return {
+      order_id: ORDER,
+      order_reference: 'ORD-000001',
+      member_id: '22222222-2222-4222-8222-222222222222',
+      public_member_id: 'M-1',
+      item_name: 'iPoint Mug',
+      item_sku: 'MUG-001',
+      total_points: '10000.0000000000',
+      quantity: '1',
+      backorder_quantity: '0',
+      status: 'REFUND_PENDING',
+      confirmed_at: '2026-08-01T00:00:00.000Z',
+      ready_for_pickup_at: null,
+      backordered_at: null,
+      fulfilled_at: null,
+      updated_at: '2026-08-02T00:00:00.000Z',
+      fulfilment: null,
+      refund: {
+        refund_request_id: REFUND,
+        refund_status: 'PENDING_CHECKER',
+        refund_amount: '10000.0000000000',
+        maker_id: '33333333-3333-4333-8333-333333333333',
+        checker_id: null,
+        decided_at: null,
+        executed_at: null,
+        failed_at: null,
+        failure_reason: null,
+      },
+      shipping_recovery: null,
+    };
+  }
+
+  it('reads the queue overview with counts and the rate capability state', async () => {
+    const client = redemptionOpsClient();
+    const fetchSpy = mockFetch(200, {
+      market_id: MARKET,
+      market_code: 'MY',
+      rate_configured: true,
+      counts: {
+        READY_FOR_PICKUP: 2,
+        BACKORDERED: 1,
+        FULFILMENT_SUSPENDED: 0,
+        FULFILMENT_EXCEPTION: 3,
+        REFUND_PENDING: 1,
+        REFUNDED: 0,
+      },
+    } satisfies AdminFulfilmentQueueOverviewDto);
+
+    const result = await client.queueOverview(MARKET);
+
+    expect(result.rate_configured).toBe(true);
+    expect(result.counts.FULFILMENT_EXCEPTION).toBe(3);
+    const [url] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/redemption-fulfilment-ops/markets/${MARKET}/queues`,
+    );
+  });
+
+  it('reads one operational queue with the linked refund row', async () => {
+    const client = redemptionOpsClient();
+    mockFetch(200, {
+      market_id: MARKET,
+      market_code: 'MY',
+      status: 'REFUND_PENDING',
+      rate_configured: true,
+      items: [queueItem()],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    } satisfies AdminFulfilmentQueueDto);
+
+    const result = await client.queue(MARKET, 'REFUND_PENDING', { limit: 100 });
+
+    expect(result.items[0]?.refund?.refund_status).toBe('PENDING_CHECKER');
+    expect(result.items[0]?.total_points).toBe('10000.0000000000');
+  });
+
+  it('reads the order detail with the owner audit history', async () => {
+    const client = redemptionOpsClient();
+    mockFetch(200, {
+      market_id: MARKET,
+      market_code: 'MY',
+      order: {
+        order_id: ORDER,
+        order_reference: 'ORD-000001',
+        member_id: '22222222-2222-4222-8222-222222222222',
+        public_member_id: 'M-1',
+        item_name: 'iPoint Mug',
+        item_sku: 'MUG-001',
+        status: 'FULFILMENT_SUSPENDED',
+        total_points: '10000.0000000000',
+        quantity: '1',
+        backorder_quantity: '0',
+        rate_value: '0.0100000000',
+        confirmed_at: '2026-08-01T00:00:00.000Z',
+        ready_for_pickup_at: null,
+        backordered_at: null,
+        fulfilled_at: null,
+        cancelled_at: null,
+        notes: 'Suspended for review',
+        created_at: '2026-08-01T00:00:00.000Z',
+        updated_at: '2026-08-02T00:00:00.000Z',
+      },
+      fulfilment: null,
+      refund: null,
+      shipping_recovery: null,
+      audit: [
+        {
+          id: 'audit-1',
+          action: 'ORDER_FULFILMENT_SUSPENDED',
+          entity_type: 'REDEMPTION_ORDER',
+          entity_id: ORDER,
+          actor_type: 'ADMIN',
+          actor_id: '33333333-3333-4333-8333-333333333333',
+          reason: null,
+          result: 'SUCCESS',
+          request_id: null,
+          occurred_at: '2026-08-02T00:00:00.000Z',
+        },
+      ],
+    } satisfies AdminOrderDetailDto);
+
+    const result = await client.orderDetail(MARKET, ORDER);
+
+    expect(result.order.status).toBe('FULFILMENT_SUSPENDED');
+    expect(result.audit[0]?.action).toBe('ORDER_FULFILMENT_SUSPENDED');
+  });
+
+  it('suspends/resumes/retries through the frozen-owner endpoints', async () => {
+    const client = redemptionOpsClient();
+    const fetchSpy = mockFetch(200, {
+      ok: true,
+      order_id: ORDER,
+      status: 'FULFILMENT_SUSPENDED',
+      updated_at: '2026-08-02T00:00:00.000Z',
+    });
+
+    const suspended = await client.suspendOrder(MARKET, ORDER, 'Fraud hold.');
+    expect(suspended.status).toBe('FULFILMENT_SUSPENDED');
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(String(url)).toBe(
+      `${BASE_URL}/admin/redemption-fulfilment-ops/markets/${MARKET}/orders/${ORDER}/suspend`,
+    );
+    expect(JSON.parse(String((init as RequestInit | undefined)?.body))).toEqual(
+      {
+        reason: 'Fraud hold.',
+      },
+    );
+
+    mockFetch(200, {
+      ok: true,
+      order_id: ORDER,
+      status: 'PROCESSING',
+      updated_at: '2026-08-02T00:00:00.000Z',
+    });
+    const resumed = await client.resumeOrder(MARKET, ORDER);
+    expect(resumed.ok).toBe(true);
+
+    mockFetch(200, {
+      ok: true,
+      fulfilment_id: FULFILMENT,
+      status: 'PENDING',
+      updated_at: '2026-08-02T00:00:00.000Z',
+    });
+    const retried = await client.retryFulfilment(MARKET, FULFILMENT);
+    expect(retried.status).toBe('PENDING');
+  });
+
+  it('reads the refund queue and detail with the REFUND_* history', async () => {
+    const client = redemptionOpsClient();
+    mockFetch(200, {
+      market_id: MARKET,
+      market_code: 'MY',
+      items: [
+        {
+          refund_request_id: REFUND,
+          order_id: ORDER,
+          order_reference: 'ORD-000001',
+          status: 'PENDING_CHECKER',
+          refund_amount: '10000.0000000000',
+          reason: 'Item unavailable',
+          maker_id: '33333333-3333-4333-8333-333333333333',
+          checker_id: null,
+          maker_notes: null,
+          checker_notes: null,
+          prior_order_status: 'FULFILMENT_EXCEPTION',
+          decided_at: null,
+          executed_at: null,
+          failed_at: null,
+          failure_reason: null,
+          created_at: '2026-08-02T00:00:00.000Z',
+          updated_at: '2026-08-02T00:00:00.000Z',
+        },
+      ],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    } satisfies AdminRefundQueueDto);
+
+    const queue = await client.refundQueue(MARKET, {
+      status: 'PENDING_CHECKER',
+    });
+    expect(queue.items[0]?.refund_request_id).toBe(REFUND);
+
+    mockFetch(200, {
+      refund_request_id: REFUND,
+      order_id: ORDER,
+      order_reference: 'ORD-000001',
+      status: 'COMPLETED',
+      refund_amount: '10000.0000000000',
+      reason: 'Item unavailable',
+      maker_id: '33333333-3333-4333-8333-333333333333',
+      checker_id: '44444444-4444-4444-8444-444444444444',
+      maker_notes: null,
+      checker_notes: null,
+      prior_order_status: 'FULFILMENT_EXCEPTION',
+      decided_at: '2026-08-03T00:00:00.000Z',
+      executed_at: '2026-08-03T00:00:00.000Z',
+      failed_at: null,
+      failure_reason: null,
+      created_at: '2026-08-02T00:00:00.000Z',
+      updated_at: '2026-08-03T00:00:00.000Z',
+      status_history: [
+        {
+          id: 'audit-2',
+          action: 'REFUND_EXECUTED',
+          reason: null,
+          result: 'SUCCESS',
+          actor_id: '44444444-4444-4444-8444-444444444444',
+          occurred_at: '2026-08-03T00:00:00.000Z',
+        },
+      ],
+    } satisfies AdminRefundDetailDto);
+
+    const detail = await client.refundDetail(MARKET, REFUND);
+    expect(detail.status).toBe('COMPLETED');
+    expect(detail.status_history[0]?.action).toBe('REFUND_EXECUTED');
   });
 });

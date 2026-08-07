@@ -7,10 +7,10 @@ import {
 import { hasEffectivePermission } from './route-guards.js';
 
 describe('P7-S3A Admin route manifest', () => {
-  it('defines exactly 36 unique stable routes with guard metadata', () => {
-    expect(adminRouteManifest).toHaveLength(36);
-    expect(new Set(adminRouteManifest.map(({ id }) => id)).size).toBe(36);
-    expect(new Set(adminRouteManifest.map(({ path }) => path)).size).toBe(36);
+  it('defines exactly 38 unique stable routes with guard metadata', () => {
+    expect(adminRouteManifest).toHaveLength(38);
+    expect(new Set(adminRouteManifest.map(({ id }) => id)).size).toBe(38);
+    expect(new Set(adminRouteManifest.map(({ path }) => path)).size).toBe(38);
     for (const route of adminRouteManifest) {
       expect(route.path).toMatch(/^\/admin\//u);
       expect(route.loader).toMatch(/^(public|bootstrap|session)$/u);
@@ -139,8 +139,62 @@ describe('P7-S3A Admin route manifest', () => {
       adminRouteManifest.find(({ id }) => id === 'ipoint-adjustments')
         ?.capabilityGate,
     ).toBeUndefined();
+    // P7-S8: the refunds / fulfilment-exceptions / agents routes must no
+    // longer carry the stale GATE-SEC-02 / SEC-03/15 / GATE-P5-01 gates —
+    // SEC-02 (merge acd83556), SEC-03 (P6-R2 admin route security, merge
+    // 8502065d) and GATE-P5-01 (P5-R1 owner remediation, merge b954f985)
+    // are all integrated, and the P7-S8 pages implement the read/action
+    // surfaces over the frozen owners. The canonical permissions still
+    // guard every route.
     expect(
       adminRouteManifest.find(({ id }) => id === 'refunds')?.capabilityGate,
-    ).toMatchObject({ blockedPrerequisite: 'GATE-SEC-02' });
+    ).toBeUndefined();
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'fulfilment-exceptions')
+        ?.capabilityGate,
+    ).toBeUndefined();
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'agents')?.capabilityGate,
+    ).toBeUndefined();
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'agent-detail')
+        ?.capabilityGate,
+    ).toBeUndefined();
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'redemption-order-detail')
+        ?.permission,
+    ).toBe('redemption.order.read');
+    // P7-S8 High-1 fix: every P7-S8 route must reference a canonical
+    // catalog permission (packages/database/src/permission-catalog.ts).
+    // The stale agent.activation.read / redemption.fulfilment.read /
+    // redemption.refund.read codes do not exist in the catalog, so they
+    // could never be granted and the routes were permanently denied.
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'agents')?.permission,
+    ).toBe('agent.read');
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'agent-detail')?.permission,
+    ).toBe('agent.read');
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'fulfilment-exceptions')
+        ?.permission,
+    ).toBe('redemption.order.read');
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'refunds')?.permission,
+    ).toBe('redemption.order.read');
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'refund-detail')?.permission,
+    ).toBe('redemption.order.read');
+    // Zero drift: the three non-canonical codes must not be required by
+    // any manifest route.
+    for (const staleCode of [
+      'agent.activation.read',
+      'redemption.fulfilment.read',
+      'redemption.refund.read',
+    ]) {
+      expect(
+        adminRouteManifest.some(({ permission }) => permission === staleCode),
+      ).toBe(false);
+    }
   });
 });

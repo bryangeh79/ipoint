@@ -156,24 +156,22 @@ export const adminRouteManifest = [
     'Agents',
     '/admin/:marketId/agents',
     'Network',
-    'agent.activation.read',
+    'agent.read',
     'selected',
     'read-only',
     'bootstrap',
     true,
-    gate('agent.activation.manage', 'GATE-P5-01'),
   ),
   route(
     'agent-detail',
     'Agent detail',
     '/admin/:marketId/agents/:agentId',
     'Network',
-    'agent.activation.read',
+    'agent.read',
     'resource',
     'read-only',
     'bootstrap',
     false,
-    gate('agent.activation.manage', 'GATE-P5-01'),
   ),
   route(
     'mcp',
@@ -298,28 +296,48 @@ export const adminRouteManifest = [
     'read-only',
   ),
   route(
+    'redemption-order-detail',
+    'Redemption order detail',
+    '/admin/:marketId/redemptions/orders/:orderId',
+    'Redemption',
+    'redemption.order.read',
+    'resource',
+    'read-only',
+    'bootstrap',
+    false,
+  ),
+  route(
     'fulfilment-exceptions',
     'Fulfilment exceptions',
     '/admin/:marketId/redemptions/exceptions',
     'Redemption',
-    'redemption.fulfilment.read',
+    'redemption.order.read',
     'resource',
     'read-only',
     'bootstrap',
     true,
-    gate('redemption.fulfilment.manage', 'SEC-03/15'),
   ),
   route(
     'refunds',
     'Refund queue',
     '/admin/:marketId/redemptions/refunds',
     'Redemption',
-    'redemption.refund.read',
+    'redemption.order.read',
     'resource',
     'read-only',
     'bootstrap',
     true,
-    gate('redemption.refund.approve', 'GATE-SEC-02'),
+  ),
+  route(
+    'refund-detail',
+    'Refund detail',
+    '/admin/:marketId/redemptions/refunds/:refundId',
+    'Redemption',
+    'redemption.order.read',
+    'resource',
+    'read-only',
+    'bootstrap',
+    false,
   ),
   route(
     'audit',
@@ -437,8 +455,10 @@ export type AdminRouteId =
   | 'commissions'
   | 'market'
   | 'redemption-orders'
+  | 'redemption-order-detail'
   | 'fulfilment-exceptions'
   | 'refunds'
+  | 'refund-detail'
   | 'audit'
   | 'reports'
   | 'admin-users'
