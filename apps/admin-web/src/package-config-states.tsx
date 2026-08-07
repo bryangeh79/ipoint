@@ -123,9 +123,9 @@ export function SpecialPercentageManageBlockedNotice() {
       tone="warning"
       title="Creating special percentages needs the online desktop Admin Web"
     >
-      Your role can manage special percentages, but creating them is a
-      sensitive write: sign in on the online desktop Admin Web to create a
-      new special percentage with a mandatory reason and Idempotency-Key.
+      Your role can manage special percentages, but creating them is a sensitive
+      write: sign in on the online desktop Admin Web to create a new special
+      percentage with a mandatory reason and Idempotency-Key.
     </Alert>
   );
 }

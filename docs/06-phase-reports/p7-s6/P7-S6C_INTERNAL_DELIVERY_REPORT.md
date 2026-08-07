@@ -1,15 +1,15 @@
 # P7-S6C Internal Delivery Report — Admin Redemption Rate Configuration
 
-| Field           | Value                                                                                               |
-| --------------- | --------------------------------------------------------------------------------------------------- |
-| Status          | `P7-S6C_DELIVERY_COMPLETE` / pending OpenClaw integration review                                   |
-| Phase authority | `CONTINUING_UNDER_D-048` (§5 written handoff; redemption rate configuration)                        |
-| Executor class  | `OPENCLAW_MANAGED_CODING_SUBAGENT` (D-048; Codex CLI unavailable)                                   |
-| Worktree        | `C:\AI_WORKSPACE\iPoint App\.local\wt-p7-s6c-redemption`                                            |
-| Branch          | `task/p7-s6c-redemption-config` (base `7dca2c33` — includes accepted S6A + S6B)                     |
+| Field           | Value                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------- |
+| Status          | `P7-S6C_DELIVERY_COMPLETE` / pending OpenClaw integration review                                            |
+| Phase authority | `CONTINUING_UNDER_D-048` (§5 written handoff; redemption rate configuration)                                |
+| Executor class  | `OPENCLAW_MANAGED_CODING_SUBAGENT` (D-048; Codex CLI unavailable)                                           |
+| Worktree        | `C:\AI_WORKSPACE\iPoint App\.local\wt-p7-s6c-redemption`                                                    |
+| Branch          | `task/p7-s6c-redemption-config` (base `7dca2c33` — includes accepted S6A + S6B)                             |
 | Scope           | P7-S6C: Admin Redemption Rate Configuration (frozen contract §7.2, ChatGPT Command Center order 2026-08-04) |
-| Pushed          | NO (OpenClaw integrates and pushes)                                                                 |
-| Date            | 2026-08-04                                                                                           |
+| Pushed          | NO (OpenClaw integrates and pushes)                                                                         |
+| Date            | 2026-08-04                                                                                                  |
 
 ## 1. Scope delivered
 
@@ -23,10 +23,10 @@ Phase 7 **read projection + orchestrated create** over the FROZEN Phase 6 redemp
 
 ### 1.1 Phase 7 adapter — `apps/api/src/admin-redemption-ops/` (new)
 
-| Route                                                       | Permission (canonical catalog)                                        | Read / Write | Notes                                                                                                                                                                                                                                                                                                                                                          |
-| ----------------------------------------------------------- | -------------------------------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/admin/redemption-ops/markets/:marketId/rates`  | `redemption.rate.read` (all admin roles except KYC_REVIEWER, marketScoped) | Read         | Selected-market redemption rate configuration: the approved §7.2 per-market bounds (initial / minimum / maximum / currency / display unit) or the **explicit blocked state** (`configured: false`) for markets without an approved rule — NO other-market fallback. Every `POINTS_PER_CURRENCY` version with full technical precision (`rate_value`, ≤10 decimals), the server-derived ≤6-decimal display value (`display_rate`, display-only), projected effective windows in market-local time AND resolved UTC, window status (SCHEDULED/ACTIVE/SUPERSEDED/EXPIRED). |
-| `POST /api/v1/admin/redemption-ops/markets/:marketId/rates` | `redemption.rate.manage` (SUPER_ADMIN only, marketScoped)             | Write        | §7.2 per-market bounds enforcement (Malaysia initial RM1.00 / min RM0.50 / max RM2.00 per 1 iPoint — at-bounds accepted), ≤10-decimal technical precision, strictly-future market-local 00:00 activation (local + resolved UTC returned), overlap prevention serialized with a session-level PostgreSQL advisory lock, exact idempotency (`Idempotency-Key` + canonical payload hash in the shared `merchant_api_idempotency_keys` mechanism table — replay returns the original result; same key + different payload → 409), mandatory reason + privileged audit. The insert delegates to the frozen Phase 6 owner command unchanged. |
+| Route                                                       | Permission (canonical catalog)                                             | Read / Write | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/admin/redemption-ops/markets/:marketId/rates`  | `redemption.rate.read` (all admin roles except KYC_REVIEWER, marketScoped) | Read         | Selected-market redemption rate configuration: the approved §7.2 per-market bounds (initial / minimum / maximum / currency / display unit) or the **explicit blocked state** (`configured: false`) for markets without an approved rule — NO other-market fallback. Every `POINTS_PER_CURRENCY` version with full technical precision (`rate_value`, ≤10 decimals), the server-derived ≤6-decimal display value (`display_rate`, display-only), projected effective windows in market-local time AND resolved UTC, window status (SCHEDULED/ACTIVE/SUPERSEDED/EXPIRED).                                                                |
+| `POST /api/v1/admin/redemption-ops/markets/:marketId/rates` | `redemption.rate.manage` (SUPER_ADMIN only, marketScoped)                  | Write        | §7.2 per-market bounds enforcement (Malaysia initial RM1.00 / min RM0.50 / max RM2.00 per 1 iPoint — at-bounds accepted), ≤10-decimal technical precision, strictly-future market-local 00:00 activation (local + resolved UTC returned), overlap prevention serialized with a session-level PostgreSQL advisory lock, exact idempotency (`Idempotency-Key` + canonical payload hash in the shared `merchant_api_idempotency_keys` mechanism table — replay returns the original result; same key + different payload → 409), mandatory reason + privileged audit. The insert delegates to the frozen Phase 6 owner command unchanged. |
 
 The adapter never writes domain tables directly: its only writes are the idempotency mechanism
 rows and the canonical audit records; `redemption_rate_versions` is written exclusively by the
@@ -84,19 +84,19 @@ Reported per the dispatch rule ("if the owner lacks a needed command, STOP and r
    is append-only (`reject_update`/`reject_delete` triggers) and enforces a gist exclusion over
    `[effective_from, effective_until)` per (market, rate_type); the owner's own overlap pre-check in
    `createRateVersion` is **degenerate** — `existing.effective_from < COALESCE(new.effective_until,
-   'infinity')` (identical condition twice) — so ANY second version for the same market + type is
+'infinity')` (identical condition twice) — so ANY second version for the same market + type is
    rejected with `REDEMPTION_RATE_OVERLAP`, even a future-effective successor that the gist
    constraint would legally allow (adjacent half-open windows). `cancelRateVersion` is also broken
    (UPDATE blocked by the append-only trigger and referencing non-existent `updated_at`/`updated_by`
    columns). **Consequence:** the P7-S6C surface delivers initial configuration + immutable history
-   + overlap prevention exactly as §7.2 requires, but a *rate change* (a successor version) after
-   the initial baseline is impossible under the frozen owner — the adapter maps the owner's stable
-   overlap rejection to `409 REDEMPTION_RATE_OVERLAP` (documented, tested) rather than inventing a
-   bypass. **Recommended owner remediation (for OpenClaw/Command Center dispatch):** fix the owner
-   pre-check to a proper half-open overlap test (`existing.start < new.end AND new.start <
-   existing.end`) and repair/replace `cancelRateVersion` (or allow bounded-window creates) so
-   future successor versions become creatable. This is a Phase 6 owner change requiring separate
-   authorization; Phase 7 must not implement it inside frozen code.
+   - overlap prevention exactly as §7.2 requires, but a _rate change_ (a successor version) after
+     the initial baseline is impossible under the frozen owner — the adapter maps the owner's stable
+     overlap rejection to `409 REDEMPTION_RATE_OVERLAP` (documented, tested) rather than inventing a
+     bypass. **Recommended owner remediation (for OpenClaw/Command Center dispatch):** fix the owner
+     pre-check to a proper half-open overlap test (`existing.start < new.end AND new.start <
+existing.end`) and repair/replace `cancelRateVersion` (or allow bounded-window creates) so
+     future successor versions become creatable. This is a Phase 6 owner change requiring separate
+     authorization; Phase 7 must not implement it inside frozen code.
 2. **`fiatCurrency` and `notes` are accepted by the owner DTO but dropped** (no columns on
    `redemption_rate_versions`). The adapter passes the market's approved currency code (from the
    versioned rule) through to the owner as the DTO requires; the storage model simply has no
@@ -115,11 +115,11 @@ valid quote just because its original rate version later expired"), exact decima
 
 ### 3.1 P7-S6C suites
 
-| Suite                                                             | DB                                                                                                                                      | Result       |
-| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| `admin-redemption-ops.spec.ts` (unit)                             | —                                                                                                                                       | **19/19** ✅ |
-| `admin-redemption-ops.integration.spec.ts` (HTTP, real PostgreSQL)| `ipoint_gate_p6c` (fresh: `DROP DATABASE IF EXISTS ... WITH (FORCE)` + `CREATE DATABASE`; `migrate()` + `seedFoundation()` in beforeAll) | **22/22** ✅ |
-| **P7-S6C API total**                                              |                                                                                                                                         | **41/41** ✅ |
+| Suite                                                              | DB                                                                                                                                       | Result       |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `admin-redemption-ops.spec.ts` (unit)                              | —                                                                                                                                        | **19/19** ✅ |
+| `admin-redemption-ops.integration.spec.ts` (HTTP, real PostgreSQL) | `ipoint_gate_p6c` (fresh: `DROP DATABASE IF EXISTS ... WITH (FORCE)` + `CREATE DATABASE`; `migrate()` + `seedFoundation()` in beforeAll) | **22/22** ✅ |
+| **P7-S6C API total**                                               |                                                                                                                                          | **41/41** ✅ |
 
 Coverage includes: 401/403/409 RBAC + selected-market enforcement (`MARKET_CONTEXT_MISMATCH`,
 `MARKET_SELECTION_REQUIRED`, `MARKET_ACCESS_DENIED`); **Malaysia bounds** — 0.49 → 422
@@ -145,23 +145,23 @@ future market-local 00:00 activation with local + resolved UTC (UTC+8) and SCHED
 
 ### 3.2 Gates
 
-| Gate                                                            | Result                                                                                                                                                                                                                     |
-| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm --filter @ipoint/api typecheck` / `build`                 | ✅ exit 0 / exit 0                                                                                                                                                                                                          |
-| `pnpm --filter @ipoint/api openapi:validate`                    | ✅ **228 paths, 0 missing schemas, 0 duplicate operationIds** (`✅ All runtime OpenAPI validations passed.`); does not self-exit after PASS (pre-existing outbox-worker quirk, same as S4/S5/S6A/S6B)                       |
-| `pnpm --filter @ipoint/database db:checksum`                    | ✅ **Verified 30 immutable migration checksum(s)** (30/30)                                                                                                                                                                  |
-| `pnpm --filter @ipoint/api-client typecheck` / `test` / `build` | ✅ exit 0 / **64/64** (+5) / exit 0                                                                                                                                                                                         |
-| `pnpm --filter @ipoint/admin-web typecheck`                     | ✅ exit 0                                                                                                                                                                                                                   |
-| `pnpm --filter @ipoint/admin-web test`                          | ✅ **205/205** (185 prior + 20 new: 11 model, 9 page; route-manifest zero-drift assertions green)                                                                                                                           |
-| `pnpm --filter @ipoint/admin-web build`                         | ✅ exit 0 (1634 modules, vite)                                                                                                                                                                                               |
-| prettier (all changed paths)                                    | ✅ clean (formatting fix committed separately)                                                                                                                                                                               |
-| eslint (changed paths, scoped)                                  | ✅ exit 0 (0 errors; warnings are the existing admin-web scope-ignore notices, same as S6A/S6B)                                                                                                                             |
+| Gate                                                            | Result                                                                                                                                                                                                |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @ipoint/api typecheck` / `build`                 | ✅ exit 0 / exit 0                                                                                                                                                                                    |
+| `pnpm --filter @ipoint/api openapi:validate`                    | ✅ **228 paths, 0 missing schemas, 0 duplicate operationIds** (`✅ All runtime OpenAPI validations passed.`); does not self-exit after PASS (pre-existing outbox-worker quirk, same as S4/S5/S6A/S6B) |
+| `pnpm --filter @ipoint/database db:checksum`                    | ✅ **Verified 30 immutable migration checksum(s)** (30/30)                                                                                                                                            |
+| `pnpm --filter @ipoint/api-client typecheck` / `test` / `build` | ✅ exit 0 / **64/64** (+5) / exit 0                                                                                                                                                                   |
+| `pnpm --filter @ipoint/admin-web typecheck`                     | ✅ exit 0                                                                                                                                                                                             |
+| `pnpm --filter @ipoint/admin-web test`                          | ✅ **205/205** (185 prior + 20 new: 11 model, 9 page; route-manifest zero-drift assertions green)                                                                                                     |
+| `pnpm --filter @ipoint/admin-web build`                         | ✅ exit 0 (1634 modules, vite)                                                                                                                                                                        |
+| prettier (all changed paths)                                    | ✅ clean (formatting fix committed separately)                                                                                                                                                        |
+| eslint (changed paths, scoped)                                  | ✅ exit 0 (0 errors; warnings are the existing admin-web scope-ignore notices, same as S6A/S6B)                                                                                                       |
 
 ### 3.3 Regression (integrated tree = this worktree)
 
-| Suite                          | DB                         | Result                                   |
-| ------------------------------ | -------------------------- | ---------------------------------------- |
-| P7-S6A admin-package-ops (unit + HTTP) | `ipoint_gate_p6c_s6a` (pre-created, fresh) | **36/36** ✅ (4 unit + 32 integration) |
+| Suite                                  | DB                                          | Result                                  |
+| -------------------------------------- | ------------------------------------------- | --------------------------------------- |
+| P7-S6A admin-package-ops (unit + HTTP) | `ipoint_gate_p6c_s6a` (pre-created, fresh)  | **36/36** ✅ (4 unit + 32 integration)  |
 | P7-S6B admin-reward-ops (unit + HTTP)  | `ipoint_gate_p6c_s6b` (fresh, self-created) | **36/36** ✅ (16 unit + 20 integration) |
 
 ### 3.4 Pre-existing findings (NOT caused by P7-S6C — same classes as S6A/S6B)
@@ -210,13 +210,13 @@ needed (the existing `admin-reward-*` classes are reused).
 
 - **Assumption:** the redemption rate surface configures `POINTS_PER_CURRENCY` — the canonical
   conversion type the frozen quote flow actually consumes (`required_iPoint =
-  fiat_reference_value / rate`; a value of 1.00 = RM1.00 per 1 iPoint, matching the §7.2 Malaysia
+fiat_reference_value / rate`; a value of 1.00 = RM1.00 per 1 iPoint, matching the §7.2 Malaysia
   baseline). Other rate types (e.g. `CURRENCY_PER_POINT`) remain owner-managed and are not shown on
   this surface.
 - **Assumption:** the versioned per-market rules map keyed by market code IS the "owner/market
   configuration" source for the CONFIGURABLE §7.2 values (there is no market-configuration table in
   the schema; the markets row supplies timezone/currency and the map supplies the approved bounds).
-- **Risk:** a rate *change* (successor version) after the initial baseline is impossible under the
+- **Risk:** a rate _change_ (successor version) after the initial baseline is impossible under the
   frozen Phase 6 owner (finding §2.1) — the surface honestly returns 409 and the UI copy states
   versions are immutable; a separately authorized Phase 6 owner remediation is required for
   successor scheduling.

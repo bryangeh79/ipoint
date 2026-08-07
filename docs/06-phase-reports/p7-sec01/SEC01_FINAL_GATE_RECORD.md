@@ -1,12 +1,12 @@
 # SEC-01 — Final Forward-Only Gate Record (Manual iPoint Adjustment Maker/Checker Owner Remediation)
 
-| Field | Value |
-|---|---|
-| **Record** | SEC-01 FINAL GATE — manual iPoint adjustment Maker/Checker owner remediation (P7-OD-20) |
-| **Status** | `SEC01_OWNER_REMEDIATION_INTEGRATED` / `GATE-SEC-01_RELEASE_PREPARED` / `P7-AC-15_SATISFIED` / `CONTINUING_UNDER_D-055` |
-| **Order** | ChatGPT Command Center — D-047 (fix/p3-p7-sec01-ipoint-maker-checker exact scope) + D-055 sequence (SEC-01 → P7-S7) |
-| **Date** | 2026-08-06 |
-| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze |
+| Field           | Value                                                                                                                   |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Record**      | SEC-01 FINAL GATE — manual iPoint adjustment Maker/Checker owner remediation (P7-OD-20)                                 |
+| **Status**      | `SEC01_OWNER_REMEDIATION_INTEGRATED` / `GATE-SEC-01_RELEASE_PREPARED` / `P7-AC-15_SATISFIED` / `CONTINUING_UNDER_D-055` |
+| **Order**       | ChatGPT Command Center — D-047 (fix/p3-p7-sec01-ipoint-maker-checker exact scope) + D-055 sequence (SEC-01 → P7-S7)     |
+| **Date**        | 2026-08-06                                                                                                              |
+| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze                                                   |
 
 > Forward-only record. Do not delete or rewrite.
 
@@ -14,12 +14,12 @@
 
 ## 1. Remediation range
 
-| Item | Value |
-|---|---|
-| **Branch** | `fix/p3-p7-sec01-ipoint-maker-checker` (base `8192fbdd` = phase HEAD incl. S6E final gate record) |
-| **Commits** | `b0640b4c` (feat(database): migration 0034) · `b7644429` (feat(wallet): SEC-01 adjustment owner) · `aa575301` (test: owner unit + integration suites) · `5539eb50` (fix(admin-reward): remove immediate adjustment endpoint) · `e5e934cc`/`5761b728`/`e5601e3e` (docs + drift cleanup) |
-| **Integration** | Merge `167dc216` (--no-ff, ort, no conflicts) into `phase/7-admin-operations` |
-| **Scope** | `apps/api/src/wallet/wallet-adjustment.owner.*` (5) + `wallet.module.ts` + `apps/api/src/admin-reward/*` (6, endpoint removal) + `packages/database` (0034 + checksums + schema + seed + expected-schema + p7-s2c test) + `docs/06-phase-reports/p7-sec01/` — 19 files; `wallet.service.ts` (frozen Phase 3) byte-identical; migrations 0000-0033 byte-identical; checksums 34/34 → 35/35 |
+| Item            | Value                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Branch**      | `fix/p3-p7-sec01-ipoint-maker-checker` (base `8192fbdd` = phase HEAD incl. S6E final gate record)                                                                                                                                                                                                                                                                                         |
+| **Commits**     | `b0640b4c` (feat(database): migration 0034) · `b7644429` (feat(wallet): SEC-01 adjustment owner) · `aa575301` (test: owner unit + integration suites) · `5539eb50` (fix(admin-reward): remove immediate adjustment endpoint) · `e5e934cc`/`5761b728`/`e5601e3e` (docs + drift cleanup)                                                                                                    |
+| **Integration** | Merge `167dc216` (--no-ff, ort, no conflicts) into `phase/7-admin-operations`                                                                                                                                                                                                                                                                                                             |
+| **Scope**       | `apps/api/src/wallet/wallet-adjustment.owner.*` (5) + `wallet.module.ts` + `apps/api/src/admin-reward/*` (6, endpoint removal) + `packages/database` (0034 + checksums + schema + seed + expected-schema + p7-s2c test) + `docs/06-phase-reports/p7-sec01/` — 19 files; `wallet.service.ts` (frozen Phase 3) byte-identical; migrations 0000-0033 byte-identical; checksums 34/34 → 35/35 |
 
 ## 2. Owner contract (D-002 C-03 / P7-OD-03/10/11/18/20, GATE-SEC-01)
 
@@ -41,13 +41,13 @@
 
 ## 5. Post-integration verification
 
-| Check | Result |
-|---|---|
-| Phase 7 merge | `167dc216` (--no-ff, no conflicts) |
-| Tracked modifications (worktree) | 0 |
-| Migration checksums | 35/35 (0034 appended; 0000-0033 byte-identical) |
-| Frozen Phase 3 owner | `wallet.service.ts` byte-identical (sha256 verified) |
-| `main` | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy |
+| Check                            | Result                                                                   |
+| -------------------------------- | ------------------------------------------------------------------------ |
+| Phase 7 merge                    | `167dc216` (--no-ff, no conflicts)                                       |
+| Tracked modifications (worktree) | 0                                                                        |
+| Migration checksums              | 35/35 (0034 appended; 0000-0033 byte-identical)                          |
+| Frozen Phase 3 owner             | `wallet.service.ts` byte-identical (sha256 verified)                     |
+| `main`                           | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy |
 
 ## 6. Items escalated for Command Center awareness (non-blocking)
 
@@ -68,4 +68,4 @@ SEC01_OWNER_REMEDIATION_INTEGRATED
 
 OpenClaw internal gate — NOT Command Center acceptance. P7-S7 starts next under D-055 continuous authorization.
 
-*Forward-only record. Do not delete or rewrite.*
+_Forward-only record. Do not delete or rewrite._

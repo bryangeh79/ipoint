@@ -1,12 +1,12 @@
 # P7-S6C — Final Forward-Only Gate Record (Canonical Owner Rewire, CG-03)
 
-| Field | Value |
-|---|---|
-| **Record** | P7-S6C FINAL GATE — redemption-rate configuration rewired to the D-053 secured canonical Phase 6 owner |
-| **Status** | `D-053_OWNER_REMEDIATION_INTEGRATED` / `CG-03_REDEMPTION_RATE_OWNER_GATE_PASSED` / `P7-S6C_DELIVERY_COMPLETE` / `P7-S6C_OPENCLAW_INTERNAL_GATE_PASSED` / `CONTINUING_UNDER_D-047_D-048_D-049_D-050_D-051_D-052_D-053` |
-| **Order** | ChatGPT Command Center — D-053 §15 (P7-S6C canonical rewire) + HOST ADMIN ORDER (2026-08-05) |
-| **Date** | 2026-08-05 |
-| **Supersedes** | `P7-S6C_PAUSED_DEPENDENCY_GATE.md` (retained unmodified; provisional status superseded) |
+| Field          | Value                                                                                                                                                                                                                 |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Record**     | P7-S6C FINAL GATE — redemption-rate configuration rewired to the D-053 secured canonical Phase 6 owner                                                                                                                |
+| **Status**     | `D-053_OWNER_REMEDIATION_INTEGRATED` / `CG-03_REDEMPTION_RATE_OWNER_GATE_PASSED` / `P7-S6C_DELIVERY_COMPLETE` / `P7-S6C_OPENCLAW_INTERNAL_GATE_PASSED` / `CONTINUING_UNDER_D-047_D-048_D-049_D-050_D-051_D-052_D-053` |
+| **Order**      | ChatGPT Command Center — D-053 §15 (P7-S6C canonical rewire) + HOST ADMIN ORDER (2026-08-05)                                                                                                                          |
+| **Date**       | 2026-08-05                                                                                                                                                                                                            |
+| **Supersedes** | `P7-S6C_PAUSED_DEPENDENCY_GATE.md` (retained unmodified; provisional status superseded)                                                                                                                               |
 
 > Forward-only record. OpenClaw internal gate — NOT Command Center acceptance.
 
@@ -14,12 +14,12 @@
 
 ## 1. Rewire range
 
-| Item | Value |
-|---|---|
-| **Branch** | `task/p7-s6c-redemption-config` (updated to latest Phase 7 HEAD incl. D-053 via merge `ee4dcb3f`) |
+| Item        | Value                                                                                                                                                                                                                                                           |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Branch**  | `task/p7-s6c-redemption-config` (updated to latest Phase 7 HEAD incl. D-053 via merge `ee4dcb3f`)                                                                                                                                                               |
 | **Commits** | `6b1bebad` (refactor: rewire adapter to canonical Phase 6 owner) · `8b427f91` (feat api-client: cancellation typed client) · `631752e0` (feat admin-web: cancellation orchestration behind owner capability gate) · `77f5b7ef` (docs: rewiring delivery report) |
-| **Pushed** | `task/p7-s6c-redemption-config` @ `77f5b7ef` (local = remote) |
-| **Scope** | `apps/api/src/admin-redemption-ops/**` (8) + `packages/api-client/src/**` (2) + `apps/admin-web/src/**` redemption-config files (7) + rewiring report (1) — 18 files; `redemption/**` (owner) byte-identical, zero migration/permission-catalog change |
+| **Pushed**  | `task/p7-s6c-redemption-config` @ `77f5b7ef` (local = remote)                                                                                                                                                                                                   |
+| **Scope**   | `apps/api/src/admin-redemption-ops/**` (8) + `packages/api-client/src/**` (2) + `apps/admin-web/src/**` redemption-config files (7) + rewiring report (1) — 18 files; `redemption/**` (owner) byte-identical, zero migration/permission-catalog change          |
 
 ## 2. What was removed (adapter-owned controls)
 
@@ -45,20 +45,20 @@ Idempotency storage/claims (`merchant_api_idempotency_keys` writes, scope, `cano
 
 ### 6.1 Host matrix (Node v26.4.0 / pnpm 9.15.9, real PostgreSQL, fresh isolated DBs)
 
-| Gate | Result | Exit | Log |
-|---|---|---|---|
-| Migration checksum | **32/32** | 0 | `01-checksum.log` |
-| S6C unit | **19/19** | 0 | `02-s6c-unit.log` |
-| S6C PostgreSQL integration | **30/30** | 0 | `03-s6c-integration.log` |
-| Phase 6 redemption regression (11 files) | **235/235** | 0 | `04-redemption-regression.log` |
-| D-053 owner regression | **59/59** | 0 | `05-d053-owner.log` |
-| P7-S6B regression | **38/38** | 0 | `06-s6b-regression.log` |
-| api-client typecheck / test / build | exit 0 / **66/66** / exit 0 | 0 | `07/08/09` |
-| admin-web typecheck / test / build | exit 0 / **209/209** / exit 0 | 0 | `10/11/12` |
-| api typecheck / build | exit 0 / exit 0 | 0 | `13/14` |
-| OpenAPI | **237 paths / 0 missing / 0 duplicate — ✅ passed** (non-self-exit quirk; killed after PASS) | 0 | `15-openapi-rerun.log` |
-| Lint (changed paths) | 0 errors (7 admin-web ignore warnings, existing convention) | 0 | `16-lint-changed-rerun.log` |
-| Format (changed paths) | Prettier clean | 0 | `17-format-changed-rerun.log` |
+| Gate                                     | Result                                                                                       | Exit | Log                            |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------- | ---- | ------------------------------ |
+| Migration checksum                       | **32/32**                                                                                    | 0    | `01-checksum.log`              |
+| S6C unit                                 | **19/19**                                                                                    | 0    | `02-s6c-unit.log`              |
+| S6C PostgreSQL integration               | **30/30**                                                                                    | 0    | `03-s6c-integration.log`       |
+| Phase 6 redemption regression (11 files) | **235/235**                                                                                  | 0    | `04-redemption-regression.log` |
+| D-053 owner regression                   | **59/59**                                                                                    | 0    | `05-d053-owner.log`            |
+| P7-S6B regression                        | **38/38**                                                                                    | 0    | `06-s6b-regression.log`        |
+| api-client typecheck / test / build      | exit 0 / **66/66** / exit 0                                                                  | 0    | `07/08/09`                     |
+| admin-web typecheck / test / build       | exit 0 / **209/209** / exit 0                                                                | 0    | `10/11/12`                     |
+| api typecheck / build                    | exit 0 / exit 0                                                                              | 0    | `13/14`                        |
+| OpenAPI                                  | **237 paths / 0 missing / 0 duplicate — ✅ passed** (non-self-exit quirk; killed after PASS) | 0    | `15-openapi-rerun.log`         |
+| Lint (changed paths)                     | 0 errors (7 admin-web ignore warnings, existing convention)                                  | 0    | `16-lint-changed-rerun.log`    |
+| Format (changed paths)                   | Prettier clean                                                                               | 0    | `17-format-changed-rerun.log`  |
 
 DBs: `ipoint_gate_s6c` (self-managed), `ipoint_gate_s6c_redem` (pre-migrated+seeded), `ipoint_gate_s6c_d053`, `ipoint_gate_s6c_s6b`. Every suite migrated + seeded.
 
@@ -68,17 +68,17 @@ DBs: `ipoint_gate_s6c` (self-managed), `ipoint_gate_s6c_redem` (pre-migrated+see
 
 ## 7. Integration and post-push verification
 
-| Check | Result |
-|---|---|
-| Merge commit | `24a88c54` (merge branch 'task/p7-s6c-redemption-config' into `phase/7-admin-operations`, --no-ff, no conflicts) |
-| `77f5b7ef` ancestor of Phase 7 HEAD | ✅ |
-| D-053 integration `09279dc5` ancestor of Phase 7 HEAD | ✅ |
-| Migration 0031 unique + complete; 32 migration files | ✅ |
-| Migration checksums | ✅ 32/32 (post-integration re-run) |
-| Tracked modifications | ✅ 0 |
-| Historical untracked artifacts | ✅ 102 (after this record's commit; the draft itself is the +1 before commit) |
-| `main` | ✅ unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05` |
-| No Main PR / Merge / Deployment | ✅ (gh pr list --base main empty; main untouched) |
-| No secrets / probe / cache / `.local` evidence committed | ✅ pushed range scan clean |
+| Check                                                    | Result                                                                                                           |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Merge commit                                             | `24a88c54` (merge branch 'task/p7-s6c-redemption-config' into `phase/7-admin-operations`, --no-ff, no conflicts) |
+| `77f5b7ef` ancestor of Phase 7 HEAD                      | ✅                                                                                                               |
+| D-053 integration `09279dc5` ancestor of Phase 7 HEAD    | ✅                                                                                                               |
+| Migration 0031 unique + complete; 32 migration files     | ✅                                                                                                               |
+| Migration checksums                                      | ✅ 32/32 (post-integration re-run)                                                                               |
+| Tracked modifications                                    | ✅ 0                                                                                                             |
+| Historical untracked artifacts                           | ✅ 102 (after this record's commit; the draft itself is the +1 before commit)                                    |
+| `main`                                                   | ✅ unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`                                                          |
+| No Main PR / Merge / Deployment                          | ✅ (gh pr list --base main empty; main untouched)                                                                |
+| No secrets / probe / cache / `.local` evidence committed | ✅ pushed range scan clean                                                                                       |
 
-*Post-push local = remote verification recorded in the commit that adds this record.*
+_Post-push local = remote verification recorded in the commit that adds this record._

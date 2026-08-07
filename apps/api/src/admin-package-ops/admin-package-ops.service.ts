@@ -20,9 +20,7 @@ import {
   specialPercentagePermissionDeniedError,
   specialPercentageReasonRequiredError,
 } from './admin-package-ops.errors.js';
-import {
-  AdminPackageOpsError,
-} from './admin-package-ops.types.js';
+import { AdminPackageOpsError } from './admin-package-ops.types.js';
 import type {
   AdminPackageCatalogDto,
   AdminPackageOpsActor,
@@ -200,9 +198,7 @@ export class AdminPackageOpsService {
     input: CreateSpecialPercentageDto,
     idempotencyKey: string,
   ): Promise<AdminSpecialPercentageCreateResponse> {
-    let created: Awaited<
-      ReturnType<PackageService['createSpecialPercentage']>
-    >;
+    let created: Awaited<ReturnType<PackageService['createSpecialPercentage']>>;
     try {
       created = await this.owner.createSpecialPercentage(
         marketId,
@@ -244,12 +240,8 @@ export class AdminPackageOpsService {
   ): Parameters<PackageService['createSpecialPercentage']>[1] {
     return {
       adminUserId: actor.adminUserId,
-      ...(actor.requestId !== undefined
-        ? { requestId: actor.requestId }
-        : {}),
-      ...(actor.ipAddress !== undefined
-        ? { ipAddress: actor.ipAddress }
-        : {}),
+      ...(actor.requestId !== undefined ? { requestId: actor.requestId } : {}),
+      ...(actor.ipAddress !== undefined ? { ipAddress: actor.ipAddress } : {}),
       ...(actor.currentMarketId !== undefined
         ? { currentMarketId: actor.currentMarketId }
         : {}),

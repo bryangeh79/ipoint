@@ -1,12 +1,12 @@
 # D-051 — Final Forward-Only Gate Record (Phase 1 Special-Percentage Owner Remediation)
 
-| Field | Value |
-|---|---|
-| **Record** | D-051 FINAL GATE — Phase 1 special-percentage canonical owner remediation (mandatory reason + idempotency + atomic audit) |
-| **Status** | `D-051_OWNER_REMEDIATION_INTEGRATED` / `P7-S6A_WRITE_SURFACE_REMAINS_BLOCKED_UNTIL_REWIRE` / `CONTINUING_UNDER_D-055` |
-| **Order** | ChatGPT Command Center — D-051 (special-percentage reason/audit) + D-055 full continuous completion authorization (2026-08-06) |
-| **Date** | 2026-08-06 |
-| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze |
+| Field           | Value                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Record**      | D-051 FINAL GATE — Phase 1 special-percentage canonical owner remediation (mandatory reason + idempotency + atomic audit)      |
+| **Status**      | `D-051_OWNER_REMEDIATION_INTEGRATED` / `P7-S6A_WRITE_SURFACE_REMAINS_BLOCKED_UNTIL_REWIRE` / `CONTINUING_UNDER_D-055`          |
+| **Order**       | ChatGPT Command Center — D-051 (special-percentage reason/audit) + D-055 full continuous completion authorization (2026-08-06) |
+| **Date**        | 2026-08-06                                                                                                                     |
+| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze                                                          |
 
 > Forward-only record. Do not delete or rewrite.
 
@@ -14,12 +14,12 @@
 
 ## 1. Remediation range
 
-| Item | Value |
-|---|---|
-| **Branch** | `fix/p1-p7-special-percentage-owner` (base `69537e7c` = phase HEAD incl. S6D final gate record) |
-| **Commits** | `5aa46870` (feat(database): migration 0033 reason column) · `c4257a8a` (feat(merchant): secured special-percentage owner command) · `fb4dc276` (test: evidence suite) · `5b7921c3` (docs: delivery report) |
-| **Integration** | Merge `dd481bd4` (--no-ff, ort, no conflicts) into `phase/7-admin-operations` |
-| **Scope** | `apps/api/src/merchant/**` (dto/controller/errors/service/types + package.dto.spec) + `apps/api/src/__tests__/d051-special-percentage.owner.integration.spec.ts` + `packages/database` (0033 + checksums + schema + expected-schema) + delivery report — 12 files, 2249+/38-; `admin-package-ops/**` (S6A) byte-identical (blocked surface retained); migrations 0000-0032 byte-identical; checksums 33/33 → 34/34 |
+| Item            | Value                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Branch**      | `fix/p1-p7-special-percentage-owner` (base `69537e7c` = phase HEAD incl. S6D final gate record)                                                                                                                                                                                                                                                                                                                    |
+| **Commits**     | `5aa46870` (feat(database): migration 0033 reason column) · `c4257a8a` (feat(merchant): secured special-percentage owner command) · `fb4dc276` (test: evidence suite) · `5b7921c3` (docs: delivery report)                                                                                                                                                                                                         |
+| **Integration** | Merge `dd481bd4` (--no-ff, ort, no conflicts) into `phase/7-admin-operations`                                                                                                                                                                                                                                                                                                                                      |
+| **Scope**       | `apps/api/src/merchant/**` (dto/controller/errors/service/types + package.dto.spec) + `apps/api/src/__tests__/d051-special-percentage.owner.integration.spec.ts` + `packages/database` (0033 + checksums + schema + expected-schema) + delivery report — 12 files, 2249+/38-; `admin-package-ops/**` (S6A) byte-identical (blocked surface retained); migrations 0000-0032 byte-identical; checksums 33/33 → 34/34 |
 
 ## 2. Owner contract (all inside the canonical Phase 1 owner command)
 
@@ -34,6 +34,7 @@
 ## 3. Independent review — APPROVED
 
 `OPENCLAW_MANAGED_CODING_SUBAGENT` (independent reviewer, D-048): verdict file `.local/d051-gate/review/REVIEWER_VERDICT.md`:
+
 - **APPROVED — 0 Critical / 0 High / 0 Medium / 3 Low** (L-1 stale owner-gap comment in `admin-package-ops.module.ts` — to be corrected during S6A rewire; L-2 `SPECIAL_PERCENTAGE_CREATE_FAILED` mapped 409 vs 500 semantics on an unreachable-in-practice path; L-3 OpenAPI evidence log exit 143 = PASS_DETECTED wrapper quirk — all non-blocking).
 - 12/12 dimensions PASS (authorization, reason contract, idempotency, atomic audit, actor immutability, assignments pinning, history/frozen integrity, scope boundary, tests, error mapping, DB constraints, no unrelated changes).
 
@@ -43,14 +44,14 @@
 
 ## 5. Post-integration verification
 
-| Check | Result |
-|---|---|
-| Phase 7 merge | `dd481bd4` (--no-ff, no conflicts) |
-| Tracked modifications (worktree) | 0 |
-| Migration checksums | 34/34 (0033 appended; 0000-0032 byte-identical) |
-| S6A surface | byte-identical (create surface still blocked 404 until rewire) |
-| `main` | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy |
-| Push / local = remote | PENDING — host push channel temporarily unavailable (see S6D gate record §6; batch push planned on first available channel) |
+| Check                            | Result                                                                                                                      |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Phase 7 merge                    | `dd481bd4` (--no-ff, no conflicts)                                                                                          |
+| Tracked modifications (worktree) | 0                                                                                                                           |
+| Migration checksums              | 34/34 (0033 appended; 0000-0032 byte-identical)                                                                             |
+| S6A surface                      | byte-identical (create surface still blocked 404 until rewire)                                                              |
+| `main`                           | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy                                                    |
+| Push / local = remote            | PENDING — host push channel temporarily unavailable (see S6D gate record §6; batch push planned on first available channel) |
 
 ## 6. Next steps (D-055 sequence)
 
@@ -65,4 +66,4 @@ D-051_OWNER_REMEDIATION_INTEGRATED
 
 OpenClaw internal gate — NOT Command Center acceptance. P7-S6A rewire starts next under D-055 continuous authorization.
 
-*Forward-only record. Do not delete or rewrite.*
+_Forward-only record. Do not delete or rewrite._

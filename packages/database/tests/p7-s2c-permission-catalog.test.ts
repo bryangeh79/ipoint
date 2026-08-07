@@ -25,9 +25,9 @@ const deprecatedRouteCodes = new Set([
 ]);
 
 describe('P7-S2C canonical permission catalog', () => {
-  it('contains exactly 66 unique canonical codes and six controlled roles', () => {
-    expect(canonicalPermissionCatalog).toHaveLength(66);
-    expect(new Set(canonicalPermissionCodes).size).toBe(66);
+  it('contains exactly 67 unique canonical codes and six controlled roles', () => {
+    expect(canonicalPermissionCatalog).toHaveLength(67);
+    expect(new Set(canonicalPermissionCodes).size).toBe(67);
     expect(controlledRoleCodes).toEqual([
       'SUPER_ADMIN',
       'OPERATIONS_ADMIN',
@@ -50,12 +50,12 @@ describe('P7-S2C canonical permission catalog', () => {
         ]),
       ),
     ).toEqual({
-      SUPER_ADMIN: 66,
-      OPERATIONS_ADMIN: 30,
-      FINANCE_OPERATOR: 24,
-      FINANCE_APPROVER: 27,
+      SUPER_ADMIN: 67,
+      OPERATIONS_ADMIN: 31,
+      FINANCE_OPERATOR: 25,
+      FINANCE_APPROVER: 28,
       KYC_REVIEWER: 21,
-      SUPPORT_READONLY_AUDITOR: 18,
+      SUPPORT_READONLY_AUDITOR: 19,
     });
     expect(roleTemplatePermissions.FINANCE_OPERATOR).toContain(
       'wallet.ipoint.adjust.maker',

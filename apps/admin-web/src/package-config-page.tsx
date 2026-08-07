@@ -702,10 +702,7 @@ export function PackageConfigPage() {
                     }
                   />
                 </FormField>
-                <FormField
-                  label="Description"
-                  htmlFor="special-description"
-                >
+                <FormField label="Description" htmlFor="special-description">
                   <Input
                     id="special-description"
                     aria-label="Special percentage description"

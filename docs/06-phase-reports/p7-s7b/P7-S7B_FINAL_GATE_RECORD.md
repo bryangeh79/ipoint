@@ -1,12 +1,12 @@
 # P7-S7B — Final Forward-Only Gate Record (Manual iPoint Adjustment Admin UI + Phase 7 Adapter)
 
-| Field | Value |
-|---|---|
-| **Record** | P7-S7B FINAL GATE — Phase 7 adapter + Admin Web Maker/Checker UI over the SEC-01 secured owner |
-| **Status** | `P7-S7B_DELIVERY_COMPLETE` / `P7-S7B_OPENCLAW_INTERNAL_GATE_PASSED` / `CONTINUING_UNDER_D-055` |
-| **Order** | ChatGPT Command Center — D-055 sequence (SEC-01 → P7-S7A → **P7-S7B** → P7-S7C → SEC-02 …) |
-| **Date** | 2026-08-07 |
-| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze |
+| Field           | Value                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------------- |
+| **Record**      | P7-S7B FINAL GATE — Phase 7 adapter + Admin Web Maker/Checker UI over the SEC-01 secured owner |
+| **Status**      | `P7-S7B_DELIVERY_COMPLETE` / `P7-S7B_OPENCLAW_INTERNAL_GATE_PASSED` / `CONTINUING_UNDER_D-055` |
+| **Order**       | ChatGPT Command Center — D-055 sequence (SEC-01 → P7-S7A → **P7-S7B** → P7-S7C → SEC-02 …)     |
+| **Date**        | 2026-08-07                                                                                     |
+| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze                          |
 
 > Forward-only record. Do not delete or rewrite.
 
@@ -14,12 +14,12 @@
 
 ## 1. Delivery range
 
-| Item | Value |
-|---|---|
-| **Branch** | `task/p7-s7b-ipoint-admin` (base `a9fe4fbb` = phase HEAD incl. S7A gate record) |
-| **Commits** | `87c69919` (feat(api-client): typed client) · `feefbdc1` (feat(api): Phase 7 adapter `admin-ipoint-adjust-ops`) · `e4426726` (feat(admin-web): Maker/Checker UI) · `d5ced47c` + `3fc5b190` (docs) · `401137ce` + `b9de3c63` (fix: lint cleanups) |
-| **Integration** | Merge `03b4ce69` (--no-ff, ort, no conflicts) into `phase/7-admin-operations` |
-| **Scope** | `apps/api/src/admin-ipoint-adjust-ops/**` (8) + `app.module.ts` (registration only) + `packages/api-client` (2) + `apps/admin-web/src/` ipoint-adjust-* + admin-api/admin-app/route-manifest (13) + report — 26 files; frozen SEC-01 owner (`wallet-adjustment.owner.*`) blob-identical; `packages/database` untouched (checksums 36/36) |
+| Item            | Value                                                                                                                                                                                                                                                                                                                                    |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Branch**      | `task/p7-s7b-ipoint-admin` (base `a9fe4fbb` = phase HEAD incl. S7A gate record)                                                                                                                                                                                                                                                          |
+| **Commits**     | `87c69919` (feat(api-client): typed client) · `feefbdc1` (feat(api): Phase 7 adapter `admin-ipoint-adjust-ops`) · `e4426726` (feat(admin-web): Maker/Checker UI) · `d5ced47c` + `3fc5b190` (docs) · `401137ce` + `b9de3c63` (fix: lint cleanups)                                                                                         |
+| **Integration** | Merge `03b4ce69` (--no-ff, ort, no conflicts) into `phase/7-admin-operations`                                                                                                                                                                                                                                                            |
+| **Scope**       | `apps/api/src/admin-ipoint-adjust-ops/**` (8) + `app.module.ts` (registration only) + `packages/api-client` (2) + `apps/admin-web/src/` ipoint-adjust-_ + admin-api/admin-app/route-manifest (13) + report — 26 files; frozen SEC-01 owner (`wallet-adjustment.owner._`) blob-identical; `packages/database` untouched (checksums 36/36) |
 
 ## 2. Adapter contract (SEC-01 §6)
 
@@ -41,14 +41,14 @@
 
 ## 5. Post-integration verification
 
-| Check | Result |
-|---|---|
-| Phase 7 merge | `03b4ce69` (--no-ff, no conflicts) |
-| Tracked modifications | 0 |
-| Migration checksums | 36/36 (no migration change) |
-| Frozen SEC-01 owner | blob-identical (sha256 verified) |
-| `main` | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy |
-| Push / local = remote | batch-push with SEC-01/S7A/S7B window on restored host channel |
+| Check                 | Result                                                                   |
+| --------------------- | ------------------------------------------------------------------------ |
+| Phase 7 merge         | `03b4ce69` (--no-ff, no conflicts)                                       |
+| Tracked modifications | 0                                                                        |
+| Migration checksums   | 36/36 (no migration change)                                              |
+| Frozen SEC-01 owner   | blob-identical (sha256 verified)                                         |
+| `main`                | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy |
+| Push / local = remote | batch-push with SEC-01/S7A/S7B window on restored host channel           |
 
 ## 6. Declarations
 
@@ -59,4 +59,4 @@ P7-S7B_OPENCLAW_INTERNAL_GATE_PASSED
 
 OpenClaw internal gate — NOT Command Center acceptance. Next per D-055: **P7-S7C (Finance acceptance)** → SEC-02 → Phase 6 Admin Route Security → P7-S8 → P7-S9 → P7-S10 → Phase 7 Final Delivery Report.
 
-*Forward-only record. Do not delete or rewrite.*
+_Forward-only record. Do not delete or rewrite._

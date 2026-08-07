@@ -1,31 +1,31 @@
 # P7 Remote Checkpoint Verification Record (P7-S4 / P7-S5 / P5-R1)
 
-| Field | Value |
-|---|---|
-| **Record** | Remote checkpoint finalization for P7-S4, P7-S5 and P5-R1 delivery |
-| **Order** | ChatGPT Command Center — PHASE 7 REMOTE CHECKPOINT FINALIZATION AND P7-S6 CONTINUATION ORDER (2026-08-04) |
-| **Status (pre-record)** | `P7-S5_LOCAL_GATE_PASSED` / `P5-R1_LOCAL_INTEGRATION_GATE_PASSED` / `REMOTE_DELIVERY_NOT_YET_CONFIRMED` |
-| **Status (this record)** | `REMOTE_CHECKPOINT_VERIFICATION_PASSED` — remote delivery confirmed |
-| **Recorded by** | OpenClaw (project general manager) |
-| **Authority** | `CONTINUING_UNDER_D-047_AND_D-048` |
-| **Date** | 2026-08-04 MYT |
+| Field                    | Value                                                                                                     |
+| ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| **Record**               | Remote checkpoint finalization for P7-S4, P7-S5 and P5-R1 delivery                                        |
+| **Order**                | ChatGPT Command Center — PHASE 7 REMOTE CHECKPOINT FINALIZATION AND P7-S6 CONTINUATION ORDER (2026-08-04) |
+| **Status (pre-record)**  | `P7-S5_LOCAL_GATE_PASSED` / `P5-R1_LOCAL_INTEGRATION_GATE_PASSED` / `REMOTE_DELIVERY_NOT_YET_CONFIRMED`   |
+| **Status (this record)** | `REMOTE_CHECKPOINT_VERIFICATION_PASSED` — remote delivery confirmed                                       |
+| **Recorded by**          | OpenClaw (project general manager)                                                                        |
+| **Authority**            | `CONTINUING_UNDER_D-047_AND_D-048`                                                                        |
+| **Date**                 | 2026-08-04 MYT                                                                                            |
 
 ---
 
 ## 1. Pre-push verification (before push)
 
-| Check | Expected | Verified |
-|---|---|---|
-| Current branch | `phase/7-admin-operations` | ✅ |
-| Local HEAD | `2fac2bc42f6f0a7bc3ca8e862ba01da2b2954fb7` | ✅ |
-| Tracked modifications | 0 | ✅ |
-| Historical untracked artifacts | 102 | ✅ (all `??`, none staged) |
-| `main` | `69240bf84d7d8e0cf58c86ce25a88a5aa105db05` | ✅ |
-| Migration 0022 byte-identical | matches registered checksum | ✅ SHA-256 `3bed41d60db5313c6150fe8531c32ad6ecffa4535d1b7089768c27b9c69328e0` (computed independently, matches `checksums.json`) |
-| Migration checksums | 30/30 | ✅ `db:checksum` → "Verified 30 immutable migration checksum(s)." |
-| Migration 0029 in `checksums.json` | present | ✅ `0029_p5_r1_agent_fee_version_snapshot.sql` registered |
-| Generated browser cache staged | none | ✅ 0 staged entries |
-| Secret / environment file staged | none | ✅ 0 staged entries |
+| Check                              | Expected                                   | Verified                                                                                                                         |
+| ---------------------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| Current branch                     | `phase/7-admin-operations`                 | ✅                                                                                                                               |
+| Local HEAD                         | `2fac2bc42f6f0a7bc3ca8e862ba01da2b2954fb7` | ✅                                                                                                                               |
+| Tracked modifications              | 0                                          | ✅                                                                                                                               |
+| Historical untracked artifacts     | 102                                        | ✅ (all `??`, none staged)                                                                                                       |
+| `main`                             | `69240bf84d7d8e0cf58c86ce25a88a5aa105db05` | ✅                                                                                                                               |
+| Migration 0022 byte-identical      | matches registered checksum                | ✅ SHA-256 `3bed41d60db5313c6150fe8531c32ad6ecffa4535d1b7089768c27b9c69328e0` (computed independently, matches `checksums.json`) |
+| Migration checksums                | 30/30                                      | ✅ `db:checksum` → "Verified 30 immutable migration checksum(s)."                                                                |
+| Migration 0029 in `checksums.json` | present                                    | ✅ `0029_p5_r1_agent_fee_version_snapshot.sql` registered                                                                        |
+| Generated browser cache staged     | none                                       | ✅ 0 staged entries                                                                                                              |
+| Secret / environment file staged   | none                                       | ✅ 0 staged entries                                                                                                              |
 
 ### Local history confirmation (all required commits present)
 
@@ -45,26 +45,26 @@
 
 Command executed: `git push origin phase/7-admin-operations fix/p5-r1-agent-commission-owner`
 
-| Branch | Result |
-|---|---|
-| `phase/7-admin-operations` | ✅ `8777b20b..2fac2bc4` (fast-forward, no rewrite) |
+| Branch                             | Result                                                              |
+| ---------------------------------- | ------------------------------------------------------------------- |
+| `phase/7-admin-operations`         | ✅ `8777b20b..2fac2bc4` (fast-forward, no rewrite)                  |
 | `fix/p5-r1-agent-commission-owner` | ✅ new branch created at `570bc8622766ef34e428bb6e948f64a1bdac347c` |
 
 No force push, rebase, amend, reset, clean, stash, authentication change, or commit rewrite was performed.
 
 ## 3. Post-push remote verification
 
-| # | Check | Result |
-|---|---|---|
-| 1 | Local `phase/7-admin-operations` HEAD == remote HEAD | ✅ both `2fac2bc42f6f0a7bc3ca8e862ba01da2b2954fb7` |
-| 2 | Remote contains full SHA for local `2fac2bc4` | ✅ `git ls-remote` returns full 40-char SHA |
-| 3 | Remote `fix/p5-r1-agent-commission-owner` contains `570bc862` | ✅ remote tip = `570bc8622766ef34e428bb6e948f64a1bdac347c` |
-| 4 | P5-R1 integration commit `b954f985` is ancestor of Phase 7 remote HEAD | ✅ `git merge-base --is-ancestor` exit 0 |
-| 5 | Tracked modifications remain zero | ✅ 0 |
-| 6 | Historical untracked artifacts remain 102 | ✅ 102 |
-| 7 | `main` remains unchanged | ✅ `69240bf84d7d8e0cf58c86ce25a88a5aa105db05` |
-| 8 | No Main PR exists | ✅ `gh pr list --base main --state open` → none |
-| 9 | No deployment occurred | ✅ GitHub deployments API → 0 records |
+| #   | Check                                                                  | Result                                                     |
+| --- | ---------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 1   | Local `phase/7-admin-operations` HEAD == remote HEAD                   | ✅ both `2fac2bc42f6f0a7bc3ca8e862ba01da2b2954fb7`         |
+| 2   | Remote contains full SHA for local `2fac2bc4`                          | ✅ `git ls-remote` returns full 40-char SHA                |
+| 3   | Remote `fix/p5-r1-agent-commission-owner` contains `570bc862`          | ✅ remote tip = `570bc8622766ef34e428bb6e948f64a1bdac347c` |
+| 4   | P5-R1 integration commit `b954f985` is ancestor of Phase 7 remote HEAD | ✅ `git merge-base --is-ancestor` exit 0                   |
+| 5   | Tracked modifications remain zero                                      | ✅ 0                                                       |
+| 6   | Historical untracked artifacts remain 102                              | ✅ 102                                                     |
+| 7   | `main` remains unchanged                                               | ✅ `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`              |
+| 8   | No Main PR exists                                                      | ✅ `gh pr list --base main --state open` → none            |
+| 9   | No deployment occurred                                                 | ✅ GitHub deployments API → 0 records                      |
 
 **Verdict: `REMOTE_CHECKPOINT_VERIFICATION_PASSED`**
 

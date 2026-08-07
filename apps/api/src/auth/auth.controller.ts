@@ -455,7 +455,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Rotate refresh token and issue new tokens',
     description:
-      'Consumes the current refresh token and issues a new access/refresh token pair. Implements token rotation: replaying a consumed token triggers AUTH_REFRESH_REUSED and revokes the entire session family. IP-based rate limit: 30 req / 60s.',
+      'Consumes the current refresh token and issues a new access/refresh token pair. Implements token rotation: replaying a consumed token triggers SESSION_REUSE_DETECTED and revokes the entire session family. IP-based rate limit: 30 req / 60s.',
   })
   @ApiBody({ description: 'Current refresh token', schema: refreshBodySchema })
   @ApiOkResponse({
@@ -464,7 +464,7 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({
     description:
-      'Session invalid (AUTH_SESSION_INVALID) or refresh token reused (AUTH_REFRESH_REUSED)',
+      'Session invalid (AUTH_SESSION_INVALID) or refresh token reused (SESSION_REUSE_DETECTED)',
     schema: errorBodySchema,
   })
   @ApiTooManyRequestsResponse({
@@ -498,7 +498,7 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({
     description:
-      'Session invalid (AUTH_SESSION_INVALID) or refresh token reused (AUTH_REFRESH_REUSED)',
+      'Session invalid (AUTH_SESSION_INVALID) or refresh token reused (SESSION_REUSE_DETECTED)',
     schema: errorBodySchema,
   })
   @ApiTooManyRequestsResponse({

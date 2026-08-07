@@ -134,10 +134,9 @@ describe('P7-S6A package configuration page', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: 'Verify' }));
 
-    fireEvent.change(
-      await screen.findByLabelText('Special percentage rate'),
-      { target: { value: '22.5' } },
-    );
+    fireEvent.change(await screen.findByLabelText('Special percentage rate'), {
+      target: { value: '22.5' },
+    });
     fireEvent.change(
       await screen.findByLabelText('Special percentage description'),
       { target: { value: 'Rewire partner' } },
@@ -157,7 +156,9 @@ describe('P7-S6A package configuration page', () => {
       expect(
         mock.fetchSpy.mock.calls.some(([url, init]) => {
           const method = (init as RequestInit | undefined)?.method ?? 'GET';
-          const headers = new Headers((init as RequestInit | undefined)?.headers);
+          const headers = new Headers(
+            (init as RequestInit | undefined)?.headers,
+          );
           return (
             method === 'POST' &&
             String(url).endsWith(
@@ -193,10 +194,9 @@ describe('P7-S6A package configuration page', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: 'Verify' }));
 
-    fireEvent.change(
-      await screen.findByLabelText('Special percentage rate'),
-      { target: { value: '0' } },
-    );
+    fireEvent.change(await screen.findByLabelText('Special percentage rate'), {
+      target: { value: '0' },
+    });
     fireEvent.change(
       await screen.findByLabelText('Special percentage description'),
       { target: { value: 'Rewire partner' } },
@@ -218,8 +218,7 @@ describe('P7-S6A package configuration page', () => {
       mock.fetchSpy.mock.calls.some(([url, init]) => {
         const method = (init as RequestInit | undefined)?.method ?? 'GET';
         return (
-          method === 'POST' &&
-          String(url).endsWith('/special-percentages')
+          method === 'POST' && String(url).endsWith('/special-percentages')
         );
       }),
     ).toBe(false);

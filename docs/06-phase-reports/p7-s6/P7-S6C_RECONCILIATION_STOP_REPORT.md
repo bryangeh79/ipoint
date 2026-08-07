@@ -1,28 +1,28 @@
 # P7-S6C — Reconciliation Stop Report (awaiting Command Center authorization)
 
-| Field | Value |
-|---|---|
-| **Record** | P7-S6C resume reconciliation — CRITICAL STOP CONDITION (frozen-owner authorization boundary) |
-| **Status** | `P7-S6C_PAUSED_RECONCILIATION_STOP` / awaiting Command Center decision |
-| **Order** | ChatGPT Command Center — P7-S6B FINAL REVIEW, REMOTE CHECKPOINT AND S6C RESUME ORDER (2026-08-05) §8 |
-| **Date** | 2026-08-05 |
-| **Pre-resume steps** | Completed — see §1 |
-| **Blocking finding** | Phase 6 redemption-rate owner remediation not authorized — see §2 |
-| **Branch** | `task/p7-s6c-redemption-config` (updated to latest Phase 7 HEAD via merge `3a329262`, no conflicts, no history rewrite) |
+| Field                | Value                                                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Record**           | P7-S6C resume reconciliation — CRITICAL STOP CONDITION (frozen-owner authorization boundary)                            |
+| **Status**           | `P7-S6C_PAUSED_RECONCILIATION_STOP` / awaiting Command Center decision                                                  |
+| **Order**            | ChatGPT Command Center — P7-S6B FINAL REVIEW, REMOTE CHECKPOINT AND S6C RESUME ORDER (2026-08-05) §8                    |
+| **Date**             | 2026-08-05                                                                                                              |
+| **Pre-resume steps** | Completed — see §1                                                                                                      |
+| **Blocking finding** | Phase 6 redemption-rate owner remediation not authorized — see §2                                                       |
+| **Branch**           | `task/p7-s6c-redemption-config` (updated to latest Phase 7 HEAD via merge `3a329262`, no conflicts, no history rewrite) |
 
 ---
 
 ## 1. Pre-resume checklist (order §8) — completed
 
-| Step | Result |
-|---|---|
+| Step                                                                    | Result                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | S6C task branch updated safely from the latest Phase 7 integration HEAD | ✅ Merge `3a329262` (`Merge branch 'phase/7-admin-operations' into task/p7-s6c-redemption-config`), no conflicts, forward-only; S6C now contains its paused work + D-050 remediation + S6B rewire + final gate records |
-| Migration ownership rechecked | ✅ S6C adds NO migration; single-migration-owner discipline holds; D-050 owned migration 0030 |
-| Highest migration number rechecked | ✅ `0030_p3_d050_reward_rule_reason.sql` (highest) |
-| Checksum registry rechecked | ✅ `db:checksum` = 31/31 (re-verified post-integration) |
-| No other worker owns the next migration | ✅ Only the Phase 7 workstreams listed in PHASE_REGISTRY are active; no parallel migration owner; S6D not started |
-| Paused S6C files reviewed | ✅ `P7-S6C_INTERNAL_DELIVERY_REPORT.md` §2 documents the frozen Phase 6 owner gaps; adapter duplicates owner-level controls (same class as the rejected pre-rewire S6B) |
-| Stale pre-D-050 work reconciled | ❌ **NOT possible within current authorization** — see §2 |
+| Migration ownership rechecked                                           | ✅ S6C adds NO migration; single-migration-owner discipline holds; D-050 owned migration 0030                                                                                                                          |
+| Highest migration number rechecked                                      | ✅ `0030_p3_d050_reward_rule_reason.sql` (highest)                                                                                                                                                                     |
+| Checksum registry rechecked                                             | ✅ `db:checksum` = 31/31 (re-verified post-integration)                                                                                                                                                                |
+| No other worker owns the next migration                                 | ✅ Only the Phase 7 workstreams listed in PHASE_REGISTRY are active; no parallel migration owner; S6D not started                                                                                                      |
+| Paused S6C files reviewed                                               | ✅ `P7-S6C_INTERNAL_DELIVERY_REPORT.md` §2 documents the frozen Phase 6 owner gaps; adapter duplicates owner-level controls (same class as the rejected pre-rewire S6B)                                                |
+| Stale pre-D-050 work reconciled                                         | ❌ **NOT possible within current authorization** — see §2                                                                                                                                                              |
 
 ## 2. Reconciliation finding — blocking
 
@@ -113,5 +113,5 @@ PMC §8; D-047 exact-scope language).
 - Chain sequence after S6C unblocks: S6C → S6D → S6E → SEC-01 → P7-S7 →
   SEC-02 → Phase 6 Route Security → P7-S8 → P7-S9 → P7-S10.
 
-*Forward-only record. S6C branch content remains preserved; nothing was
-integrated to `phase/7-admin-operations` from S6C.*
+_Forward-only record. S6C branch content remains preserved; nothing was
+integrated to `phase/7-admin-operations` from S6C._
