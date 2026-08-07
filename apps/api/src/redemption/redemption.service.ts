@@ -2815,9 +2815,18 @@ export class RedemptionService {
    * On confirm failure: auto-void the payment intent.
    * Canonical: uses status enum, payment_provider, payment_intent_id.
    */
+  /**
+   * P6-R2 (D-055 route security): member ownership enforcement on payment
+   * confirmation. The transport can no longer confirm a shipping payment
+   * that does not belong to the authenticated member (IDOR closure). The
+   * `memberId` parameter is optional so legacy in-process callers keep the
+   * pre-R2 service contract; the member route always passes the resolved
+   * member identity.
+   */
   async confirmShippingPayment(
     paymentId: string,
     providerIntentId: string,
+    memberId?: string,
   ): Promise<{ status: string }> {
     const db = this.database.db;
 
@@ -2830,6 +2839,14 @@ export class RedemptionService {
       throw new RedemptionError(
         'REDEMPTION_SHIPPING_PAYMENT_NOT_FOUND',
         'Shipping payment not found.',
+        { paymentId },
+      );
+    }
+
+    if (memberId && payment.member_id !== memberId) {
+      throw new RedemptionError(
+        'REDEMPTION_SHIPPING_PAYMENT_MISMATCH',
+        'Shipping payment is not owned by this member.',
         { paymentId },
       );
     }

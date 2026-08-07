@@ -176,9 +176,14 @@ export class RedemptionController {
     @Param('paymentId') paymentId: string,
     @Body() body: { providerIntentId: string },
   ) {
-    return this.handle(() =>
-      this.redemption.confirmShippingPayment(paymentId, body.providerIntentId),
-    );
+    return this.handle(async () => {
+      const memberId = await this.resolveMemberId(_actor.accountId);
+      return this.redemption.confirmShippingPayment(
+        paymentId,
+        body.providerIntentId,
+        memberId,
+      );
+    });
   }
 
   // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
