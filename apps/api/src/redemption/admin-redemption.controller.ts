@@ -20,11 +20,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { sql } from 'drizzle-orm';
 import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentActor } from '../auth/current-actor.decorator.js';
 import type { RequestActor } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
+import { DatabaseService } from '../database/database.service.js';
 import { RbacGuard, RequirePermission } from '../platform-access/rbac.guard.js';
 import { RedemptionService } from './redemption.service.js';
 import { RedemptionError } from './redemption.errors.js';
@@ -54,6 +56,7 @@ import {
 export class AdminRedemptionController {
   constructor(
     @Inject(RedemptionService) private readonly redemption: RedemptionService,
+    @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -61,7 +64,7 @@ export class AdminRedemptionController {
   // ═══════════════════════════════════════════════════════════════════════
 
   @Post('catalog')
-  @RequirePermission('redemption.catalog.manage')
+  @RequirePermission('redemption.catalog.manage', { marketScoped: true })
   createItem(
     @CurrentActor() actor: RequestActor | undefined,
     @Body(new ZodValidationPipe(createCatalogItemSchema))
@@ -78,7 +81,7 @@ export class AdminRedemptionController {
   }
 
   @Put('catalog/:itemId')
-  @RequirePermission('redemption.catalog.manage')
+  @RequirePermission('redemption.catalog.manage', { marketScoped: true })
   updateItem(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('itemId') itemId: string,
@@ -87,17 +90,19 @@ export class AdminRedemptionController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.handle(() =>
-      this.redemption.updateCatalogItem(
-        this.adminActor(actor, request, ip),
+    return this.handle(async () => {
+      const adminActor = this.adminActor(actor, request, ip);
+      await this.assertCatalogItemMarket(itemId, adminActor.currentMarketId);
+      return this.redemption.updateCatalogItem(
+        adminActor,
         itemId,
         body as Parameters<RedemptionService['updateCatalogItem']>[2],
-      ),
-    );
+      );
+    });
   }
 
   @Post('catalog/:itemId/status')
-  @RequirePermission('redemption.catalog.manage')
+  @RequirePermission('redemption.catalog.manage', { marketScoped: true })
   @HttpCode(200)
   setStatus(
     @CurrentActor() actor: RequestActor | undefined,
@@ -107,17 +112,19 @@ export class AdminRedemptionController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.handle(() =>
-      this.redemption.setCatalogStatus(
-        this.adminActor(actor, request, ip),
+    return this.handle(async () => {
+      const adminActor = this.adminActor(actor, request, ip);
+      await this.assertCatalogItemMarket(itemId, adminActor.currentMarketId);
+      return this.redemption.setCatalogStatus(
+        adminActor,
         itemId,
         body as Parameters<RedemptionService['setCatalogStatus']>[2],
-      ),
-    );
+      );
+    });
   }
 
   @Get('market/:marketId/catalog')
-  @RequirePermission('redemption.catalog.manage')
+  @RequirePermission('redemption.catalog.manage', { marketScoped: true })
   listItems(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('marketId') marketId: string,
@@ -136,19 +143,18 @@ export class AdminRedemptionController {
   }
 
   @Get('catalog/:itemId')
-  @RequirePermission('redemption.catalog.manage')
+  @RequirePermission('redemption.catalog.manage', { marketScoped: true })
   getItem(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('itemId') itemId: string,
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.handle(() =>
-      this.redemption.getCatalogItem(
-        this.adminActor(actor, request, ip),
-        itemId,
-      ),
-    );
+    return this.handle(async () => {
+      const adminActor = this.adminActor(actor, request, ip);
+      await this.assertCatalogItemMarket(itemId, adminActor.currentMarketId);
+      return this.redemption.getCatalogItem(adminActor, itemId);
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -156,7 +162,7 @@ export class AdminRedemptionController {
   // ═══════════════════════════════════════════════════════════════════════
 
   @Post('market/:marketId/rates')
-  @RequirePermission('redemption.rate.manage')
+  @RequirePermission('redemption.rate.manage', { marketScoped: true })
   createRate(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('marketId') marketId: string,
@@ -176,7 +182,7 @@ export class AdminRedemptionController {
   }
 
   @Get('market/:marketId/rates')
-  @RequirePermission('redemption.rate.manage')
+  @RequirePermission('redemption.rate.manage', { marketScoped: true })
   listRates(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('marketId') marketId: string,
@@ -195,7 +201,7 @@ export class AdminRedemptionController {
   }
 
   @Post('rates/:rateId/cancel')
-  @RequirePermission('redemption.rate.manage')
+  @RequirePermission('redemption.rate.manage', { marketScoped: true })
   @HttpCode(200)
   cancelRate(
     @CurrentActor() actor: RequestActor | undefined,
@@ -223,7 +229,7 @@ export class AdminRedemptionController {
   // ═══════════════════════════════════════════════════════════════════════
 
   @Post('market/:marketId/pickup-locations')
-  @RequirePermission('redemption.catalog.manage')
+  @RequirePermission('redemption.catalog.manage', { marketScoped: true })
   createPickupLocation(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('marketId') marketId: string,
@@ -244,7 +250,7 @@ export class AdminRedemptionController {
   }
 
   @Put('pickup-locations/:locationId')
-  @RequirePermission('redemption.catalog.manage')
+  @RequirePermission('redemption.catalog.manage', { marketScoped: true })
   updatePickupLocation(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('locationId') locationId: string,
@@ -253,17 +259,22 @@ export class AdminRedemptionController {
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.handle(() =>
-      this.redemption.updatePickupLocation(
-        this.adminActor(actor, request, ip),
+    return this.handle(async () => {
+      const adminActor = this.adminActor(actor, request, ip);
+      await this.assertPickupLocationMarket(
+        locationId,
+        adminActor.currentMarketId,
+      );
+      return this.redemption.updatePickupLocation(
+        adminActor,
         locationId,
         body as Record<string, unknown>,
-      ),
-    );
+      );
+    });
   }
 
   @Get('market/:marketId/pickup-locations')
-  @RequirePermission('redemption.catalog.manage')
+  @RequirePermission('redemption.catalog.manage', { marketScoped: true })
   listPickupLocations(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('marketId') marketId: string,
@@ -282,24 +293,70 @@ export class AdminRedemptionController {
   }
 
   @Get('pickup-locations/:locationId')
-  @RequirePermission('redemption.catalog.manage')
+  @RequirePermission('redemption.catalog.manage', { marketScoped: true })
   getPickupLocation(
     @CurrentActor() actor: RequestActor | undefined,
     @Param('locationId') locationId: string,
     @Ip() ip: string,
     @Req() request: Request,
   ) {
-    return this.handle(() =>
-      this.redemption.getPickupLocation(
-        this.adminActor(actor, request, ip),
+    return this.handle(async () => {
+      const adminActor = this.adminActor(actor, request, ip);
+      await this.assertPickupLocationMarket(
         locationId,
-      ),
-    );
+        adminActor.currentMarketId,
+      );
+      return this.redemption.getPickupLocation(adminActor, locationId);
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════════════
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * P6-R2 (D-055): resource-market consistency. Routes without a market in
+   * the URL still resolve the server-owned Current Admin Market through the
+   * canonical RbacGuard; the targeted resource must belong to that market
+   * (requirement: resource market == Current Admin Market). A resource that
+   * does not exist is left to the owner to 404; a resource in another market
+   * is rejected 409 so the admin switches market instead of acting
+   * cross-market.
+   */
+  private async assertCatalogItemMarket(
+    itemId: string,
+    currentMarketId: string | undefined,
+  ): Promise<void> {
+    if (!currentMarketId) throw this.marketMismatch();
+    const rows = await this.database.db.execute(
+      sql`SELECT market_id FROM redemption_catalog_items WHERE id = ${itemId}`,
+    );
+    const marketId = rows.rows[0]?.market_id as string | undefined;
+    if (marketId && marketId !== currentMarketId) {
+      throw this.marketMismatch();
+    }
+  }
+
+  private async assertPickupLocationMarket(
+    locationId: string,
+    currentMarketId: string | undefined,
+  ): Promise<void> {
+    if (!currentMarketId) throw this.marketMismatch();
+    const rows = await this.database.db.execute(
+      sql`SELECT market_id FROM redemption_pickup_locations WHERE id = ${locationId}`,
+    );
+    const marketId = rows.rows[0]?.market_id as string | undefined;
+    if (marketId && marketId !== currentMarketId) {
+      throw this.marketMismatch();
+    }
+  }
+
+  private marketMismatch(): ConflictException {
+    return new ConflictException({
+      code: 'MARKET_CONTEXT_MISMATCH',
+      message: 'The selected market changed. Refresh and try again.',
+    });
+  }
 
   private adminActor(
     actor: RequestActor | undefined,

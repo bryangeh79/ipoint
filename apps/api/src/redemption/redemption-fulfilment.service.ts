@@ -8,7 +8,7 @@ import {
   redemptionPickupLocations,
   redemptionWaitlistEntries,
 } from '@ipoint/database';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql, type SQL } from 'drizzle-orm';
 import {
   createCipheriv,
   createDecipheriv,
@@ -1110,29 +1110,40 @@ export class RedemptionFulfilmentService {
     return this.toRecord(r);
   }
 
+  /**
+   * P6-R2 (D-055 route security): market-scoped pending list. The
+   * fulfilment row carries no market column (market lives on the order), so
+   * an optional `marketId` filter is applied through the order market. The
+   * admin route passes the server-owned Current Admin Market; omitting the
+   * filter preserves the pre-R2 service contract for in-process callers.
+   */
   async listPending(
     limit = 50,
     offset = 0,
+    marketId?: string,
   ): Promise<{ fulfilments: FulfilmentRecord[]; total: number }> {
     const pendingStatuses = ['PENDING', 'IN_PROGRESS'];
-    const rows = await this.database.db
-      .select()
-      .from(redemptionFulfilments)
-      .where(
-        sql`${redemptionFulfilments.status} = ANY(${sql.param(pendingStatuses)}::text[])`,
-      )
+    const conditions: SQL[] = [
+      sql`${redemptionFulfilments.status} = ANY(${sql.param(pendingStatuses)}::text[])`,
+    ];
+    if (marketId) {
+      conditions.push(
+        sql`${redemptionFulfilments.orderId} IN (SELECT id FROM redemption_orders WHERE market_id = ${marketId})`,
+      );
+    }
+    const base = this.database.db.select().from(redemptionFulfilments);
+    const scoped = base.where(and(...conditions));
+    const rows = await scoped
       .orderBy(redemptionFulfilments.createdAt)
       .limit(limit)
       .offset(offset);
-    const countResult = await this.database.db
+    const countRows = await this.database.db
       .select({ count: sql<number>`count(*)` })
       .from(redemptionFulfilments)
-      .where(
-        sql`${redemptionFulfilments.status} = ANY(${sql.param(pendingStatuses)}::text[])`,
-      );
+      .where(and(...conditions));
     return {
       fulfilments: rows.map((r) => this.toRecord(r)),
-      total: Number(countResult[0]?.count ?? 0),
+      total: Number(countRows[0]?.count ?? 0),
     };
   }
 }

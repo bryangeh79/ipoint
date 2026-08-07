@@ -8,7 +8,7 @@ import {
   memberWalletAccounts,
   memberWalletEntries,
 } from '@ipoint/database';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 
 import { DatabaseService } from '../database/database.service.js';
 import { ConfigService } from '../config/config.service.js';
@@ -1029,21 +1029,42 @@ export class RedemptionRefundService {
     return this.toRecord(r);
   }
 
+  /**
+   * P6-R2 (D-055 route security): the refund read projections are now
+   * market-scoped. The refund request row carries no market column (market
+   * lives on the order), so an optional `marketId` filter is applied through
+   * the order market. Every admin route passes the server-owned Current
+   * Admin Market; omitting the filter preserves the pre-R2 service contract
+   * for in-process callers.
+   */
   async listPendingRefundRequests(
     limit = 50,
     offset = 0,
+    marketId?: string,
   ): Promise<{ requests: RefundRequestRecord[]; total: number }> {
+    const conditions = [eq(redemptionRefundRequests.status, 'PENDING_CHECKER')];
+    if (marketId) {
+      conditions.push(
+        inArray(
+          redemptionRefundRequests.orderId,
+          this.database.db
+            .select({ id: redemptionOrders.id })
+            .from(redemptionOrders)
+            .where(eq(redemptionOrders.marketId, marketId)),
+        ),
+      );
+    }
     const rows = await this.database.db
       .select()
       .from(redemptionRefundRequests)
-      .where(eq(redemptionRefundRequests.status, 'PENDING_CHECKER'))
+      .where(and(...conditions))
       .orderBy(redemptionRefundRequests.createdAt)
       .limit(limit)
       .offset(offset);
     const countResult = await this.database.db
       .select({ count: sql<number>`count(*)` })
       .from(redemptionRefundRequests)
-      .where(eq(redemptionRefundRequests.status, 'PENDING_CHECKER'));
+      .where(and(...conditions));
     return {
       requests: rows.map((r) => this.toRecord(r)),
       total: Number(countResult[0]?.count ?? 0),
@@ -1053,19 +1074,34 @@ export class RedemptionRefundService {
   async listAllRefundRequests(
     limit = 50,
     offset = 0,
+    marketId?: string,
   ): Promise<{ requests: RefundRequestRecord[]; total: number }> {
-    const rows = await this.database.db
-      .select()
-      .from(redemptionRefundRequests)
+    const conditions: SQL[] = [];
+    if (marketId) {
+      conditions.push(
+        inArray(
+          redemptionRefundRequests.orderId,
+          this.database.db
+            .select({ id: redemptionOrders.id })
+            .from(redemptionOrders)
+            .where(eq(redemptionOrders.marketId, marketId)),
+        ),
+      );
+    }
+    const base = this.database.db.select().from(redemptionRefundRequests);
+    const scoped =
+      conditions.length > 0 ? base.where(and(...conditions)) : base;
+    const rows = await scoped
       .orderBy(redemptionRefundRequests.createdAt)
       .limit(limit)
       .offset(offset);
-    const countResult = await this.database.db
+    const countRows = await this.database.db
       .select({ count: sql<number>`count(*)` })
-      .from(redemptionRefundRequests);
+      .from(redemptionRefundRequests)
+      .where(and(...conditions));
     return {
       requests: rows.map((r) => this.toRecord(r)),
-      total: Number(countResult[0]?.count ?? 0),
+      total: Number(countRows[0]?.count ?? 0),
     };
   }
 
