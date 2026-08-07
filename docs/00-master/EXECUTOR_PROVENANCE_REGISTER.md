@@ -680,3 +680,30 @@ _End of register - new entries appended above this line._
 ---
 
 _End of register - new entries appended above this line._
+
+---
+
+## P7-S8 - Agent Operations + Redemption Fulfilment Ops (Phase 7 integration layer)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P7-S8 (task/p7-s8-redemption-agent-ops; Command Center 2026-08-07 §6, D-055 sequence after Phase 6 Admin Route Security) |
+| **Sub-phase** | P7-S8 - Agent operations + Redemption operations: fulfilment queues (6 states), suspend/resume, retry/admin review, refund views, zero-commission assertion, market isolation, capability states, audit, Admin Web/API integration |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementing subagent; High-1 fix subagent; independent reviewing subagent x2 (Review 1 + Review 2); separate test-verifier subagent; all D-048) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session start time** | 2026-08-07 MYT |
+| **Worktree** | main workspace (branch task/p7-s8-redemption-agent-ops) |
+| **Task branch** | `task/p7-s8-redemption-agent-ops` (base `ce53c547` = phase HEAD incl. P6-R2 gate) |
+| **Commit SHAs** | `07cff047` (feat: admin agent ops + redemption fulfilment ops adapters) - `a4d2fad2` (feat(api-client): typed clients) - `e7d824ff` (feat(admin-web): pages) - `748acad0` (fix(admin-web): High-1 canonical catalog permissions) |
+| **Migration** | NONE (checksums 37/37 unchanged; zero migration change) |
+| **Scope** | apps/api/src/admin-agent-ops/** (13) + admin-redemption-fulfilment-ops/** (12) + app.module.ts (registration only) + packages/api-client (2) + apps/admin-web/src/ (6 pages + route-manifest + tests/mocks) - 38 files + fix delta, 8,934 insertions; frozen Phase 5/6 owners untouched; no DEFERRED/OPEN implementation; no B/C/D test change; TS strict intact |
+| **Host test gate** | agent-ops unit 11 + HTTP 15; fulfilment-ops unit 13 + HTTP 17; Phase 6 owner 28; P6-R2 29; Phase 5 domain 185; SEC-02 31; S6C 49; api-client 90; admin-web 303; checksums 37/37; OpenAPI 261 paths; typecheck+build all green; eslint 0; prettier clean; drift clean |
+| **Independent review** | Review 1 (`REVIEWER_20260807`): **CHANGES REQUIRED - 1 High (H-1: 5 route permissions referenced non-catalog codes) / 3 Low**; red-line checks all passed. High-1 fix `748acad0` (canonical codes: agent.read / redemption.order.read x2 + test/mock sync + Low-2 doc annotation). Review 2 (`REVIEW2_20260807`): **APPROVED - 0 Critical / 0 High / 0 Medium**; H-1 closed; also recorded 2 pre-existing drift observations out of scope (reports -> report.basic.read, settings -> admin.profile.self; flagged for Command Center). Verdicts `.local/p7-s8-gate/review/REVIEWER_VERDICT.md` + `REVIEW2_VERDICT.md` |
+| **Independent verification** | `OPENCLAW_MANAGED_CODING_SUBAGENT` verifier: verdict **TEST GATE PASSED** - 16/16 gates on fresh isolated DBs `ipoint_ver_p7s8_*` (Node v24.19.0 vs implementer v26.4.0); behavior spot-checks 5/5 (six-status queue + capability state; suspend/resume + owner audit; foreign-market 404 + mismatch 409; zero commission rows; AGENT_FEE_NOT_CONFIGURED); delta re-verified at `748acad0` (admin-web 303/303, HTTP suites 15/15+17/17). Verdict `.local/p7-s8-gate/ver-evidence/VERIFIER_VERDICT.md` |
+| **Integration commit** | `0686112f` (merge --no-ff, ort, no conflicts into `phase/7-admin-operations`) |
+| **Declarations** | `P7-S8_DELIVERY_COMPLETE` / `P7-S8_OPENCLAW_INTERNAL_GATE_PASSED` (OpenClaw internal; NOT Command Center acceptance) |
+| **Known limitations** | 3 Low reviewer observations (non-blocking); 2 pre-existing route-permission drift observations out of scope (Command Center decision pending); push pending host channel (batch push before Phase 7 final delivery report). |
+
+---
+
+_End of register - new entries appended above this line._
