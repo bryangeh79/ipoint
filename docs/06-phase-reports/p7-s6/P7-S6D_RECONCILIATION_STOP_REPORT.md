@@ -1,11 +1,11 @@
 # P7-S6D — Reconciliation Stop Report (awaiting Command Center authorization)
 
-| Field | Value |
-|---|---|
-| **Record** | P7-S6D resume reconciliation — CRITICAL STOP CONDITION (frozen-owner authorization boundary) |
-| **Status** | `P7-S6D_STOPPED_OWNER_AUTHORIZATION_BOUNDARY` / awaiting Command Center decision |
-| **Order** | ChatGPT Command Center — D-053 §18 (continuation sequence: ... P7-S6C Final Gate → P7-S6D → D-051 → ...) |
-| **Date** | 2026-08-05 |
+| Field                   | Value                                                                                                                                                                                                                                                                                   |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Record**              | P7-S6D resume reconciliation — CRITICAL STOP CONDITION (frozen-owner authorization boundary)                                                                                                                                                                                            |
+| **Status**              | `P7-S6D_STOPPED_OWNER_AUTHORIZATION_BOUNDARY` / awaiting Command Center decision                                                                                                                                                                                                        |
+| **Order**               | ChatGPT Command Center — D-053 §18 (continuation sequence: ... P7-S6C Final Gate → P7-S6D → D-051 → ...)                                                                                                                                                                                |
+| **Date**                | 2026-08-05                                                                                                                                                                                                                                                                              |
 | **Preceding milestone** | P7-S6C FINAL GATE PASSED (OpenClaw internal): merge `24a88c54`, records `7a8d5fa2`, declarations `D-053_OWNER_REMEDIATION_INTEGRATED` / `CG-03_REDEMPTION_RATE_OWNER_GATE_PASSED` / `P7-S6C_DELIVERY_COMPLETE` / `P7-S6C_OPENCLAW_INTERNAL_GATE_PASSED` — NOT Command Center acceptance |
 
 ---
@@ -18,17 +18,17 @@ S6D = Commercial Configuration — **Commission** (Phase 7 commission-rate confi
 
 The canonical **Phase 5 commission-rate owner** (`RateManagementService` / `apps/api/src/domain/commission/rate.service.ts` `createRateVersion`; table `commission_rate_version`) has the **same defect class** that the Command Center rejected for the Phase 3 reward owner (CG-02, D-052) and the Phase 6 redemption-rate owner (CG-03, D-053):
 
-| Control | Status |
-|---|---|
-| In-command RBAC re-check (`RbacService.isAllowed`) | ❌ absent — `rate.service.ts` imports only `DatabaseService` + drizzle; enforcement is transport-level only |
-| In-command selected-market / resource-market consistency | ❌ absent (relies on controller/RbacGuard `adminMarketContext`) |
-| Operation-scoped idempotency (mechanism table) | ❌ absent (no `merchant_api_idempotency_keys` usage in the rate domain) |
-| Canonical payload hash | ❌ absent |
-| Mandatory reason + durable storage | ❌ absent — `commission_rate_version` has **no `reason` column** |
-| Atomic immutable privileged audit in-command | ❌ absent (no `AuditService` in `rate.service.ts`) |
-| Client cannot supply authoritative actor (`createdBy`) | ⚠️ transport-level only |
-| Overlap / immutability / prospective-only | ✅ present (gist `uq_rate_period` + service rules) |
-| Transport guards | ✅ present (`@UseGuards(AuthGuard, RbacGuard)` + `@RequirePermission('commission.rate.manage')` SUPER_ADMIN, marketScoped; verified by the accepted P5-R1 review 2026-08-04) |
+| Control                                                  | Status                                                                                                                                                                       |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| In-command RBAC re-check (`RbacService.isAllowed`)       | ❌ absent — `rate.service.ts` imports only `DatabaseService` + drizzle; enforcement is transport-level only                                                                  |
+| In-command selected-market / resource-market consistency | ❌ absent (relies on controller/RbacGuard `adminMarketContext`)                                                                                                              |
+| Operation-scoped idempotency (mechanism table)           | ❌ absent (no `merchant_api_idempotency_keys` usage in the rate domain)                                                                                                      |
+| Canonical payload hash                                   | ❌ absent                                                                                                                                                                    |
+| Mandatory reason + durable storage                       | ❌ absent — `commission_rate_version` has **no `reason` column**                                                                                                             |
+| Atomic immutable privileged audit in-command             | ❌ absent (no `AuditService` in `rate.service.ts`)                                                                                                                           |
+| Client cannot supply authoritative actor (`createdBy`)   | ⚠️ transport-level only                                                                                                                                                      |
+| Overlap / immutability / prospective-only                | ✅ present (gist `uq_rate_period` + service rules)                                                                                                                           |
+| Transport guards                                         | ✅ present (`@UseGuards(AuthGuard, RbacGuard)` + `@RequirePermission('commission.rate.manage')` SUPER_ADMIN, marketScoped; verified by the accepted P5-R1 review 2026-08-04) |
 
 The accepted P5-R1 remediation (fix/p5-r1-agent-commission-owner, integrated) secured the **agent-activation and commission-posting flows** and the transport boundary — it did NOT add in-command security to the general commission **rate** create command, which is what the S6D surface would delegate to.
 
@@ -49,4 +49,4 @@ The accepted P5-R1 remediation (fix/p5-r1-agent-commission-owner, integrated) se
 - S6D has NOT started (no adapter, no branch, no migration — confirmed: no `apps/api/src/admin-commission-ops`, no S6D docs).
 - D-051 (Phase 1 special-percentage reason/audit) remains MANDATORY and will take the migration-ownership window (0032) after this stop is resolved (per order §16: D-053 → S6C → S6D → D-051). **Note:** if the Command Center authorizes D-054, D-054 and D-051 must not run concurrently on migrations — sequence decision requested together with the authorization.
 
-*Forward-only record. Do not delete or rewrite.*
+_Forward-only record. Do not delete or rewrite._

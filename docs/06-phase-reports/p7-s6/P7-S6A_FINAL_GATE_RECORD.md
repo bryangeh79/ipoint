@@ -1,13 +1,13 @@
 # P7-S6A — Final Forward-Only Gate Record (Special-Percentage Create Surface, D-051 owner rewire)
 
-| Field | Value |
-|---|---|
-| **Record** | P7-S6A FINAL GATE — special-percentage creation surface restored over the D-051 secured Phase 1 owner |
-| **Status** | `P7-S6A_DELIVERY_COMPLETE` / `P7-S6A_OPENCLAW_INTERNAL_GATE_PASSED` / `D-051_OWNER_REMEDIATION_INTEGRATED` / `P7-S6A_REWIRE_INTEGRATED` / `CONTINUING_UNDER_D-055` |
-| **Order** | ChatGPT Command Center — D-051 (Command Center order 2026-08-04 §5) + D-055 §3 (S6A special-percentage canonical rewire and final gate) |
-| **Date** | 2026-08-06 |
-| **Supersedes** | `P7-S6A_INTERNAL_DELIVERY_REPORT.md` blocked-surface status (`SPECIAL_PERCENTAGE_CREATE_BLOCKED` → now functional) |
-| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze |
+| Field           | Value                                                                                                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Record**      | P7-S6A FINAL GATE — special-percentage creation surface restored over the D-051 secured Phase 1 owner                                                              |
+| **Status**      | `P7-S6A_DELIVERY_COMPLETE` / `P7-S6A_OPENCLAW_INTERNAL_GATE_PASSED` / `D-051_OWNER_REMEDIATION_INTEGRATED` / `P7-S6A_REWIRE_INTEGRATED` / `CONTINUING_UNDER_D-055` |
+| **Order**       | ChatGPT Command Center — D-051 (Command Center order 2026-08-04 §5) + D-055 §3 (S6A special-percentage canonical rewire and final gate)                            |
+| **Date**        | 2026-08-06                                                                                                                                                         |
+| **Supersedes**  | `P7-S6A_INTERNAL_DELIVERY_REPORT.md` blocked-surface status (`SPECIAL_PERCENTAGE_CREATE_BLOCKED` → now functional)                                                 |
+| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze                                                                                              |
 
 > Forward-only record. Do not delete or rewrite.
 
@@ -15,14 +15,14 @@
 
 ## 1. Rewire range
 
-| Item | Value |
-|---|---|
-| **Branch** | `task/p7-s6a-rewire` (base `1b60a810` = phase HEAD incl. D-051 integration) |
-| **Commits** | `7ecc79cf` (feat(api): expose special percentage create over secured phase 1 owner — incl. prettier-formatted dto) · `645fb40c` (feat(api-client): typed client) · `583f5db4` (feat(admin-web): enable creation UI) |
-| **Integration** | Merge `64ac2a34` (--no-ff, no conflicts) into `phase/7-admin-operations` (local) |
-| **Scope** | `apps/api/src/admin-package-ops/**` (controller/service/module/types + new dto/errors + spec/integration.spec) · `packages/api-client/src/**` (2) · `apps/admin-web/src/**` package-config files (6) — 16 files; Phase 1 owner (`apps/api/src/merchant/**`) byte-identical (D-051-frozen); `packages/database` untouched; zero migration change |
-| **Executor** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (D-048 implementer; continuation dispatch) |
-| **Pushed** | PENDING — host push channel temporarily unavailable (see §6) |
+| Item            | Value                                                                                                                                                                                                                                                                                                                                           |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Branch**      | `task/p7-s6a-rewire` (base `1b60a810` = phase HEAD incl. D-051 integration)                                                                                                                                                                                                                                                                     |
+| **Commits**     | `7ecc79cf` (feat(api): expose special percentage create over secured phase 1 owner — incl. prettier-formatted dto) · `645fb40c` (feat(api-client): typed client) · `583f5db4` (feat(admin-web): enable creation UI)                                                                                                                             |
+| **Integration** | Merge `64ac2a34` (--no-ff, no conflicts) into `phase/7-admin-operations` (local)                                                                                                                                                                                                                                                                |
+| **Scope**       | `apps/api/src/admin-package-ops/**` (controller/service/module/types + new dto/errors + spec/integration.spec) · `packages/api-client/src/**` (2) · `apps/admin-web/src/**` package-config files (6) — 16 files; Phase 1 owner (`apps/api/src/merchant/**`) byte-identical (D-051-frozen); `packages/database` untouched; zero migration change |
+| **Executor**    | `OPENCLAW_MANAGED_CODING_SUBAGENT` (D-048 implementer; continuation dispatch)                                                                                                                                                                                                                                                                   |
+| **Pushed**      | PENDING — host push channel temporarily unavailable (see §6)                                                                                                                                                                                                                                                                                    |
 
 ## 2. What changed (blocked surface → functional)
 
@@ -35,17 +35,18 @@
 ## 3. Independent review — APPROVED
 
 `OPENCLAW_MANAGED_CODING_SUBAGENT` (independent reviewer, D-048): verdict file `.local/s6a-rewire-gate/review/REVIEWER_VERDICT.md`:
+
 - **APPROVED — 0 Critical / 0 High**. 12/12 dimensions PASS: unique write path (owner-only), no duplicated owner controls, actor/market unforgeable, mandatory reason + Idempotency-Key contract, blocked-surface restoration correct, read projection safe, UI double gate, api-client append-only, tests intact (40/40 integration incl. new POST coverage), no unrelated drift (Phase 1 owner byte-identical, database untouched), module registration, evidence consistency (OpenAPI 238 = GET+POST same-path grouping — POST registered as `get,post`, not a missing route).
 
 ## 4. Test gates — host matrix + independent verification
 
 ### 4.1 Implementer evidence
 
-| Gate | Result |
-|---|---|
-| S6A integration (real PG, fresh DB) | **40/40** |
-| admin-web full suite | **235/235** (27 files) |
-| OpenAPI | ✅ All runtime validations passed (238 paths / 0 missing / 0 dup) |
+| Gate                                | Result                                                            |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| S6A integration (real PG, fresh DB) | **40/40**                                                         |
+| admin-web full suite                | **235/235** (27 files)                                            |
+| OpenAPI                             | ✅ All runtime validations passed (238 paths / 0 missing / 0 dup) |
 
 ### 4.2 Independent verification — **TEST GATE PASSED**
 
@@ -55,15 +56,15 @@
 
 ## 5. Post-integration verification
 
-| Check | Result |
-|---|---|
-| Task branch commits | `7ecc79cf` `645fb40c` `583f5db4` (base `1b60a810`) |
-| Phase 7 merge | `64ac2a34` (--no-ff, no conflicts) |
-| Tracked modifications (worktree) | 0 |
-| Phase 1 owner (`apps/api/src/merchant/**`) | byte-identical (D-051-frozen; reviewer-verified) |
-| `packages/database` | untouched (checksums 34/34 re-verified by verifier) |
-| `main` | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy |
-| Push / local = remote | PENDING (see §6) |
+| Check                                      | Result                                                                   |
+| ------------------------------------------ | ------------------------------------------------------------------------ |
+| Task branch commits                        | `7ecc79cf` `645fb40c` `583f5db4` (base `1b60a810`)                       |
+| Phase 7 merge                              | `64ac2a34` (--no-ff, no conflicts)                                       |
+| Tracked modifications (worktree)           | 0                                                                        |
+| Phase 1 owner (`apps/api/src/merchant/**`) | byte-identical (D-051-frozen; reviewer-verified)                         |
+| `packages/database`                        | untouched (checksums 34/34 re-verified by verifier)                      |
+| `main`                                     | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy |
+| Push / local = remote                      | PENDING (see §6)                                                         |
 
 ## 6. Push status — environment note (recorded, not a stop condition)
 
@@ -80,4 +81,4 @@ P7-S6A_REWIRE_INTEGRATED
 
 OpenClaw internal gate — NOT Command Center acceptance. O-13 verification/remediation starts next under D-055 §4.
 
-*Forward-only record. Do not delete or rewrite.*
+_Forward-only record. Do not delete or rewrite._

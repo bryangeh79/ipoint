@@ -1,27 +1,28 @@
 # D-054 — Final Gate Record (Phase 5 Commission-Rate Owner Remediation, CG-04)
 
-| Field | Value |
-|---|---|
-| **Record** | D-054 FINAL GATE — Phase 5 commission-rate canonical owner security/versioning/audit remediation |
-| **Status** | `D-054_OWNER_REMEDIATION_INTEGRATED` / `CG-04_COMMISSION_RATE_OWNER_GATE_PASSED` / `CONTINUING_UNDER_D-047_D-048_D-049_D-050_D-051_D-052_D-053_D-054_D-055` |
-| **Order** | ChatGPT Command Center — D-054 authorization + continuation order + D-055 full continuous completion authorization (2026-08-05) |
-| **Date** | 2026-08-05 |
-| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze |
+| Field           | Value                                                                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Record**      | D-054 FINAL GATE — Phase 5 commission-rate canonical owner security/versioning/audit remediation                                                            |
+| **Status**      | `D-054_OWNER_REMEDIATION_INTEGRATED` / `CG-04_COMMISSION_RATE_OWNER_GATE_PASSED` / `CONTINUING_UNDER_D-047_D-048_D-049_D-050_D-051_D-052_D-053_D-054_D-055` |
+| **Order**       | ChatGPT Command Center — D-054 authorization + continuation order + D-055 full continuous completion authorization (2026-08-05)                             |
+| **Date**        | 2026-08-05                                                                                                                                                  |
+| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze                                                                                       |
 
 ---
 
 ## 1. Remediation range
 
-| Item | Value |
-|---|---|
-| **Branch** | `fix/p5-p7-commission-rate-owner` (base `7250c25f` = phase HEAD incl. D-054 governance) |
-| **Commits** | `09d97e88` (feat(database): migration 0032) · `60882c47` (fix: secured commission rate owner command) · `f642bb73` (fix: per-generation rate guard + latest-version resolution) · `b8a2071c` (test: 51-test evidence suite + suite adaptations) · `515d36bc` (docs: delivery report) |
-| **Integration** | `ab297a4d` (merge into `phase/7-admin-operations`, --no-ff, no conflicts) — pushed, local = remote |
-| **Scope** | `apps/api/src/domain/commission/**` (rate.service/dto/errors/types + agent-upgrade/member-consumption/merchant-recruitment + agent-activation service), `apps/api/src/controllers/admin-rate.controller.ts`, `apps/api/src/__tests__` (commission-rate.owner + p5-r1 + commission.service), `packages/database` (0032 + checksums + schema + expected-schema), D-054 report — 17 files; B/C/D frozen suites zero drift; reward/redemption/admin-web/api-client zero changes |
+| Item            | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Branch**      | `fix/p5-p7-commission-rate-owner` (base `7250c25f` = phase HEAD incl. D-054 governance)                                                                                                                                                                                                                                                                                                                                                                                     |
+| **Commits**     | `09d97e88` (feat(database): migration 0032) · `60882c47` (fix: secured commission rate owner command) · `f642bb73` (fix: per-generation rate guard + latest-version resolution) · `b8a2071c` (test: 51-test evidence suite + suite adaptations) · `515d36bc` (docs: delivery report)                                                                                                                                                                                        |
+| **Integration** | `ab297a4d` (merge into `phase/7-admin-operations`, --no-ff, no conflicts) — pushed, local = remote                                                                                                                                                                                                                                                                                                                                                                          |
+| **Scope**       | `apps/api/src/domain/commission/**` (rate.service/dto/errors/types + agent-upgrade/member-consumption/merchant-recruitment + agent-activation service), `apps/api/src/controllers/admin-rate.controller.ts`, `apps/api/src/__tests__` (commission-rate.owner + p5-r1 + commission.service), `packages/database` (0032 + checksums + schema + expected-schema), D-054 report — 17 files; B/C/D frozen suites zero drift; reward/redemption/admin-web/api-client zero changes |
 
 ## 2. Independent review — APPROVED
 
 `OPENCLAW_MANAGED_CODING_SUBAGENT` (independent reviewer, D-048): verdict file `.local/d054-gate/review/REVIEWER_VERDICT.md`:
+
 - **APPROVED — 0 Critical / 0 High**
 - **`GIST_REPLACEMENT_APPROVED`** (explicit): the frozen `uq_rate_period` gist EXCLUDE made legal successors after open-ended predecessors structurally impossible under the immutable-row contract (P5-S0 §10.2/§10.3); the forward-only replacement (owner chain rule under market-scoped transaction advisory lock + strictly increasing starts + logical half-open resolution + append-only triggers + idempotency uniqueness) preserves the frozen semantics, modifies no historical row, deterministic concurrency.
 - Resolver ASC→DESC verified in all four resolvers (latest-valid selection, historical ledger snapshots preserved, no cross-market fallback, taxonomy unchanged, boundary-exclusive resolution).
@@ -33,22 +34,22 @@
 
 ### 3.1 Host matrix (Node v26.4.0 / pnpm 9.15.9, real PostgreSQL, **isolated fresh DBs per suite**)
 
-| Gate | Result | Exit | Log |
-|---|---|---|---|
-| Migration checksum | **33/33** | 0 | `01-checksum.log` |
-| D-054 owner evidence suite | **51/51** | 0 | `02-d054-owner-rerun.log` |
-| P5-R1 (isolated DB) | **13/13** | 0 | `03-p5r1-isolated.log` |
-| Phase 5 B/C/D + ledger (isolated DB) | **35/35** (15+10+10) | 0 | `04-bcd-isolated.log` |
-| Commission domain (unit) | **199/199** | 0 | `05-commission-domain-rerun.log` |
-| S6B (isolated DB) | **38/38** | 0 | `06-s6b-rerun.log` |
-| S6C (isolated DB) | **49/49** | 0 | `07-s6c-rerun.log` |
-| Redemption domain (isolated DB) | **235/235** | 0 | `08-redemption-domain-rerun.log` |
-| api-client typecheck/test/build | exit 0 / **66/66** / exit 0 | 0 | `09-11` |
-| admin-web typecheck/test/build | exit 0 / **209/209** / exit 0 | 0 | `12-14` |
-| api typecheck/build | exit 0 / exit 0 | 0 | `15-16` |
-| OpenAPI | **237 paths / 0 missing / 0 duplicate — ✅ passed** (non-self-exit quirk; killed after PASS) | 0 | `17-openapi-rerun.log` |
-| Lint / Format | 0 errors / clean | 0 | `16/17-rerun` |
-| Expected schema / drift | No schema drift (0032-migrated DB) | 0 | — |
+| Gate                                 | Result                                                                                       | Exit | Log                              |
+| ------------------------------------ | -------------------------------------------------------------------------------------------- | ---- | -------------------------------- |
+| Migration checksum                   | **33/33**                                                                                    | 0    | `01-checksum.log`                |
+| D-054 owner evidence suite           | **51/51**                                                                                    | 0    | `02-d054-owner-rerun.log`        |
+| P5-R1 (isolated DB)                  | **13/13**                                                                                    | 0    | `03-p5r1-isolated.log`           |
+| Phase 5 B/C/D + ledger (isolated DB) | **35/35** (15+10+10)                                                                         | 0    | `04-bcd-isolated.log`            |
+| Commission domain (unit)             | **199/199**                                                                                  | 0    | `05-commission-domain-rerun.log` |
+| S6B (isolated DB)                    | **38/38**                                                                                    | 0    | `06-s6b-rerun.log`               |
+| S6C (isolated DB)                    | **49/49**                                                                                    | 0    | `07-s6c-rerun.log`               |
+| Redemption domain (isolated DB)      | **235/235**                                                                                  | 0    | `08-redemption-domain-rerun.log` |
+| api-client typecheck/test/build      | exit 0 / **66/66** / exit 0                                                                  | 0    | `09-11`                          |
+| admin-web typecheck/test/build       | exit 0 / **209/209** / exit 0                                                                | 0    | `12-14`                          |
+| api typecheck/build                  | exit 0 / exit 0                                                                              | 0    | `15-16`                          |
+| OpenAPI                              | **237 paths / 0 missing / 0 duplicate — ✅ passed** (non-self-exit quirk; killed after PASS) | 0    | `17-openapi-rerun.log`           |
+| Lint / Format                        | 0 errors / clean                                                                             | 0    | `16/17-rerun`                    |
+| Expected schema / drift              | No schema drift (0032-migrated DB)                                                           | 0    | —                                |
 
 Fixture-collision lesson recorded (per continuation order §5): the initial shared-DB run of P5-R1 after the owner suite hit a G1-only leftover market; all high-risk suites now run on dedicated isolated DBs with explicit migrate/seed and recorded DB names (`ipoint_gate_d054_a..e`, `_bcd`, `_redem`).
 
@@ -58,16 +59,16 @@ Fixture-collision lesson recorded (per continuation order §5): the initial shar
 
 ## 4. Post-push verification
 
-| Check | Result |
-|---|---|
-| Local Phase 7 HEAD == remote | ✅ `ab297a4d` |
-| Owner branch tip local == remote | ✅ `515d36bc` |
-| Key commits ancestors of remote HEAD | ✅ `515d36bc`, `24a88c54`, `09279dc5`, `2f20b71b` |
-| Migration checksums | ✅ 33/33 (post-integration re-run) |
-| Tracked modifications | ✅ 0 |
-| Historical untracked artifacts | ✅ 102 |
-| `main` | ✅ `69240bf84d7d8e0cf58c86ce25a88a5aa105db05` unchanged; no PR/merge/deploy |
-| No secrets/temp files committed | ✅ pushed range scan clean |
+| Check                                | Result                                                                      |
+| ------------------------------------ | --------------------------------------------------------------------------- |
+| Local Phase 7 HEAD == remote         | ✅ `ab297a4d`                                                               |
+| Owner branch tip local == remote     | ✅ `515d36bc`                                                               |
+| Key commits ancestors of remote HEAD | ✅ `515d36bc`, `24a88c54`, `09279dc5`, `2f20b71b`                           |
+| Migration checksums                  | ✅ 33/33 (post-integration re-run)                                          |
+| Tracked modifications                | ✅ 0                                                                        |
+| Historical untracked artifacts       | ✅ 102                                                                      |
+| `main`                               | ✅ `69240bf84d7d8e0cf58c86ce25a88a5aa105db05` unchanged; no PR/merge/deploy |
+| No secrets/temp files committed      | ✅ pushed range scan clean                                                  |
 
 ## 5. Hygiene
 
@@ -84,4 +85,4 @@ CG-04_COMMISSION_RATE_OWNER_GATE_PASSED
 
 OpenClaw internal gate — NOT Command Center acceptance. P7-S6D starts immediately under D-055 continuous authorization.
 
-*Forward-only record. Do not delete or rewrite.*
+_Forward-only record. Do not delete or rewrite._

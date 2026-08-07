@@ -1,12 +1,12 @@
 # P7-S9 — Final Forward-Only Gate Record (Audit Viewer + Basic Reports)
 
-| Field | Value |
-|---|---|
-| **Record** | P7-S9 FINAL GATE — Audit Viewer + Basic Reports (read-only, market-scoped, on-screen bounded) |
-| **Status** | `P7-S9_DELIVERY_COMPLETE` / `P7-S9_OPENCLAW_INTERNAL_GATE_PASSED` / `CONTINUING_UNDER_D-055` |
-| **Order** | ChatGPT Command Center — D-055 continuous sequence (P7-S8 → P7-S9 → P7-S10) |
-| **Date** | 2026-08-07 |
-| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze |
+| Field           | Value                                                                                         |
+| --------------- | --------------------------------------------------------------------------------------------- |
+| **Record**      | P7-S9 FINAL GATE — Audit Viewer + Basic Reports (read-only, market-scoped, on-screen bounded) |
+| **Status**      | `P7-S9_DELIVERY_COMPLETE` / `P7-S9_OPENCLAW_INTERNAL_GATE_PASSED` / `CONTINUING_UNDER_D-055`  |
+| **Order**       | ChatGPT Command Center — D-055 continuous sequence (P7-S8 → P7-S9 → P7-S10)                   |
+| **Date**        | 2026-08-07                                                                                    |
+| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze                         |
 
 > Forward-only record. Do not delete or rewrite.
 
@@ -14,12 +14,12 @@
 
 ## 1. Delivery range
 
-| Item | Value |
-|---|---|
-| **Branch** | `task/p7-s9-audit-reports` (base `f662d56e` = phase HEAD incl. P7-S8 gate) |
-| **Commits** | `14087e68` (feat(p7-s9): admin audit viewer + basic reports adapters) · `8971402a` (feat(api-client): typed clients) · `7d71f3ac` (feat(admin-web): audit + reports pages, route-permission drift fix) · `ba26b17d` (fix(api): eslint errors — unused import, unknown template expr) · `e0a93ec0` (style: prettier formatting 17 files) |
-| **Integration** | Merge `76d373bf` (--no-ff, ort, no conflicts) into `phase/7-admin-operations` |
-| **Scope** | 37 files, +6,225: `apps/api/src/admin-audit-ops/**` (8) + `admin-report-ops/**` (9) + `app.module.ts` (registration) + `packages/api-client` (2) + `apps/admin-web/src/` (15 + route-manifest + test/mocks) + lint/format fixes (2 + 17). **Zero migration** (checksums 37/37); frozen owners untouched; **zero new permission codes** (audit.read / audit.sensitive-diff.view / report.read all pre-existing in catalog); TS strict intact |
+| Item            | Value                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Branch**      | `task/p7-s9-audit-reports` (base `f662d56e` = phase HEAD incl. P7-S8 gate)                                                                                                                                                                                                                                                                                                                                                                  |
+| **Commits**     | `14087e68` (feat(p7-s9): admin audit viewer + basic reports adapters) · `8971402a` (feat(api-client): typed clients) · `7d71f3ac` (feat(admin-web): audit + reports pages, route-permission drift fix) · `ba26b17d` (fix(api): eslint errors — unused import, unknown template expr) · `e0a93ec0` (style: prettier formatting 17 files)                                                                                                     |
+| **Integration** | Merge `76d373bf` (--no-ff, ort, no conflicts) into `phase/7-admin-operations`                                                                                                                                                                                                                                                                                                                                                               |
+| **Scope**       | 37 files, +6,225: `apps/api/src/admin-audit-ops/**` (8) + `admin-report-ops/**` (9) + `app.module.ts` (registration) + `packages/api-client` (2) + `apps/admin-web/src/` (15 + route-manifest + test/mocks) + lint/format fixes (2 + 17). **Zero migration** (checksums 37/37); frozen owners untouched; **zero new permission codes** (audit.read / audit.sensitive-diff.view / report.read all pre-existing in catalog); TS strict intact |
 
 ## 2. Delivery mapping — Command Center §7, all PASS
 
@@ -42,14 +42,14 @@
 
 ## 5. Post-integration verification
 
-| Check | Result |
-|---|---|
-| Phase 7 merge | `76d373bf` (--no-ff, ort, no conflicts) |
-| Tracked modifications | 0 |
-| Migration checksums | 37/37 (zero migration change) |
-| Frozen owners | untouched |
-| New permission codes | zero (catalog-verified) |
-| `main` | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy |
+| Check                 | Result                                                                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 7 merge         | `76d373bf` (--no-ff, ort, no conflicts)                                                                                               |
+| Tracked modifications | 0                                                                                                                                     |
+| Migration checksums   | 37/37 (zero migration change)                                                                                                         |
+| Frozen owners         | untouched                                                                                                                             |
+| New permission codes  | zero (catalog-verified)                                                                                                               |
+| `main`                | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy                                                              |
 | Push / local = remote | PUSH PENDING — host channel restoration (same pattern as all prior gate records); batch push before the Phase 7 final delivery report |
 
 ## 6. Declarations
@@ -61,4 +61,4 @@ P7-S9_OPENCLAW_INTERNAL_GATE_PASSED
 
 OpenClaw internal gate — NOT Command Center acceptance. Next per Command Center order: **P7-S10 (final full gate)** → Phase 7 Final Delivery Report.
 
-*Forward-only record. Do not delete or rewrite.*
+_Forward-only record. Do not delete or rewrite._

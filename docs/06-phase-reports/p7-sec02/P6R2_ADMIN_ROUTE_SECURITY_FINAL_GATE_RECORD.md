@@ -1,12 +1,12 @@
 # P6-R2 — Final Forward-Only Gate Record (Phase 6 Admin Route Security)
 
-| Field | Value |
-|---|---|
-| **Record** | P6-R2 FINAL GATE — Phase 6 Admin Route Security (Command Center 2026-08-07 §5, SEC-02 follow-up) |
-| **Status** | `P6_R2_ADMIN_ROUTE_SECURITY_COMPLETE` / `P6_R2_COMPLETE_OPENCLAW_INTERNAL` / `CONTINUING_UNDER_D-055` |
-| **Order** | ChatGPT Command Center — D-055 continuous sequence: SEC-02 → Phase 6 Admin Route Security → P7-S8 (bounded hardening, no new authorization) |
-| **Date** | 2026-08-07 |
-| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze |
+| Field           | Value                                                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Record**      | P6-R2 FINAL GATE — Phase 6 Admin Route Security (Command Center 2026-08-07 §5, SEC-02 follow-up)                                            |
+| **Status**      | `P6_R2_ADMIN_ROUTE_SECURITY_COMPLETE` / `P6_R2_COMPLETE_OPENCLAW_INTERNAL` / `CONTINUING_UNDER_D-055`                                       |
+| **Order**       | ChatGPT Command Center — D-055 continuous sequence: SEC-02 → Phase 6 Admin Route Security → P7-S8 (bounded hardening, no new authorization) |
+| **Date**        | 2026-08-07                                                                                                                                  |
+| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze                                                                       |
 
 > Forward-only record. Do not delete or rewrite.
 
@@ -14,12 +14,12 @@
 
 ## 1. Delivery range
 
-| Item | Value |
-|---|---|
-| **Branch** | `fix/p6-r2-admin-route-security` (base `7f898b52` = phase HEAD incl. SEC-02 gate) |
-| **Commits** | `724de28e` (feat: canonical RBAC + market scoping on admin fulfilment/refund routes) · `3caebd2a` (feat: resource-market consistency on catalog/pickup-location routes) · `ac17c617` (fix: market-scope read projections + member payment IDOR closure — owner-level minimal fixes) · `e062a900` (test: HTTP evidence matrix, real PostgreSQL) |
-| **Integration** | Merge `8502065d` (--no-ff, ort, no conflicts) into `phase/7-admin-operations` |
-| **Scope** | 8 files, all `apps/api/src/redemption/`: admin-redemption / admin-fulfilment / admin-refund controllers (34 routes hardened), redemption.controller.ts + redemption.service.ts (member IDOR closure), redemption-refund.service.ts + redemption-fulfilment.service.ts (market-scoped read projections), new `redemption-admin-route-security.integration.spec.ts` (1066 lines). Zero migration (checksums 37/37 unchanged); no wallet/commission/market/reward/agent code; no B/C/D tests; TS strict unchanged |
+| Item            | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Branch**      | `fix/p6-r2-admin-route-security` (base `7f898b52` = phase HEAD incl. SEC-02 gate)                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **Commits**     | `724de28e` (feat: canonical RBAC + market scoping on admin fulfilment/refund routes) · `3caebd2a` (feat: resource-market consistency on catalog/pickup-location routes) · `ac17c617` (fix: market-scope read projections + member payment IDOR closure — owner-level minimal fixes) · `e062a900` (test: HTTP evidence matrix, real PostgreSQL)                                                                                                                                                                 |
+| **Integration** | Merge `8502065d` (--no-ff, ort, no conflicts) into `phase/7-admin-operations`                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **Scope**       | 8 files, all `apps/api/src/redemption/`: admin-redemption / admin-fulfilment / admin-refund controllers (34 routes hardened), redemption.controller.ts + redemption.service.ts (member IDOR closure), redemption-refund.service.ts + redemption-fulfilment.service.ts (market-scoped read projections), new `redemption-admin-route-security.integration.spec.ts` (1066 lines). Zero migration (checksums 37/37 unchanged); no wallet/commission/market/reward/agent code; no B/C/D tests; TS strict unchanged |
 
 ## 2. Route security matrix — Command Center §5 ten requirements, all PASS
 
@@ -35,6 +35,7 @@
 10. **No duplicated Phase 7 owner logic**: transport guards only; every write delegates 1:1 to Phase 6 owners; no route deleted; PC1/PC2 positive controls prove end-to-end writes.
 
 **Owner-level minimal fixes (`ac17c617`) — REVIEWER ENDORSED** (D-055 bounded hardening, market isolation + identity authorization only):
+
 - `redemption-refund.service.ts`: `listPendingRefundRequests`/`listAllRefundRequests` gain optional marketId filter (additive; write paths untouched).
 - `redemption-fulfilment.service.ts`: `listPending` gains optional marketId filter (additive).
 - `redemption.service.ts`: `confirmShippingPayment` accepts server-derived memberId and rejects mismatch → 409 `REDEMPTION_SHIPPING_PAYMENT_MISMATCH` (member IDOR closed; member controller resolves identity from authenticated session, never client input).
@@ -49,13 +50,13 @@
 
 ## 5. Post-integration verification
 
-| Check | Result |
-|---|---|
-| Phase 7 merge | `8502065d` (--no-ff, ort, no conflicts) |
-| Tracked modifications | 0 |
-| Migration checksums | 37/37 (no migration change) |
-| Frozen owner scope | minimal fixes only (reviewer endorsed); no write-semantics change |
-| `main` | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy |
+| Check                 | Result                                                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 7 merge         | `8502065d` (--no-ff, ort, no conflicts)                                                                                                           |
+| Tracked modifications | 0                                                                                                                                                 |
+| Migration checksums   | 37/37 (no migration change)                                                                                                                       |
+| Frozen owner scope    | minimal fixes only (reviewer endorsed); no write-semantics change                                                                                 |
+| `main`                | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy                                                                          |
 | Push / local = remote | PUSH PENDING — host channel restoration (same pattern as S6D/S6A/S7C gate records); batch push scheduled before the Phase 7 final delivery report |
 
 ## 6. Declarations
@@ -67,4 +68,4 @@ P6_R2_COMPLETE_OPENCLAW_INTERNAL
 
 OpenClaw internal gate — NOT Command Center acceptance. Next per Command Center order: **P7-S8** → P7-S9 → P7-S10 → Phase 7 Final Delivery Report.
 
-*Forward-only record. Do not delete or rewrite.*
+_Forward-only record. Do not delete or rewrite._

@@ -1,12 +1,12 @@
 # P7-S6E — Final Forward-Only Gate Record (Market Configuration)
 
-| Field | Value |
-|---|---|
-| **Record** | P7-S6E FINAL GATE — secured market owner + Phase 7 market configuration adapter/UI (S6 series completion) |
-| **Status** | `P7-S6E_DELIVERY_COMPLETE` / `P7-S6E_OPENCLAW_INTERNAL_GATE_PASSED` / `CONTINUING_UNDER_D-055` |
-| **Order** | ChatGPT Command Center — D-055 sequence (O-13 → P7-S6E → SEC-01 → P7-S7 …) |
-| **Date** | 2026-08-06 |
-| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze |
+| Field           | Value                                                                                                     |
+| --------------- | --------------------------------------------------------------------------------------------------------- |
+| **Record**      | P7-S6E FINAL GATE — secured market owner + Phase 7 market configuration adapter/UI (S6 series completion) |
+| **Status**      | `P7-S6E_DELIVERY_COMPLETE` / `P7-S6E_OPENCLAW_INTERNAL_GATE_PASSED` / `CONTINUING_UNDER_D-055`            |
+| **Order**       | ChatGPT Command Center — D-055 sequence (O-13 → P7-S6E → SEC-01 → P7-S7 …)                                |
+| **Date**        | 2026-08-06                                                                                                |
+| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze                                     |
 
 > Forward-only record. Do not delete or rewrite.
 
@@ -14,12 +14,12 @@
 
 ## 1. Delivery range
 
-| Item | Value |
-|---|---|
-| **Branch** | `task/p7-s6e-market-config` (base `1802db37` = phase HEAD incl. O-13 final gate record) |
-| **Commits** | `9234cd54` (feat(market): secured market owner) · `dbf2aeb8` (test: owner unit + HTTP integration) · `cf6f42ec` (feat(api-client): AdminMarketOpsApiClient) · `6f027a94` (feat(admin-web): market configuration page) · `91afc266`/`3c2d1091` (docs: delivery report) |
-| **Integration** | Merge `2ba2856f` (--no-ff, ort, no conflicts) into `phase/7-admin-operations` |
-| **Scope** | `apps/api/src/market/market-owner.*` (8 files) + `app.module.ts` + `packages/api-client` (2) + `apps/admin-web/src/market-config-*` + admin-api/admin-app/route-manifest (11) + delivery report — 23 files; `packages/database` untouched (checksums 33/33, no migration); member-facing `market.controller/service` byte-identical |
+| Item            | Value                                                                                                                                                                                                                                                                                                                               |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Branch**      | `task/p7-s6e-market-config` (base `1802db37` = phase HEAD incl. O-13 final gate record)                                                                                                                                                                                                                                             |
+| **Commits**     | `9234cd54` (feat(market): secured market owner) · `dbf2aeb8` (test: owner unit + HTTP integration) · `cf6f42ec` (feat(api-client): AdminMarketOpsApiClient) · `6f027a94` (feat(admin-web): market configuration page) · `91afc266`/`3c2d1091` (docs: delivery report)                                                               |
+| **Integration** | Merge `2ba2856f` (--no-ff, ort, no conflicts) into `phase/7-admin-operations`                                                                                                                                                                                                                                                       |
+| **Scope**       | `apps/api/src/market/market-owner.*` (8 files) + `app.module.ts` + `packages/api-client` (2) + `apps/admin-web/src/market-config-*` + admin-api/admin-app/route-manifest (11) + delivery report — 23 files; `packages/database` untouched (checksums 33/33, no migration); member-facing `market.controller/service` byte-identical |
 
 ## 2. Market owner contract (secured, D-051/D-054 pattern)
 
@@ -52,12 +52,12 @@ Verified: the S6D commission-rate system already covers all four frozen commissi
 
 ## 7. Post-integration verification
 
-| Check | Result |
-|---|---|
-| Phase 7 merge | `2ba2856f` (--no-ff, no conflicts) |
-| Tracked modifications | 0 |
-| `packages/database` | untouched (no migration; checksums 34/34) |
-| `main` | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy |
+| Check                 | Result                                                                     |
+| --------------------- | -------------------------------------------------------------------------- |
+| Phase 7 merge         | `2ba2856f` (--no-ff, no conflicts)                                         |
+| Tracked modifications | 0                                                                          |
+| `packages/database`   | untouched (no migration; checksums 34/34)                                  |
+| `main`                | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy   |
 | Push / local = remote | batch-push with O-13 and all pending branches on the restored host channel |
 
 ## 8. Declarations
@@ -69,4 +69,4 @@ P7-S6E_OPENCLAW_INTERNAL_GATE_PASSED
 
 OpenClaw internal gate — NOT Command Center acceptance. **S6 series (S6A–S6E) complete.** Next per D-055: SEC-01 (iPoint Maker/Checker remediation) → P7-S7 (Manual MCP/iPoint) → SEC-02 → Phase 6 Admin Route Security → P7-S8 → P7-S9 → P7-S10 → Phase 7 Final Delivery Report.
 
-*Forward-only record. Do not delete or rewrite.*
+_Forward-only record. Do not delete or rewrite._

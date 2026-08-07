@@ -1,11 +1,11 @@
 # P7-S6B — Provisional Gate Correction Record (CG-02 Blocked)
 
-| Field | Value |
-|---|---|
-| **Record** | Forward-only correction/supersession of any earlier S6B internal-gate claim, per ChatGPT Command Center order 2026-08-04 §3 |
-| **Status** | `P7-S6B_PROVISIONAL_LOCAL_INTEGRATION` / `CG-02_BLOCKED` / `WRITE_SURFACE_NOT_AUTHORIZED` |
+| Field         | Value                                                                                                                                                                                                                                |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Record**    | Forward-only correction/supersession of any earlier S6B internal-gate claim, per ChatGPT Command Center order 2026-08-04 §3                                                                                                          |
+| **Status**    | `P7-S6B_PROVISIONAL_LOCAL_INTEGRATION` / `CG-02_BLOCKED` / `WRITE_SURFACE_NOT_AUTHORIZED`                                                                                                                                            |
 | **Decisions** | `P7-S6B_INTERNAL_GATE_DECLARATION_REJECTED` / `CG-02_REWARD_OWNER_GATE_NOT_PASSED` / `P7-S6B_LOCAL_INTEGRATION_RETAINED_BUT_NOT_ACCEPTED` / `D-050_PHASE_3_OWNER_REMEDIATION_MANDATORY` / `CONTINUING_UNDER_D-047_D-048_D-049_D-050` |
-| **Date** | 2026-08-04 |
+| **Date**      | 2026-08-04                                                                                                                                                                                                                           |
 
 ## 1. Correction statement
 
@@ -31,6 +31,6 @@ Per order §2, local commits are retained and NOT rewritten: `4b080cb3` (merge),
 7. Independent review again.
 8. Forward-only final S6B gate record.
 9. Push and verify local/remote equality.
-Only then may OpenClaw declare `P7-S6B_DELIVERY_COMPLETE` / `P7-S6B_OPENCLAW_INTERNAL_GATE_PASSED` / `CG-02_REWARD_OWNER_GATE_PASSED`.
+   Only then may OpenClaw declare `P7-S6B_DELIVERY_COMPLETE` / `P7-S6B_OPENCLAW_INTERNAL_GATE_PASSED` / `CG-02_REWARD_OWNER_GATE_PASSED`.
 
-*Forward-only record. Do not delete or rewrite.*
+_Forward-only record. Do not delete or rewrite._

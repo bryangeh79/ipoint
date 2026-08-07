@@ -30,15 +30,15 @@ specs are untouched and stay green (B 15/15, C 10/10, D 10/10).
   and the controllers repeated it. All controller paths were corrected to the
   single canonical prefix (mirroring the accepted Phase 1/2 admin pattern):
 
-  | Controller | Old mount | New mount |
-  |---|---|---|
-  | AdminAgentActivationController | `/api/v1/api/v1/admin/agent-activations` | `/api/v1/admin/agent-activations` |
-  | AdminCommissionController | `/api/v1/api/v1/admin/commission` | `/api/v1/admin/commission` |
-  | AdminAdjustmentController | `/api/v1/api/v1/admin/commission-adjustments` | `/api/v1/admin/commission-adjustments` |
-  | AdminRateController | `/api/v1/api/v1/admin/commission-rates` | `/api/v1/admin/commission-rates` |
-  | AgentActivationController (member) | `/api/v1/api/v1/agent` | `/api/v1/agent` |
-  | AgentCommissionController | `/api/v1/api/v1/commission` | `/api/v1/commission` |
-  | ReferralController | `/api/v1/api/v1/referral` | `/api/v1/referral` |
+  | Controller                         | Old mount                                     | New mount                              |
+  | ---------------------------------- | --------------------------------------------- | -------------------------------------- |
+  | AdminAgentActivationController     | `/api/v1/api/v1/admin/agent-activations`      | `/api/v1/admin/agent-activations`      |
+  | AdminCommissionController          | `/api/v1/api/v1/admin/commission`             | `/api/v1/admin/commission`             |
+  | AdminAdjustmentController          | `/api/v1/api/v1/admin/commission-adjustments` | `/api/v1/admin/commission-adjustments` |
+  | AdminRateController                | `/api/v1/api/v1/admin/commission-rates`       | `/api/v1/admin/commission-rates`       |
+  | AgentActivationController (member) | `/api/v1/api/v1/agent`                        | `/api/v1/agent`                        |
+  | AgentCommissionController          | `/api/v1/api/v1/commission`                   | `/api/v1/commission`                   |
+  | ReferralController                 | `/api/v1/api/v1/referral`                     | `/api/v1/referral`                     |
 
 - **Dead prototype removed:** `apps/api/src/controllers/commission.controller.ts`
   (unguarded `calculate` dispatcher + fake `ledger` placeholder duplicating
@@ -118,6 +118,7 @@ specs are untouched and stay green (B 15/15, C 10/10, D 10/10).
 ## 5. Source / generation / range reconciliation (4.4)
 
 Verified against the frozen P5-S0 contract and D-042-A:
+
 - **Source:** member-consumption and merchant-recruitment commissions are
   derived from the recognized (company-received) service fee snapshot in
   `transaction_service_fees` at CONFIRMED time — correct; no change.
@@ -156,7 +157,7 @@ Verified against the frozen P5-S0 contract and D-042-A:
 - Retry path: the canonical reprocess command (now Super-Admin-gated and
   market-checked, §3) replays the same source reference idempotently.
 - Verified by test: ACTIVE commit + surfaced failure + no partial ledger rows
-  + successful idempotent retry after rate configuration.
+  - successful idempotent retry after rate configuration.
 
 ## 7. Boundary (4.7)
 

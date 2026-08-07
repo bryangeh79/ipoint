@@ -1,12 +1,12 @@
 # SEC-02 — Final Forward-Only Gate Record (Phase 6 Refund Ledger Owner Remediation)
 
-| Field | Value |
-|---|---|
-| **Record** | SEC-02 FINAL GATE — secured Phase 6 refund ledger owner (GATE-SEC-02) |
-| **Status** | `SEC02_OWNER_REMEDIATION_INTEGRATED` / `SEC-02_COMPLETE_OPENCLAW_INTERNAL` / `CONTINUING_UNDER_D-055` |
-| **Order** | ChatGPT Command Center — D-047 (fix/p6-r1-sec02-refund-ledger exact frozen-owner scope) + D-055 continuous sequence (S7C → SEC-02 → Phase 6 Admin Route Security → …) + SEC-02 order (2026-08-07 §4) |
-| **Date** | 2026-08-07 |
-| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze |
+| Field           | Value                                                                                                                                                                                                |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Record**      | SEC-02 FINAL GATE — secured Phase 6 refund ledger owner (GATE-SEC-02)                                                                                                                                |
+| **Status**      | `SEC02_OWNER_REMEDIATION_INTEGRATED` / `SEC-02_COMPLETE_OPENCLAW_INTERNAL` / `CONTINUING_UNDER_D-055`                                                                                                |
+| **Order**       | ChatGPT Command Center — D-047 (fix/p6-r1-sec02-refund-ledger exact frozen-owner scope) + D-055 continuous sequence (S7C → SEC-02 → Phase 6 Admin Route Security → …) + SEC-02 order (2026-08-07 §4) |
+| **Date**        | 2026-08-07                                                                                                                                                                                           |
+| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze                                                                                                                                |
 
 > Forward-only record. Do not delete or rewrite.
 
@@ -14,13 +14,13 @@
 
 ## 1. Remediation range
 
-| Item | Value |
-|---|---|
-| **Branch** | `fix/p6-r1-sec02-refund-ledger` (base `e55af0f2` = phase HEAD incl. S7C gate record) |
-| **Commits** | `4dfa006f` (feat(database): migration 0036 refund ledger owner schema) · `7178cddc` (feat(redemption): SEC-02 secured refund owner) · `3761252a` (test: align existing refund unit mocks) · `c2d677bc` (test: owner unit + real-PG integration suites) · `37644369` (style: lint/prettier cleanup) · `3c1698a4` (docs: delivery report) |
-| **Integration** | Merge `acd83556` (--no-ff, ort, no conflicts) into `phase/7-admin-operations` |
-| **Migration** | `0036_p6_sec02_refund_ledger_owner.sql` (forward-only; SEC-02 sole owner; highest actual on base = 0035, checksums 36/36 verified before → 37/37 after; 0000-0035 byte-identical; expected-schema + Drizzle schema synced) |
-| **Scope** | `apps/api/src/redemption/redemption-refund.service.ts` (hardened owner) + `redemption.errors.ts` (+7 codes) + `redemption.types.ts` + `redemption-admin-refund.controller.ts` (idempotencyKey + requestId/ip transport) + 2 new suites (owner unit 20, owner integration 11) + mock alignment (2 specs) + `packages/database` (0036 + checksums + schema/redemption.ts + expected-schema) + `docs/06-phase-reports/p7-sec02/` — 13 files, 2575 insertions / 192 deletions |
+| Item            | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Branch**      | `fix/p6-r1-sec02-refund-ledger` (base `e55af0f2` = phase HEAD incl. S7C gate record)                                                                                                                                                                                                                                                                                                                                                                                      |
+| **Commits**     | `4dfa006f` (feat(database): migration 0036 refund ledger owner schema) · `7178cddc` (feat(redemption): SEC-02 secured refund owner) · `3761252a` (test: align existing refund unit mocks) · `c2d677bc` (test: owner unit + real-PG integration suites) · `37644369` (style: lint/prettier cleanup) · `3c1698a4` (docs: delivery report)                                                                                                                                   |
+| **Integration** | Merge `acd83556` (--no-ff, ort, no conflicts) into `phase/7-admin-operations`                                                                                                                                                                                                                                                                                                                                                                                             |
+| **Migration**   | `0036_p6_sec02_refund_ledger_owner.sql` (forward-only; SEC-02 sole owner; highest actual on base = 0035, checksums 36/36 verified before → 37/37 after; 0000-0035 byte-identical; expected-schema + Drizzle schema synced)                                                                                                                                                                                                                                                |
+| **Scope**       | `apps/api/src/redemption/redemption-refund.service.ts` (hardened owner) + `redemption.errors.ts` (+7 codes) + `redemption.types.ts` + `redemption-admin-refund.controller.ts` (idempotencyKey + requestId/ip transport) + 2 new suites (owner unit 20, owner integration 11) + mock alignment (2 specs) + `packages/database` (0036 + checksums + schema/redemption.ts + expected-schema) + `docs/06-phase-reports/p7-sec02/` — 13 files, 2575 insertions / 192 deletions |
 
 ## 2. Command Center §4 requirement matrix — all satisfied (12/12)
 
@@ -47,13 +47,13 @@
 
 ## 5. Post-integration verification
 
-| Check | Result |
-|---|---|
-| Phase 7 merge | `acd83556` (--no-ff, ort, no conflicts) |
-| Tracked modifications | 0 |
-| Migration checksums | 37/37 (0000-0035 byte-identical) |
-| Frozen owners | Phase 6 refund path only; other Phase 6 + Phase 1/3/5 code untouched |
-| `main` | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy |
+| Check                 | Result                                                                                                                                                    |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 7 merge         | `acd83556` (--no-ff, ort, no conflicts)                                                                                                                   |
+| Tracked modifications | 0                                                                                                                                                         |
+| Migration checksums   | 37/37 (0000-0035 byte-identical)                                                                                                                          |
+| Frozen owners         | Phase 6 refund path only; other Phase 6 + Phase 1/3/5 code untouched                                                                                      |
+| `main`                | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy                                                                                  |
 | Push / local = remote | PUSH PENDING — host channel restoration (same note as S7C; batch push scheduled on first available host channel before the Phase 7 final delivery report) |
 
 ## 6. Declarations
@@ -65,4 +65,4 @@ SEC-02_COMPLETE_OPENCLAW_INTERNAL
 
 OpenClaw internal gate — NOT Command Center acceptance. Next per Command Center order: **Phase 6 Admin Route Security** (full scan: auth/RBAC/current-market/resource-market/step-up/member-denied/support-raw-ledger-denied/direct+in-process bypass denied/no unsecured legacy routes/no duplicated Phase 7 owner logic) → P7-S8 → P7-S9 → P7-S10 → Phase 7 Final Delivery Report.
 
-*Forward-only record. Do not delete or rewrite.*
+_Forward-only record. Do not delete or rewrite._

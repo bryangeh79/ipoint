@@ -176,9 +176,7 @@ describe('P7-S6A package configuration model', () => {
       ),
     ).toContain('market changed');
     expect(
-      describeSpecialPercentageWriteError(
-        new ApiError(503, { code: 'X' }),
-      ),
+      describeSpecialPercentageWriteError(new ApiError(503, { code: 'X' })),
     ).toContain('could not be completed');
   });
 

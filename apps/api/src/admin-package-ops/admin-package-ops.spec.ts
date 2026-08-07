@@ -358,17 +358,19 @@ describe('createSpecialPercentage delegation to the secured owner (P7-S6A / D-05
         'SPECIAL_PERCENTAGE_IDEMPOTENCY_CONFLICT',
         'SPECIAL_PERCENTAGE_IDEMPOTENCY_CONFLICT',
       ],
-      [
-        'SPECIAL_PERCENTAGE_CREATE_FAILED',
-        'SPECIAL_PERCENTAGE_CREATE_FAILED',
-      ],
+      ['SPECIAL_PERCENTAGE_CREATE_FAILED', 'SPECIAL_PERCENTAGE_CREATE_FAILED'],
     ];
     for (const [ownerCode, expectedCode] of cases) {
       vi.mocked(owner.createSpecialPercentage).mockRejectedValue(
         Object.assign(new Error(`owner ${ownerCode}`), { code: ownerCode }),
       );
       await expect(
-        service.createSpecialPercentage(ACTOR, MARKET_ID, CREATE_INPUT, 'k-map'),
+        service.createSpecialPercentage(
+          ACTOR,
+          MARKET_ID,
+          CREATE_INPUT,
+          'k-map',
+        ),
       ).rejects.toMatchObject({ code: expectedCode });
     }
   });

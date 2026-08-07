@@ -1,14 +1,14 @@
 # P7-S6 — O-13 Member Reward Rule Create Route Remediation Delivery Report
 
-| Field         | Value                                                                                                    |
-| ------------- | -------------------------------------------------------------------------------------------------------- |
-| **Record**    | O-13 delivery — HIGH security: remove/ban the member-facing reward rule creation route                   |
-| **Status**    | `O13_DELIVERY_COMPLETE` / pending review + verification                                                 |
+| Field         | Value                                                                                                                                          |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Record**    | O-13 delivery — HIGH security: remove/ban the member-facing reward rule creation route                                                         |
+| **Status**    | `O13_DELIVERY_COMPLETE` / pending review + verification                                                                                        |
 | **Decisions** | D-048 (subagent authorization class) / D-055 §4 (Bounded Owner Hardening Authority — no new authorization required; DECISION_LOG.md:1632–1634) |
-| **Branch**    | `fix/p3-p7-reward-member-route` (base `91c59bd6` = latest verified `phase/7-admin-operations` HEAD)      |
-| **Executor**  | `OPENCLAW_MANAGED_CODING_SUBAGENT` (D-048, implementer role)                                             |
-| **Pushed**    | NO (integration/push is OpenClaw's)                                                                      |
-| **Date**      | 2026-08-06                                                                                               |
+| **Branch**    | `fix/p3-p7-reward-member-route` (base `91c59bd6` = latest verified `phase/7-admin-operations` HEAD)                                            |
+| **Executor**  | `OPENCLAW_MANAGED_CODING_SUBAGENT` (D-048, implementer role)                                                                                   |
+| **Pushed**    | NO (integration/push is OpenClaw's)                                                                                                            |
+| **Date**      | 2026-08-06                                                                                                                                     |
 
 ## 1. Scope delivered
 
@@ -20,14 +20,14 @@ through the secured Phase 3 owner `AdminRewardService.createRuleVersion`
 (D-052, exercised by P7-S6B 38/38). No new write surface is introduced, no
 reward rate business rules change, and zero data is modified.
 
-| O-13 requirement | Delivery |
-|---|---|
-| 1. Member can never create reward rules | `@Post('rules')` handler removed from `reward.controller.ts`; the path now resolves to Nest's default 404 for unauthenticated **and** authenticated member actors (proven by HTTP tests). |
-| 2. Non-authorized admin cannot create | Unchanged — creation only through the secured Phase 3 owner (`admin-reward` / `admin-reward-ops`, D-052/D-050); this task adds no write surface. |
+| O-13 requirement                                         | Delivery                                                                                                                                                                                                                                                                                                                             |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1. Member can never create reward rules                  | `@Post('rules')` handler removed from `reward.controller.ts`; the path now resolves to Nest's default 404 for unauthenticated **and** authenticated member actors (proven by HTTP tests).                                                                                                                                            |
+| 2. Non-authorized admin cannot create                    | Unchanged — creation only through the secured Phase 3 owner (`admin-reward` / `admin-reward-ops`, D-052/D-050); this task adds no write surface.                                                                                                                                                                                     |
 | 3. Direct route **and** in-process callers cannot bypass | `RewardService.createRuleVersion` retained as a tripwire that always rejects with `REWARD_RULE_CREATE_DISABLED` (deep defense). Grep-verified: the removed controller route was its only caller; after removal there are **zero reachable call sites** (only the disabled method itself and spec assertions that pin the rejection). |
-| 4. Reward rate business rules unchanged | Untouched: 0.05%/day governance cap, decimal precision, existing rule data — no changes (no edits outside `reward.controller.ts` / `reward.service.ts` / specs). |
-| 5. No historical recalculation / wallet / ledger | Zero data changes, no migration, no seeds touched. |
-| 6. Read routes retained | `GET /api/v1/rewards/plans`, `GET /api/v1/rewards/plans/:id`, `GET /api/v1/rewards/rules`, `GET /api/v1/rewards/rules/:id` unchanged and re-verified (member GET rules → 200; no-auth → 401). |
+| 4. Reward rate business rules unchanged                  | Untouched: 0.05%/day governance cap, decimal precision, existing rule data — no changes (no edits outside `reward.controller.ts` / `reward.service.ts` / specs).                                                                                                                                                                     |
+| 5. No historical recalculation / wallet / ledger         | Zero data changes, no migration, no seeds touched.                                                                                                                                                                                                                                                                                   |
+| 6. Read routes retained                                  | `GET /api/v1/rewards/plans`, `GET /api/v1/rewards/plans/:id`, `GET /api/v1/rewards/rules`, `GET /api/v1/rewards/rules/:id` unchanged and re-verified (member GET rules → 200; no-auth → 401).                                                                                                                                        |
 
 ## 2. Changed files
 
@@ -90,21 +90,21 @@ See `/workspace/.local/o13-gate/evidence/SUMMARY.md` + per-gate logs
 172.23.0.2. DBs created fresh per gate (DROP/CREATE + migrate; seed where the
 suite requires).
 
-| Gate | Suite(s) | DB | Result |
-|---|---|---|---|
-| 01 | `reward.service.spec.ts` (unit) | ipoint_gate_o13_unit | **33/33** |
-| 02 | `reward-o13-route.spec.ts` (new HTTP integration) | ipoint_gate_o13 (self-created) | **4/4** |
-| 03 | `transaction-reward` linkage + negative-input | ipoint_gate_o13_tx | **15/15** |
-| 04 | **S6B** `admin-reward-ops` spec + integration (secured surface) | ipoint_gate_o13_s6b (self-created) | **38/38** |
-| 05 | `admin-reward` owner integration + service (D-052) | ipoint_gate_o13_owner (self-created) | **56/56** |
-| 06 | **S6A** `admin-package-ops` spec + integration (rewire) | ipoint_gate_o13_s6a (fresh) | **54/54** (14 unit + 40 integration) |
-| 07 | **S6D** `admin-commission-ops` spec + integration | ipoint_gate_o13_s6d (self-created) | **41/41** |
-| 08 | api `typecheck` | — | EXIT 0 |
-| 09 | api `build` | — | EXIT 0 |
-| 10 | OpenAPI runtime validation | ipoint_gate_o13_openapi (migrated+seeded) | ✅ passed — **0 missing / 0 dup / 0 broken $ref** |
-| 11 | OpenAPI rewards path dump (probe) | same | `POST` gone: `/api/v1/rewards/rules` methods = `["get"]` |
-| 12 | eslint (4 changed files) | — | 0 errors |
-| 13 | prettier (4 changed files) | — | clean |
+| Gate | Suite(s)                                                        | DB                                        | Result                                                   |
+| ---- | --------------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------- |
+| 01   | `reward.service.spec.ts` (unit)                                 | ipoint_gate_o13_unit                      | **33/33**                                                |
+| 02   | `reward-o13-route.spec.ts` (new HTTP integration)               | ipoint_gate_o13 (self-created)            | **4/4**                                                  |
+| 03   | `transaction-reward` linkage + negative-input                   | ipoint_gate_o13_tx                        | **15/15**                                                |
+| 04   | **S6B** `admin-reward-ops` spec + integration (secured surface) | ipoint_gate_o13_s6b (self-created)        | **38/38**                                                |
+| 05   | `admin-reward` owner integration + service (D-052)              | ipoint_gate_o13_owner (self-created)      | **56/56**                                                |
+| 06   | **S6A** `admin-package-ops` spec + integration (rewire)         | ipoint_gate_o13_s6a (fresh)               | **54/54** (14 unit + 40 integration)                     |
+| 07   | **S6D** `admin-commission-ops` spec + integration               | ipoint_gate_o13_s6d (self-created)        | **41/41**                                                |
+| 08   | api `typecheck`                                                 | —                                         | EXIT 0                                                   |
+| 09   | api `build`                                                     | —                                         | EXIT 0                                                   |
+| 10   | OpenAPI runtime validation                                      | ipoint_gate_o13_openapi (migrated+seeded) | ✅ passed — **0 missing / 0 dup / 0 broken $ref**        |
+| 11   | OpenAPI rewards path dump (probe)                               | same                                      | `POST` gone: `/api/v1/rewards/rules` methods = `["get"]` |
+| 12   | eslint (4 changed files)                                        | —                                         | 0 errors                                                 |
+| 13   | prettier (4 changed files)                                      | —                                         | clean                                                    |
 
 Behavioural assertions (gate 02): unauthenticated `POST /api/v1/rewards/rules`
 → **404**; authenticated member → **404**; `reward_rule_versions` row count

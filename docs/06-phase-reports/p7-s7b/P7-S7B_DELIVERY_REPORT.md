@@ -9,14 +9,14 @@
 
 ## 1. Commit list (not pushed)
 
-| SHA | Commit | Scope |
-|---|---|---|
-| `87c69919` | feat(api-client): P7-S7B manual iPoint adjustment typed client | `AdminIpointAdjustOpsApiClient` (append-only) + 5 typed tests |
-| `feefbdc1` | feat(api): P7-S7B manual iPoint adjustment Phase 7 adapter | `apps/api/src/admin-ipoint-adjust-ops/` (controller/service/dto/types/errors/module) + app.module registration; 7 unit + 8 real-PG HTTP integration tests |
-| `e4426726` | feat(admin-web): P7-S7B manual iPoint adjustment Maker/Checker UI | queue/create/detail pages, model + states, route manifest updates, admin-api/app integration; 10 model + 15 page tests |
-| `d5ced47c` | docs(p7-s7b): record manual iPoint adjustment Maker/Checker delivery report | repo copy of this report |
-| `401137ce` | fix(api): drop unnecessary type assertions in ipoint adapter projection | eslint gate cleanup in `AdminIpointAdjustOpsService.toView` |
-| `b9de3c63` | fix(api-client): prefer-const in S7B list test (eslint gate) | eslint gate cleanup in the api-client test |
+| SHA        | Commit                                                                      | Scope                                                                                                                                                     |
+| ---------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `87c69919` | feat(api-client): P7-S7B manual iPoint adjustment typed client              | `AdminIpointAdjustOpsApiClient` (append-only) + 5 typed tests                                                                                             |
+| `feefbdc1` | feat(api): P7-S7B manual iPoint adjustment Phase 7 adapter                  | `apps/api/src/admin-ipoint-adjust-ops/` (controller/service/dto/types/errors/module) + app.module registration; 7 unit + 8 real-PG HTTP integration tests |
+| `e4426726` | feat(admin-web): P7-S7B manual iPoint adjustment Maker/Checker UI           | queue/create/detail pages, model + states, route manifest updates, admin-api/app integration; 10 model + 15 page tests                                    |
+| `d5ced47c` | docs(p7-s7b): record manual iPoint adjustment Maker/Checker delivery report | repo copy of this report                                                                                                                                  |
+| `401137ce` | fix(api): drop unnecessary type assertions in ipoint adapter projection     | eslint gate cleanup in `AdminIpointAdjustOpsService.toView`                                                                                               |
+| `b9de3c63` | fix(api-client): prefer-const in S7B list test (eslint gate)                | eslint gate cleanup in the api-client test                                                                                                                |
 
 No push performed. Working tree clean on `task/p7-s7b-ipoint-admin`.
 
@@ -32,27 +32,27 @@ SEC-01 delivery report §6.1 explicitly states the HTTP adapter is **to be built
 
 ## 3. Interface contract (Phase 7 adapter — `apps/api/src/admin-ipoint-adjust-ops/`)
 
-| Route (all marketScoped RbacGuard) | Permission | Notes |
-|---|---|---|
-| `POST /admin/ipoint-adjust-ops/markets/:marketId/adjustments` | `wallet.ipoint.adjust.maker` | Maker create → durable DRAFT; `Idempotency-Key` mandatory (same key+payload replays; different payload → 409) |
-| `POST .../adjustments/:requestId/submit` | `wallet.ipoint.adjust.maker` | DRAFT → SUBMITTED (owner enforces maker identity) |
-| `POST .../adjustments/:requestId/decision` | `wallet.ipoint.adjust.checker` | SUBMITTED → APPROVED \| REJECTED; `x-step-up-token` required (catalog stepUpRequired); APPROVED\|REJECTED only — no auto-execute |
-| `POST .../adjustments/:requestId/execute` | `wallet.ipoint.adjust.execute` | APPROVED → EXECUTING → EXECUTED \| FAILED; `x-step-up-token` required; above-soft execution disabled until `secure_evidence_available` |
-| `GET .../adjustments?state=&limit=&offset=` | `wallet.ipoint.read` | Finance queue projection (newest first) |
-| `GET .../adjustments/:requestId` | `wallet.ipoint.read` | Detail incl. immutable decision history |
-| `GET .../config` | `wallet.ipoint.read` | Maker-form support: versioned per-market caps + secure-evidence capability + active reason-code catalog; `configured:false` for unconfigured markets (no fallback) |
-| `GET .../wallets?query=` | `wallet.ipoint.read` | Masked wallet/member lookup (public member id, display name, exact balance; never evidence/credentials) |
+| Route (all marketScoped RbacGuard)                            | Permission                     | Notes                                                                                                                                                              |
+| ------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `POST /admin/ipoint-adjust-ops/markets/:marketId/adjustments` | `wallet.ipoint.adjust.maker`   | Maker create → durable DRAFT; `Idempotency-Key` mandatory (same key+payload replays; different payload → 409)                                                      |
+| `POST .../adjustments/:requestId/submit`                      | `wallet.ipoint.adjust.maker`   | DRAFT → SUBMITTED (owner enforces maker identity)                                                                                                                  |
+| `POST .../adjustments/:requestId/decision`                    | `wallet.ipoint.adjust.checker` | SUBMITTED → APPROVED \| REJECTED; `x-step-up-token` required (catalog stepUpRequired); APPROVED\|REJECTED only — no auto-execute                                   |
+| `POST .../adjustments/:requestId/execute`                     | `wallet.ipoint.adjust.execute` | APPROVED → EXECUTING → EXECUTED \| FAILED; `x-step-up-token` required; above-soft execution disabled until `secure_evidence_available`                             |
+| `GET .../adjustments?state=&limit=&offset=`                   | `wallet.ipoint.read`           | Finance queue projection (newest first)                                                                                                                            |
+| `GET .../adjustments/:requestId`                              | `wallet.ipoint.read`           | Detail incl. immutable decision history                                                                                                                            |
+| `GET .../config`                                              | `wallet.ipoint.read`           | Maker-form support: versioned per-market caps + secure-evidence capability + active reason-code catalog; `configured:false` for unconfigured markets (no fallback) |
+| `GET .../wallets?query=`                                      | `wallet.ipoint.read`           | Masked wallet/member lookup (public member id, display name, exact balance; never evidence/credentials)                                                            |
 
 ### Error mapping (SEC-01 §6.4, S7A §7.4 accepted pattern)
 
-| `WalletAdjustmentOwnerError` code(s) | HTTP |
-|---|---:|
-| `PERMISSION_DENIED`, `MARKET_ACCESS_DENIED`, `MAKER_REQUIRED`, `MAKER_CHECKER_CONFLICT`, `CHECKER_ROUTING_DENIED` | 403 |
-| `WALLET_NOT_FOUND`, `REQUEST_NOT_FOUND`, `MARKET_NOT_FOUND`, `WALLET_LOOKUP_EMPTY` | 404 |
-| `MARKET_SELECTION_REQUIRED`, `MARKET_CONTEXT_MISMATCH`, `IDEMPOTENCY_CONFLICT`, `STATE_CONFLICT`, `PRIOR_REQUEST_INVALID` | 409 |
-| `IDEMPOTENCY_KEY_REQUIRED`, `INVALID_FIELD`, `DECISION_REASON_REQUIRED`, `INVALID_AMOUNT` | 400 |
-| `MARKET_NOT_CONFIGURED`, `ABOVE_HARD_CAP`, `REASON_CODE_INVALID`, `ATTACHMENT_REQUIRED`, `EVIDENCE_STORAGE_UNAVAILABLE`, `INSUFFICIENT_BALANCE` | 422 |
-| `EXECUTION_FAILED` / unknown | 500 (owner code preserved; never swallowed) |
+| `WalletAdjustmentOwnerError` code(s)                                                                                                            |                                        HTTP |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------: |
+| `PERMISSION_DENIED`, `MARKET_ACCESS_DENIED`, `MAKER_REQUIRED`, `MAKER_CHECKER_CONFLICT`, `CHECKER_ROUTING_DENIED`                               |                                         403 |
+| `WALLET_NOT_FOUND`, `REQUEST_NOT_FOUND`, `MARKET_NOT_FOUND`, `WALLET_LOOKUP_EMPTY`                                                              |                                         404 |
+| `MARKET_SELECTION_REQUIRED`, `MARKET_CONTEXT_MISMATCH`, `IDEMPOTENCY_CONFLICT`, `STATE_CONFLICT`, `PRIOR_REQUEST_INVALID`                       |                                         409 |
+| `IDEMPOTENCY_KEY_REQUIRED`, `INVALID_FIELD`, `DECISION_REASON_REQUIRED`, `INVALID_AMOUNT`                                                       |                                         400 |
+| `MARKET_NOT_CONFIGURED`, `ABOVE_HARD_CAP`, `REASON_CODE_INVALID`, `ATTACHMENT_REQUIRED`, `EVIDENCE_STORAGE_UNAVAILABLE`, `INSUFFICIENT_BALANCE` |                                         422 |
+| `EXECUTION_FAILED` / unknown                                                                                                                    | 500 (owner code preserved; never swallowed) |
 
 Response body always `{ error: { code, message, details? }, requestId, timestamp }`.
 
@@ -84,27 +84,27 @@ Response body always `{ error: { code, message, details? }, requestId, timestamp
 
 ## 6. Test matrix (evidence in `/workspace/.local/s7b-gate/evidence/`)
 
-| # | Gate | Command (exact) | Result | EXIT_CODE |
-|---|---|---|---|---|
-| 01 | checksum | `pnpm --filter @ipoint/database db:checksum` | 36 immutable checksums verified | 0 |
-| 02 | api-client typecheck | `pnpm --filter @ipoint/api-client typecheck` | pass | 0 |
-| 03 | api-client test | `pnpm --filter @ipoint/api-client test` | 80 passed (5 new S7B) | 0 |
-| 04 | api-client build | `pnpm --filter @ipoint/api-client build` | pass | 0 |
-| 05 | api typecheck | `pnpm --filter @ipoint/api typecheck` | pass | 0 |
-| 06 | api build | `pnpm --filter @ipoint/api build` | pass | 0 |
-| 07 | admin-web typecheck | `pnpm --filter @ipoint/admin-web typecheck` | pass | 0 |
-| 08 | admin-web test | `pnpm --filter @ipoint/admin-web test` | 275 passed (25 new S7B) | 0 |
-| 09 | admin-web build | `pnpm --filter @ipoint/admin-web build` | pass | 0 |
-| 10 | S7B adapter unit | `pnpm --filter @ipoint/api test src/admin-ipoint-adjust-ops/admin-ipoint-adjust-ops.spec.ts` | 7 passed | 0 |
-| 11 | S7B adapter HTTP | `pnpm --filter @ipoint/api test src/admin-ipoint-adjust-ops/admin-ipoint-adjust-ops.integration.spec.ts` (fresh DB `ipoint_gate_s7b_http`) | 8 passed | 0 |
-| 12 | SEC-01 unit regression | `pnpm --filter @ipoint/api test src/wallet/wallet-adjustment.owner.spec.ts` | 18 passed | 0 |
-| 13 | SEC-01 integration regression | `...wallet-adjustment.owner.integration.spec.ts` (fresh DB) | 22 passed | 0 |
-| 14 | S7A regression | `src/merchant/mcp-adjustment.owner.{spec,integration}.spec.ts` (fresh DB) | 43 passed | 0 |
-| 15 | S6E regression | `src/market/market-owner.{spec,integration}.spec.ts` (fresh DB) | 46 passed | 0 |
-| 16 | S6D regression | `src/admin-commission-ops/admin-commission-ops.{spec,integration}.spec.ts` (fresh DB) | 41 passed | 0 |
-| 17 | OpenAPI | `pnpm --filter @ipoint/api openapi:validate` | 247 paths (baseline 240 + 7 new), all validations passed | 0 (PASS_DETECTED) |
-| 18 | eslint (changed files) | `npx eslint <25 files>` | 0 problems | 0 |
-| 19 | prettier (changed files) | `npx prettier --check <25 files>` | clean | 0 |
+| #   | Gate                          | Command (exact)                                                                                                                            | Result                                                   | EXIT_CODE         |
+| --- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- | ----------------- |
+| 01  | checksum                      | `pnpm --filter @ipoint/database db:checksum`                                                                                               | 36 immutable checksums verified                          | 0                 |
+| 02  | api-client typecheck          | `pnpm --filter @ipoint/api-client typecheck`                                                                                               | pass                                                     | 0                 |
+| 03  | api-client test               | `pnpm --filter @ipoint/api-client test`                                                                                                    | 80 passed (5 new S7B)                                    | 0                 |
+| 04  | api-client build              | `pnpm --filter @ipoint/api-client build`                                                                                                   | pass                                                     | 0                 |
+| 05  | api typecheck                 | `pnpm --filter @ipoint/api typecheck`                                                                                                      | pass                                                     | 0                 |
+| 06  | api build                     | `pnpm --filter @ipoint/api build`                                                                                                          | pass                                                     | 0                 |
+| 07  | admin-web typecheck           | `pnpm --filter @ipoint/admin-web typecheck`                                                                                                | pass                                                     | 0                 |
+| 08  | admin-web test                | `pnpm --filter @ipoint/admin-web test`                                                                                                     | 275 passed (25 new S7B)                                  | 0                 |
+| 09  | admin-web build               | `pnpm --filter @ipoint/admin-web build`                                                                                                    | pass                                                     | 0                 |
+| 10  | S7B adapter unit              | `pnpm --filter @ipoint/api test src/admin-ipoint-adjust-ops/admin-ipoint-adjust-ops.spec.ts`                                               | 7 passed                                                 | 0                 |
+| 11  | S7B adapter HTTP              | `pnpm --filter @ipoint/api test src/admin-ipoint-adjust-ops/admin-ipoint-adjust-ops.integration.spec.ts` (fresh DB `ipoint_gate_s7b_http`) | 8 passed                                                 | 0                 |
+| 12  | SEC-01 unit regression        | `pnpm --filter @ipoint/api test src/wallet/wallet-adjustment.owner.spec.ts`                                                                | 18 passed                                                | 0                 |
+| 13  | SEC-01 integration regression | `...wallet-adjustment.owner.integration.spec.ts` (fresh DB)                                                                                | 22 passed                                                | 0                 |
+| 14  | S7A regression                | `src/merchant/mcp-adjustment.owner.{spec,integration}.spec.ts` (fresh DB)                                                                  | 43 passed                                                | 0                 |
+| 15  | S6E regression                | `src/market/market-owner.{spec,integration}.spec.ts` (fresh DB)                                                                            | 46 passed                                                | 0                 |
+| 16  | S6D regression                | `src/admin-commission-ops/admin-commission-ops.{spec,integration}.spec.ts` (fresh DB)                                                      | 41 passed                                                | 0                 |
+| 17  | OpenAPI                       | `pnpm --filter @ipoint/api openapi:validate`                                                                                               | 247 paths (baseline 240 + 7 new), all validations passed | 0 (PASS_DETECTED) |
+| 18  | eslint (changed files)        | `npx eslint <25 files>`                                                                                                                    | 0 problems                                               | 0                 |
+| 19  | prettier (changed files)      | `npx prettier --check <25 files>`                                                                                                          | clean                                                    | 0                 |
 
 ---
 
@@ -118,4 +118,4 @@ Identical to SEC-01 §8 / S7A §8: the `packages/database` suite has 4 pre-exist
 - **No attachment upload surface** was built (only the opaque reference pass-through), consistent with the frozen contract (opaque references only, never contents).
 - The S7A `mcp-adjustments` Admin Web page remains a shell placeholder (out of S7B scope); S7B delivered the iPoint workflow only.
 
-*Executor: OPENCLAW_MANAGED_CODING_SUBAGENT (implementer). No push performed; branch `task/p7-s7b-ipoint-admin` only.*
+_Executor: OPENCLAW_MANAGED_CODING_SUBAGENT (implementer). No push performed; branch `task/p7-s7b-ipoint-admin` only._

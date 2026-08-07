@@ -1,12 +1,12 @@
 # P7-S8 — Final Forward-Only Gate Record (Agent Operations + Redemption Fulfilment Ops)
 
-| Field | Value |
-|---|---|
-| **Record** | P7-S8 FINAL GATE — Agent operations + Redemption operations (fulfilment queues / suspend-resume / retry-review / refund views) Phase 7 integration layer |
-| **Status** | `P7-S8_DELIVERY_COMPLETE` / `P7-S8_OPENCLAW_INTERNAL_GATE_PASSED` / `CONTINUING_UNDER_D-055` |
-| **Order** | ChatGPT Command Center — D-055 continuous sequence (Phase 6 Admin Route Security → P7-S8 → P7-S9 → P7-S10) |
-| **Date** | 2026-08-07 |
-| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze |
+| Field           | Value                                                                                                                                                    |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Record**      | P7-S8 FINAL GATE — Agent operations + Redemption operations (fulfilment queues / suspend-resume / retry-review / refund views) Phase 7 integration layer |
+| **Status**      | `P7-S8_DELIVERY_COMPLETE` / `P7-S8_OPENCLAW_INTERNAL_GATE_PASSED` / `CONTINUING_UNDER_D-055`                                                             |
+| **Order**       | ChatGPT Command Center — D-055 continuous sequence (Phase 6 Admin Route Security → P7-S8 → P7-S9 → P7-S10)                                               |
+| **Date**        | 2026-08-07                                                                                                                                               |
+| **Declaration** | OpenClaw internal gate — NOT Command Center acceptance/closure/freeze                                                                                    |
 
 > Forward-only record. Do not delete or rewrite.
 
@@ -14,12 +14,12 @@
 
 ## 1. Delivery range
 
-| Item | Value |
-|---|---|
-| **Branch** | `task/p7-s8-redemption-agent-ops` (base `ce53c547` = phase HEAD incl. P6-R2 gate) |
-| **Commits** | `07cff047` (feat(p7-s8): admin agent ops + redemption fulfilment ops adapters) · `a4d2fad2` (feat(api-client): typed clients) · `e7d824ff` (feat(admin-web): agent ops + fulfilment/refund ops pages) · `748acad0` (fix(admin-web): High-1 — routes use canonical catalog permissions) |
-| **Integration** | Merge `0686112f` (--no-ff, ort, no conflicts) into `phase/7-admin-operations` |
-| **Scope** | 38 files + High-1 fix delta: `apps/api/src/admin-agent-ops/**` (13) + `admin-redemption-fulfilment-ops/**` (12) + `app.module.ts` (registration) + `packages/api-client` (2) + `apps/admin-web/src/` (6 pages + route-manifest + tests/mocks) — 8,934 insertions; **zero migration** (checksums 37/37); frozen Phase 5/6 owners untouched |
+| Item            | Value                                                                                                                                                                                                                                                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Branch**      | `task/p7-s8-redemption-agent-ops` (base `ce53c547` = phase HEAD incl. P6-R2 gate)                                                                                                                                                                                                                                                         |
+| **Commits**     | `07cff047` (feat(p7-s8): admin agent ops + redemption fulfilment ops adapters) · `a4d2fad2` (feat(api-client): typed clients) · `e7d824ff` (feat(admin-web): agent ops + fulfilment/refund ops pages) · `748acad0` (fix(admin-web): High-1 — routes use canonical catalog permissions)                                                    |
+| **Integration** | Merge `0686112f` (--no-ff, ort, no conflicts) into `phase/7-admin-operations`                                                                                                                                                                                                                                                             |
+| **Scope**       | 38 files + High-1 fix delta: `apps/api/src/admin-agent-ops/**` (13) + `admin-redemption-fulfilment-ops/**` (12) + `app.module.ts` (registration) + `packages/api-client` (2) + `apps/admin-web/src/` (6 pages + route-manifest + tests/mocks) — 8,934 insertions; **zero migration** (checksums 37/37); frozen Phase 5/6 owners untouched |
 
 ## 2. Delivery mapping — Command Center §6, all PASS
 
@@ -43,14 +43,14 @@
 
 ## 5. Post-integration verification
 
-| Check | Result |
-|---|---|
-| Phase 7 merge | `0686112f` (--no-ff, ort, no conflicts) |
-| Tracked modifications | 0 |
-| Migration checksums | 37/37 (zero migration change) |
-| Frozen Phase 5/6 owners | untouched |
-| `main` | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy |
-| Push / local = remote | PUSH PENDING — host channel restoration (same pattern as S6D/S6A/S7C/SEC-02/P6-R2 gate records); batch push before the Phase 7 final delivery report |
+| Check                   | Result                                                                                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 7 merge           | `0686112f` (--no-ff, ort, no conflicts)                                                                                                              |
+| Tracked modifications   | 0                                                                                                                                                    |
+| Migration checksums     | 37/37 (zero migration change)                                                                                                                        |
+| Frozen Phase 5/6 owners | untouched                                                                                                                                            |
+| `main`                  | unchanged `69240bf84d7d8e0cf58c86ce25a88a5aa105db05`; no PR/merge/deploy                                                                             |
+| Push / local = remote   | PUSH PENDING — host channel restoration (same pattern as S6D/S6A/S7C/SEC-02/P6-R2 gate records); batch push before the Phase 7 final delivery report |
 
 ## 6. Declarations
 
@@ -61,4 +61,4 @@ P7-S8_OPENCLAW_INTERNAL_GATE_PASSED
 
 OpenClaw internal gate — NOT Command Center acceptance. Next per Command Center order: **P7-S9 (Audit Viewer + Basic Reports)** → P7-S10 → Phase 7 Final Delivery Report.
 
-*Forward-only record. Do not delete or rewrite.*
+_Forward-only record. Do not delete or rewrite._
