@@ -1640,3 +1640,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Status** | **APPROVED / AUTHORIZED — CONTINUOUS EXECUTION** |
 
 *End of current entries. New decisions must be appended below.*
+
+## D-056 - Phase 7 final acceptance closure delta execution
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-056 |
+| **Date** | 2026-08-08 |
+| **Source** | ChatGPT Command Center - D-056 PHASE 7 FINAL ACCEPTANCE CLOSURE DELTA AUTHORIZATION |
+| **Old Rule** | Phase 7 final delivery report submitted (K-01 stale fixtures, K-02 E2E host-only, K-04 permission drift, K-07 push pending) |
+| **New Decision** | Closure delta executed on `phase/7-admin-operations` (base `c241cd4b`): K-01 RESOLVED (30/30 corrected frozen-owner tests: merchant 10/10, admin-kyc 12/12, admin-member 14/14; test/fixture/spec only, A/B-proven contract staleness, no production change, no RBAC weakening); K-02 BROWSER_E2E_GATE_PASSED (18/18 real-host Chromium + real API + real PostgreSQL; 22/22 required scenarios covered; playwright-report + screenshot evidence); K-04 RESOLVED (`AUTH_REFRESH_REUSED` retired, live contract docs aligned to `SESSION_REUSE_DETECTED`; `settings` route corrected to canonical `admin.market.select`, `reports` already `report.read`; 38/38 manifest routes zero-drift); K-07 REMOTE_CHECKPOINT_COMPLETE (local = remote, `c241cd4b` ancestor verified, `main` unchanged `69240bf8`, no Main PR/Merge/Deploy). Closure Delta Gate passed: checksum 37/37, drift clean, api/admin-web/api-client typecheck+build, lint 0 errors (2 pre-existing warnings), prettier clean, OpenAPI 266 paths, RBAC 46/46, MFA/session 20/20, multi-market 55/55, Maker/Checker 31/31, atomicity 36/36, regression 82/82, immutability 48/48, owner-bypass + secrets scans clean. `git diff c241cd4b..HEAD` = test/spec/doc/E2E-evidence only (single route-manifest.ts line = K-04 route-metadata alignment). K-03 (102 untracked preserved), K-05 (Low findings non-blocking), K-06 (2 eslint warnings as tech debt) recorded. `PHASE_7_ACCEPTED` / `PHASE_7_CLOSED` / `PHASE_7_FROZEN` NOT declared - Command Center authority only. |
+| **Reason** | D-056 closure delta authorization; all four findings resolved with the required A/B evidence, real E2E execution, canonical-permission alignment and remote checkpoint |
+| **Affected Files** | docs/06-phase-reports/p7-s10/PHASE_7_FINAL_CLOSURE_DELTA_REPORT.md (new), apps/api/src/merchant/__tests__/merchant.integration.spec.ts, apps/api/src/admin-kyc/admin-kyc.http.integration.spec.ts, apps/api/src/admin-member/admin-member.http.integration.spec.ts, apps/admin-web/src/route-manifest.ts, apps/admin-web/src/route-manifest.test.ts, apps/admin-web/src/admin-app.test.tsx, docs/03-api/auth-api-contract.md, tests/e2e/phase7-admin.spec.ts (new), tests/e2e/admin-shell.spec.ts, playwright.config.ts, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, docs/00-master/EXECUTOR_PROVENANCE_REGISTER.md |
+| **Affected Phases** | Phase 7 (closure delta), K-01/K-02/K-04/K-07 |
+| **Migration** | NONE (zero migration; checksums 37/37 unchanged) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | D-056 PHASE 7 FINAL ACCEPTANCE CLOSURE DELTA AUTHORIZATION (2026-08-08); D-047 through D-055 NOT rewritten |
+| **Status** | **EXECUTED - READY FOR COMMAND CENTER FINAL ACCEPTANCE** |
+
+*End of current entries. New decisions must be appended below.*

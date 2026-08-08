@@ -2,16 +2,17 @@ import { resolve } from 'node:path';
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 const marketId = '11111111-1111-4111-8111-111111111111';
+const adminWebUrl = 'http://127.0.0.1:4175';
 
 test('desktop Admin shell supports MFA, deep links, back, refresh and axe', async ({
   page,
 }) => {
   await mockAdminApi(page, [
     'dashboard.view',
-    'admin.profile.self',
+    'admin.market.select',
     'admin.session.read',
   ]);
-  await page.goto(`/admin/${marketId}/dashboard`);
+  await page.goto(`${adminWebUrl}/admin/${marketId}/dashboard`);
   await expect(
     page.getByRole('heading', { name: 'Admin sign in' }),
   ).toBeVisible();
@@ -19,12 +20,16 @@ test('desktop Admin shell supports MFA, deep links, back, refresh and axe', asyn
   await expect(page).toHaveURL(
     new RegExp(`/admin/${marketId}/dashboard$`, 'u'),
   );
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Dashboard', level: 1 }),
+  ).toBeVisible();
 
   await page.getByRole('link', { name: 'Settings' }).click();
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
   await page.goBack();
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Dashboard', level: 1 }),
+  ).toBeVisible();
 
   await page.addScriptTag({
     path: resolve('packages/ui/node_modules/axe-core/axe.min.js'),
@@ -59,7 +64,7 @@ test('320px mobile drawer restores focus and offline mode denies session writes'
 }) => {
   await page.setViewportSize({ width: 320, height: 700 });
   await mockAdminApi(page, ['dashboard.view', 'admin.session.read']);
-  await page.goto('/admin/login');
+  await page.goto(`${adminWebUrl}/admin/login`);
   await authenticate(page);
 
   const menuButton = page.getByRole('button', {
@@ -93,7 +98,9 @@ async function authenticate(page: Page) {
   await page.getByRole('button', { name: 'Continue securely' }).click();
   await page.getByLabel('Authentication code').fill('123456');
   await page.getByRole('button', { name: 'Open Admin workspace' }).click();
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Dashboard', level: 1 }),
+  ).toBeVisible();
 }
 
 async function mockAdminApi(page: Page, permissions: string[]) {

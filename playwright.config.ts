@@ -7,6 +7,13 @@ const e2eRedisUrl = process.env.E2E_REDIS_URL ?? 'redis://127.0.0.1:56379';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // K-02 (D-056): merchant-admin.spec.ts tests the pre-P7-S2A admin web UI
+  // (Market ID / Branch ID login fields and the deprecated recharge write
+  // surface) that was removed when P7-S2A established the canonical admin
+  // login + RBAC contract. Its scenarios are covered by phase7-admin.spec.ts
+  // (S07 merchant ops, S14 MCP adjustment). Excluded so the live Phase 7
+  // gate reflects the frozen contract.
+  testIgnore: ['tests/e2e/merchant-admin.spec.ts'],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,

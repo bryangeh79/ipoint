@@ -7,13 +7,13 @@
 
 ## 1. Phase Information
 
-| Field | Value |
-|---|---|
-| **Big Phase** | Phase 7 — Admin Operations |
-| **Authorization** | D-046 (P7-S0 contract freeze) · D-047 (P7-S1 + full continuous execution) · D-048 (alternate executor pool) · D-051/D-052/D-053/D-054 (owner remediations) · D-055 (continuous completion, bounded owner hardening, no per-subphase returns) |
-| **Sequence** | P7-S0 → S1 → S2 (MFA) → S3 (routed shell) → S4 (dashboard) → S5 (member/merchant ops) → S6A–S6E (commercial configuration: package / reward / redemption rate / commission / market) → O-13 → SEC-01 → S7A (Manual MCP) → S7B (Manual iPoint UI) → S7C (Finance Acceptance E2E) → SEC-02 (Refund Ledger) → P6-R2 (Phase 6 Admin Route Security) → S8 (Agent + Redemption ops) → S9 (Audit Viewer + Basic Reports) → S10 (Final Full Gate) |
-| **Executor** | OPENCLAW_MANAGED_CODING_SUBAGENT pool (D-048; Codex CLI credits unavailable). Every task recorded in Executor Provenance Register. OpenClaw itself wrote no production code. |
-| **Final Phase 7 HEAD** | `f78565a2` (docs(governance): record p7-s10 final gate and registry sync) |
+| Field                  | Value                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Big Phase**          | Phase 7 — Admin Operations                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **Authorization**      | D-046 (P7-S0 contract freeze) · D-047 (P7-S1 + full continuous execution) · D-048 (alternate executor pool) · D-051/D-052/D-053/D-054 (owner remediations) · D-055 (continuous completion, bounded owner hardening, no per-subphase returns)                                                                                                                                                                                              |
+| **Sequence**           | P7-S0 → S1 → S2 (MFA) → S3 (routed shell) → S4 (dashboard) → S5 (member/merchant ops) → S6A–S6E (commercial configuration: package / reward / redemption rate / commission / market) → O-13 → SEC-01 → S7A (Manual MCP) → S7B (Manual iPoint UI) → S7C (Finance Acceptance E2E) → SEC-02 (Refund Ledger) → P6-R2 (Phase 6 Admin Route Security) → S8 (Agent + Redemption ops) → S9 (Audit Viewer + Basic Reports) → S10 (Final Full Gate) |
+| **Executor**           | OPENCLAW_MANAGED_CODING_SUBAGENT pool (D-048; Codex CLI credits unavailable). Every task recorded in Executor Provenance Register. OpenClaw itself wrote no production code.                                                                                                                                                                                                                                                              |
+| **Final Phase 7 HEAD** | `f78565a2` (docs(governance): record p7-s10 final gate and registry sync)                                                                                                                                                                                                                                                                                                                                                                 |
 
 ## 2. Completed Scope
 
@@ -29,47 +29,47 @@
 
 ## 3. Git Commits (key milestones on `phase/7-admin-operations`)
 
-| SHA | Event |
-|---|---|
-| `36eedf60` | governance sync through P7-S7B |
-| `3bf73c0f` | merge P7-S7C finance acceptance E2E suite |
-| `e55af0f2` | P7-S7C final gate + registry sync |
-| `acd83556` | merge SEC-02 (refund ledger owner, migration 0036) |
-| `7f898b52` | SEC-02 final gate + registry sync |
-| `8502065d` | merge P6-R2 (Phase 6 admin route security) |
-| `ce53c547` | P6-R2 final gate + registry sync |
+| SHA        | Event                                               |
+| ---------- | --------------------------------------------------- |
+| `36eedf60` | governance sync through P7-S7B                      |
+| `3bf73c0f` | merge P7-S7C finance acceptance E2E suite           |
+| `e55af0f2` | P7-S7C final gate + registry sync                   |
+| `acd83556` | merge SEC-02 (refund ledger owner, migration 0036)  |
+| `7f898b52` | SEC-02 final gate + registry sync                   |
+| `8502065d` | merge P6-R2 (Phase 6 admin route security)          |
+| `ce53c547` | P6-R2 final gate + registry sync                    |
 | `0686112f` | merge P7-S8 (agent ops + redemption fulfilment ops) |
-| `f662d56e` | P7-S8 final gate + registry sync |
-| `76d373bf` | merge P7-S9 (audit viewer + basic reports) |
-| `cf42f843` | P7-S9 final gate + registry sync |
-| `13741b0a` | merge P7-S10 final gate fixes |
-| `f78565a2` | P7-S10 final gate + registry sync (Phase 7 HEAD) |
+| `f662d56e` | P7-S8 final gate + registry sync                    |
+| `76d373bf` | merge P7-S9 (audit viewer + basic reports)          |
+| `cf42f843` | P7-S9 final gate + registry sync                    |
+| `13741b0a` | merge P7-S10 final gate fixes                       |
+| `f78565a2` | P7-S10 final gate + registry sync (Phase 7 HEAD)    |
 
 Full per-task commit lists in `docs/06-phase-reports/p7-s*/` gate records and Executor Provenance Register.
 
 ## 4. Test Results (P7-S10 final gate, 21/21)
 
-| Gate | Result |
-|---|---|
-| Migration checksum | 37/37, drift clean |
-| API / Admin Web / API Client typecheck + build | PASS (exit 0) |
-| Lint (full repo) | 0 errors (2 pre-existing warnings) |
-| Prettier (full repo) | clean |
-| OpenAPI runtime validation | PASS (247+ paths, 0 missing/duplicate) |
-| Unit total | **1,840** (api 1030, database 124, api-client 95, admin-web 320, member-web 271) — 0 fail |
-| Integration (real PostgreSQL, fresh DB per suite) | **1,701 passed** — Phase 1–7 full matrix (auth 63, KYC 41/53*, txn 91, wallet 40, commission 185 + B/C/D, redemption 28+40+31+59+29+17+25+59+83, adjustment suites, S6A–S9 all adapters) |
-| Browser/E2E | host/CI-only (K-02; sandbox lacks chromium libs — consistent with every prior gate) |
-| RBAC matrix (runtime reflection scan) | 46/46 controllers guarded + catalog codes + marketScoped |
-| MFA/session | 20/20 |
-| Multi-market | 55/55 |
-| Idempotency + concurrency | 35/35 |
-| Maker/Checker (no threshold exemption) | 31/31 |
-| Atomicity (MCP / iPoint / Refund) | 36/36 |
-| Reward/Commission/Redemption regression | 82/82 |
-| Historical immutability | 48/48 |
-| No cross-market fallback / no owner bypass | 292-file static scan: 0 findings |
-| No secret exposure | only `.env.example` placeholders |
-| Critical/High security findings | 0 (all reviewer verdicts APPROVED 0C/0H) |
+| Gate                                              | Result                                                                                                                                                                                    |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Migration checksum                                | 37/37, drift clean                                                                                                                                                                        |
+| API / Admin Web / API Client typecheck + build    | PASS (exit 0)                                                                                                                                                                             |
+| Lint (full repo)                                  | 0 errors (2 pre-existing warnings)                                                                                                                                                        |
+| Prettier (full repo)                              | clean                                                                                                                                                                                     |
+| OpenAPI runtime validation                        | PASS (247+ paths, 0 missing/duplicate)                                                                                                                                                    |
+| Unit total                                        | **1,840** (api 1030, database 124, api-client 95, admin-web 320, member-web 271) — 0 fail                                                                                                 |
+| Integration (real PostgreSQL, fresh DB per suite) | **1,701 passed** — Phase 1–7 full matrix (auth 63, KYC 41/53\*, txn 91, wallet 40, commission 185 + B/C/D, redemption 28+40+31+59+29+17+25+59+83, adjustment suites, S6A–S9 all adapters) |
+| Browser/E2E                                       | host/CI-only (K-02; sandbox lacks chromium libs — consistent with every prior gate)                                                                                                       |
+| RBAC matrix (runtime reflection scan)             | 46/46 controllers guarded + catalog codes + marketScoped                                                                                                                                  |
+| MFA/session                                       | 20/20                                                                                                                                                                                     |
+| Multi-market                                      | 55/55                                                                                                                                                                                     |
+| Idempotency + concurrency                         | 35/35                                                                                                                                                                                     |
+| Maker/Checker (no threshold exemption)            | 31/31                                                                                                                                                                                     |
+| Atomicity (MCP / iPoint / Refund)                 | 36/36                                                                                                                                                                                     |
+| Reward/Commission/Redemption regression           | 82/82                                                                                                                                                                                     |
+| Historical immutability                           | 48/48                                                                                                                                                                                     |
+| No cross-market fallback / no owner bypass        | 292-file static scan: 0 findings                                                                                                                                                          |
+| No secret exposure                                | only `.env.example` placeholders                                                                                                                                                          |
+| Critical/High security findings                   | 0 (all reviewer verdicts APPROVED 0C/0H)                                                                                                                                                  |
 
 \* K-01: 12 admin-kyc.http failures on stale frozen fixtures — A/B-proven identical on base, not a Phase 7 regression.
 
@@ -82,7 +82,7 @@ Full per-task commit lists in `docs/06-phase-reports/p7-s*/` gate records and Ex
 ## 6. Database and API Changes (Phase 7)
 
 - **Migrations (forward-only, single owner each):** 0031 (D-053 redemption-rate), 0032 (D-054 commission-rate reason), 0033 (D-051 special-percentage reason), 0034 (SEC-01 iPoint adjustment), 0035 (S7A MCP adjustment), 0036 (SEC-02 refund ledger + `chk_order_refund_state` encoding fix). 0000–0030 byte-identical; checksums 37/37.
-- **New Phase 7 API surfaces:** admin-*-ops adapters (member, merchant, kyc, package, reward, redemption, commission, market, ipoint-adjust, mcp-adjust, dashboard, agent, redemption-fulfilment, audit, report). All read projections market-scoped; all writes delegate 1:1 to frozen canonical owners.
+- **New Phase 7 API surfaces:** admin-\*-ops adapters (member, merchant, kyc, package, reward, redemption, commission, market, ipoint-adjust, mcp-adjust, dashboard, agent, redemption-fulfilment, audit, report). All read projections market-scoped; all writes delegate 1:1 to frozen canonical owners.
 - **OpenAPI:** runtime validation PASS; GET-only for audit/report surfaces; deprecated-route drift set maintained.
 
 ## 7. Security and Permissions
@@ -93,14 +93,14 @@ Full per-task commit lists in `docs/06-phase-reports/p7-s*/` gate records and Ex
 
 ## 8. Risks and Issues (honest, complete)
 
-| ID | Item | Status |
-|---|---|---|
-| K-01 | 3 frozen Phase 1/2 owner test suites fail on stale P7-S2 RBAC fixtures (merchant 4, admin-kyc.http 12, admin-member.http 14) — A/B-proven non-regression; documented precedent in S6A/S6B/S6C/D-051/S7A gates | **Command Center decision needed** (touches frozen owner test fixtures) |
-| K-02 | Browser/E2E evidence host/CI-only | accepted limitation |
-| K-03 | historical untracked `tests/p6-s1-schema.test.ts` preserved as-is (one of 102) | documented |
-| K-04 | Permission-drift decisions pending: `AUTH_REFRESH_REUSED` legacy alias retirement; `reports`/`settings` route-permission drift (P7-S8 Review 2) | **Command Center decision needed** |
-| K-05/K-06 | Pre-existing Low observations (S7C/S7B/P6-R2 lists) + 2 non-blocking eslint warnings | documented |
-| K-07 | **Push pending**: local `phase/7-admin-operations` ahead of `origin` by 36 commits (pure fast-forward). Sandbox exec has no HTTPS git transport (missing libcurl-gnutls) and no credentials; every gate record declared "push pending host channel". Main untouched. Batch push must be executed on the first available host channel before main PR / integration. | **Action required on host channel** |
+| ID        | Item                                                                                                                                                                                                                                                                                                                                                               | Status                                                                                                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| K-01      | 3 frozen Phase 1/2 owner test suites fail on stale P7-S2 RBAC fixtures (merchant 4, admin-kyc.http 12, admin-member.http 14) — A/B-proven non-regression; documented precedent in S6A/S6B/S6C/D-051/S7A gates                                                                                                                                                      | **RESOLVED (D-056, 2026-08-08): 30/30 PASS** - fixture-only fixes aligned to the frozen P7-S2 contract; see PHASE_7_FINAL_CLOSURE_DELTA_REPORT.md                           |
+| K-02      | Browser/E2E evidence host/CI-only                                                                                                                                                                                                                                                                                                                                  | **BROWSER_E2E_GATE_PASSED (D-056, 2026-08-08): 18/18 on real host** - Chromium 1.56.1 + real API + real PostgreSQL; 22/22 scenarios; playwright-report/ + screenshot        |
+| K-03      | historical untracked `tests/p6-s1-schema.test.ts` preserved as-is (one of 102)                                                                                                                                                                                                                                                                                     | documented                                                                                                                                                                  |
+| K-04      | Permission-drift decisions pending: `AUTH_REFRESH_REUSED` legacy alias retirement; `reports`/`settings` route-permission drift (P7-S8 Review 2)                                                                                                                                                                                                                    | **RESOLVED (D-056, 2026-08-08)** - alias retired (docs to SESSION_REUSE_DETECTED); reports already report.read; settings to canonical admin.market.select; 38/38 zero-drift |
+| K-05/K-06 | Pre-existing Low observations (S7C/S7B/P6-R2 lists) + 2 non-blocking eslint warnings                                                                                                                                                                                                                                                                               | documented                                                                                                                                                                  |
+| K-07      | **Push pending**: local `phase/7-admin-operations` ahead of `origin` by 36 commits (pure fast-forward). Sandbox exec has no HTTPS git transport (missing libcurl-gnutls) and no credentials; every gate record declared "push pending host channel". Main untouched. Batch push must be executed on the first available host channel before main PR / integration. | **REMOTE_CHECKPOINT_COMPLETE (D-056, 2026-08-08)** - local = remote; c241cd4b ancestor; main unchanged 69240bf8; no Main PR/Merge/Deploy                                    |
 
 ## 9. Outstanding Work (not part of Phase 7)
 
@@ -118,4 +118,4 @@ Awaiting ChatGPT Command Center decision: `APPROVED` / `CHANGES REQUIRED` / `REJ
 
 ---
 
-*Forward-only report. Do not delete or rewrite.*
+_Forward-only report. Do not delete or rewrite._
