@@ -172,11 +172,17 @@ export class AdminReconciliationOpsService {
         if (status === 'RUNNING') this.inProgress();
         const startedAt = new Date();
         const runningVersion = Number(run.version) + 1;
+        // Re-execution from FAILED/CANCELLED must clear the terminal
+        // timestamps: reconciliation_runs_timestamps_check requires all of
+        // completed_at/failed_at/cancelled_at to be NULL in RUNNING state.
         await tx
           .update(reconciliationRuns)
           .set({
             status: 'RUNNING',
             startedAt,
+            completedAt: null,
+            failedAt: null,
+            cancelledAt: null,
             version: runningVersion,
             updatedAt: startedAt,
           })

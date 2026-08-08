@@ -862,6 +862,59 @@ describe.skipIf(!databaseUrl)(
       );
     });
 
+    it('re-executes FAILED and CANCELLED runs with a fresh snapshot', async () => {
+      const created = await supertest(server)
+        .post(`${base(marketA)}/runs`)
+        .set(bearer(admin.token))
+        .set('Idempotency-Key', randomUUID())
+        .send({ kind: 'MCP', ...WINDOW, reason: 'Retry lifecycle run.' })
+        .expect(201);
+      const runId = String((created.body as { id: string }).id);
+      await supertest(server)
+        .post(`${base(marketA)}/runs/${runId}/execute`)
+        .set(bearer(admin.token))
+        .set('Idempotency-Key', randomUUID())
+        .expect(200);
+      // Force a FAILED terminal state satisfying the timestamps and
+      // failure-reason checks, then re-execute: the engine must clear the
+      // terminal timestamps and complete with a fresh snapshot (H-1).
+      await database.pool.query(
+        `UPDATE reconciliation_runs
+            SET status = 'FAILED', started_at = now(), failed_at = now(),
+                completed_at = NULL, cancelled_at = NULL,
+                failure_reason = 'forced failure for retry test',
+                version = version + 1
+          WHERE id = $1`,
+        [runId],
+      );
+      const retried = await supertest(server)
+        .post(`${base(marketA)}/runs/${runId}/execute`)
+        .set(bearer(admin.token))
+        .set('Idempotency-Key', randomUUID())
+        .expect(200);
+      expect((retried.body as { status: string }).status).toBe('COMPLETED');
+      // CANCELLED runs are also re-executable with a fresh snapshot.
+      const created2 = await supertest(server)
+        .post(`${base(marketA)}/runs`)
+        .set(bearer(admin.token))
+        .set('Idempotency-Key', randomUUID())
+        .send({ kind: 'IPOINT', ...WINDOW, reason: 'Cancel then retry.' })
+        .expect(201);
+      const runId2 = String((created2.body as { id: string }).id);
+      await supertest(server)
+        .post(`${base(marketA)}/runs/${runId2}/cancel`)
+        .set(bearer(admin.token))
+        .set('Idempotency-Key', randomUUID())
+        .send({ expectedVersion: 1, reason: 'Cancel first.' })
+        .expect(200);
+      const retried2 = await supertest(server)
+        .post(`${base(marketA)}/runs/${runId2}/execute`)
+        .set(bearer(admin.token))
+        .set('Idempotency-Key', randomUUID())
+        .expect(200);
+      expect((retried2.body as { status: string }).status).toBe('COMPLETED');
+    });
+
     it('detects an MCP balance mismatch with exact expected/actual/difference', async () => {
       const merchant = await createMerchant(marketA);
       // Ledger is empty (0) while the maintained total balance says 95: a
