@@ -18,8 +18,10 @@ import {
   Globe,
   MapPin,
   ChevronRight,
+  Newspaper,
 } from 'lucide-react';
-import { apiClient } from '../api/client';
+import type { MemberHomeContentDto } from '@ipoint/api-client';
+import { apiClient, memberAdsContentApi } from '../api/client';
 import { useAbortController } from '../hooks/useAbortController';
 
 interface ProfileData {
@@ -86,6 +88,11 @@ export function HomePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [fetchState, setFetchState] = useState<FetchState>('idle');
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [homeContent, setHomeContent] = useState<MemberHomeContentDto | null>(
+    null,
+  );
+  const [contentState, setContentState] = useState<FetchState>('idle');
+  const [contentError, setContentError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     setFetchState('loading');
@@ -107,6 +114,23 @@ export function HomePage() {
   useEffect(() => {
     void fetchProfile();
   }, [fetchProfile]);
+
+  const fetchHomeContent = useCallback(async () => {
+    setContentState('loading');
+    setContentError(null);
+    try {
+      setHomeContent(await memberAdsContentApi.home());
+      setContentState('success');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setContentState('error');
+      setContentError(t('home.contentUnavailable'));
+    }
+  }, [t]);
+
+  useEffect(() => {
+    void fetchHomeContent();
+  }, [fetchHomeContent]);
 
   // Loading state
   if (fetchState === 'loading') {
@@ -169,6 +193,96 @@ export function HomePage() {
         })}
         description={t('home.subtitle')}
       />
+
+      <section
+        className={'ip-home-content'}
+        aria-labelledby={'home-content-title'}
+      >
+        <h2 id={'home-content-title'} className={'ip-section-title'}>
+          {t('home.marketHighlights')}
+        </h2>
+        {contentState === 'loading' ? (
+          <div
+            className={'ip-home-content__loading'}
+            aria-label={t('common.loading')}
+          >
+            <Skeleton width={'100%'} height={'148px'} />
+            <Skeleton width={'100%'} height={'92px'} />
+          </div>
+        ) : null}
+        {contentState === 'error' ? (
+          <Alert tone={'warning'} title={t('home.contentUnavailable')}>
+            <p>{contentError}</p>
+            <Button
+              variant={'secondary'}
+              size={'sm'}
+              onClick={() => void fetchHomeContent()}
+            >
+              {t('common.retry')}
+            </Button>
+          </Alert>
+        ) : null}
+        {contentState === 'success' &&
+          homeContent?.ads.map((ad) => (
+            <Card key={ad.public_id} className={'ip-sponsored-banner'}>
+              <img
+                src={ad.creative_media_url}
+                alt={ad.creative_alt_text}
+                loading={'lazy'}
+              />
+              <div className={'ip-sponsored-banner__copy'}>
+                <Badge tone={'warning'}>
+                  {ad.sponsor_label || t('home.sponsored')}
+                </Badge>
+                <h3>{ad.title}</h3>
+                {ad.summary ? <p>{ad.summary}</p> : null}
+                {ad.target_url ? (
+                  <a
+                    href={ad.target_url}
+                    target={'_blank'}
+                    rel={'noopener noreferrer'}
+                  >
+                    {t('home.learnMore')}
+                  </a>
+                ) : null}
+              </div>
+            </Card>
+          ))}
+        {contentState === 'success' &&
+          homeContent?.articles.map((article) => (
+            <Card key={article.public_id} className={'ip-market-article'}>
+              {article.cover_media_url ? (
+                <img
+                  src={article.cover_media_url}
+                  alt={article.cover_alt_text ?? ''}
+                  loading={'lazy'}
+                />
+              ) : (
+                <Newspaper size={24} aria-hidden={'true'} />
+              )}
+              <div>
+                {article.is_promoted ? (
+                  <Badge tone={'warning'}>
+                    {article.sponsor_label || t('home.promoted')}
+                  </Badge>
+                ) : null}
+                <h3>{article.title}</h3>
+                <p>{article.excerpt}</p>
+              </div>
+            </Card>
+          ))}
+        {contentState === 'success' &&
+        homeContent?.ads.length === 0 &&
+        homeContent.articles.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={<Newspaper size={24} />}
+              title={t('home.noHighlights')}
+              description={t('home.noHighlightsDescription')}
+            />
+          </Card>
+        ) : null}
+      </section>
 
       {/* Account Status Alert */}
       {profile?.status === 'suspended' && (

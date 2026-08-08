@@ -36,7 +36,9 @@ async function main(): Promise<void> {
     enableShutdownHooks: false,
     scanSwaggerRoutes: false,
   });
-  await app.init();
+  // Swagger only needs the compiled Nest container. Initializing the full
+  // application would start workers and schedulers, making this read-only
+  // validation depend on external runtime lifecycle state.
 
   // ---- 2. Generate OpenAPI document ----
   const config = new DocumentBuilder()

@@ -67,6 +67,7 @@ import { RedemptionQueuesPage } from './redemption-queues-page.js';
 import { RedemptionOrderDetailPage } from './redemption-order-detail-page.js';
 import { RedemptionRefundsPage } from './redemption-refunds-page.js';
 import { RedemptionRefundDetailPage } from './redemption-refund-detail-page.js';
+import { AdsContentPage } from './ads-content-page.js';
 
 const routeObjects: RouteObject[] = [
   { path: '/', element: <Navigate replace to="/admin/login" /> },
@@ -200,6 +201,8 @@ function RouteContent({ route }: { route: AdminRoute }) {
   // P7-S5B merchant operations (append-only at the end of the route switch).
   if (route.id === 'merchants') return <MerchantsPage />;
   if (route.id === 'merchant-detail') return <MerchantDetailPage />;
+  if (route.id === 'ads') return <AdsContentPage mode={'ads'} />;
+  if (route.id === 'content') return <AdsContentPage mode={'content'} />;
   /* P7-S5A Member Operations (append-only route cases). */
   if (route.id === 'members') return <MemberListPage />;
   if (route.id === 'member-detail') return <MemberDetailPage />;

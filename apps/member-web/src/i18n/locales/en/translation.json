@@ -104,7 +104,14 @@
     "accountCountryLabel": "Account Country",
     "currentMarketLabel": "Current Market",
     "switchMarket": "Switch",
-    "quickActions": "Quick Actions"
+    "quickActions": "Quick Actions",
+    "marketHighlights": "Market highlights",
+    "contentUnavailable": "Market highlights are unavailable",
+    "sponsored": "Sponsored",
+    "promoted": "Promoted",
+    "learnMore": "Learn more",
+    "noHighlights": "No market highlights yet",
+    "noHighlightsDescription": "New offers and local news will appear here when published."
   },
   "profile": {
     "title": "Profile",

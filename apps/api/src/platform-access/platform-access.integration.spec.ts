@@ -107,7 +107,7 @@ describe.skipIf(!databaseUrl)('market, RBAC, and audit integration', () => {
         (SELECT count(*) FROM roles WHERE code = ANY($2::text[]) AND archived_at IS NULL) roles`,
       [canonicalPermissionCodes, controlledRoleCodes],
     );
-    expect(counts.rows[0]).toEqual({ permissions: '67', roles: '6' });
+    expect(counts.rows[0]).toEqual({ permissions: '71', roles: '6' });
 
     const futureCode = `future.unreviewed.${randomUUID()}`;
     await database.pool.query(

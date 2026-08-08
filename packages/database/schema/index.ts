@@ -118,6 +118,30 @@ export const mcpEntryType = pgEnum('mcp_entry_type', [
   'UNFREEZE',
   'REVERSAL',
 ]);
+
+/** P8-S1 shared lifecycle for platform ads and published content. */
+export const adsContentStatus = pgEnum('ads_content_status', [
+  'DRAFT',
+  'SCHEDULED',
+  'ACTIVE',
+  'PAUSED',
+  'EXPIRED',
+  'ARCHIVED',
+]);
+
+export const adPlacementStatus = pgEnum('ad_placement_status', [
+  'ACTIVE',
+  'INACTIVE',
+  'ARCHIVED',
+]);
+
+export const adFeeConfigStatus = pgEnum('ad_fee_config_status', [
+  'DRAFT',
+  'SCHEDULED',
+  'ACTIVE',
+  'EXPIRED',
+  'ARCHIVED',
+]);
 export const mcpDirection = pgEnum('mcp_direction', ['CREDIT', 'DEBIT']);
 export const mcpAccountStatus = pgEnum('mcp_account_status', [
   'ACTIVE',
@@ -4141,6 +4165,304 @@ export const commissionAdjustmentRequests = pgTable(
   ],
 );
 
+// ─── Phase 8: Ads & Content Operations ───────────────────────────────
+
+export const adPlacements = pgTable(
+  'ad_placements',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    code: varchar('code', { length: 80 }).notNull(),
+    name: varchar('name', { length: 160 }).notNull(),
+    description: text('description'),
+    position: integer('position').notNull().default(0),
+    status: adPlacementStatus('status').notNull().default('ACTIVE'),
+    createdByAdminUserId: uuid('created_by_admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    updatedByAdminUserId: uuid('updated_by_admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+    archivedAt: utcTimestamp('archived_at'),
+  },
+  (table) => [
+    unique('ad_placements_market_code_unique').on(table.marketId, table.code),
+    unique('ad_placements_id_market_unique').on(table.id, table.marketId),
+    index('ad_placements_market_status_position_idx').on(
+      table.marketId,
+      table.status,
+      table.position,
+    ),
+    check(
+      'ad_placements_code_check',
+      sql`char_length(btrim(${table.code})) between 1 and 80`,
+    ),
+    check(
+      'ad_placements_name_check',
+      sql`char_length(btrim(${table.name})) between 1 and 160`,
+    ),
+    check('ad_placements_position_check', sql`${table.position} >= 0`),
+    check('ad_placements_version_check', sql`${table.version} > 0`),
+    check(
+      'ad_placements_archive_check',
+      sql`(${table.status} = 'ARCHIVED' and ${table.archivedAt} is not null) or (${table.status} <> 'ARCHIVED' and ${table.archivedAt} is null)`,
+    ),
+  ],
+);
+
+/**
+ * C-11 configurable advertisement MCP fee structure. P8-S1 intentionally
+ * seeds no commercial values and exposes no debit command until an approved
+ * pricing model and a callable frozen MCP-owner extension are available.
+ */
+export const adFeeConfigs = pgTable(
+  'ad_fee_configs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    version: integer('version').notNull(),
+    amount: numeric('amount', { precision: 38, scale: 10 }).notNull(),
+    currencyCode: varchar('currency_code', { length: 3 }).notNull(),
+    effectiveFrom: utcTimestamp('effective_from').notNull(),
+    effectiveTo: utcTimestamp('effective_to'),
+    status: adFeeConfigStatus('status').notNull().default('DRAFT'),
+    reason: text('reason').notNull(),
+    createdByAdminUserId: uuid('created_by_admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    archivedAt: utcTimestamp('archived_at'),
+  },
+  (table) => [
+    unique('ad_fee_configs_market_version_unique').on(
+      table.marketId,
+      table.version,
+    ),
+    unique('ad_fee_configs_id_market_unique').on(table.id, table.marketId),
+    index('ad_fee_configs_market_status_effective_idx').on(
+      table.marketId,
+      table.status,
+      table.effectiveFrom,
+    ),
+    check('ad_fee_configs_version_check', sql`${table.version} > 0`),
+    check('ad_fee_configs_amount_check', sql`${table.amount} > 0`),
+    check(
+      'ad_fee_configs_currency_check',
+      sql`${table.currencyCode} ~ '^[A-Z]{3}$'`,
+    ),
+    check(
+      'ad_fee_configs_reason_check',
+      sql`char_length(btrim(${table.reason})) between 1 and 500`,
+    ),
+    check(
+      'ad_fee_configs_window_check',
+      sql`${table.effectiveTo} is null or ${table.effectiveTo} > ${table.effectiveFrom}`,
+    ),
+    check(
+      'ad_fee_configs_archive_check',
+      sql`(${table.status} = 'ARCHIVED' and ${table.archivedAt} is not null) or (${table.status} <> 'ARCHIVED' and ${table.archivedAt} is null)`,
+    ),
+  ],
+);
+
+export const ads = pgTable(
+  'ads',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    publicId: uuid('public_id').notNull().defaultRandom(),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    placementId: uuid('placement_id').notNull(),
+    feeConfigId: uuid('fee_config_id'),
+    title: varchar('title', { length: 180 }).notNull(),
+    summary: text('summary'),
+    creativeMediaUrl: text('creative_media_url').notNull(),
+    creativeAltText: varchar('creative_alt_text', { length: 240 }).notNull(),
+    targetUrl: text('target_url'),
+    isSponsored: boolean('is_sponsored').notNull().default(true),
+    sponsorLabel: varchar('sponsor_label', { length: 80 }).notNull(),
+    status: adsContentStatus('status').notNull().default('DRAFT'),
+    scheduleStartAt: utcTimestamp('schedule_start_at'),
+    scheduleEndAt: utcTimestamp('schedule_end_at'),
+    createdByAdminUserId: uuid('created_by_admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    updatedByAdminUserId: uuid('updated_by_admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+    archivedAt: utcTimestamp('archived_at'),
+  },
+  (table) => [
+    unique('ads_public_id_unique').on(table.publicId),
+    unique('ads_id_market_unique').on(table.id, table.marketId),
+    foreignKey({
+      columns: [table.placementId, table.marketId],
+      foreignColumns: [adPlacements.id, adPlacements.marketId],
+      name: 'ads_placement_market_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.feeConfigId, table.marketId],
+      foreignColumns: [adFeeConfigs.id, adFeeConfigs.marketId],
+      name: 'ads_fee_config_market_fk',
+    }).onDelete('restrict'),
+    index('ads_market_status_schedule_idx').on(
+      table.marketId,
+      table.status,
+      table.scheduleStartAt,
+      table.scheduleEndAt,
+    ),
+    index('ads_placement_status_idx').on(table.placementId, table.status),
+    check(
+      'ads_title_check',
+      sql`char_length(btrim(${table.title})) between 1 and 180`,
+    ),
+    check(
+      'ads_creative_url_check',
+      sql`char_length(btrim(${table.creativeMediaUrl})) between 1 and 2000`,
+    ),
+    check(
+      'ads_alt_text_check',
+      sql`char_length(btrim(${table.creativeAltText})) between 1 and 240`,
+    ),
+    check(
+      'ads_sponsor_label_check',
+      sql`char_length(btrim(${table.sponsorLabel})) between 1 and 80`,
+    ),
+    check('ads_sponsored_check', sql`${table.isSponsored} = true`),
+    check('ads_version_check', sql`${table.version} > 0`),
+    check(
+      'ads_schedule_window_check',
+      sql`${table.scheduleEndAt} is null or (${table.scheduleStartAt} is not null and ${table.scheduleEndAt} > ${table.scheduleStartAt})`,
+    ),
+    check(
+      'ads_archive_check',
+      sql`(${table.status} = 'ARCHIVED' and ${table.archivedAt} is not null) or (${table.status} <> 'ARCHIVED' and ${table.archivedAt} is null)`,
+    ),
+  ],
+);
+
+export const contentArticles = pgTable(
+  'content_articles',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    publicId: uuid('public_id').notNull().defaultRandom(),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    slug: varchar('slug', { length: 160 }).notNull(),
+    title: varchar('title', { length: 180 }).notNull(),
+    excerpt: text('excerpt').notNull(),
+    body: text('body').notNull(),
+    coverMediaUrl: text('cover_media_url'),
+    coverAltText: varchar('cover_alt_text', { length: 240 }),
+    isPromoted: boolean('is_promoted').notNull().default(false),
+    sponsorLabel: varchar('sponsor_label', { length: 80 }),
+    status: adsContentStatus('status').notNull().default('DRAFT'),
+    publishAt: utcTimestamp('publish_at'),
+    unpublishAt: utcTimestamp('unpublish_at'),
+    authorAdminUserId: uuid('author_admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    updatedByAdminUserId: uuid('updated_by_admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+    archivedAt: utcTimestamp('archived_at'),
+  },
+  (table) => [
+    unique('content_articles_public_id_unique').on(table.publicId),
+    unique('content_articles_market_slug_unique').on(
+      table.marketId,
+      table.slug,
+    ),
+    unique('content_articles_id_market_unique').on(table.id, table.marketId),
+    index('content_articles_market_status_schedule_idx').on(
+      table.marketId,
+      table.status,
+      table.publishAt,
+      table.unpublishAt,
+    ),
+    check(
+      'content_articles_slug_check',
+      sql`${table.slug} ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'`,
+    ),
+    check(
+      'content_articles_title_check',
+      sql`char_length(btrim(${table.title})) between 1 and 180`,
+    ),
+    check(
+      'content_articles_excerpt_check',
+      sql`char_length(btrim(${table.excerpt})) between 1 and 500`,
+    ),
+    check(
+      'content_articles_body_check',
+      sql`char_length(btrim(${table.body})) between 1 and 50000`,
+    ),
+    check('content_articles_version_check', sql`${table.version} > 0`),
+    check(
+      'content_articles_promoted_label_check',
+      sql`(${table.isPromoted} = false) or char_length(btrim(${table.sponsorLabel})) between 1 and 80`,
+    ),
+    check(
+      'content_articles_schedule_window_check',
+      sql`${table.unpublishAt} is null or (${table.publishAt} is not null and ${table.unpublishAt} > ${table.publishAt})`,
+    ),
+    check(
+      'content_articles_archive_check',
+      sql`(${table.status} = 'ARCHIVED' and ${table.archivedAt} is not null) or (${table.status} <> 'ARCHIVED' and ${table.archivedAt} is null)`,
+    ),
+  ],
+);
+
+export const adsContentIdempotencyKeys = pgTable(
+  'ads_content_idempotency_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    adminUserId: uuid('admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    operation: varchar('operation', { length: 80 }).notNull(),
+    key: varchar('key', { length: 200 }).notNull(),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    response: jsonb('response'),
+    statusCode: integer('status_code'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('ads_content_idempotency_scope_unique').on(
+      table.adminUserId,
+      table.marketId,
+      table.operation,
+      table.key,
+    ),
+    check(
+      'ads_content_idempotency_hash_check',
+      sql`char_length(${table.requestHash}) = 64`,
+    ),
+    check(
+      'ads_content_idempotency_result_check',
+      sql`(${table.response} is null and ${table.statusCode} is null) or (${table.response} is not null and ${table.statusCode} between 200 and 599)`,
+    ),
+  ],
+);
+
 import {
   redemptionRateVersions,
   redemptionRateMarketRules,
@@ -4306,6 +4628,11 @@ export const schema = {
   merchantAttributions,
   commissionProcessingResults,
   commissionAdjustmentRequests,
+  adPlacements,
+  adFeeConfigs,
+  ads,
+  contentArticles,
+  adsContentIdempotencyKeys,
   redemptionRateVersions,
   redemptionCatalogItems,
   redemptionQuotes,

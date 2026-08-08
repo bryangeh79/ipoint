@@ -1119,3 +1119,84 @@
   font-size: var(--ip-font-size-body-sm);
   margin: 0;
 }
+
+/* P8-S1 Ads & Content Operations */
+.admin-content-ops__layout {
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.8fr) minmax(24rem, 1.4fr);
+  gap: var(--ip-space-6);
+  align-items: start;
+}
+.admin-content-ops__heading {
+  display: flex;
+  gap: var(--ip-space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+.admin-content-ops__heading h2,
+.admin-content-ops h2,
+.admin-content-ops h3 {
+  margin: 0;
+}
+.admin-content-ops__list {
+  display: grid;
+  gap: var(--ip-space-2);
+}
+.admin-content-ops__list button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ip-space-3);
+  align-items: center;
+  padding: var(--ip-space-4);
+  border: 1px solid var(--ip-color-border);
+  border-radius: var(--ip-radius-md);
+  background: var(--ip-color-surface);
+  color: var(--ip-color-text);
+  text-align: left;
+  cursor: pointer;
+}
+.admin-content-ops__list button:hover,
+.admin-content-ops__list button.is-selected {
+  border-color: var(--ip-color-primary);
+  background: var(--ip-color-primary-subtle);
+}
+.admin-content-ops__list span:first-child {
+  display: grid;
+  gap: var(--ip-space-1);
+}
+.admin-content-ops__list small {
+  color: var(--ip-color-text-muted);
+}
+.admin-content-ops form {
+  display: grid;
+  gap: var(--ip-space-4);
+}
+.admin-content-ops__schedule {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ip-space-4);
+}
+.admin-content-ops__transition {
+  border-top: 1px solid var(--ip-color-border);
+  margin-top: var(--ip-space-6);
+  padding-top: var(--ip-space-5);
+  display: grid;
+  gap: var(--ip-space-3);
+}
+.admin-content-ops__placement form {
+  grid-template-columns: minmax(12rem, 1.25fr) repeat(3, minmax(8rem, 1fr)) auto;
+  gap: var(--ip-space-3);
+  align-items: end;
+}
+.admin-content-ops__placement h2,
+.admin-content-ops__placement p {
+  margin: 0;
+}
+@media (max-width: 56rem) {
+  .admin-content-ops__placement form,
+  .admin-content-ops__layout,
+  .admin-content-ops__schedule {
+    grid-template-columns: 1fr;
+  }
+}

@@ -6,7 +6,10 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../../auth/AuthProvider';
 import { HomePage } from '../../pages/HomePage';
 import { ApiClient, ApiError } from '@ipoint/api-client';
-import { apiClient as globalApiClient } from '../../api/client';
+import {
+  apiClient as globalApiClient,
+  memberAdsContentApi as globalContentApi,
+} from '../../api/client';
 
 // Mock i18next
 vi.mock('react-i18next', () => ({
@@ -31,6 +34,13 @@ vi.mock('react-i18next', () => ({
         'home.currentMarketLabel': 'Current Market',
         'home.switchMarket': 'Switch',
         'home.quickActions': 'Quick Actions',
+        'home.marketHighlights': 'Market highlights',
+        'home.contentUnavailable': 'Market highlights are unavailable',
+        'home.sponsored': 'Sponsored',
+        'home.promoted': 'Promoted',
+        'home.learnMore': 'Learn more',
+        'home.noHighlights': 'No market highlights yet',
+        'home.noHighlightsDescription': 'New offers will appear here.',
         'profile.notProvided': 'Not provided',
         'profile.kycPending': 'Pending',
         'profile.kycRejected': 'Rejected',
@@ -70,6 +80,14 @@ vi.mock('../../api/client', () => ({
     isAuthenticated: false,
     onSessionExpired: null,
   },
+  memberAdsContentApi: {
+    home: vi.fn().mockResolvedValue({
+      market_id: 'market-a',
+      as_of: '2026-08-08T00:00:00.000Z',
+      ads: [],
+      articles: [],
+    }),
+  },
 }));
 
 function createTestClient() {
@@ -105,6 +123,14 @@ describe('HomePage', () => {
   beforeEach(() => {
     client = createTestClient();
     user = userEvent.setup();
+    (globalContentApi.home as ReturnType<typeof vi.fn>)
+      .mockReset()
+      .mockResolvedValue({
+        market_id: 'market-a',
+        as_of: '2026-08-08T00:00:00.000Z',
+        ads: [],
+        articles: [],
+      });
   });
 
   afterEach(() => {
@@ -112,6 +138,55 @@ describe('HomePage', () => {
   });
 
   describe('welcome message and market display', () => {
+    it('renders sponsor and promoted labels from the active market content surface', async () => {
+      (globalApiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+        data: {
+          id: 'u1',
+          name: 'Jane',
+          email: 'jane@example.com',
+          countryCode: 'MY',
+          marketCode: 'MY',
+          kycStatus: 'approved',
+          createdAt: '2024-01-01T00:00:00Z',
+        },
+      });
+      (globalContentApi.home as ReturnType<typeof vi.fn>).mockResolvedValue({
+        market_id: 'market-a',
+        as_of: '2026-08-08T00:00:00.000Z',
+        ads: [
+          {
+            public_id: 'ad-1',
+            placement_code: 'HOME_HERO',
+            title: 'Dining week',
+            summary: 'Local offers',
+            creative_media_url: 'https://cdn.example.test/ad.webp',
+            creative_alt_text: 'Dining',
+            target_url: null,
+            is_sponsored: true,
+            sponsor_label: 'Sponsored',
+          },
+        ],
+        articles: [
+          {
+            public_id: 'article-1',
+            slug: 'market-news',
+            title: 'Market news',
+            excerpt: 'Local update',
+            cover_media_url: null,
+            cover_alt_text: null,
+            is_promoted: true,
+            sponsor_label: 'Promoted',
+            published_at: '2026-08-08T00:00:00.000Z',
+          },
+        ],
+      });
+      renderHomePage(client);
+      expect(await screen.findByText('Sponsored')).toBeInTheDocument();
+      expect(screen.getByText('Promoted')).toBeInTheDocument();
+      expect(screen.getByText('Dining week')).toBeInTheDocument();
+      expect(screen.getByText('Market news')).toBeInTheDocument();
+    });
+
     it('shows welcome message with member name', async () => {
       (globalApiClient.get as ReturnType<typeof vi.fn>).mockImplementation(
         async (path: string) => {

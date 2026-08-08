@@ -1,4 +1,4 @@
-import { ApiClient } from '@ipoint/api-client';
+import { ApiClient, MemberAdsContentApiClient } from '@ipoint/api-client';
 
 const DEFAULT_BASE_URL = 'http://localhost:3000/api/v1';
 
@@ -21,3 +21,4 @@ function getBaseUrl(): string {
  * On page load, session restore is attempted via the refresh endpoint.
  */
 export const apiClient = new ApiClient(getBaseUrl());
+export const memberAdsContentApi = new MemberAdsContentApiClient(apiClient);

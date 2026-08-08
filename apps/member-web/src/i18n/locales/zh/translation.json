@@ -104,7 +104,14 @@
     "accountCountryLabel": "账户国家",
     "currentMarketLabel": "当前市场",
     "switchMarket": "切换",
-    "quickActions": "快捷操作"
+    "quickActions": "快捷操作",
+    "marketHighlights": "市场精选",
+    "contentUnavailable": "暂时无法加载市场精选",
+    "sponsored": "赞助内容",
+    "promoted": "推广内容",
+    "learnMore": "了解更多",
+    "noHighlights": "当前暂无市场精选",
+    "noHighlightsDescription": "发布后，最新优惠与本地资讯会显示在这里。"
   },
   "profile": {
     "title": "个人资料",

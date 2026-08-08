@@ -4043,3 +4043,284 @@ export class AdminReportOpsApiClient {
     ).data;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  P8-S1 Ads & Content Operations                                    */
+/* ------------------------------------------------------------------ */
+
+export type AdsContentStatus =
+  | 'DRAFT'
+  | 'SCHEDULED'
+  | 'ACTIVE'
+  | 'PAUSED'
+  | 'EXPIRED'
+  | 'ARCHIVED';
+
+export interface AdPlacementDto {
+  id: string;
+  market_id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  position: number;
+  status: 'ACTIVE' | 'INACTIVE' | 'ARCHIVED';
+  version: number;
+}
+
+export interface AdDto {
+  id: string;
+  public_id: string;
+  market_id: string;
+  placement_id: string;
+  placement_code?: string;
+  placement_name?: string;
+  fee_config_id: string | null;
+  title: string;
+  summary: string | null;
+  creative_media_url: string;
+  creative_alt_text: string;
+  target_url: string | null;
+  is_sponsored: true;
+  sponsor_label: string;
+  status: AdsContentStatus;
+  schedule_start_at: string | null;
+  schedule_end_at: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+}
+
+export interface ContentArticleDto {
+  id: string;
+  public_id: string;
+  market_id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  body: string;
+  cover_media_url: string | null;
+  cover_alt_text: string | null;
+  is_promoted: boolean;
+  sponsor_label: string | null;
+  status: AdsContentStatus;
+  publish_at: string | null;
+  unpublish_at: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+}
+
+export interface AdsContentListDto<T> {
+  market_id: string;
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface MemberHomeContentDto {
+  market_id: string;
+  as_of: string;
+  ads: Array<{
+    public_id: string;
+    placement_code: string;
+    title: string;
+    summary: string | null;
+    creative_media_url: string;
+    creative_alt_text: string;
+    target_url: string | null;
+    is_sponsored: true;
+    sponsor_label: string;
+  }>;
+  articles: Array<{
+    public_id: string;
+    slug: string;
+    title: string;
+    excerpt: string;
+    cover_media_url: string | null;
+    cover_alt_text: string | null;
+    is_promoted: boolean;
+    sponsor_label: string | null;
+    published_at: string | null;
+  }>;
+}
+
+export class AdminAdsContentApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  async placements(
+    marketId: string,
+  ): Promise<{ market_id: string; items: AdPlacementDto[] }> {
+    return (
+      await this.client.get<{ market_id: string; items: AdPlacementDto[] }>(
+        `/admin/ads-content/markets/${encodeURIComponent(marketId)}/placements`,
+      )
+    ).data;
+  }
+
+  async createPlacement(
+    marketId: string,
+    input: {
+      code: string;
+      name: string;
+      description?: string | null;
+      position: number;
+      reason: string;
+    },
+    idempotencyKey: string,
+  ): Promise<AdPlacementDto> {
+    return (
+      await this.client.post<AdPlacementDto>(
+        `/admin/ads-content/markets/${encodeURIComponent(marketId)}/placements`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  async listAds(
+    marketId: string,
+    options: { status?: AdsContentStatus; q?: string } = {},
+  ): Promise<AdsContentListDto<AdDto>> {
+    return (
+      await this.client.get<AdsContentListDto<AdDto>>(
+        `${this.base(marketId)}/ads${queryString(options)}`,
+      )
+    ).data;
+  }
+
+  async getAd(marketId: string, adId: string): Promise<AdDto> {
+    return (
+      await this.client.get<AdDto>(
+        `${this.base(marketId)}/ads/${encodeURIComponent(adId)}`,
+      )
+    ).data;
+  }
+
+  async createAd(
+    marketId: string,
+    input: Record<string, unknown>,
+    idempotencyKey: string,
+  ): Promise<AdDto> {
+    return (
+      await this.client.post<AdDto>(`${this.base(marketId)}/ads`, input, {
+        idempotencyKey,
+      })
+    ).data;
+  }
+
+  async updateAd(
+    marketId: string,
+    adId: string,
+    input: Record<string, unknown>,
+    idempotencyKey: string,
+  ): Promise<AdDto> {
+    return (
+      await this.client.patch<AdDto>(
+        `${this.base(marketId)}/ads/${encodeURIComponent(adId)}`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  async transitionAd(
+    marketId: string,
+    adId: string,
+    status: AdsContentStatus,
+    expectedVersion: number,
+    reason: string,
+    idempotencyKey: string,
+  ): Promise<AdDto> {
+    return (
+      await this.client.post<AdDto>(
+        `${this.base(marketId)}/ads/${encodeURIComponent(adId)}/status`,
+        { status, expectedVersion, reason },
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  async listArticles(
+    marketId: string,
+    options: { status?: AdsContentStatus; q?: string } = {},
+  ): Promise<AdsContentListDto<ContentArticleDto>> {
+    return (
+      await this.client.get<AdsContentListDto<ContentArticleDto>>(
+        `${this.base(marketId)}/articles${queryString(options)}`,
+      )
+    ).data;
+  }
+
+  async createArticle(
+    marketId: string,
+    input: Record<string, unknown>,
+    idempotencyKey: string,
+  ): Promise<ContentArticleDto> {
+    return (
+      await this.client.post<ContentArticleDto>(
+        `${this.base(marketId)}/articles`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  async updateArticle(
+    marketId: string,
+    articleId: string,
+    input: Record<string, unknown>,
+    idempotencyKey: string,
+  ): Promise<ContentArticleDto> {
+    return (
+      await this.client.patch<ContentArticleDto>(
+        `${this.base(marketId)}/articles/${encodeURIComponent(articleId)}`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  async transitionArticle(
+    marketId: string,
+    articleId: string,
+    status: AdsContentStatus,
+    expectedVersion: number,
+    reason: string,
+    idempotencyKey: string,
+  ): Promise<ContentArticleDto> {
+    return (
+      await this.client.post<ContentArticleDto>(
+        `${this.base(marketId)}/articles/${encodeURIComponent(articleId)}/status`,
+        { status, expectedVersion, reason },
+        { idempotencyKey },
+      )
+    ).data;
+  }
+
+  private base(marketId: string): string {
+    return `/admin/ads-content/markets/${encodeURIComponent(marketId)}`;
+  }
+}
+
+export class MemberAdsContentApiClient {
+  constructor(private readonly client: ApiClient) {}
+  async home(): Promise<MemberHomeContentDto> {
+    return (
+      await this.client.get<MemberHomeContentDto>('/members/content/home')
+    ).data;
+  }
+}
+
+function queryString(
+  options: Record<string, string | number | boolean | undefined>,
+): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(options)) {
+    if (value !== undefined && value !== '') params.set(key, String(value));
+  }
+  const query = params.toString();
+  return query ? `?${query}` : '';
+}

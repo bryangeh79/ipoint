@@ -13,6 +13,68 @@
   background: var(--ip-color-canvas);
 }
 
+/* P8-S1 market-scoped sponsored and editorial home surfaces. */
+.ip-home-content {
+  display: grid;
+  gap: var(--ip-space-3);
+}
+.ip-home-content__loading {
+  display: grid;
+  gap: var(--ip-space-3);
+}
+.ip-sponsored-banner {
+  overflow: hidden;
+  padding: 0;
+}
+.ip-sponsored-banner > img {
+  width: 100%;
+  aspect-ratio: 16 / 7;
+  object-fit: cover;
+  display: block;
+}
+.ip-sponsored-banner__copy {
+  display: grid;
+  gap: var(--ip-space-2);
+  padding: var(--ip-space-4);
+}
+.ip-sponsored-banner__copy h3,
+.ip-sponsored-banner__copy p,
+.ip-market-article h3,
+.ip-market-article p {
+  margin: 0;
+}
+.ip-sponsored-banner__copy a {
+  color: var(--ip-color-primary);
+  font-weight: 600;
+  width: fit-content;
+}
+.ip-market-article {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: var(--ip-space-4);
+  align-items: start;
+}
+.ip-market-article > img {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: var(--ip-radius-md);
+  object-fit: cover;
+}
+.ip-market-article > div {
+  display: grid;
+  gap: var(--ip-space-2);
+}
+@media (max-width: 30rem) {
+  .ip-market-article {
+    grid-template-columns: 1fr;
+  }
+  .ip-market-article > img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+}
+
 .ip-member-public-layout__container {
   width: 100%;
   max-width: 440px;
