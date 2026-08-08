@@ -1697,3 +1697,39 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Status** | **AUTHORIZED / CONTINUOUS EXECUTION AUTHORIZED** |
 
 *End of current entries. New decisions must be appended below.*
+
+## D-059 - OpenClaw Temporary Command Center Deputization (Engineering Acceptance)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-059 |
+| **Date** | 2026-08-08 |
+| **Source** | Bryan explicit authorization (2026-08-08 20:57 MYT) - ChatGPT/Codex workspace temporarily deactivated |
+| **Old Rule** | Only ChatGPT Command Center may issue APPROVED / CHANGES REQUIRED / REJECTED / READY FOR NEXT PHASE (PMC, D-058 §25) |
+| **New Decision** | While the ChatGPT Command Center workspace is temporarily unavailable, Bryan (rank-1 authority) authorizes OpenClaw to act as TEMPORARY Command Center for ENGINEERING ACCEPTANCE ONLY: issuing APPROVED / CHANGES REQUIRED / REJECTED for Phase 8 sub-phases and milestones, always labelled `OPENCLAW-ACTING-COMMAND-CENTER`. Limits: (1) business-rule / legal / compliance decisions remain with Bryan (escalated, never invented); (2) Bryan's rank-1 authority is not delegated; (3) every acceptance decision must rest on an independent evidence chain (implementer / reviewer / verifier separation maintained - no self-approval of own coordination steps); (4) all acceptance declarations are recorded in repository governance files and are REVOCABLE / RE-REVIEWABLE by Bryan or the restored Command Center at zero cost; (5) final commercial release approval still requires Bryan. |
+| **Reason** | Command Center account temporarily deactivated; Bryan requested OpenClaw to carry the engineering acceptance role with explicit safeguards |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (temporary acceptance authority) |
+| **Migration** | NONE |
+| **Approver** | Bryan |
+| **Basis** | Bryan explicit authorization 2026-08-08 20:57 MYT |
+| **Status** | **ACTIVE (TEMPORARY, REVOCABLE)** |
+
+## D-060 - Alternate Executor Authorization During Codex CLI Unavailability
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-060 |
+| **Date** | 2026-08-08 |
+| **Source** | Bryan explicit authorization (2026-08-08 20:57 MYT) |
+| **Old Rule** | D-058 §5: Phase 8 production implementation = CODEX CLI ONLY; D-048 alternate-executor authorization does NOT carry forward |
+| **New Decision** | While Codex CLI authentication is unavailable (deactivated_workspace HTTP 402 / refresh token revoked; no new Codex sessions can be dispatched), Bryan authorizes OpenClaw-managed independent coding subagents as ALTERNATE EXECUTORS for Phase 8 production implementation (D-048 pattern extended): OpenClaw itself remains PROHIBITED from writing production code; the A→B→C independent implementer/reviewer/verifier model is preserved using separate subagent roles; executor provenance recorded per task; when Codex CLI becomes available again, Codex CLI regains priority as the production executor; no alternate OpenAI account or authentication bypass. |
+| **Reason** | Codex CLI unusable; Phase 8 continuous execution must not stall; Phase 7 precedent D-048 |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md, docs/00-master/EXECUTOR_PROVENANCE_REGISTER.md |
+| **Affected Phases** | Phase 8 (P8-S1 through P8-S10) |
+| **Migration** | NONE |
+| **Approver** | Bryan |
+| **Basis** | Bryan explicit authorization 2026-08-08 20:57 MYT; D-058 §5 exemption clause |
+| **Status** | **ACTIVE (TEMPORARY, REVOCABLE)** |
+
+*End of current entries. New decisions must be appended below.*
