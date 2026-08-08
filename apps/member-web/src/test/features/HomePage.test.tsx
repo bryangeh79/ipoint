@@ -150,39 +150,37 @@ describe('HomePage', () => {
           createdAt: '2024-01-01T00:00:00Z',
         },
       });
-      (globalContentApi.home as ReturnType<typeof vi.fn>).mockResolvedValue(
-        {
-          market_id: 'market-a',
-          as_of: '2026-08-08T00:00:00.000Z',
-          ads: [
-            {
-              public_id: 'ad-1',
-              placement_code: 'HOME_HERO',
-              title: 'Dining week',
-              summary: 'Local offers',
-              creative_media_url: 'https://cdn.example.test/ad.webp',
-              creative_alt_text: 'Dining',
-              target_url: null,
-              is_sponsored: true,
-              sponsor_label: 'Sponsored',
-            },
-          ],
-          articles: [
-            {
-              public_id: 'article-1',
-              slug: 'market-news',
-              title: 'Market news',
-              excerpt: 'Local update',
-              body: 'Body',
-              cover_media_url: null,
-              cover_alt_text: null,
-              is_promoted: true,
-              sponsor_label: 'Promoted',
-              published_at: '2026-08-08T00:00:00.000Z',
-            },
-          ],
-        },
-      );
+      (globalContentApi.home as ReturnType<typeof vi.fn>).mockResolvedValue({
+        market_id: 'market-a',
+        as_of: '2026-08-08T00:00:00.000Z',
+        ads: [
+          {
+            public_id: 'ad-1',
+            placement_code: 'HOME_HERO',
+            title: 'Dining week',
+            summary: 'Local offers',
+            creative_media_url: 'https://cdn.example.test/ad.webp',
+            creative_alt_text: 'Dining',
+            target_url: null,
+            is_sponsored: true,
+            sponsor_label: 'Sponsored',
+          },
+        ],
+        articles: [
+          {
+            public_id: 'article-1',
+            slug: 'market-news',
+            title: 'Market news',
+            excerpt: 'Local update',
+            body: 'Body',
+            cover_media_url: null,
+            cover_alt_text: null,
+            is_promoted: true,
+            sponsor_label: 'Promoted',
+            published_at: '2026-08-08T00:00:00.000Z',
+          },
+        ],
+      });
       renderHomePage(client);
       expect(await screen.findByText('Sponsored')).toBeInTheDocument();
       expect(screen.getByText('Promoted')).toBeInTheDocument();
