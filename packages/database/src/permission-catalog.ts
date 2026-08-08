@@ -567,6 +567,27 @@ export const canonicalPermissionCatalog = [
     { marketScoped: true },
   ),
   permission(
+    'reconciliation.view',
+    'View selected-market reconciliation runs and exception queues.',
+    'Reconciliation',
+    ALL,
+    { marketScoped: true },
+  ),
+  permission(
+    'reconciliation.run',
+    'Create, execute and cancel selected-market reconciliation runs.',
+    'Reconciliation',
+    ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'FINANCE_OPERATOR', 'FINANCE_APPROVER'],
+    { marketScoped: true },
+  ),
+  permission(
+    'reconciliation.exception.manage',
+    'Manage selected-market reconciliation exception lifecycle and notes.',
+    'Reconciliation',
+    ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'FINANCE_OPERATOR', 'FINANCE_APPROVER'],
+    { marketScoped: true },
+  ),
+  permission(
     'audit.read',
     'View allowlisted audit projections.',
     'Platform Access',
