@@ -7,10 +7,10 @@ import {
 import { hasEffectivePermission } from './route-guards.js';
 
 describe('P7-S3A Admin route manifest', () => {
-  it('defines exactly 38 unique stable routes with guard metadata', () => {
-    expect(adminRouteManifest).toHaveLength(38);
-    expect(new Set(adminRouteManifest.map(({ id }) => id)).size).toBe(38);
-    expect(new Set(adminRouteManifest.map(({ path }) => path)).size).toBe(38);
+  it('defines exactly 40 unique stable routes with guard metadata', () => {
+    expect(adminRouteManifest).toHaveLength(40);
+    expect(new Set(adminRouteManifest.map(({ id }) => id)).size).toBe(40);
+    expect(new Set(adminRouteManifest.map(({ path }) => path)).size).toBe(40);
     for (const route of adminRouteManifest) {
       expect(route.path).toMatch(/^\/admin\//u);
       expect(route.loader).toMatch(/^(public|bootstrap|session)$/u);
@@ -30,6 +30,7 @@ describe('P7-S3A Admin route manifest', () => {
       'Overview',
       'People',
       'Commerce',
+      'Content Operations',
       'Reviews',
       'Network',
       'Finance',
@@ -123,6 +124,12 @@ describe('P7-S3A Admin route manifest', () => {
     expect(
       adminRouteManifest.find(({ id }) => id === 'market')?.capabilityGate,
     ).toBeUndefined();
+    expect(adminRouteManifest.find(({ id }) => id === 'ads')?.permission).toBe(
+      'ads.view',
+    );
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'content')?.permission,
+    ).toBe('content.view');
   });
 
   it('keeps hard-gated capabilities discoverable without executable controls', () => {

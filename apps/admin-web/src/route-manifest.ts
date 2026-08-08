@@ -2,6 +2,7 @@ export const navigationGroups = [
   'Overview',
   'People',
   'Commerce',
+  'Content Operations',
   'Reviews',
   'Network',
   'Finance',
@@ -132,6 +133,24 @@ export const adminRouteManifest = [
     'read-only',
     'bootstrap',
     false,
+  ),
+  route(
+    'ads',
+    'Advertising',
+    '/admin/:marketId/ads',
+    'Content Operations',
+    'ads.view',
+    'selected',
+    'read-only',
+  ),
+  route(
+    'content',
+    'News & content',
+    '/admin/:marketId/content',
+    'Content Operations',
+    'content.view',
+    'selected',
+    'read-only',
   ),
   route(
     'member-kyc',
@@ -439,6 +458,8 @@ export type AdminRouteId =
   | 'member-detail'
   | 'merchants'
   | 'merchant-detail'
+  | 'ads'
+  | 'content'
   | 'member-kyc'
   | 'merchant-kyc'
   | 'agents'

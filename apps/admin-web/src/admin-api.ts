@@ -1,5 +1,6 @@
 import {
   AdminAgentOpsApiClient,
+  AdminAdsContentApiClient,
   AdminApiClient,
   AdminAuditOpsApiClient,
   AdminCommissionOpsApiClient,
@@ -153,5 +154,10 @@ export const adminAuditOpsApi = new AdminAuditOpsApiClient(
  * Center §7 prohibits CSV/download export.
  */
 export const adminReportOpsApi = new AdminReportOpsApiClient(
+  new ApiClient(apiBaseUrl),
+);
+
+/** P8-S1 selected-market Ads & Content Operations client. */
+export const adminAdsContentApi = new AdminAdsContentApiClient(
   new ApiClient(apiBaseUrl),
 );
