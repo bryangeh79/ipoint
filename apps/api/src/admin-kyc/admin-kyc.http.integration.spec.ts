@@ -16,8 +16,9 @@ import {
   roleAssignments,
   rolePermissions,
   roles,
+  sessions,
 } from '@ipoint/database';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import type { Server } from 'node:http';
 import supertest from 'supertest';
 import {
@@ -154,21 +155,36 @@ describe.skipIf(!databaseUrl)('Admin KYC HTTP integration', () => {
     return (await auth.login(email, password)).accessToken;
   }
 
-  async function ensureKycReviewPermission(): Promise<string> {
+  /** P7-S2C canonical codes (K-01 fix): the frozen Phase 2 fixture used the
+   * non-canonical `member.kyc.review` code, which the P7-S2 RbacGuard denies
+   * by design (`isCanonicalPermission` = false). The accepted catalog uses
+   * `member.kyc.read` (list/detail) + `member.kyc.decide` (review actions). */
+  async function ensureKycReviewPermissions(): Promise<string[]> {
+    const codes = ['member.kyc.read', 'member.kyc.decide'] as const;
     await database.db
       .insert(permissions)
-      .values({
-        code: 'member.kyc.review',
-        description: 'Review member KYC cases',
-      })
+      .values(
+        codes.map((code) => ({
+          code,
+          description: `${code} integration test permission`,
+        })),
+      )
       .onConflictDoNothing({ target: permissions.code });
-    const rows = await database.db
-      .select({ id: permissions.id })
-      .from(permissions)
-      .where(eq(permissions.code, 'member.kyc.review'))
-      .limit(1);
-    return rows[0]?.id ?? '';
+    const rows = await database.db.select().from(permissions);
+    return rows
+      .filter((row) => codes.includes(row.code as (typeof codes)[number]))
+      .map((row) => row.id);
   }
+
+  const ADMIN_TEMPLATE_ROLE_CODES = [
+    'SUPER_ADMIN',
+    'OPERATIONS_ADMIN',
+    'FINANCE_OPERATOR',
+    'FINANCE_APPROVER',
+    'KYC_REVIEWER',
+    'SUPPORT_READONLY_AUDITOR',
+  ] as const;
+  const roleCodeByPermissionSet = new Map<string, string>();
 
   async function createAdmin(options: {
     marketIds: string[];
@@ -185,21 +201,57 @@ describe.skipIf(!databaseUrl)('Admin KYC HTTP integration', () => {
       })
       .returning({ id: adminUsers.id });
     const adminUserId = adminRows[0]?.id ?? '';
+    // P7-S2C (K-01 fix): an ADMIN-purpose session only resolves when the
+    // admin holds one of the six controlled template roles
+    // (postgres-auth.store findAccessSession hasActiveRole). The frozen
+    // Phase 2 fixture created random-role admins, which the P7-S2A
+    // session policy rejects with 401 ADMIN_ACCESS_REMOVED. Use the
+    // controlled template role codes and pin the role permissions to the
+    // fixture's canonical codes (delete + insert, no role-template drift).
+    const permissionCodes =
+      (options.withKycPermission ?? true)
+        ? ['member.kyc.read', 'member.kyc.decide']
+        : [];
+    const signature = [...permissionCodes].sort().join('|');
+    let roleCode = roleCodeByPermissionSet.get(signature);
+    if (!roleCode) {
+      roleCode =
+        ADMIN_TEMPLATE_ROLE_CODES[
+          roleCodeByPermissionSet.size % ADMIN_TEMPLATE_ROLE_CODES.length
+        ] ?? 'SUPER_ADMIN';
+      roleCodeByPermissionSet.set(signature, roleCode);
+    }
     const roleRows = await database.db
       .insert(roles)
       .values({
-        code: `KYC_${randomUUID().replaceAll('-', '').slice(0, 20)}`,
-        name: 'Admin KYC HTTP Test Role',
+        code: roleCode,
+        name: `Admin KYC HTTP Test Role (${roleCode})`,
         isSystem: false,
       })
+      .onConflictDoNothing({ target: roles.code })
       .returning({ id: roles.id });
-    const roleId = roleRows[0]?.id ?? '';
+    let roleId = roleRows[0]?.id ?? '';
+    if (!roleId) {
+      const existing = await database.db
+        .select({ id: roles.id })
+        .from(roles)
+        .where(eq(roles.code, roleCode))
+        .limit(1);
+      roleId = existing[0]?.id ?? '';
+    }
     await database.db.insert(roleAssignments).values({ adminUserId, roleId });
-    if (options.withKycPermission ?? true) {
-      const permissionId = await ensureKycReviewPermission();
+    const permissionIds =
+      (options.withKycPermission ?? true)
+        ? await ensureKycReviewPermissions()
+        : [];
+    await database.db
+      .delete(rolePermissions)
+      .where(eq(rolePermissions.roleId, roleId));
+    if (permissionIds.length > 0) {
       await database.db
         .insert(rolePermissions)
-        .values({ roleId, permissionId });
+        .values(permissionIds.map((permissionId) => ({ roleId, permissionId })))
+        .onConflictDoNothing();
     }
     if (options.marketIds.length > 0) {
       await database.db
@@ -208,7 +260,47 @@ describe.skipIf(!databaseUrl)('Admin KYC HTTP integration', () => {
           options.marketIds.map((marketId) => ({ adminUserId, marketId })),
         );
     }
-    return { adminUserId, token: await getAccessToken(account.email) };
+    // P7-S2A (K-01 fix): the frozen Phase 2 fixture minted ACCOUNT-purpose
+    // sessions via auth.login, which never satisfy the admin RbacGuard. Use a
+    // real ADMIN-purpose session and bind the server Current Admin Market.
+    const token = (
+      await auth.createAdminSession(account.accountId, adminUserId, {
+        ipAddress: '127.0.0.1',
+        userAgent: 'vitest',
+      })
+    ).accessToken;
+    await bindCurrentAdminMarket(account.accountId, options.marketIds[0]);
+    return { adminUserId, token };
+  }
+
+  /** Bind the server Current Admin Market on the newest active ADMIN session. */
+  async function bindCurrentAdminMarket(
+    accountId: string,
+    marketId: string | undefined,
+  ): Promise<void> {
+    if (!marketId) return;
+    const sessionRows = await database.db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(
+        and(
+          eq(sessions.accountId, accountId),
+          eq(sessions.actorPurpose, 'ADMIN'),
+          isNull(sessions.revokedAt),
+        ),
+      )
+      .orderBy(sessions.createdAt)
+      .limit(1);
+    const sessionId = sessionRows[0]?.id;
+    if (!sessionId) throw new Error('No active ADMIN session for account.');
+    await database.db
+      .update(sessions)
+      .set({
+        currentAdminMarketId: marketId,
+        currentAdminMarketSelectedAt: new Date(),
+        marketContextVersion: 2,
+      })
+      .where(eq(sessions.id, sessionId));
   }
 
   async function createSubmittedCase(marketId: string): Promise<{
@@ -339,9 +431,7 @@ describe.skipIf(!databaseUrl)('Admin KYC HTTP integration', () => {
         .get('/api/v1/admin/kyc/cases')
         .set(authorized(memberToken))
         .expect(403);
-      expect((nonAdmin.body as ErrorBody).error.code).toBe(
-        'AUTH_PERMISSION_DENIED',
-      );
+      expect((nonAdmin.body as ErrorBody).error.code).toBe('PERMISSION_DENIED');
 
       const admin = await createAdmin({
         marketIds: [primaryMarketId],
@@ -352,7 +442,7 @@ describe.skipIf(!databaseUrl)('Admin KYC HTTP integration', () => {
         .set(authorized(admin.token))
         .expect(403);
       expect((missingPermission.body as ErrorBody).error.code).toBe(
-        'AUTH_PERMISSION_DENIED',
+        'PERMISSION_DENIED',
       );
     });
 

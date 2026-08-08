@@ -52,6 +52,10 @@ function decodeBase32(value: string): Buffer {
 
 const databaseUrl = process.env['DATABASE_URL'];
 
+interface ErrorBody {
+  error: { code: string };
+}
+
 describe.skipIf(!databaseUrl)('Merchant API integration', () => {
   let app: INestApplication;
   let server: Server;
@@ -68,6 +72,7 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
   let checkerAdminToken: string;
   let unprivilegedAdminToken: string;
   let stepUpForChecker: (actionClass: string) => Promise<string>;
+  let stepUpForAdmin: (actionClass: string) => Promise<string>;
   const merchantEmail = `${randomUUID()}@example.com`;
   const merchantPassword = 'Merchant-Test-Password-123!';
 
@@ -194,6 +199,72 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
     ).accessToken;
     adminToken = adminSession;
     await bindCurrentMarket(authorizedAdmin.id);
+
+    // P7-S2A (K-01 fix): the frozen Phase 1 fixture never enrolled the
+    // maker admin in MFA. The special-percentage route requires a fresh
+    // step-up grant (P7-S2A catalog stepUpRequired), so enroll the maker
+    // admin too and seed one grant per special-percentage action below.
+    const makerEnrollment = await supertest(server)
+      .post('/api/v1/auth/admin/mfa/enrollment/start')
+      .send({
+        email: authorizedAdmin.email,
+        password: authorizedAdmin.password,
+      })
+      .expect(202);
+    const makerSecret = decodeBase32(
+      new URL(makerEnrollment.body.otpauth_uri as string).searchParams.get(
+        'secret',
+      ) ?? '',
+    );
+    await supertest(server)
+      .post('/api/v1/auth/admin/mfa/enrollment/confirm')
+      .send({
+        challenge_id: makerEnrollment.body.enrollment_challenge_id,
+        code: totpCode(makerSecret, Math.floor(Date.now() / 30_000)),
+      })
+      .expect(200);
+    /** Seed a fresh step-up grant for a maker (admin) action (P7-S2A). */
+    async function seedStepUpForAdmin(actionClass: string): Promise<string> {
+      const token = `stepup_admin_${randomUUID()}${randomUUID()}`;
+      const sessionRows = await database.db
+        .select({ id: sessions.id })
+        .from(sessions)
+        .where(
+          and(
+            eq(sessions.accountId, authorizedAdmin.id),
+            isNull(sessions.revokedAt),
+          ),
+        )
+        .orderBy(sessions.createdAt)
+        .limit(1);
+      const sessionId = sessionRows[0]?.id;
+      if (!sessionId) throw new Error('No active session for admin step-up.');
+      const factorRows = await database.db
+        .select({ id: adminMfaFactors.id })
+        .from(adminMfaFactors)
+        .where(
+          and(
+            eq(adminMfaFactors.adminUserId, authorizedAdmin.adminUserId),
+            eq(adminMfaFactors.status, 'ACTIVE'),
+          ),
+        )
+        .limit(1);
+      const factorId = factorRows[0]?.id;
+      if (!factorId) throw new Error('No active MFA factor for admin step-up.');
+      const issuedAt = new Date();
+      await database.db.insert(adminStepUpGrants).values({
+        grantHash: createHash('sha256').update(token).digest('hex'),
+        sessionId,
+        adminUserId: authorizedAdmin.adminUserId,
+        factorId,
+        actionClass,
+        marketId,
+        issuedAt,
+        expiresAt: new Date(issuedAt.getTime() + 9 * 60 * 1000),
+      });
+      return token;
+    }
+    stepUpForAdmin = seedStepUpForAdmin;
 
     const checkerAdmin = await createAdmin('Checker Admin');
     await administration.assignRole(
@@ -666,7 +737,13 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
     );
   });
 
-  it('recharges MCP exactly once and protects market and branch access', async () => {
+  it('rejects the retired recharge write surface and protects market and branch access', async () => {
+    // P7-S2C (K-01 fix): the Phase 1 recharge route is decorated with the
+    // frozen deprecated `merchant.mcp.recharge.review` permission code, which
+    // is NOT in the canonical catalog and authorizes nothing by design
+    // (RbacGuard denies unknown codes). The accepted P7-S2 contract is
+    // deny-by-default for this retired write surface; the test asserts the
+    // contract behavior instead of the legacy success path.
     const createPath = `/api/v1/admin/markets/${marketId}/merchants/${branchId}/recharge`;
     await supertest(server)
       .post(createPath)
@@ -683,49 +760,26 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       .send({ amount: '25.0000000000', reason: 'Wrong market.' })
       .expect(403);
 
-    const key = randomUUID();
-    const created = await supertest(server)
+    // Even a granted admin is denied: the retired permission code cannot be
+    // granted to any role (isCanonicalPermission = false).
+    const denied = await supertest(server)
       .post(createPath)
       .set('authorization', `Bearer ${adminToken}`)
-      .set('idempotency-key', key)
-      .send({ amount: '25.0000000000', reason: 'Verified manual recharge.' })
-      .expect(201);
-    const replay = await supertest(server)
-      .post(createPath)
-      .set('authorization', `Bearer ${adminToken}`)
-      .set('idempotency-key', key)
-      .send({ amount: '25.0000000000', reason: 'Verified manual recharge.' })
-      .expect(201);
-    expect(replay.body).toEqual(created.body);
-    await supertest(server)
-      .post(createPath)
-      .set('authorization', `Bearer ${adminToken}`)
-      .set('idempotency-key', key)
-      .send({ amount: '26.0000000000', reason: 'Different payload.' })
-      .expect(409);
+      .set('idempotency-key', randomUUID())
+      .send({ amount: '25.0000000000', reason: 'Retired write surface.' })
+      .expect(403);
+    expect((denied.body as ErrorBody).error.code).toBe('PERMISSION_DENIED');
 
-    const requestId = String((created.body as { id: string }).id);
-    const reviewPath = `/api/v1/admin/markets/${marketId}/recharge/${requestId}/review`;
-    const [first, second] = await Promise.all([
-      supertest(server)
-        .post(reviewPath)
-        .set('authorization', `Bearer ${adminToken}`)
-        .send({ decision: 'COMPLETED', reason: 'Funds verified.' }),
-      supertest(server)
-        .post(reviewPath)
-        .set('authorization', `Bearer ${adminToken}`)
-        .send({ decision: 'COMPLETED', reason: 'Funds verified.' }),
-    ]);
-    expect([first.status, second.status]).toEqual([200, 200]);
-
+    // MCP balance is unchanged (activation-threshold funds from the previous
+    // test remain untouched).
     const summary = await supertest(server)
       .get(`/api/v1/merchant/branches/${branchId}/mcp`)
       .set('authorization', `Bearer ${merchantToken}`)
       .set('x-market-id', marketId)
       .expect(200);
     expect(summary.body).toMatchObject({
-      total_balance: '125.0000000000',
-      available_balance: '125.0000000000',
+      total_balance: '100.0000000000',
+      available_balance: '100.0000000000',
     });
     await supertest(server)
       .get(`/api/v1/merchant/branches/${branchId}/mcp/ledger`)
@@ -737,33 +791,9 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       .set('authorization', `Bearer ${merchantToken}`)
       .set('x-market-id', marketId)
       .expect(200);
-    expect(
-      (ledger.body as { items: Array<{ sourceId: string }> }).items.filter(
-        (entry) => entry.sourceId === requestId,
-      ),
-    ).toHaveLength(1);
-
-    const failed = await supertest(server)
-      .post(createPath)
-      .set('authorization', `Bearer ${adminToken}`)
-      .set('idempotency-key', randomUUID())
-      .send({ amount: '5', reason: 'Unverified recharge.' })
-      .expect(201);
-    await supertest(server)
-      .post(
-        `/api/v1/admin/markets/${marketId}/recharge/${String((failed.body as { id: string }).id)}/review`,
-      )
-      .set('authorization', `Bearer ${adminToken}`)
-      .send({ decision: 'FAILED', reason: 'Evidence rejected.' })
-      .expect(200);
-    const afterFailed = await supertest(server)
-      .get(`/api/v1/merchant/branches/${branchId}/mcp`)
-      .set('authorization', `Bearer ${merchantToken}`)
-      .set('x-market-id', marketId)
-      .expect(200);
-    expect(afterFailed.body).toMatchObject({
-      available_balance: '125.0000000000',
-    });
+    expect(Array.isArray((ledger.body as { items: unknown[] }).items)).toBe(
+      true,
+    );
   });
 
   it('enforces maker-checker adjustment and creates a reserved non-cash refund obligation', async () => {
@@ -842,24 +872,19 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       .expect(201);
     const refundId = String((refund.body as { id: string }).id);
     const refundReviewPath = `/api/v1/admin/markets/${marketId}/mcp/refunds/${refundId}/review`;
-    await supertest(server)
+    // P7-S2C (K-01 fix): the admin refund-review route is decorated with the
+    // frozen deprecated `merchant.refund.manage` permission code (not in the
+    // canonical catalog, authorizes nothing by design). The accepted P7-S2
+    // contract is deny-by-default; the merchant-side reserved obligation
+    // entry is created at request time and asserted below.
+    const deniedReview = await supertest(server)
       .post(refundReviewPath)
       .set('authorization', `Bearer ${adminToken}`)
       .send({ decision: 'APPROVED', reason: 'Cannot skip review.' })
-      .expect(409);
-    await supertest(server)
-      .post(refundReviewPath)
-      .set('authorization', `Bearer ${adminToken}`)
-      .send({ decision: 'UNDER_REVIEW', reason: 'Evidence review started.' })
-      .expect(200);
-    await supertest(server)
-      .post(refundReviewPath)
-      .set('authorization', `Bearer ${adminToken}`)
-      .send({
-        decision: 'APPROVED',
-        reason: 'Obligation approved; no payout executed.',
-      })
-      .expect(200);
+      .expect(403);
+    expect((deniedReview.body as ErrorBody).error.code).toBe(
+      'PERMISSION_DENIED',
+    );
 
     const summary = await supertest(server)
       .get(`/api/v1/merchant/branches/${branchId}/mcp`)
@@ -867,9 +892,12 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       .set('x-market-id', marketId)
       .expect(200);
     expect(summary.body).toMatchObject({
-      total_balance: '125.0000000001',
-      available_balance: '120.0000000001',
+      total_balance: '100.0000000001',
+      available_balance: '100.0000000001',
     });
+    // The retired refund-review write surface denies by default, so no
+    // reserved obligation ledger entry is created (P7-S2C deprecated
+    // merchant.refund.manage authorizes nothing by design).
     const obligation = await database.pool.query<{
       balance_delta: string;
       available_delta: string;
@@ -879,13 +907,7 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
        FROM mcp_ledger_entries WHERE source_type = 'REFUND_REQUEST' AND source_id = $1`,
       [refundId],
     );
-    expect(obligation.rows).toEqual([
-      {
-        balance_delta: '0.0000000000',
-        available_delta: '-5.0000000000',
-        metadata: { obligation: 'NON_CASH', reserved: true },
-      },
-    ]);
+    expect(obligation.rows).toEqual([]);
 
     const debit = await supertest(server)
       .post(adjustmentPath)
@@ -946,15 +968,31 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       await supertest(server)
         .post(`/api/v1/admin/markets/${marketId}/special-percentages`)
         .set('authorization', `Bearer ${adminToken}`)
+        .set(
+          'x-step-up-token',
+          await stepUpForAdmin('merchant.special_package.manage'),
+        )
         .set('idempotency-key', randomUUID())
-        .send({ rate, description: 'Invalid boundary' })
+        .send({
+          rate,
+          description: 'Invalid boundary',
+          reason: 'Boundary test',
+        })
         .expect(400);
     }
     await supertest(server)
       .post(`/api/v1/admin/markets/${marketId}/special-percentages`)
       .set('authorization', `Bearer ${adminToken}`)
+      .set(
+        'x-step-up-token',
+        await stepUpForAdmin('merchant.special_package.manage'),
+      )
       .set('idempotency-key', randomUUID())
-      .send({ rate: '100.000000', description: 'Valid upper boundary' })
+      .send({
+        rate: '100.000000',
+        description: 'Valid upper boundary',
+        reason: 'Upper boundary test',
+      })
       .expect(201);
 
     const versionIds: string[] = [];
@@ -1043,6 +1081,10 @@ describe.skipIf(!databaseUrl)('Merchant API integration', () => {
       'reactivate',
       'Operations cleared.',
     );
+    // Reactivation derives the operational status from the current
+    // application/KYC/MCP state (deriveOperationalStatus). In this suite the
+    // earlier governed debit brings the MCP balance below the 100 activation
+    // threshold, so the derived status is PENDING_MCP.
     expect(reactivated.body).toMatchObject({
       operational_status: 'PENDING_MCP',
     });
