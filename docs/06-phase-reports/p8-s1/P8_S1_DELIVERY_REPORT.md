@@ -91,7 +91,7 @@ The final documentation commit contains this report and the executor-provenance 
 - Added tables: `ad_placements`, `ad_fee_configs`, `ads`, `content_articles`, `ads_content_idempotency_keys`.
 - Added permissions and controlled-role assignments in the same forward migration.
 - Existing migrations `0000`-`0036` were not edited.
-- Checksum evidence: 38 migration files, 38 manifest entries, zero calculated SHA-256 mismatches. Migration 0037 checksum: `e56d2478e50f3e5500a4853a3a4d947ed7815438abe09b8a7b2216eb9aab79e6`.
+- Checksum evidence: 38 migration files, 38 manifest entries, zero calculated SHA-256 mismatches. Migration 0037 checksum: `e56d2478e50f3e5500a4853a3a4d947ed7815438abe09b8a7b2216eb9aab79e6`. **Updated by the repair revision (A')**: L-01 added an immutability guard to 0037; the recomputed 0037 checksum is now `375192c6b0243293da37e86d3ed857a56dcc11b31906ecfc1348875e49089c77` and `checksums.json` (38/38) matches it (see section 12).
 - Rollback policy: forward-only. Roll back application exposure by deploying the prior application commit; leave additive tables, enums and historical/audit data intact. Do not physically delete domain history. A destructive schema rollback would require a separately approved backup/restore procedure and is not supplied by P8-S1.
 - Fresh-DB execution completed against the dedicated `ipoint_p8s1_migration_test` database in `ipoint-postgres-1` (`127.0.0.1:55432`): the database was verified by exact name, recreated empty, migrated through all 38 files, and queried with `migration_count = 38` and latest filename `0037_ads_content_operations.sql`.
 - `pnpm --config.script-shell= --filter @ipoint/database db:checksum` passed: `Verified 38 immutable migration checksum(s).`
@@ -157,3 +157,59 @@ C-11 is implemented as an isolated, market-scoped, effective-time, status-contro
 ## 11. Next required step
 
 Hand the real commit chain and this evidence to independent Reviewer B and Verifier C. The verifier should preserve the green P8-S1 isolated fresh-DB run and separately address repository-wide API suite environment/database orchestration without rewriting frozen owners.
+
+## 12. Repair revision (A') - independent review findings fixes
+
+Executor: OpenClaw subagent (repair implementer A', replacing the unavailable Codex Session A for this repair). The fixes below are uncommitted working-tree changes on `task/p8-s1-ads-content`; the main agent commits/pushes them.
+
+### 12.1 H-01 - fail-closed destructive fresh-database guard
+
+- File: `apps/api/src/ads-content/ads-content.integration.spec.ts`.
+- The suite previously dropped the database named by `DATABASE_URL` without protection. It is now fail-closed by construction: `testDatabaseName()` accepts only names matching `^ipoint_p8s1_[a-z0-9_]{1,63}$`, explicitly rejects protected names (`postgres`, `template0`, `template1`), and returns null for malformed/arbitrary URLs; `destructiveTestOptIn()` requires the explicit `P8S1_DESTRUCTIVE_TEST=1` environment opt-in. `beforeAll` throws a descriptive error when either check fails, before any connection opens.
+- Added a guard `describe` block (runs without PostgreSQL) covering allowlisted names, protected names, arbitrary/malformed names, and the opt-in matrix.
+- **Session C note**: run this suite with `DATABASE_URL` pointing at a dedicated `ipoint_p8s1_*` database and `P8S1_DESTRUCTIVE_TEST=1`.
+
+### 12.2 H-02 - explicit-UTC schedule semantics in Admin scheduling
+
+- New file: `apps/admin-web/src/ads-content-schedule.ts`; updated `apps/admin-web/src/ads-content-page.tsx`.
+- `datetime-local` values are now parsed as explicit UTC (`Date.UTC` from the raw `YYYY-MM-DDTHH:mm` control value) instead of `new Date(text).toISOString()` (which interpreted them in the browser local timezone, shifting e.g. Kuala Lumpur 12:00 to 04:00Z). `localControlFromUtc()` renders the UTC clock value for the "(UTC)" labelled controls; the create/edit round trip is byte-identical for an unchanged schedule.
+- Added `apps/admin-web/src/ads-content-schedule.test.ts` with non-UTC round-trip coverage (including a `TZ=Asia/Kuala_Lumpur` block), midnight/edge instants, and malformed/empty handling.
+
+### 12.3 M-01 - cross-market contract alignment (recorded per OpenClaw decision)
+
+- OpenClaw contract decision: P8-S1 Admin routes correctly use the frozen Phase 7 canonical market guard, whose frozen (P6-R2) semantics are HTTP **409 `MARKET_CONTEXT_MISMATCH`** when the selected-market URL does not match the server Current Admin Market. The frozen guard was **not** rewritten.
+- HTTP **403** remains reserved for cross-market resource detail queries (`ADS_CONTENT_MARKET_MISMATCH` for a foreign-market ad/article identifier).
+- The integration suite already asserts both: selected-market URL mismatch -> 409 `MARKET_CONTEXT_MISMATCH`, foreign resource detail -> 403. No code change was required; this section records the contract alignment so the frozen P8-S1 criterion (Task Brief 4.5/6) is satisfied by the canonical 409 semantics.
+
+### 12.4 M-02 - explicit nonblank sponsor label
+
+- File: `apps/api/src/ads-content/ads-content.dto.ts`: removed the server-side `.default('Sponsored')`; `sponsorLabel` is now a required nonblank field. A UI may prefill a localized suggestion (the Admin editor still prefills), but the submitted API field must be explicit.
+- Updated `apps/api/src/ads-content/ads-content.dto.spec.ts` (omitted/blank labels rejected) and added HTTP 400 tests (missing and blank label) to the integration suite.
+
+### 12.5 M-03 - update-time schedule/status invariants
+
+- File: `apps/api/src/ads-content/ads-content.service.ts`: `updateAd` and `updateArticle` now validate the **merged** schedule window against the current status inside the locked update transaction (new `assertWindowForStatus`, also used by transitions): ACTIVE cannot be edited to a future start or a past end; SCHEDULED cannot retain its status with a past start; EXPIRED cannot retain a future end. DRAFT and PAUSED remain unconstrained.
+- Added integration coverage for ACTIVE, SCHEDULED and EXPIRED ads **and** articles: invalid edits return 400, valid edits succeed, and the ACTIVE records are paused afterwards so member reads stay stable.
+
+### 12.6 M-04 - Content page works with `content.view` alone
+
+- File: `apps/admin-web/src/ads-content-page.tsx`: `refresh()` fetches `placements()` only in Ads mode. Content mode never calls the `ads.view`-gated placements endpoint, so a least-privilege `content.view`-only Admin can load the Content page.
+- Added tests in `apps/admin-web/src/ads-content-page.test.tsx`: a `content.view`-only session renders the Content page and `placements` is never called; full-permission Content mode also never calls `placements`.
+
+### 12.7 M-05 - bounded Member Home projection
+
+- File: `apps/api/src/ads-content/ads-content.service.ts`: `memberHome()` now excludes `article body` from the projection and caps both ads and articles with `MEMBER_HOME_CONTENT_LIMIT = 10` (approved structural limit, discovery/home style). Article detail remains an Admin surface; a member article-detail endpoint is deferred until a consumer needs it.
+- Types updated in `apps/api/src/ads-content/ads-content.types.ts` and `packages/api-client/src/index.ts` (`MemberHomeContentDto.articles` no longer carries `body`); member-web Home fixture aligned in `apps/member-web/src/test/features/HomePage.test.tsx` (Home renders title/excerpt only).
+- Added integration coverage: 12 ACTIVE ads + 12 ACTIVE articles inserted -> home returns exactly 10 each and no article payload contains `body`.
+
+### 12.8 L-01 - C-11 fee version immutability guard
+
+- File: `packages/database/migrations/0037_ads_content_operations.sql`: added `reject_ad_fee_config_update()` + `ad_fee_configs_reject_update` BEFORE UPDATE trigger - a fee version is now write-once (insert a new market/version row instead). Existing delete rejection and the no-default/no-debit posture are unchanged.
+- Because 0037 changed, its checksum was recomputed: `375192c6b0243293da37e86d3ed857a56dcc11b31906ecfc1348875e49089c77`; `packages/database/migrations/checksums.json` updated (still 38/38, independent SHA-256 verification matches).
+- Remaining pre-enablement work (flagged, not implemented): a full audited owner/status-history model with effective-window conflict control for fee configs, required before any fee management or billing is enabled.
+
+### 12.9 Repair scope and verification
+
+- Changed files (repair): `apps/api/src/ads-content/ads-content.integration.spec.ts`, `apps/api/src/ads-content/ads-content.dto.ts`, `apps/api/src/ads-content/ads-content.dto.spec.ts`, `apps/api/src/ads-content/ads-content.service.ts`, `apps/api/src/ads-content/ads-content.types.ts`, `apps/admin-web/src/ads-content-page.tsx`, `apps/admin-web/src/ads-content-page.test.tsx`, `apps/admin-web/src/ads-content-schedule.ts` (new), `apps/admin-web/src/ads-content-schedule.test.ts` (new), `apps/member-web/src/test/features/HomePage.test.tsx`, `packages/api-client/src/index.ts`, `packages/database/migrations/0037_ads_content_operations.sql`, `packages/database/migrations/checksums.json`, this report.
+- No frozen Phase 1-7 owner code and no migration 0000-0036 were modified. No test was deleted, no placeholder/secret introduced.
+- The repair implementer could not run git, builds or tests in the sandbox; the main agent executes typecheck/build/test/OpenAPI/drift verification on the host. Session C should rerun: migration/checksum/drift (38/38), the P8-S1 real-PostgreSQL suite against an allowlisted `ipoint_p8s1_*` database with `P8S1_DESTRUCTIVE_TEST=1`, OpenAPI validation, Admin/Member web suites (including the new non-UTC scheduling and content-only permission tests), and affected RBAC regressions.
