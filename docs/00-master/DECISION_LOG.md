@@ -1678,3 +1678,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Status** | **PHASE_7_ACCEPTED / COMPLETE / CLOSED / FROZEN** |
 
 *End of current entries. New decisions must be appended below.*
+
+## D-058 - Phase 8 Final Consolidated Delivery Authorization
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-058 |
+| **Date** | 2026-08-08 |
+| **Source** | ChatGPT Command Center - D-058 PHASE 8 FINAL CONSOLIDATED DELIVERY AUTHORIZATION |
+| **Old Rule** | Phase 7 ACCEPTED / COMPLETE / CLOSED / FROZEN under D-057 (technical baseline `b7b0d260`); Phase 8 NOT_AUTHORIZED; old roadmap kept Phase 8 (Ads/Content), Phase 9 (Reporting/Risk/Audit), Phase 10 (Full Integration/E2E), Phase 11 (Security/Performance/Production Readiness) as separate future phases |
+| **New Decision** | **PHASE_8_AUTHORIZED / PHASE_8_CONTINUOUS_EXECUTION_AUTHORIZED / P8-S0_THROUGH_P8-S10_AUTHORIZED**. Phase 8 = **FINAL ENGINEERING PHASE** for iPoint V1 - **FINAL DELIVERY & PRODUCTION READINESS**. Old Phase 8 (Ads/Content), Phase 9 (Advanced Reconciliation / Risk / Fraud / Advanced Reporting), Phase 10 (Final Cross-Platform Integration / Production E2E / Consistency) and Phase 11 (Readiness / Load / Backup / Monitoring / UAT / Deployment Preparation) are CONSOLIDATED into Phase 8. Phase 12 = **DEFERRED FUTURE BACKLOG** (NOT required for iPoint V1 engineering completion). Phase 8 branch `phase/8-final-delivery-readiness` created from `39787e127cde0f6f23b1a27a26292cc31e672065` (D-057 governance head; `b7b0d260` remains the frozen Phase 7 TECHNICAL baseline in its ancestry). D-058 supersedes D-057 only as the CURRENT AUTHORIZED PHASE decision; it does NOT invalidate D-057 or unfreeze Phase 7. Continuous execution authorized: P8-S0 → P8-S1 → P8-S2 → P8-S3 → P8-S4 → P8-S5 → P8-S6 → P8-S7 → P8-S8 → P8-S9 → P8-S10 without per-subphase returns; P8-S0 decomposition requires NO further Command Center confirmation. Executor: **CODEX CLI ONLY** for production implementation (NO DeepSeek production coding subagents, NO generic OpenClaw coding subagents, NO unidentified agents unless Bryan/Command Center issues new authorization; Phase 7 D-048 alternate executor authorization does NOT carry forward). OpenClaw role: PROJECT GM / DISPATCHER / COORDINATOR / INTEGRATION GATE MANAGER - MUST NOT directly write Phase 8 production code. High-risk A/B/C model (Codex A implementer → Codex B independent reviewer → Codex C independent verifier) applies to: financial ledger/reconciliation, reward, commission, redemption, refund, Maker/Checker, migration, security, permissions, cross-market isolation, concurrency, backup/restore, production-readiness controls. Repair policy: routine failures/review findings repaired without Command Center return; Critical/High bounded repair round 1 → independent review/verification → bounded repair round 2 → independent review/verification; only after two failed safe bounded repair rounds does a Critical security problem become a Command Center blocker. Opening baseline: tracked modifications 0; untracked **119** (official P8-S0 opening observed baseline; supersedes the Phase 7 102 historical count; DO NOT delete/clean/bulk-add/silently track/force count back to 102; P8-S0 classifies only; actual secret exposure = TRUE BLOCKER). P8-S0 computes evidence-based opening SELLABLE_DELIVERABLE_PROGRESS and PRODUCTION_READY_V1_PROGRESS values; final targets 100% each with truthful reporting. Final gate condition: 0 unresolved CRITICAL / 0 unresolved HIGH. |
+| **Reason** | Command Center formally authorized Phase 8 as the final engineering phase for iPoint V1, consolidating old Phases 8-11; verified starting state (governance HEAD `39787e12`, Phase 7 accepted technical baseline `b7b0d260`, main `69240bf8` unchanged, D-057 exists remotely - no second D-057 created, no Phase 7 baseline rewrite). |
+| **Affected Files** | docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S0 through P8-S10), old Phase 8/9/10/11 (consolidated), Phase 12 (deferred future backlog) |
+| **Migration** | NONE (governance-only commit; Phase 7 technical baseline `b7b0d260` unchanged; checksums 37/37) |
+| **Approver** | ChatGPT Command Center |
+| **Basis** | D-058 PHASE 8 FINAL CONSOLIDATED DELIVERY AUTHORIZATION (2026-08-08); D-057 NOT rewritten; Phase 7 remains frozen |
+| **Status** | **AUTHORIZED / CONTINUOUS EXECUTION AUTHORIZED** |
+
+*End of current entries. New decisions must be appended below.*
