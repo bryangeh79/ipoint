@@ -142,6 +142,44 @@ export const adFeeConfigStatus = pgEnum('ad_fee_config_status', [
   'EXPIRED',
   'ARCHIVED',
 ]);
+
+/** P8-S2 advanced financial reconciliation enums. */
+export const reconciliationKind = pgEnum('reconciliation_kind', [
+  'MCP',
+  'IPOINT',
+  'TRANSACTION_LEDGER',
+  'COMMISSION',
+  'REFUND',
+  'REDEMPTION',
+]);
+export const reconciliationRunStatus = pgEnum('reconciliation_run_status', [
+  'PENDING',
+  'RUNNING',
+  'COMPLETED',
+  'FAILED',
+  'CANCELLED',
+]);
+export const reconciliationExceptionStatus = pgEnum(
+  'reconciliation_exception_status',
+  ['OPEN', 'ACKNOWLEDGED', 'RESOLVED', 'CLOSED'],
+);
+export const reconciliationExceptionClassification = pgEnum(
+  'reconciliation_exception_classification',
+  [
+    'AMOUNT_MISMATCH',
+    'MISSING_EXPECTED',
+    'UNEXPECTED_EXTRA',
+    'REFERENCE_MISMATCH',
+    'STATUS_MISMATCH',
+    'LEDGER_INVARIANT_VIOLATION',
+  ],
+);
+export const reconciliationItemStatus = pgEnum('reconciliation_item_status', [
+  'MATCHED',
+  'MISMATCHED',
+  'MISSING',
+  'UNEXPECTED',
+]);
 export const mcpDirection = pgEnum('mcp_direction', ['CREDIT', 'DEBIT']);
 export const mcpAccountStatus = pgEnum('mcp_account_status', [
   'ACTIVE',
@@ -4463,6 +4501,274 @@ export const adsContentIdempotencyKeys = pgTable(
   ],
 );
 
+/**
+ * P8-S2 Advanced Financial Reconciliation. Detection + review + traceability
+ * only: these tables are the reconciliation domain's own record. Frozen
+ * ledgers/balances/orders are read, never written, by this domain.
+ */
+export const reconciliationRuns = pgTable(
+  'reconciliation_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    publicId: uuid('public_id').notNull().defaultRandom(),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    kind: reconciliationKind('kind').notNull(),
+    status: reconciliationRunStatus('status').notNull().default('PENDING'),
+    windowStartAt: utcTimestamp('window_start_at').notNull(),
+    windowEndAt: utcTimestamp('window_end_at').notNull(),
+    expectedTotal: numeric('expected_total', {
+      precision: 38,
+      scale: 10,
+    }),
+    actualTotal: numeric('actual_total', { precision: 38, scale: 10 }),
+    differenceTotal: numeric('difference_total', {
+      precision: 38,
+      scale: 10,
+    }),
+    matchedCount: integer('matched_count'),
+    mismatchedCount: integer('mismatched_count'),
+    exceptionCount: integer('exception_count'),
+    summary: jsonb('summary'),
+    failureReason: text('failure_reason'),
+    startedAt: utcTimestamp('started_at'),
+    completedAt: utcTimestamp('completed_at'),
+    failedAt: utcTimestamp('failed_at'),
+    cancelledAt: utcTimestamp('cancelled_at'),
+    runByAdminUserId: uuid('run_by_admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+    archivedAt: utcTimestamp('archived_at'),
+  },
+  (table) => [
+    unique('reconciliation_runs_public_id_unique').on(table.publicId),
+    unique('reconciliation_runs_id_market_unique').on(table.id, table.marketId),
+    check(
+      'reconciliation_runs_window_check',
+      sql`${table.windowEndAt} > ${table.windowStartAt}`,
+    ),
+    check('reconciliation_runs_version_check', sql`${table.version} > 0`),
+    check(
+      'reconciliation_runs_totals_check',
+      sql`(${table.status} = 'COMPLETED' and ${table.expectedTotal} is not null and ${table.actualTotal} is not null and ${table.differenceTotal} is not null and ${table.matchedCount} is not null and ${table.mismatchedCount} is not null and ${table.exceptionCount} is not null) or (${table.status} <> 'COMPLETED')`,
+    ),
+    check(
+      'reconciliation_runs_timestamps_check',
+      sql`(${table.status} = 'PENDING' and ${table.startedAt} is null and ${table.completedAt} is null and ${table.failedAt} is null and ${table.cancelledAt} is null) or (${table.status} = 'RUNNING' and ${table.startedAt} is not null and ${table.completedAt} is null and ${table.failedAt} is null and ${table.cancelledAt} is null) or (${table.status} = 'COMPLETED' and ${table.startedAt} is not null and ${table.completedAt} is not null and ${table.failedAt} is null and ${table.cancelledAt} is null) or (${table.status} = 'FAILED' and ${table.startedAt} is not null and ${table.failedAt} is not null and ${table.completedAt} is null and ${table.cancelledAt} is null) or (${table.status} = 'CANCELLED' and ${table.cancelledAt} is not null and ${table.completedAt} is null and ${table.failedAt} is null)`,
+    ),
+    check(
+      'reconciliation_runs_failure_reason_check',
+      sql`(${table.status} = 'FAILED' and char_length(btrim(coalesce(${table.failureReason}, ''))) between 1 and 2000) or (${table.status} <> 'FAILED')`,
+    ),
+    check(
+      'reconciliation_runs_archive_check',
+      sql`${table.archivedAt} is null or ${table.archivedAt} >= ${table.createdAt}`,
+    ),
+    index('reconciliation_runs_market_kind_status_idx').on(
+      table.marketId,
+      table.kind,
+      table.status,
+      table.createdAt,
+    ),
+    index('reconciliation_runs_market_window_idx').on(
+      table.marketId,
+      table.windowStartAt,
+      table.windowEndAt,
+    ),
+  ],
+);
+
+export const reconciliationRunItems = pgTable(
+  'reconciliation_run_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id').notNull(),
+    marketId: uuid('market_id').notNull(),
+    referenceType: varchar('reference_type', { length: 40 }).notNull(),
+    referenceId: text('reference_id').notNull(),
+    status: reconciliationItemStatus('status').notNull(),
+    expectedAmount: numeric('expected_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    actualAmount: numeric('actual_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    differenceAmount: numeric('difference_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    evidence: jsonb('evidence').notNull(),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('reconciliation_run_items_id_market_unique').on(
+      table.id,
+      table.marketId,
+    ),
+    foreignKey({
+      columns: [table.runId, table.marketId],
+      foreignColumns: [reconciliationRuns.id, reconciliationRuns.marketId],
+      name: 'reconciliation_run_items_run_market_fk',
+    }).onDelete('restrict'),
+    unique('reconciliation_run_items_reference_unique').on(
+      table.runId,
+      table.marketId,
+      table.referenceType,
+      table.referenceId,
+    ),
+    check(
+      'reconciliation_run_items_ref_type_check',
+      sql`char_length(btrim(${table.referenceType})) between 1 and 40`,
+    ),
+    check(
+      'reconciliation_run_items_ref_id_check',
+      sql`char_length(btrim(${table.referenceId})) between 1 and 120`,
+    ),
+    check(
+      'reconciliation_run_items_evidence_check',
+      sql`jsonb_typeof(${table.evidence}) = 'object'`,
+    ),
+    index('reconciliation_run_items_run_status_idx').on(
+      table.runId,
+      table.status,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const reconciliationExceptions = pgTable(
+  'reconciliation_exceptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id').notNull(),
+    marketId: uuid('market_id').notNull(),
+    kind: reconciliationKind('kind').notNull(),
+    referenceType: varchar('reference_type', { length: 40 }).notNull(),
+    referenceId: text('reference_id').notNull(),
+    expectedAmount: numeric('expected_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    actualAmount: numeric('actual_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    differenceAmount: numeric('difference_amount', {
+      precision: 38,
+      scale: 10,
+    }).notNull(),
+    classification:
+      reconciliationExceptionClassification('classification').notNull(),
+    status: reconciliationExceptionStatus('status').notNull().default('OPEN'),
+    investigationNotes: text('investigation_notes'),
+    acknowledgedByAdminUserId: uuid('acknowledged_by_admin_user_id').references(
+      () => adminUsers.id,
+      { onDelete: 'restrict' },
+    ),
+    acknowledgedAt: utcTimestamp('acknowledged_at'),
+    resolvedByAdminUserId: uuid('resolved_by_admin_user_id').references(
+      () => adminUsers.id,
+      { onDelete: 'restrict' },
+    ),
+    resolvedAt: utcTimestamp('resolved_at'),
+    closedByAdminUserId: uuid('closed_by_admin_user_id').references(
+      () => adminUsers.id,
+      { onDelete: 'restrict' },
+    ),
+    closedAt: utcTimestamp('closed_at'),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+    archivedAt: utcTimestamp('archived_at'),
+  },
+  (table) => [
+    unique('reconciliation_exceptions_id_market_unique').on(
+      table.id,
+      table.marketId,
+    ),
+    foreignKey({
+      columns: [table.runId, table.marketId],
+      foreignColumns: [reconciliationRuns.id, reconciliationRuns.marketId],
+      name: 'reconciliation_exceptions_run_market_fk',
+    }).onDelete('restrict'),
+    unique('reconciliation_exceptions_run_reference_unique').on(
+      table.runId,
+      table.marketId,
+      table.referenceType,
+      table.referenceId,
+    ),
+    check(
+      'reconciliation_exceptions_ref_type_check',
+      sql`char_length(btrim(${table.referenceType})) between 1 and 40`,
+    ),
+    check(
+      'reconciliation_exceptions_ref_id_check',
+      sql`char_length(btrim(${table.referenceId})) between 1 and 120`,
+    ),
+    check('reconciliation_exceptions_version_check', sql`${table.version} > 0`),
+    check(
+      'reconciliation_exceptions_notes_check',
+      sql`${table.investigationNotes} is null or char_length(${table.investigationNotes}) between 1 and 10000`,
+    ),
+    check(
+      'reconciliation_exceptions_timestamps_check',
+      sql`(${table.status} = 'OPEN' and ${table.acknowledgedByAdminUserId} is null and ${table.acknowledgedAt} is null and ${table.resolvedByAdminUserId} is null and ${table.resolvedAt} is null and ${table.closedByAdminUserId} is null and ${table.closedAt} is null) or (${table.status} = 'ACKNOWLEDGED' and ${table.acknowledgedByAdminUserId} is not null and ${table.acknowledgedAt} is not null and ${table.resolvedByAdminUserId} is null and ${table.resolvedAt} is null and ${table.closedByAdminUserId} is null and ${table.closedAt} is null) or (${table.status} = 'RESOLVED' and ${table.acknowledgedByAdminUserId} is not null and ${table.acknowledgedAt} is not null and ${table.resolvedByAdminUserId} is not null and ${table.resolvedAt} is not null and ${table.closedByAdminUserId} is null and ${table.closedAt} is null) or (${table.status} = 'CLOSED' and ${table.acknowledgedByAdminUserId} is not null and ${table.acknowledgedAt} is not null and ${table.resolvedByAdminUserId} is not null and ${table.resolvedAt} is not null and ${table.closedByAdminUserId} is not null and ${table.closedAt} is not null)`,
+    ),
+    check(
+      'reconciliation_exceptions_archive_check',
+      sql`${table.archivedAt} is null or ${table.archivedAt} >= ${table.createdAt}`,
+    ),
+    index('reconciliation_exceptions_market_status_idx').on(
+      table.marketId,
+      table.status,
+      table.createdAt,
+    ),
+    index('reconciliation_exceptions_run_idx').on(table.runId, table.createdAt),
+  ],
+);
+
+export const reconciliationIdempotencyKeys = pgTable(
+  'reconciliation_idempotency_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    adminUserId: uuid('admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    operation: varchar('operation', { length: 80 }).notNull(),
+    key: varchar('key', { length: 200 }).notNull(),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    response: jsonb('response'),
+    statusCode: integer('status_code'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('reconciliation_idempotency_scope_unique').on(
+      table.adminUserId,
+      table.marketId,
+      table.operation,
+      table.key,
+    ),
+    check(
+      'reconciliation_idempotency_hash_check',
+      sql`char_length(${table.requestHash}) = 64`,
+    ),
+    check(
+      'reconciliation_idempotency_result_check',
+      sql`(${table.response} is null and ${table.statusCode} is null) or (${table.response} is not null and ${table.statusCode} between 200 and 599)`,
+    ),
+  ],
+);
+
 import {
   redemptionRateVersions,
   redemptionRateMarketRules,
@@ -4633,6 +4939,15 @@ export const schema = {
   ads,
   contentArticles,
   adsContentIdempotencyKeys,
+  reconciliationRuns,
+  reconciliationRunItems,
+  reconciliationExceptions,
+  reconciliationIdempotencyKeys,
+  reconciliationKind,
+  reconciliationRunStatus,
+  reconciliationExceptionStatus,
+  reconciliationExceptionClassification,
+  reconciliationItemStatus,
   redemptionRateVersions,
   redemptionCatalogItems,
   redemptionQuotes,
