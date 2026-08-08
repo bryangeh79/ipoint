@@ -123,6 +123,14 @@ describe('HomePage', () => {
   beforeEach(() => {
     client = createTestClient();
     user = userEvent.setup();
+    (globalContentApi.home as ReturnType<typeof vi.fn>)
+      .mockReset()
+      .mockResolvedValue({
+        market_id: 'market-a',
+        as_of: '2026-08-08T00:00:00.000Z',
+        ads: [],
+        articles: [],
+      });
   });
 
   afterEach(() => {
@@ -142,7 +150,7 @@ describe('HomePage', () => {
           createdAt: '2024-01-01T00:00:00Z',
         },
       });
-      (globalContentApi.home as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      (globalContentApi.home as ReturnType<typeof vi.fn>).mockResolvedValue(
         {
           market_id: 'market-a',
           as_of: '2026-08-08T00:00:00.000Z',
