@@ -805,4 +805,27 @@ _End of register - new entries appended above this line._
 
 ---
 
+
+---
+
+## P8-S1 Repair Round (A' implementer) + Re-Review (B' reviewer) — D-060 alternate executors
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-S1 repair round + re-review (Codex CLI unavailable; D-060 authorization) |
+| **Sub-phase** | P8-S1 (Ads & Content Operations) — repair of Reviewer B findings H-01/H-02/M-01..M-05/L-01 |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (A' implementer, then B' reviewer; D-060; Codex CLI regains priority when available) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-08 MYT (evening) |
+| **Worktree** | A': `.local/wt-p8-s1` · B': `.local/wt-p8-s1-b2` |
+| **Task branch** | `task/p8-s1-ads-content` (base `c5097c1d`; HEAD after repair `cadced79`) · review tree detached at `e860503f` |
+| **Commit SHAs** | `cda2d117` (fix: H-01..L-01) · `e860503f` (docs: repair round + M-01 409 alignment) · `cadced79` (test: public-id fallback assertion) |
+| **Migration** | 0037 amended for L-01 immutability trigger; checksums 38/38 |
+| **Host verification (OpenClaw)** | P8-S1 integration 15/15 fresh-PG; database suites; checksum 38/38; drift clean; typecheck/build all packages; eslint 0; prettier clean; web suites; OpenAPI — all green |
+| **Independent re-review** | B' (D-060 subagent): APPROVED 0C/0H/0M/3L — `P8_S1_REVIEW2_REPORT.md` |
+| **Integration commit** | `d41a33d7` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `P8-S1 DELIVERED / P8-S1 APPROVED (OPENCLAW-ACTING-COMMAND-CENTER, D-059; revocable)` |
+| **Known limitations** | L-R1 (minute granularity), L-R3 (nullable start on ACTIVE edit) recorded non-blocking |
+
+---
 _End of register - new entries appended above this line._
