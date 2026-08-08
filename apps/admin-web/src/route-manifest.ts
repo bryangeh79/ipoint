@@ -399,7 +399,7 @@ export const adminRouteManifest = [
     'Settings',
     '/admin/settings',
     'Account',
-    'admin.profile.self',
+    'admin.market.select',
     'none',
     'full',
   ),

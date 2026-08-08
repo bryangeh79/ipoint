@@ -135,7 +135,7 @@ describe('Admin routed shell components', () => {
   });
 
   it('selects only a server-listed market and persists the revalidated hint', async () => {
-    const api = mockAdminApi(['admin.profile.self'], null);
+    const api = mockAdminApi(['admin.market.select'], null);
     render(<AdminApp router={createAdminMemoryRouter(['/admin/settings'])} />);
     await signInAndVerify();
     const selector = await screen.findByLabelText('Current Admin Market');

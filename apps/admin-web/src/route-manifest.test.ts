@@ -211,5 +211,17 @@ describe('P7-S3A Admin route manifest', () => {
         adminRouteManifest.some(({ permission }) => permission === staleCode),
       ).toBe(false);
     }
+    // K-04 (D-056): the settings route must use a canonical catalog code.
+    // The stale admin.profile.self code does not exist in the catalog; the
+    // settings page's only server-backed capability is the Current Admin
+    // Market preference (admin.market.select, ALL roles).
+    expect(
+      adminRouteManifest.find(({ id }) => id === 'settings')?.permission,
+    ).toBe('admin.market.select');
+    expect(
+      adminRouteManifest.some(
+        ({ permission }) => permission === 'admin.profile.self',
+      ),
+    ).toBe(false);
   });
 });

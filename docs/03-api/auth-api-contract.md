@@ -126,15 +126,15 @@ This mixing of conventions is a known artifact.
 
 **Error Responses**:
 
-| Status | Code                   | Condition                                                 |
-| ------ | ---------------------- | --------------------------------------------------------- |
-| `401`  | `AUTH_SESSION_INVALID` | Refresh token not found or expired                        |
-| `401`  | `AUTH_REFRESH_REUSED`  | Refresh token already consumed (rotation reuse detection) |
-| `429`  | `AUTH_RATE_LIMITED`    | Rate limit exceeded                                       |
+| Status | Code                     | Condition                                                 |
+| ------ | ------------------------ | --------------------------------------------------------- |
+| `401`  | `AUTH_SESSION_INVALID`   | Refresh token not found or expired                        |
+| `401`  | `SESSION_REUSE_DETECTED` | Refresh token already consumed (rotation reuse detection) |
+| `429`  | `AUTH_RATE_LIMITED`      | Rate limit exceeded                                       |
 
 **Notes**:
 
-- Token rotation: calling `/auth/refresh` with token `R1` returns `R2` and invalidates `R1`. Replaying `R1` after rotation triggers `AUTH_REFRESH_REUSED` and revokes the entire session family (`R2` also invalidated).
+- Token rotation: calling `/auth/refresh` with token `R1` returns `R2` and invalidates `R1`. Replaying `R1` after rotation triggers `SESSION_REUSE_DETECTED` and revokes the entire session family (`R2` also invalidated).
 
 ---
 
@@ -497,7 +497,7 @@ All errors are returned in the following envelope:
 | `AUTH_MEMBER_INACTIVE`              | `403`                        | `login()` → `assertLoginAllowed()`                                             | Member exists but status is not `ACTIVE`                            |
 | `AUTH_MEMBER_ALREADY_EXISTS`        | `409`                        | `initiateRegistration()` (also in `completeRegistration()` TX)                 | Email already registered                                            |
 | `AUTH_SESSION_INVALID`              | `401`                        | `resolveActor()`, `rotateRefreshToken()`, `AuthGuard`                          | Session not found, expired, or revoked                              |
-| `AUTH_REFRESH_REUSED`               | `401`                        | `rotateRefreshToken()`                                                         | Refresh token replay detected after rotation                        |
+| `SESSION_REUSE_DETECTED`            | `401`                        | `rotateRefreshToken()`                                                         | Refresh token replay detected after rotation                        |
 | `AUTH_OTP_INVALID`                  | `400`                        | `verifyOtp()`, `verifyMemberOtp()`, `resetPasswordFromOtp()`                   | Wrong code, wrong purpose, or OTP not found                         |
 | `AUTH_OTP_EXPIRED`                  | `400`                        | `verifyOtp()`, `verifyMemberOtp()`                                             | OTP TTL exceeded                                                    |
 | `AUTH_OTP_ATTEMPTS_EXHAUSTED`       | `400`                        | `verifyOtp()`, `verifyMemberOtp()`                                             | Max OTP attempts reached                                            |
@@ -522,7 +522,7 @@ All errors are returned in the following envelope:
 | `AUTH_INVALID_CREDENTIALS`   | `UnauthorizedException`                    | `401`  |
 | `AUTH_ACCOUNT_INACTIVE`      | `UnauthorizedException`                    | `401`  |
 | `AUTH_SESSION_INVALID`       | `UnauthorizedException`                    | `401`  |
-| `AUTH_REFRESH_REUSED`        | `UnauthorizedException`                    | `401`  |
+| `SESSION_REUSE_DETECTED`     | `UnauthorizedException`                    | `401`  |
 | `AUTH_MEMBER_INACTIVE`       | `ForbiddenException`                       | `403`  |
 | `AUTH_IDEMPOTENCY_CONFLICT`  | `HttpException`                            | `409`  |
 | `AUTH_MEMBER_ALREADY_EXISTS` | `HttpException`                            | `409`  |
