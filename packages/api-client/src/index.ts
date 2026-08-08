@@ -4139,7 +4139,6 @@ export interface MemberHomeContentDto {
     slug: string;
     title: string;
     excerpt: string;
-    body: string;
     cover_media_url: string | null;
     cover_alt_text: string | null;
     is_promoted: boolean;

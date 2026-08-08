@@ -23,6 +23,10 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { adminAdsContentApi } from './admin-api.js';
+import {
+  localControlFromUtc,
+  utcFromLocalControl,
+} from './ads-content-schedule.js';
 import { useAdminSession } from './admin-session.js';
 import {
   canPerformSensitiveAdminWrite,
@@ -88,11 +92,16 @@ export function AdsContentPage({ mode }: { mode: Mode }) {
         mode === 'ads'
           ? await adminAdsContentApi.listAds(marketId)
           : await adminAdsContentApi.listArticles(marketId);
-      const placements = await adminAdsContentApi.placements(marketId);
+      // Placements feed the ad editor only; fetching them in Content mode would
+      // require ads.view and break a content-only least-privilege admin.
+      const placements =
+        mode === 'ads'
+          ? (await adminAdsContentApi.placements(marketId)).items
+          : [];
       setLoad({
         state: 'ready',
         items: listing.items,
-        placements: placements.items,
+        placements,
       });
     } catch (error) {
       const detail = describeApiError(error);
@@ -821,8 +830,8 @@ function fromItem(mode: Mode, item: Item): Draft {
       creativeAltText: ad.creative_alt_text,
       targetUrl: ad.target_url ?? '',
       sponsorLabel: ad.sponsor_label,
-      scheduleStartAt: local(ad.schedule_start_at),
-      scheduleEndAt: local(ad.schedule_end_at),
+      scheduleStartAt: localControlFromUtc(ad.schedule_start_at),
+      scheduleEndAt: localControlFromUtc(ad.schedule_end_at),
     };
   }
   const article = item as ContentArticleDto;
@@ -835,8 +844,8 @@ function fromItem(mode: Mode, item: Item): Draft {
     coverAltText: article.cover_alt_text ?? '',
     isPromoted: article.is_promoted,
     sponsorLabel: article.sponsor_label ?? 'Promoted',
-    publishAt: local(article.publish_at),
-    unpublishAt: local(article.unpublish_at),
+    publishAt: localControlFromUtc(article.publish_at),
+    unpublishAt: localControlFromUtc(article.unpublish_at),
   };
 }
 
@@ -854,8 +863,8 @@ function payload(
       targetUrl: nullable(draft.targetUrl),
       isSponsored: true,
       sponsorLabel: String(draft.sponsorLabel),
-      scheduleStartAt: utc(draft.scheduleStartAt),
-      scheduleEndAt: utc(draft.scheduleEndAt),
+      scheduleStartAt: utcFromLocalControl(String(draft.scheduleStartAt ?? '')),
+      scheduleEndAt: utcFromLocalControl(String(draft.scheduleEndAt ?? '')),
       reason: reason.trim(),
     };
   return {
@@ -867,8 +876,8 @@ function payload(
     coverAltText: nullable(draft.coverAltText),
     isPromoted: Boolean(draft.isPromoted),
     sponsorLabel: draft.isPromoted ? String(draft.sponsorLabel) : null,
-    publishAt: utc(draft.publishAt),
-    unpublishAt: utc(draft.unpublishAt),
+    publishAt: utcFromLocalControl(String(draft.publishAt ?? '')),
+    unpublishAt: utcFromLocalControl(String(draft.unpublishAt ?? '')),
     reason: reason.trim(),
   };
 }
@@ -876,13 +885,6 @@ function payload(
 function nullable(value: string | boolean | undefined): string | null {
   const text = String(value ?? '').trim();
   return text || null;
-}
-function utc(value: string | boolean | undefined): string | null {
-  const text = String(value ?? '');
-  return text ? new Date(text).toISOString() : null;
-}
-function local(value: string | null): string {
-  return value ? new Date(value).toISOString().slice(0, 16) : '';
 }
 function errorText(error: unknown): string {
   return error instanceof ApiError

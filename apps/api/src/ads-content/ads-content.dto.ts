@@ -50,7 +50,12 @@ export const createAdSchema = z
     creativeAltText: z.string().trim().min(1).max(240),
     targetUrl: nullableHttpUrl,
     isSponsored: z.literal(true).default(true),
-    sponsorLabel: z.string().trim().min(1).max(80).default('Sponsored'),
+    // Explicit nonblank disclosure label: the operator/client must supply the
+    // market-appropriate label. There is deliberately no server default, so a
+    // missing or blank value is rejected instead of silently publishing an
+    // English fallback in another locale. A UI may prefill a localized
+    // suggestion, but the submitted field must be explicit.
+    sponsorLabel: z.string().trim().min(1).max(80),
     scheduleStartAt: nullableDate,
     scheduleEndAt: nullableDate,
     reason,

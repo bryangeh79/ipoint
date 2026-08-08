@@ -1,17 +1,19 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
+import { adminAdsContentApi } from './admin-api.js';
 import { AdsContentPage } from './ads-content-page.js';
 
+let sessionPermissions: string[] = [
+  'ads.view',
+  'ads.manage',
+  'content.view',
+  'content.manage',
+];
 vi.mock('./admin-session.js', () => ({
   useAdminSession: () => ({
     bootstrap: {
-      effectivePermissions: [
-        'ads.view',
-        'ads.manage',
-        'content.view',
-        'content.manage',
-      ],
+      effectivePermissions: sessionPermissions,
     },
   }),
 }));
@@ -122,5 +124,60 @@ describe('P8-S1 Ads & Content Admin page', () => {
       await screen.findByRole('heading', { name: 'News & content publishing' }),
     ).toBeInTheDocument();
     expect(screen.getByText('Nothing in this market')).toBeInTheDocument();
+  });
+
+  it('renders the Content page for a content-only admin without fetching placements', async () => {
+    sessionPermissions = ['content.view'];
+    vi.mocked(adminAdsContentApi.placements).mockClear();
+    try {
+      render(
+        <MemoryRouter
+          initialEntries={[
+            '/admin/11111111-1111-4111-8111-111111111111/content',
+          ]}
+        >
+          <Routes>
+            <Route
+              path={'/admin/:marketId/content'}
+              element={<AdsContentPage mode={'content'} />}
+            />
+          </Routes>
+        </MemoryRouter>,
+      );
+      expect(
+        await screen.findByRole('heading', {
+          name: 'News & content publishing',
+        }),
+      ).toBeInTheDocument();
+      expect(screen.getByText('Nothing in this market')).toBeInTheDocument();
+      expect(vi.mocked(adminAdsContentApi.placements)).not.toHaveBeenCalled();
+    } finally {
+      sessionPermissions = [
+        'ads.view',
+        'ads.manage',
+        'content.view',
+        'content.manage',
+      ];
+    }
+  });
+
+  it('does not call placements when the Content page loads with full permissions', async () => {
+    vi.mocked(adminAdsContentApi.placements).mockClear();
+    render(
+      <MemoryRouter
+        initialEntries={['/admin/11111111-1111-4111-8111-111111111111/content']}
+      >
+        <Routes>
+          <Route
+            path={'/admin/:marketId/content'}
+            element={<AdsContentPage mode={'content'} />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByRole('heading', { name: 'News & content publishing' }),
+    ).toBeInTheDocument();
+    expect(vi.mocked(adminAdsContentApi.placements)).not.toHaveBeenCalled();
   });
 });

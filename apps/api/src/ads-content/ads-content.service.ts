@@ -34,6 +34,11 @@ type DatabaseTransaction = Parameters<
 >[0];
 type JsonObject = Record<string, unknown>;
 
+// Approved structural cap for the member Current Market Home read surface.
+// Home renders a bounded discovery-style projection; ads and articles are
+// capped per collection so the payload cannot grow without bound.
+const MEMBER_HOME_CONTENT_LIMIT = 10;
+
 const TRANSITIONS: Record<AdsContentStatus, readonly AdsContentStatus[]> = {
   DRAFT: ['SCHEDULED', 'ACTIVE', 'ARCHIVED'],
   SCHEDULED: ['DRAFT', 'ACTIVE', 'EXPIRED', 'ARCHIVED'],
@@ -239,7 +244,11 @@ export class AdsContentService {
           input.scheduleEndAt === undefined
             ? toDate(current.scheduleEndAt as string | Date | null | undefined)
             : toDate(input.scheduleEndAt);
-        this.assertWindow(scheduleStart, scheduleEnd);
+        this.assertWindowForStatus(
+          current.status as AdsContentStatus,
+          scheduleStart,
+          scheduleEnd,
+        );
         const changes: Partial<typeof ads.$inferInsert> = {
           updatedByAdminUserId: actor.adminUserId,
           updatedAt: new Date(),
@@ -424,7 +433,11 @@ export class AdsContentService {
           input.unpublishAt === undefined
             ? toDate(current.unpublishAt as string | Date | null | undefined)
             : toDate(input.unpublishAt);
-        this.assertWindow(publishAt, unpublishAt);
+        this.assertWindowForStatus(
+          current.status as AdsContentStatus,
+          publishAt,
+          unpublishAt,
+        );
         const promoted = input.isPromoted ?? current.isPromoted;
         const label =
           input.sponsorLabel === undefined
@@ -526,18 +539,20 @@ export class AdsContentService {
             AND a.archived_at IS NULL AND p.status = 'ACTIVE' AND p.archived_at IS NULL
             AND (a.schedule_start_at IS NULL OR a.schedule_start_at <= now())
             AND (a.schedule_end_at IS NULL OR a.schedule_end_at > now())
-          ORDER BY p.position, a.updated_at DESC, a.id`,
+          ORDER BY p.position, a.updated_at DESC, a.id
+          LIMIT ${MEMBER_HOME_CONTENT_LIMIT}`,
         [marketId],
       ),
       this.database.pool.query(
-        `SELECT public_id, slug, title, excerpt, body, cover_media_url,
+        `SELECT public_id, slug, title, excerpt, cover_media_url,
                 cover_alt_text, is_promoted, sponsor_label,
                 publish_at AS published_at
            FROM content_articles
           WHERE market_id = $1 AND status = 'ACTIVE' AND archived_at IS NULL
             AND (publish_at IS NULL OR publish_at <= now())
             AND (unpublish_at IS NULL OR unpublish_at > now())
-          ORDER BY coalesce(publish_at, created_at) DESC, id`,
+          ORDER BY coalesce(publish_at, created_at) DESC, id
+          LIMIT ${MEMBER_HOME_CONTENT_LIMIT}`,
         [marketId],
       ),
     ]);
@@ -581,7 +596,7 @@ export class AdsContentService {
         const start =
           kind === 'ad' ? current.scheduleStartAt : current.publishAt;
         const end = kind === 'ad' ? current.scheduleEndAt : current.unpublishAt;
-        this.assertTransitionSchedule(input.status, start, end);
+        this.assertWindowForStatus(input.status, start, end);
         const now = new Date();
         const common = {
           status: input.status,
@@ -858,7 +873,15 @@ export class AdsContentService {
       );
   }
 
-  private assertTransitionSchedule(
+  /**
+   * Lifecycle/window invariant shared by updates and transitions: the merged
+   * schedule must stay consistent with the (unchanged) current status inside
+   * the locked transaction. ACTIVE items cannot be moved to a future start or
+   * a past end; SCHEDULED items cannot keep their status with a past start;
+   * EXPIRED items cannot keep a future end. DRAFT and PAUSED have no window
+   * constraint.
+   */
+  private assertWindowForStatus(
     status: AdsContentStatus,
     start: unknown,
     end: unknown,

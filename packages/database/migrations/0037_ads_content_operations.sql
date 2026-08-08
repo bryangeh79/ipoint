@@ -189,6 +189,21 @@ CREATE TRIGGER ads_reject_delete
 CREATE TRIGGER content_articles_reject_delete
   BEFORE DELETE ON content_articles FOR EACH ROW EXECUTE FUNCTION reject_delete();
 
+-- C-11 immutability guard (L-01 repair): an advertisement fee version is
+-- write-once. In-place mutation of a fee config row is rejected; fee
+-- management must insert a new market/version row. Full audited
+-- owner/status history with effective-window conflict control remains
+-- pre-enablement work and is not implemented here (see delivery report).
+CREATE OR REPLACE FUNCTION reject_ad_fee_config_update() RETURNS trigger AS $$
+BEGIN
+  RAISE EXCEPTION 'ad_fee_configs rows are immutable; insert a new version instead';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER ad_fee_configs_reject_update
+  BEFORE UPDATE ON ad_fee_configs
+  FOR EACH ROW EXECUTE FUNCTION reject_ad_fee_config_update();
+
 -- Canonical P8-S1 permissions. Existing controlled role templates are extended
 -- explicitly; there is no Super Admin bypass and no unmanaged role expansion.
 INSERT INTO permissions (code, description)

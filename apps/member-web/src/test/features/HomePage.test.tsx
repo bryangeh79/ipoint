@@ -172,7 +172,6 @@ describe('HomePage', () => {
             slug: 'market-news',
             title: 'Market news',
             excerpt: 'Local update',
-            body: 'Body',
             cover_media_url: null,
             cover_alt_text: null,
             is_promoted: true,
