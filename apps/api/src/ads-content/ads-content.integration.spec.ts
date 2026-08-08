@@ -13,9 +13,7 @@ import {
   memberMarketPreferences,
   members,
   migrate,
-  permissions,
   roleAssignments,
-  rolePermissions,
   roles,
   sessions,
 } from '@ipoint/database';
@@ -67,11 +65,7 @@ describe.skipIf(!databaseUrl)(
       return { accountId, email };
     }
 
-    async function createAdmin(
-      codes: string[],
-      marketIds: string[],
-      roleCode: string,
-    ) {
+    async function createAdmin(marketIds: string[], roleCode: string) {
       const account = await createAccount();
       const adminRows = await database.db
         .insert(adminUsers)
@@ -83,19 +77,12 @@ describe.skipIf(!databaseUrl)(
         .returning({ id: adminUsers.id });
       const adminUserId = adminRows[0]?.id ?? '';
       const roleRows = await database.db
-        .insert(roles)
-        .values({ code: roleCode, name: roleCode, isSystem: false })
-        .returning({ id: roles.id });
+        .select({ id: roles.id })
+        .from(roles)
+        .where(eq(roles.code, roleCode))
+        .limit(1);
       const roleId = roleRows[0]?.id ?? '';
       await database.db.insert(roleAssignments).values({ adminUserId, roleId });
-      const permissionRows = await database.db.select().from(permissions);
-      await database.db
-        .insert(rolePermissions)
-        .values(
-          permissionRows
-            .filter((row) => codes.includes(row.code))
-            .map((row) => ({ roleId, permissionId: row.id })),
-        );
       await database.db
         .insert(marketAccess)
         .values(marketIds.map((marketId) => ({ adminUserId, marketId })));
@@ -165,6 +152,7 @@ describe.skipIf(!databaseUrl)(
       await maintenance.query(`CREATE DATABASE "${dbName}"`);
       await maintenance.end();
       vi.stubEnv('DATABASE_URL', databaseUrl ?? '');
+      vi.stubEnv('REDIS_URL', 'redis://127.0.0.1:56379');
       vi.stubEnv(
         'AUTH_OTP_PEPPER',
         'p8-s1-ads-content-pepper-at-least-32-characters',
@@ -183,12 +171,12 @@ describe.skipIf(!databaseUrl)(
         enableShutdownHooks: false,
         scanSwaggerRoutes: false,
       });
-      await app.init();
-      server = app.getHttpServer() as Server;
       auth = app.get(AuthService);
       database = app.get(DatabaseService);
       await migrate(database.pool);
       await seedFoundation(database.db);
+      await app.init();
+      server = app.getHttpServer() as Server;
       const marketRows = await database.db
         .insert(markets)
         .values([
@@ -212,16 +200,8 @@ describe.skipIf(!databaseUrl)(
         .returning({ id: markets.id });
       marketA = marketRows[0]?.id ?? '';
       marketB = marketRows[1]?.id ?? '';
-      admin = await createAdmin(
-        ['ads.view', 'ads.manage', 'content.view', 'content.manage'],
-        [marketA],
-        'P8_S1_ADMIN',
-      );
-      viewer = await createAdmin(
-        ['ads.view', 'content.view'],
-        [marketA],
-        'P8_S1_VIEWER',
-      );
+      admin = await createAdmin([marketA], 'SUPER_ADMIN');
+      viewer = await createAdmin([marketA], 'SUPPORT_READONLY_AUDITOR');
       await selectMarket(admin.accountId, marketA);
       await selectMarket(viewer.accountId, marketA);
       memberToken = await createMember();

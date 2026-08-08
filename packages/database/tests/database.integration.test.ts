@@ -106,6 +106,15 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0026_phase_6_shipping_recovery_v2.sql',
       '0027_admin_mfa_session_policy.sql',
       '0028_admin_market_session_context.sql',
+      '0029_p5_r1_agent_fee_version_snapshot.sql',
+      '0030_p3_d050_reward_rule_reason.sql',
+      '0031_p6_d053_redemption_rate_owner.sql',
+      '0032_p5_d054_commission_rate_reason.sql',
+      '0033_p1_d051_special_percentage_reason.sql',
+      '0034_p3_p7_sec01_ipoint_adjustment_owner.sql',
+      '0035_p7_s7a_mcp_adjustment_conformance.sql',
+      '0036_p6_sec02_refund_ledger_owner.sql',
+      '0037_ads_content_operations.sql',
     ]);
 
     const auditReferenceColumn = await connection.pool.query<{
