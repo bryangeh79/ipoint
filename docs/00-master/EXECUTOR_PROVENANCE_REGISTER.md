@@ -828,4 +828,24 @@ _End of register - new entries appended above this line._
 | **Known limitations** | L-R1 (minute granularity), L-R3 (nullable start on ACTIVE edit) recorded non-blocking |
 
 ---
+
+## P8-S2 — Advanced Financial Reconciliation (implementer subagents + OpenClaw integration-gate fixes; D-060)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-S2 (G-02) — reconciliation engine (6 kinds), run lifecycle, exception queue |
+| **Sub-phase** | P8-S2 — Advanced Financial Reconciliation |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + two independent review rounds; D-060; Codex CLI unavailable) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-08/09 MYT |
+| **Worktree** | `.local/wt-p8-s2` (implement) · `.local/wt-p8-s2-b` (review 1) · `.local/wt-p8-s2-b2` (re-review) |
+| **Task branch** | `task/p8-s2-reconciliation` (base `fb3e9b84`; HEAD `5e30e7ab`) |
+| **Commit SHAs** | `79b30227` (schema/0038/permissions) · `d412301b` (engine + admin api) · `b0e1b70e` (delivery report) · `5e30e7ab` (fix: H-1 terminal timestamps on re-execution) |
+| **Migration** | 0038 (runs/items/exceptions/idempotency_keys; 6 kinds; E-30 triggers); checksums 39/39 |
+| **Host verification (OpenClaw)** | 25/25 fresh-PG; checksum 39/39; drift clean; typecheck/build all packages; eslint 0; prettier clean; web suites; OpenAPI — all green |
+| **Independent reviews** | B' round 1: CHANGES REQUIRED 0C/1H/1M/4L (`P8_S2_REVIEW_REPORT.md`) → H-1 fixed (`5e30e7ab`) → B' round 2: **APPROVED 0C/0H/0M/0L new** (`P8_S2_REVIEW2_REPORT.md`); M-1 scope decision recorded (admin-web UI + api-client → P8-S5) |
+| **Declarations** | `P8-S2 DELIVERED / P8-S2 APPROVED (OPENCLAW-ACTING-COMMAND-CENTER, D-059; revocable)` |
+| **Known limitations** | L-1..L-4 informational; UI/api-client deferred to P8-S5 |
+
+---
 _End of register - new entries appended above this line._
