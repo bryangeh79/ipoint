@@ -860,15 +860,16 @@ describe.skipIf(!databaseUrl)(
         .get('/api/v1/members/content/home')
         .set(bearer(memberToken))
         .expect(200);
-      const homeAds = (home.body as { ads: Array<{ id: string; marketId?: string; market_id?: string }> }).ads;
-      const foreignAdId = foreignAd[0]?.id ?? '';
-      expect(homeAds.map((item) => item.id)).not.toContain(foreignAdId);
-      for (const item of homeAds) {
-        const itemMarket = item.marketId ?? item.market_id;
-        if (itemMarket !== undefined) {
-          expect(itemMarket).toBe(marketA);
-        }
-      }
+      const homeBody = home.body as {
+        market_id: string;
+        ads: Array<{ public_id: string }>;
+      };
+      // The member Home surface is server-side market-scoped: it must expose
+      // the member's own market only and never fall back to another market.
+      expect(homeBody.market_id).toBe(marketA);
+      const foreignPublicId = String(foreignAd[0]?.id ?? '');
+      const homePublicIds = homeBody.ads.map((item) => item.public_id);
+      expect(homePublicIds).not.toContain(foreignPublicId);
       const audit = await database.db
         .select()
         .from(auditLogs)
