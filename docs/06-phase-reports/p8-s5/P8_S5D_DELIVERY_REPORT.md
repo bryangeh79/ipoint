@@ -1,0 +1,151 @@
+# P8-S5d Delivery Report — Full-Repo Phase 8 CI Workflow
+
+## 1. Task and scope
+
+- Task (TASK*BRIEF_P8S5D.md): close gap audit item **F-03** ("CI gap: workflows exist for Phases 0/3/4/5 era; a full-repo Phase 8 CI workflow is required for repeatable evidence") by adding `.github/workflows/p8-ci.yml` — a full-repo Phase 8 CI workflow covering all apps (`api`, `member-web`, `merchant-web`, `admin-web`), all packages (`api-client`, `business-rules`, `config`, `database`, `design-tokens`, `types`, `ui`, `validation`), and the four P8 fail-closed integration suites (P8-S1..S4) running against dedicated `ipoint_p8sN*\*` databases with their destructive-test opt-in guards.
+- Contract: `P8_S0_CONTRACT_FREEZE.md` §5 (G-05 part (c)) + gap audit F-03. Executor: independent coding subagent (D-060 alternate executor authorization). Verifier: OpenClaw host integration gate. Reviewer: independent Reviewer B' (D-060).
+- Branch: `task/p8-s5d-full-repo-ci` (worktree `.local/wt-p8-s5d`, base `18c4f547`).
+- Role boundary: implementation evidence only. This report does not approve or accept P8-S5d; acceptance belongs to Bryan / ChatGPT Command Center.
+
+## 2. Deliverables
+
+| Artifact             | Path                                                    | Type |
+| -------------------- | ------------------------------------------------------- | ---- |
+| Phase 8 CI workflow  | `.github/workflows/p8-ci.yml`                           | new  |
+| This delivery report | `docs/06-phase-reports/p8-s5/P8_S5D_DELIVERY_REPORT.md` | new  |
+
+No other files were changed. The copied worktree `.npmrc` was deleted before committing and is not part of any commit.
+
+## 3. Workflow design (`p8-ci.yml`)
+
+### 3.1 Trigger, permissions, concurrency
+
+- **Trigger**: `workflow_dispatch` + `push` on `phase/8-final-delivery-readiness` and `task/p8-**` + `pull_request` targeting `phase/8-final-delivery-readiness` (mirrors the p5-ci pattern).
+- **Permissions**: `contents: read` only — the workflow posts no statuses/PR comments, so no write scopes are granted.
+- **Concurrency**: group `p8-ci-${{ github.workflow }}-${{ github.ref }}` with `cancel-in-progress: true` (green-first; superseded runs are cancelled).
+
+### 3.2 Top-level env
+
+Mirrors `ci.yml`: `NODE_VERSION: 24`, `PNPM_VERSION: 9.15.9`, plus the two test-only runtime secrets used by the app config validation (`AUTH_OTP_PEPPER`, `REDEMPTION_VOUCHER_ENCRYPTION_KEY` — same test values as `ci.yml`). `DATABASE_URL`/`REDIS_URL` are deliberately **not** set at the top level; they are set per job (or per guarded step) only where a database/redis service exists. This keeps `quality`/`build`/`unit`/`openapi` free of DB env and prevents any accidental guarded-spec execution shape.
+
+### 3.3 Job/step map
+
+Every job follows: checkout → `pnpm/action-setup@v4` (PNPM_VERSION) → `actions/setup-node@v4` (NODE_VERSION, pnpm cache) → `pnpm install --frozen-lockfile`. The jobs are independent (no `needs` — each job is self-contained; there is no cross-job artifact or ordering requirement), which also satisfies the review-level "no job depends on a job it doesn't need" check.
+
+| Job                 | Services                                                               | Steps (commands)                                                                                                                                                                                                                                                                             |
+| ------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **quality**         | —                                                                      | `pnpm lint` → prettier check (CI workflows + delivery report) → typecheck of all packages except known-baseline-failing `@ipoint/api`/`@ipoint/database`/`@ipoint/merchant-web` → `tsc -p tsconfig.build.json --noEmit` for api src → `tsc -p tsconfig.build.json --noEmit` for database src |
+| **build**           | —                                                                      | `pnpm -r --if-present --filter '!@ipoint/merchant-web' build` (merchant-web scoped out, see §6)                                                                                                                                                                                              |
+| **unit**            | —                                                                      | node-unit scope (`apps/api packages experiments` via root `vitest.config.ts` with 5 known-baseline-failing files excluded) → member-web → merchant-web → admin-web (3 known-baseline-failing/flaky files excluded), each via its own `vitest.config.ts`                                      |
+| **database**        | postgres:17-alpine (`ipoint_ci`/`ipoint`/`ipoint_ci`)                  | `pnpm db:checksum` → `pnpm db:migrate` → `pnpm db:seed` ×2 (idempotency) → `pnpm db:drift` → database unit tests (`vitest run tests --exclude tests/p5-s1-schema.test.ts`) → `pnpm test:database:integration` → **post** `pnpm db:checksum` → `pnpm db:drift` (must stay 40/40 + drift-free) |
+| **openapi**         | —                                                                      | `pnpm --filter @ipoint/api build` (produces `dist`, required by the validator) → `pnpm openapi:validate`                                                                                                                                                                                     |
+| **api-integration** | postgres:17-alpine (`ipoint_ci`/`ipoint`/`ipoint_ci`) + redis:7-alpine | `pnpm db:migrate` + `pnpm db:seed` on the `ipoint_ci` migration base → **P8-S1..S4 guarded suites**, each with step-level env override (`DATABASE_URL` → its own `ipoint_p8sN_test` db, matching `P8SN_DESTRUCTIVE_TEST: '1'`, `REDIS_URL` → the job redis service)                          |
+
+Services are attached only where used: `database` gets postgres only; `api-integration` gets postgres + redis; `quality`/`build`/`unit`/`openapi` get none.
+
+## 4. Guard contract — preserved, not weakened
+
+The four P8 integration suites are fail-closed: they refuse to run unless (a) `DATABASE_URL` names a database matching `^ipoint_p8sN_[a-z0-9_]{1,63}$` (and not a protected maintenance database) and (b) the matching `P8SN_DESTRUCTIVE_TEST` env is set to `1`/`true`/`yes`. The workflow:
+
+- runs each guarded suite with its **own step-level env override** pointing at its dedicated `ipoint_p8sN_test` database and its own `P8SN_DESTRUCTIVE_TEST: '1'`;
+- never runs a guarded spec against `ipoint_ci` (the migration base) — the base database only receives `db:migrate`/`db:seed`;
+- does not modify, bypass, or stub any guard (verified against the actual spec sources, §5);
+- includes a `redis:7-alpine` service in the api-integration job (the reports/reconciliation suites touch `REDIS_URL`; the suites `vi.stubEnv('REDIS_URL', 'redis://127.0.0.1:56379')` and the app does not open a live redis connection, so the service is a belt-and-braces provision that does not change suite behavior).
+
+## 5. Guard env table — REAL spec paths discovered
+
+The guard implementations were read directly from the spec sources (grep-verified: `DESTRUCTIVE_TEST` / `ipoint_p8s` present in exactly these four files, none elsewhere). All four follow the P8-S1 H-01 pattern: `TEST_DATABASE_NAME_PATTERN`, `PROTECTED_DATABASE_NAMES`, exported `DESTRUCTIVE_TEST_OPT_IN_ENV`, `testDatabaseName()` (fail-closed parse) and `destructiveTestOptIn()` (explicit opt-in), then `DROP DATABASE IF EXISTS "<dbName>" WITH (FORCE)` + `CREATE DATABASE "<dbName>"` in `beforeAll`.
+
+| Suite                  | Spec path (real)                                                                     | DB name pattern               | Guard env (real)        | Opt-in accepted values                  |
+| ---------------------- | ------------------------------------------------------------------------------------ | ----------------------------- | ----------------------- | --------------------------------------- |
+| P8-S1 ads/content      | `apps/api/src/ads-content/ads-content.integration.spec.ts`                           | `ipoint_p8s1_[a-z0-9_]{1,63}` | `P8S1_DESTRUCTIVE_TEST` | `1` / `true` / `yes` (case-insensitive) |
+| P8-S2 reconciliation   | `apps/api/src/admin-reconciliation-ops/admin-reconciliation-ops.integration.spec.ts` | `ipoint_p8s2_[a-z0-9_]{1,63}` | `P8S2_DESTRUCTIVE_TEST` | `1` / `true` / `yes`                    |
+| P8-S3 risk controls    | `apps/api/src/admin-risk-controls/admin-risk-controls.integration.spec.ts`           | `ipoint_p8s3_[a-z0-9_]{1,63}` | `P8S3_DESTRUCTIVE_TEST` | `1` / `true` / `yes`                    |
+| P8-S4 advanced reports | `apps/api/src/admin-report-ops/admin-report-ops-advanced.integration.spec.ts`        | `ipoint_p8s4_[a-z0-9_]{1,63}` | `P8S4_DESTRUCTIVE_TEST` | `1` / `true` / `yes`                    |
+
+This matches the brief's §5 table exactly (no spec-path correction was needed). Each suite also `vi.stubEnv`s `REDIS_URL`, `AUTH_OTP_PEPPER`, `REDEMPTION_VOUCHER_ENCRYPTION_KEY`, `NODE_ENV=test`, `LOG_LEVEL=silent` and migrates + seeds its own fresh database. The api-integration step commands use the exact spec paths above.
+
+## 6. Known baseline failures — scoped out and recorded (green-first)
+
+All of the following were reproduced **on the base commit `18c4f547`** in the worktree (no local modifications; `git status` had only untracked `.npmrc` + task brief). They are pre-existing and outside the P8-S5d scope (fixing them would mean touching `apps/`, `packages/`, or docs, which is prohibited). Per the brief §9, the workflow scopes them out and they are recorded here:
+
+| Command (brief §3 wording)                                | Baseline status @ 18c4f547                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Workflow handling                                                                                                                                                                                                                                                                                                         |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm format:check` (repo-wide prettier)                  | ❌ 28 pre-existing files warn: 26 Phase-8 docs (`docs/00-master/EXECUTOR_PROVENANCE_REGISTER.md`, `docs/06-phase-reports/p8-s0..p8-s5/*.md`) + 2 P8 api source files (`apps/api/src/admin-reconciliation-ops/admin-reconciliation-ops.service.ts`, `apps/api/src/ads-content/ads-content.integration.spec.ts`)                                                                                                                                                                                                                         | quality job checks the CI-config surface instead: `prettier --check ".github/workflows/*.yml" docs/06-phase-reports/p8-s5/P8_S5D_DELIVERY_REPORT.md` (all green locally). P8-S5a/b/c precedent: prettier gate is scoped to changed files.                                                                                 |
+| `pnpm typecheck` (repo-wide)                              | ❌ 4 pre-existing TS errors: `packages/database/tests/p5-s1-schema.test.ts:45` TS2345 (schema export key is a `PgEnum`, `getTableConfig` mismatch — the same file that breaks `pnpm test:database`); `apps/api/src/admin-reconciliation-ops/admin-reconciliation-ops.integration.spec.ts` TS2769 ×3 (P8-S2 spec inserts use stale column names/status literals; runtime unaffected because vitest transpiles without type-checking — the suite passes, see §7)                                                                         | quality job typechecks all packages except `@ipoint/api`/`@ipoint/database`/`@ipoint/merchant-web`, then typechecks **api and database src** via their build configs (`tsc -p tsconfig.build.json --noEmit`, which excludes spec/test files) — all green.                                                                 |
+| `pnpm build` (repo-wide)                                  | ❌ `apps/merchant-web/src/transactions-page.tsx:752` TS2322 (`error.body.message` is `string \| string[]`; introduced by P8-S5c fix `f5ce39bb`)                                                                                                                                                                                                                                                                                                                                                                                        | build job builds all 12 other projects (`--filter '!@ipoint/merchant-web'`), all green.                                                                                                                                                                                                                                   |
+| `pnpm test -- --reporter verbose` (full vitest workspace) | ❌ 5 files: `apps/api/src/redemption/redemption-integration.spec.ts`, `redemption-admin.hardening.spec.ts`, `redemption-p6-atomicity.spec.ts` (P6 DB-integration suites that fail config validation without `DATABASE_URL`/`REDIS_URL` — they are covered by `ci.yml`'s database-tests job, not by a unit job), `apps/admin-web/src/pwa-policy.test.ts` (reads root `public/sw.js`, absent from the repo at any commit), `apps/admin-web/src/agent-ops-pages.test.tsx` (flaky async render assertion — passed when rerun in isolation) | unit job runs the node-unit scope via root `vitest.config.ts` with the 5 files excluded, plus each web app via its own config; admin-web additionally excludes `dashboard-page.test.tsx` (flaky async render assertion, reproduced once in isolation; passed in the full-workspace run). All green — 2,070 tests locally. |
+| `pnpm test:database` (`vitest run tests`)                 | ❌ `packages/database/tests/p5-s1-schema.test.ts` "exports all 11 Phase 5 tables" fails (same schema-shape mismatch as the typecheck error; P5-era file, last touched by `00ae6555`)                                                                                                                                                                                                                                                                                                                                                   | database job runs `pnpm --filter @ipoint/database exec vitest run tests --exclude tests/p5-s1-schema.test.ts` (64/64 green). The known failing file is the exact one the brief cites as the baseline-failure example.                                                                                                     |
+
+Everything else referenced by the workflow is green on the base commit (see §7).
+
+## 7. Local verification evidence
+
+Environment: worktree `.local/wt-p8-s5d` @ `18c4f547` (Windows PowerShell, pnpm 9.15.9, Node v26 local vs Node 24 on CI), local postgres 17 (127.0.0.1:55432, `ipoint`/`ipoint-local-only`) and redis 7 (127.0.0.1:56379) containers matching the P8 suites' stubbed `REDIS_URL`.
+
+### 7.1 YAML parse (DoD 1)
+
+- Method: **Node + `js-yaml`** (v4.1.0 from the pnpm store; `python` has no `yaml` module installed).
+- Command: `node -e "const yaml=require('<wt>/node_modules/.pnpm/js-yaml@4.1.0/node_modules/js-yaml'); ... yaml.load(fs.readFileSync('.github/workflows/p8-ci.yml','utf8'))"`.
+- Result: **parse OK** — `on` = `workflow_dispatch`, `push`, `pull_request`; `jobs` = `quality`, `build`, `unit`, `database`, `openapi`, `api-integration`; `permissions.contents = read`; concurrency group + cancel-in-progress present.
+
+### 7.2 Commands referenced by the workflow — local results
+
+| Workflow step command                                                                                                  | Local result                                                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
+| `pnpm lint`                                                                                                            | ✅ exit 0 — 0 errors, 2 pre-existing warnings (`transaction-commission-dispatch.writer.ts`, `transaction-commission-outbox.worker.ts` unused eslint-disable; same 2 warnings recorded by P8-S5b) |
+| `pnpm exec prettier --check ".github/workflows/*.yml" docs/06-phase-reports/p8-s5/P8_S5D_DELIVERY_REPORT.md`           | ✅ all matched files use Prettier code style                                                                                                                                                     |
+| `pnpm -r --if-present --filter '!@ipoint/api' --filter '!@ipoint/database' --filter '!@ipoint/merchant-web' typecheck` | ✅ exit 0 — 10 projects Done (config, business-rules, api-client, design-tokens, types, validation, ui, orm-comparison, member-web, admin-web)                                                   |
+| `pnpm --filter @ipoint/api exec tsc -p tsconfig.build.json --noEmit`                                                   | ✅ exit 0                                                                                                                                                                                        |
+| `pnpm --filter @ipoint/database exec tsc -p tsconfig.build.json --noEmit`                                              | ✅ exit 0                                                                                                                                                                                        |
+| `pnpm -r --if-present --filter '!@ipoint/merchant-web' build`                                                          | ✅ exit 0 — 12 projects Done                                                                                                                                                                     |
+| `pnpm exec vitest --config vitest.config.ts run apps/api packages experiments --exclude ...` (5 files)                 | ✅ 85 passed                                                                                                                                                                                     | 1 skipped — 1,416 tests |
+| `cd apps/member-web && pnpm exec vitest --config vitest.config.ts run`                                                 | ✅ 24 files — 311 tests                                                                                                                                                                          |
+| `cd apps/merchant-web && pnpm exec vitest --config vitest.config.ts run`                                               | ✅ 4 files — 24 tests                                                                                                                                                                            |
+| `cd apps/admin-web && pnpm exec vitest --config vitest.config.ts run --exclude ...` (3 files)                          | ✅ 38 files — 319 tests                                                                                                                                                                          |
+| `pnpm db:checksum`                                                                                                     | ✅ "Verified 40 immutable migration checksum(s)" (40/40)                                                                                                                                         |
+| `pnpm db:migrate` (empty db)                                                                                           | ✅ 40 migrations applied (132 public tables)                                                                                                                                                     |
+| `pnpm db:seed` ×2                                                                                                      | ✅ idempotent ("seeds are current" both times)                                                                                                                                                   |
+| `pnpm db:drift`                                                                                                        | ✅ "No database schema drift detected"                                                                                                                                                           |
+| `pnpm --filter @ipoint/database exec vitest run tests --exclude tests/p5-s1-schema.test.ts`                            | ✅ 6 files — 64 tests                                                                                                                                                                            |
+| `pnpm test:database:integration`                                                                                       | ✅ 1 file — 22 tests                                                                                                                                                                             |
+| `pnpm db:checksum` + `pnpm db:drift` (post)                                                                            | ✅ 40/40 + no drift                                                                                                                                                                              |
+| `pnpm --filter @ipoint/api build`                                                                                      | ✅ exit 0                                                                                                                                                                                        |
+| `pnpm openapi:validate`                                                                                                | ✅ "All runtime OpenAPI validations passed" (0 duplicate operationIds)                                                                                                                           |
+| `pnpm db:migrate` + `pnpm db:seed` (api-integration base)                                                              | ✅ same commands as database job                                                                                                                                                                 |
+
+### 7.3 Representative guarded suite (DoD 2) — plus all four
+
+| Suite                                       | Guard env used locally                                         | Result                                                                                                             |
+| ------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| P8-S1 ads/content                           | `DATABASE_URL=.../ipoint_p8s1_test`, `P8S1_DESTRUCTIVE_TEST=1` | ✅ 12/12 (9.09s)                                                                                                   |
+| P8-S2 reconciliation                        | `DATABASE_URL=.../ipoint_p8s2_test`, `P8S2_DESTRUCTIVE_TEST=1` | ✅ 18/18 (10.37s) — runs green despite the pre-existing spec type errors (vitest transpiles without type-checking) |
+| P8-S3 risk controls                         | `DATABASE_URL=.../ipoint_p8s3_test`, `P8S3_DESTRUCTIVE_TEST=1` | ✅ 20/20 (12.19s)                                                                                                  |
+| P8-S4 advanced reports (**representative**) | `DATABASE_URL=.../ipoint_p8s4_test`, `P8S4_DESTRUCTIVE_TEST=1` | ✅ 32/32 (6.84s)                                                                                                   |
+
+Each suite dropped and recreated its own database via the guard path (`DROP DATABASE ... WITH (FORCE)` → `CREATE DATABASE`), migrated, seeded, and passed — proving the workflow's step commands + guard envs are correct. The same `DATABASE_URL` values, guard envs and spec paths are what the api-integration job uses (with CI's `ipoint`/`ipoint_ci` credentials and `127.0.0.1:5432`).
+
+### 7.4 Guard fail-closed negative check
+
+The guard's reject paths are covered by each suite's own embedded guard unit tests (pattern acceptance, protected-name rejection, malformed-name rejection, opt-in value matrix) which ran as part of the suites above (e.g. P8-S1 "rejects arbitrary, production-looking or malformed names", "requires the explicit destructive-test opt-in"). The workflow never weakens these.
+
+## 8. Commit map
+
+| Commit                                         | Scope | Contents                                                |
+| ---------------------------------------------- | ----- | ------------------------------------------------------- |
+| `ci(p8-s5): add full-repo phase 8 ci workflow` | ci    | `.github/workflows/p8-ci.yml`                           |
+| `docs(p8-s5): add P8-S5d delivery report`      | docs  | `docs/06-phase-reports/p8-s5/P8_S5D_DELIVERY_REPORT.md` |
+
+- `.npmrc` deleted before commit; final `git status` clean (verified).
+- No BOM (UTF-8, byte-verified), no em-dash mojibake (U+2014 proper where used), no secrets/placeholder production credentials in the workflow (test-only values only).
+- No changes to `apps/`, `packages/`, `docs/00-master/`, or the existing `ci.yml`/`p3-ci.yml`/`p4-ci.yml`/`p5-ci.yml`.
+
+## 9. Assumptions and exclusions
+
+1. **Baseline-failing commands are scoped, not deleted**: the brief's job commands that are red on the base commit (repo-wide `format:check`, `typecheck`, `build`, `test`, `test:database`) are kept as close to the brief as possible while staying green-first: the same underlying checks run, with the specific known-baseline-failing files/packages excluded (all listed in §6). This follows brief §9 ("do NOT include that file in the workflow's run scope — scope the workflow to the suites that are green, and note the exclusions").
+2. **P6 redemption DB suites are not part of this workflow's run scope**: `redemption-integration.spec.ts`, `redemption-admin.hardening.spec.ts`, `redemption-p6-atomicity.spec.ts` are P6 DB-integration suites already covered by `ci.yml`'s database-tests job; a unit job has no database service, so they fail env validation there. Excluded and recorded (§6).
+3. **admin-web flaky pages** (`agent-ops-pages.test.tsx`, `dashboard-page.test.tsx`): reproduced once each in different runs (full-workspace vs isolated) with the same async-render failure signature (`Unable to find an element ...`); excluded from the admin-web unit step for deterministic CI, recorded in §6.
+4. **`vitest --exclude` CLI is only honored in single-config mode** (verified: it is ignored in `vitest.workspace.ts` mode on vitest 4.0.14). The unit job therefore runs each project via its own config file instead of one workspace invocation. Node-unit scope additionally replicates the workspace's node-unit excludes (`p5-s1-schema.test.ts`, `app.e2e.spec.ts`) plus the three redemption files.
+5. **openapi job builds api first** because `pnpm openapi:validate` executes `dist/__scripts__/openapi-validate.js` (compiled output required; documented in the script header).
+6. **Local env shape differs from CI** (Node 26 vs 24, local postgres on 55432 with `ipoint-local-only` password vs CI service on 5432 with `ipoint_ci`): commands were run with the same _shape_ (DATABASE_URL pointing at a dedicated test db + guard opt-in), which is what DoD §7 requires; actual GitHub Actions execution is out of scope for local verification.
+7. **No `needs` edges** were introduced because every job is self-contained (each installs, builds/migrates what it runs). This satisfies the review-level structural check and keeps the workflow parallel.
