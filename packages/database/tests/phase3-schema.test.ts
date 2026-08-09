@@ -1,5 +1,5 @@
-﻿/**
- * Phase 3 Database Integration â€” Schema Validation & Migration Checksums
+/**
+ * Phase 3 Database Integration — Schema Validation & Migration Checksums
  *
  * Validates that Phase 3 table definitions exist in the expected schema and
  * that the migration pipeline can accommodate new Phase 3 migrations.
@@ -37,7 +37,7 @@ const PHASE_3_TABLES = [
 // Schema Validation (Contract-level)
 // ---------------------------------------------------------------------------
 
-describe('Phase 3 â€” Expected Schema Validation', () => {
+describe('Phase 3 — Expected Schema Validation', () => {
   describe('member_wallet_accounts', () => {
     it('should be registered in the expected schema', () => {
       expect(expectedSchema).toHaveProperty('member_wallet_accounts');
@@ -259,7 +259,7 @@ describe('Phase 3 â€” Expected Schema Validation', () => {
 // Migration Checksum Verification
 // ---------------------------------------------------------------------------
 
-describe('Phase 3 â€” Migration Pipeline Readiness', () => {
+describe('Phase 3 — Migration Pipeline Readiness', () => {
   it('should have a correct migration checksum manifest', async () => {
     const checksums = await calculateMigrationChecksums();
     expect(checksums).toBeDefined();
@@ -331,13 +331,13 @@ describe('Phase 3 â€” Migration Pipeline Readiness', () => {
 // Drift Detection Readiness
 // ---------------------------------------------------------------------------
 
-describe('Phase 3 â€” Schema Drift Detection', () => {
+describe('Phase 3 — Schema Drift Detection', () => {
   it('should define expected Phase 3 tables in expectedSchema for drift comparison', () => {
     // The drift-check compares live schema against expectedSchema.
     // Phase 3 tables must be added to expectedSchema before drift-check will pass.
     for (const table of PHASE_3_TABLES) {
       if (!(table in expectedSchema)) {
-        // This is not a failure yet â€” P3-S1 hasn't added them.
+        // This is not a failure yet — P3-S1 hasn't added them.
         // It's a readiness marker: expectedSchema must be updated when migrations run.
         expect(table).toBeDefined();
       }
@@ -387,7 +387,7 @@ describe('Phase 3 â€” Schema Drift Detection', () => {
 // Phase 3 Contract Invariants (Design-time)
 // ---------------------------------------------------------------------------
 
-describe('Phase 3 â€” Schema Design Invariants', () => {
+describe('Phase 3 — Schema Design Invariants', () => {
   it('member_wallet_accounts should have idempotent creation (UNIQUE member_id + market_id)', () => {
     // Contract: UNIQUE (member_id, market_id)
     // Test: the expected schema columns include both

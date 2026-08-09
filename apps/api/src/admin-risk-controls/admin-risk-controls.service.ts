@@ -1,4 +1,4 @@
-﻿import { createHash } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, sql } from 'drizzle-orm';
 import {
@@ -790,7 +790,7 @@ export class AdminRiskControlsService {
           this.stale(input.expectedVersion, current.version);
         assertReviewTransition('notes', current.status as RiskReviewStatus);
         const now = new Date();
-        const stamp = `${now.toISOString()} Ã¢â‚¬â€ ${actor.adminUserId}: ${input.notes}`;
+        const stamp = `${now.toISOString()} | ${actor.adminUserId}: ${input.notes}`;
         const previous = (current.notes as string | null) ?? null;
         const notesValue = previous ? `${previous}\n${stamp}` : stamp;
         const rows = await tx
