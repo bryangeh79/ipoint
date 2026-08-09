@@ -37,5 +37,6 @@
   "0035_p7_s7a_mcp_adjustment_conformance.sql": "80d6d216c8cc746db04c25e5b40b716b6d4f9b9c1318b3510eb403bd8f4b8c73",
   "0036_p6_sec02_refund_ledger_owner.sql": "f4322f6462a291c31113614a21c77e78d6bfa1d0f3136340d1c962ef05af8be2",
   "0037_ads_content_operations.sql": "375192c6b0243293da37e86d3ed857a56dcc11b31906ecfc1348875e49089c77",
-  "0038_reconciliation.sql": "5ba8cc0454acd26dca9212536aea1951b6795eaf2885b12b74c92dc0004c3579"
+  "0038_reconciliation.sql": "5ba8cc0454acd26dca9212536aea1951b6795eaf2885b12b74c92dc0004c3579",
+  "0039_risk_controls.sql": "2e17d45eb0b055197b3e319006184b8af1385a047ec7aef1e22ca4b868ad4f16"
 }

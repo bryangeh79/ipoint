@@ -304,13 +304,13 @@ describe('Phase 3 — Migration Pipeline Readiness', () => {
   });
 
   it('should allow later migrations to be appended', async () => {
-    // Phase 5 migrations start at 0018; the pipeline currently ends at 0038
+    // Phase 5 migrations start at 0018; the pipeline currently ends at 0039
     const checksums = await calculateMigrationChecksums();
     const sortedFiles = Object.keys(checksums).sort();
     const lastMigration = sortedFiles[sortedFiles.length - 1];
-    expect(lastMigration).toMatch(/^0038_/u);
-    // Next available index is 39
-    expect(Number.parseInt(lastMigration!.slice(0, 4), 10)).toBe(38);
+    expect(lastMigration).toMatch(/^0039_/u);
+    // Next available index is 40
+    expect(Number.parseInt(lastMigration!.slice(0, 4), 10)).toBe(39);
   });
 
   it('should have a valid checksum manifest file', async () => {

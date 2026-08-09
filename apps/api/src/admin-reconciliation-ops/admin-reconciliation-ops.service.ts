@@ -329,7 +329,7 @@ export class AdminReconciliationOpsService {
               eq(reconciliationRuns.id, runId),
               eq(reconciliationRuns.marketId, marketId),
               eq(reconciliationRuns.status, status),
-              eq(reconciliationRuns.version, run.version),
+              eq(reconciliationRuns.version, run.version as number),
             ),
           )
           .returning();
@@ -1399,7 +1399,7 @@ export class AdminReconciliationOpsService {
 // ---------------------------------------------------------------------------
 
 export function toScaledBigInt(
-  value: string | number | null | undefined,
+  value: unknown,
 ): bigint {
   if (value == null) return ZERO;
   const textValue = text(value).trim();
@@ -1431,8 +1431,8 @@ export function sub(
 }
 
 export function eqScaled(
-  a: string | number | null | undefined,
-  b: string | number | null | undefined,
+  a: unknown,
+  b: unknown,
 ): boolean {
   return toScaledBigInt(a) === toScaledBigInt(b);
 }

@@ -180,6 +180,42 @@ export const reconciliationItemStatus = pgEnum('reconciliation_item_status', [
   'MISSING',
   'UNEXPECTED',
 ]);
+
+/** P8-S3 risk / fraud / operational controls enums. */
+export const riskIndicatorCategory = pgEnum('risk_indicator_category', [
+  'SUSPICIOUS_TRANSACTION',
+  'DUPLICATE_REPLAY',
+  'ABNORMAL_ADJUSTMENT',
+  'RATE_CONFIG_ANOMALY',
+  'CROSS_MARKET_VIOLATION',
+  'ACCOUNT_ADMIN_ABUSE',
+  'SECURITY_EVENT',
+  'REVIEW_QUEUE',
+]);
+export const riskEventSeverity = pgEnum('risk_event_severity', [
+  'LOW',
+  'MEDIUM',
+  'HIGH',
+  'CRITICAL',
+]);
+export const riskRunStatus = pgEnum('risk_run_status', [
+  'PENDING',
+  'RUNNING',
+  'COMPLETED',
+  'FAILED',
+  'CANCELLED',
+]);
+export const riskEventStatus = pgEnum('risk_event_status', ['FLAGGED']);
+export const riskReviewStatus = pgEnum('risk_review_status', [
+  'OPEN',
+  'IN_REVIEW',
+  'RESOLVED',
+]);
+export const riskReviewDecision = pgEnum('risk_review_decision', [
+  'NO_ACTION',
+  'WATCH',
+  'ESCALATED',
+]);
 export const mcpDirection = pgEnum('mcp_direction', ['CREDIT', 'DEBIT']);
 export const mcpAccountStatus = pgEnum('mcp_account_status', [
   'ACTIVE',
@@ -4769,6 +4805,343 @@ export const reconciliationIdempotencyKeys = pgTable(
   ],
 );
 
+/**
+ * P8-S3 Risk / Fraud / Operational Controls. DETECTION + REVIEW +
+ * TRACEABILITY only: detectors are read-only queries over frozen financial /
+ * audit / security tables and never write to them. No enforcement
+ * side-effects (no freeze/block/debit/disable), no invented thresholds
+ * (operator-configurable definition config), E-30 reject-delete everywhere.
+ */
+export const riskIndicatorDefinitions = pgTable(
+  'risk_indicator_definitions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    code: varchar('code', { length: 100 }).notNull(),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    category: riskIndicatorCategory('category').notNull(),
+    name: varchar('name', { length: 200 }).notNull(),
+    description: text('description'),
+    enabled: boolean('enabled').notNull().default(true),
+    config: jsonb('config').notNull().default({}),
+    severity: riskEventSeverity('severity').notNull().default('MEDIUM'),
+    version: integer('version').notNull().default(1),
+    supersededById: uuid('superseded_by_id').references(
+      (): AnyPgColumn => riskIndicatorDefinitions.id,
+      { onDelete: 'restrict' },
+    ),
+    supersededAt: utcTimestamp('superseded_at'),
+    createdByAdminUserId: uuid('created_by_admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+    archivedAt: utcTimestamp('archived_at'),
+  },
+  (table) => [
+    unique('risk_indicator_definitions_id_market_unique').on(
+      table.id,
+      table.marketId,
+    ),
+    unique('risk_indicator_definitions_code_version_unique').on(
+      table.marketId,
+      table.code,
+      table.version,
+    ),
+    check(
+      'risk_indicator_definitions_code_check',
+      sql`char_length(btrim(${table.code})) between 1 and 100`,
+    ),
+    check(
+      'risk_indicator_definitions_name_check',
+      sql`char_length(btrim(${table.name})) between 1 and 200`,
+    ),
+    check(
+      'risk_indicator_definitions_description_check',
+      sql`${table.description} is null or char_length(${table.description}) between 1 and 2000`,
+    ),
+    check(
+      'risk_indicator_definitions_config_check',
+      sql`jsonb_typeof(${table.config}) = 'object'`,
+    ),
+    check(
+      'risk_indicator_definitions_version_check',
+      sql`${table.version} > 0`,
+    ),
+    check(
+      'risk_indicator_definitions_supersede_consistency',
+      sql`(${table.supersededById} is null and ${table.supersededAt} is null) or (${table.supersededById} is not null and ${table.supersededAt} is not null and ${table.supersededById} <> ${table.id})`,
+    ),
+    check(
+      'risk_indicator_definitions_archive_check',
+      sql`${table.archivedAt} is null or ${table.archivedAt} >= ${table.createdAt}`,
+    ),
+    index('risk_indicator_definitions_market_category_idx').on(
+      table.marketId,
+      table.category,
+      table.enabled,
+      table.version,
+    ),
+    index('risk_indicator_definitions_code_idx').on(
+      table.marketId,
+      table.code,
+      table.version,
+    ),
+  ],
+);
+
+export const riskDetectionRuns = pgTable(
+  'risk_detection_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    publicId: uuid('public_id').notNull().defaultRandom(),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    category: riskIndicatorCategory('category').notNull(),
+    status: riskRunStatus('status').notNull().default('PENDING'),
+    windowStartAt: utcTimestamp('window_start_at').notNull(),
+    windowEndAt: utcTimestamp('window_end_at').notNull(),
+    definitionsScanned: integer('definitions_scanned'),
+    eventsDetected: integer('events_detected'),
+    summary: jsonb('summary'),
+    failureReason: text('failure_reason'),
+    startedAt: utcTimestamp('started_at'),
+    completedAt: utcTimestamp('completed_at'),
+    failedAt: utcTimestamp('failed_at'),
+    cancelledAt: utcTimestamp('cancelled_at'),
+    runByAdminUserId: uuid('run_by_admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+    archivedAt: utcTimestamp('archived_at'),
+  },
+  (table) => [
+    unique('risk_detection_runs_public_id_unique').on(table.publicId),
+    unique('risk_detection_runs_id_market_unique').on(table.id, table.marketId),
+    check(
+      'risk_detection_runs_window_check',
+      sql`${table.windowEndAt} > ${table.windowStartAt}`,
+    ),
+    check('risk_detection_runs_version_check', sql`${table.version} > 0`),
+    check(
+      'risk_detection_runs_totals_check',
+      sql`(${table.status} = 'COMPLETED' and ${table.definitionsScanned} is not null and ${table.eventsDetected} is not null) or (${table.status} <> 'COMPLETED')`,
+    ),
+    check(
+      'risk_detection_runs_timestamps_check',
+      sql`(${table.status} = 'PENDING' and ${table.startedAt} is null and ${table.completedAt} is null and ${table.failedAt} is null and ${table.cancelledAt} is null) or (${table.status} = 'RUNNING' and ${table.startedAt} is not null and ${table.completedAt} is null and ${table.failedAt} is null and ${table.cancelledAt} is null) or (${table.status} = 'COMPLETED' and ${table.startedAt} is not null and ${table.completedAt} is not null and ${table.failedAt} is null and ${table.cancelledAt} is null) or (${table.status} = 'FAILED' and ${table.startedAt} is not null and ${table.failedAt} is not null and ${table.completedAt} is null and ${table.cancelledAt} is null) or (${table.status} = 'CANCELLED' and ${table.cancelledAt} is not null and ${table.completedAt} is null and ${table.failedAt} is null)`,
+    ),
+    check(
+      'risk_detection_runs_failure_reason_check',
+      sql`(${table.status} = 'FAILED' and char_length(btrim(coalesce(${table.failureReason}, ''))) between 1 and 2000) or (${table.status} <> 'FAILED')`,
+    ),
+    check(
+      'risk_detection_runs_archive_check',
+      sql`${table.archivedAt} is null or ${table.archivedAt} >= ${table.createdAt}`,
+    ),
+    index('risk_detection_runs_market_category_status_idx').on(
+      table.marketId,
+      table.category,
+      table.status,
+      table.createdAt,
+    ),
+    index('risk_detection_runs_market_window_idx').on(
+      table.marketId,
+      table.windowStartAt,
+      table.windowEndAt,
+    ),
+  ],
+);
+
+export const riskEvents = pgTable(
+  'risk_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id').notNull(),
+    marketId: uuid('market_id').notNull(),
+    indicatorId: uuid('indicator_id').notNull(),
+    indicatorCode: varchar('indicator_code', { length: 100 }).notNull(),
+    indicatorVersion: integer('indicator_version').notNull(),
+    category: riskIndicatorCategory('category').notNull(),
+    severity: riskEventSeverity('severity').notNull(),
+    entityType: varchar('entity_type', { length: 40 }).notNull(),
+    entityId: text('entity_id').notNull(),
+    entityMarketId: uuid('entity_market_id').references(() => markets.id, {
+      onDelete: 'restrict',
+    }),
+    payload: jsonb('payload').notNull(),
+    detectionMetadata: jsonb('detection_metadata').notNull(),
+    status: riskEventStatus('status').notNull().default('FLAGGED'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('risk_events_id_market_unique').on(table.id, table.marketId),
+    foreignKey({
+      columns: [table.runId, table.marketId],
+      foreignColumns: [riskDetectionRuns.id, riskDetectionRuns.marketId],
+      name: 'risk_events_run_market_fk',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.indicatorId, table.marketId],
+      foreignColumns: [
+        riskIndicatorDefinitions.id,
+        riskIndicatorDefinitions.marketId,
+      ],
+      name: 'risk_events_indicator_market_fk',
+    }).onDelete('restrict'),
+    unique('risk_events_run_reference_unique').on(
+      table.runId,
+      table.marketId,
+      table.indicatorCode,
+      table.entityType,
+      table.entityId,
+    ),
+    check(
+      'risk_events_entity_type_check',
+      sql`char_length(btrim(${table.entityType})) between 1 and 40`,
+    ),
+    check(
+      'risk_events_entity_id_check',
+      sql`char_length(btrim(${table.entityId})) between 1 and 120`,
+    ),
+    check(
+      'risk_events_code_check',
+      sql`char_length(btrim(${table.indicatorCode})) between 1 and 100`,
+    ),
+    check(
+      'risk_events_indicator_version_check',
+      sql`${table.indicatorVersion} > 0`,
+    ),
+    check(
+      'risk_events_payload_check',
+      sql`jsonb_typeof(${table.payload}) = 'object'`,
+    ),
+    check(
+      'risk_events_metadata_check',
+      sql`jsonb_typeof(${table.detectionMetadata}) = 'object'`,
+    ),
+    check('risk_events_status_check', sql`${table.status} = 'FLAGGED'`),
+    index('risk_events_market_status_idx').on(
+      table.marketId,
+      table.status,
+      table.createdAt,
+    ),
+    index('risk_events_market_category_idx').on(
+      table.marketId,
+      table.category,
+      table.createdAt,
+    ),
+    index('risk_events_run_idx').on(table.runId, table.createdAt),
+    index('risk_events_indicator_idx').on(table.indicatorId, table.createdAt),
+  ],
+);
+
+export const riskReviewQueue = pgTable(
+  'risk_review_queue',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: uuid('event_id').notNull(),
+    marketId: uuid('market_id').notNull(),
+    status: riskReviewStatus('status').notNull().default('OPEN'),
+    assignedAdminUserId: uuid('assigned_admin_user_id').references(
+      () => adminUsers.id,
+      { onDelete: 'restrict' },
+    ),
+    decision: riskReviewDecision('decision'),
+    decisionReason: text('decision_reason'),
+    notes: text('notes'),
+    resolvedByAdminUserId: uuid('resolved_by_admin_user_id').references(
+      () => adminUsers.id,
+      { onDelete: 'restrict' },
+    ),
+    resolvedAt: utcTimestamp('resolved_at'),
+    version: integer('version').notNull().default(1),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+    archivedAt: utcTimestamp('archived_at'),
+  },
+  (table) => [
+    unique('risk_review_queue_id_market_unique').on(table.id, table.marketId),
+    unique('risk_review_queue_event_market_unique').on(
+      table.eventId,
+      table.marketId,
+    ),
+    foreignKey({
+      columns: [table.eventId, table.marketId],
+      foreignColumns: [riskEvents.id, riskEvents.marketId],
+      name: 'risk_review_queue_event_market_fk',
+    }).onDelete('restrict'),
+    check('risk_review_queue_version_check', sql`${table.version} > 0`),
+    check(
+      'risk_review_queue_decision_consistency',
+      sql`(${table.decision} is null and ${table.decisionReason} is null) or (${table.decision} is not null and char_length(btrim(${table.decisionReason})) between 1 and 2000)`,
+    ),
+    check(
+      'risk_review_queue_notes_check',
+      sql`${table.notes} is null or char_length(${table.notes}) between 1 and 20000`,
+    ),
+    check(
+      'risk_review_queue_timestamps_check',
+      sql`(${table.status} = 'OPEN' and ${table.assignedAdminUserId} is null and ${table.resolvedByAdminUserId} is null and ${table.resolvedAt} is null) or (${table.status} = 'IN_REVIEW' and ${table.assignedAdminUserId} is not null and ${table.resolvedByAdminUserId} is null and ${table.resolvedAt} is null) or (${table.status} = 'RESOLVED' and ${table.assignedAdminUserId} is not null and ${table.decision} is not null and ${table.resolvedByAdminUserId} is not null and ${table.resolvedAt} is not null)`,
+    ),
+    check(
+      'risk_review_queue_archive_check',
+      sql`${table.archivedAt} is null or ${table.archivedAt} >= ${table.createdAt}`,
+    ),
+    index('risk_review_queue_market_status_idx').on(
+      table.marketId,
+      table.status,
+      table.createdAt,
+    ),
+    index('risk_review_queue_event_idx').on(table.eventId, table.createdAt),
+    index('risk_review_queue_assignee_status_idx').on(
+      table.assignedAdminUserId,
+      table.status,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const riskIdempotencyKeys = pgTable(
+  'risk_idempotency_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    adminUserId: uuid('admin_user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'restrict' }),
+    marketId: uuid('market_id')
+      .notNull()
+      .references(() => markets.id, { onDelete: 'restrict' }),
+    operation: varchar('operation', { length: 80 }).notNull(),
+    key: varchar('key', { length: 200 }).notNull(),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    response: jsonb('response'),
+    statusCode: integer('status_code'),
+    createdAt: utcTimestamp('created_at').notNull().defaultNow(),
+    updatedAt: utcTimestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    unique('risk_idempotency_scope_unique').on(
+      table.adminUserId,
+      table.marketId,
+      table.operation,
+      table.key,
+    ),
+    check(
+      'risk_idempotency_hash_check',
+      sql`char_length(${table.requestHash}) = 64`,
+    ),
+    check(
+      'risk_idempotency_result_check',
+      sql`(${table.response} is null and ${table.statusCode} is null) or (${table.response} is not null and ${table.statusCode} between 200 and 599)`,
+    ),
+  ],
+);
+
 import {
   redemptionRateVersions,
   redemptionRateMarketRules,
@@ -4948,6 +5321,17 @@ export const schema = {
   reconciliationExceptionStatus,
   reconciliationExceptionClassification,
   reconciliationItemStatus,
+  riskIndicatorDefinitions,
+  riskDetectionRuns,
+  riskEvents,
+  riskReviewQueue,
+  riskIdempotencyKeys,
+  riskIndicatorCategory,
+  riskEventSeverity,
+  riskRunStatus,
+  riskEventStatus,
+  riskReviewStatus,
+  riskReviewDecision,
   redemptionRateVersions,
   redemptionCatalogItems,
   redemptionQuotes,

@@ -116,6 +116,7 @@ describe.skipIf(!databaseUrl)('database foundation integration', () => {
       '0036_p6_sec02_refund_ledger_owner.sql',
       '0037_ads_content_operations.sql',
       '0038_reconciliation.sql',
+      '0039_risk_controls.sql',
     ]);
 
     const auditReferenceColumn = await connection.pool.query<{
