@@ -1767,3 +1767,20 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058, D-059, D-060; P8_S0_CONTRACT_FREEZE.md §4; P8_S4_REVIEW_REPORT.md (APPROVED 0C/0H/0M/3L+2N) |
 | **Status** | **APPROVED (REVOCABLE)** |
+
+## D-063 - P8-S5a Advanced Reports Admin Web UI APPROVED (OPENCLAW-ACTING-COMMAND-CENTER)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-063 |
+| **Date** | 2026-08-09 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization) |
+| **Old Rule** | P8-S5a AUTHORIZED / IN_PROGRESS (D-058 continuous execution; M-1 deferral of reports admin-web UI from P8-S2/P8-S4) |
+| **New Decision** | P8-S5a APPROVED (OPENCLAW-ACTING-COMMAND-CENTER, revocable). Advanced Reports Admin Web UI delivered: P7-S9 reports page extended to render all 19 reports (R01-R19) incl. 15 advanced views; 12 new kind renderers field-accurate vs P8-S4 ReportValue union (incl. R17 FULFILMENT_OVERVIEW); amounts lossless exact-decimal strings via formatReportAmount (no float display, no fabricated zeros); no export surface; no new permission codes; api/api-client/migrations/governance untouched. Independent Review B'\'' APPROVED 0C/0H/0M/4L. Merge e701ebd3 on phase/8-final-delivery-readiness. Gate record P8_S5A_FINAL_GATE_RECORD.md. |
+| **Reason** | Review evidence chain (implementer subagent + independent reviewer B'\'' + host verification) complete; gates green (admin-web 336/336 incl. R05-R19 coverage + R01-R04 regression, build clean, lint 0, prettier clean, static scans clean); zero Critical/High findings. |
+| **Affected Files** | docs/06-phase-reports/p8-s5/P8_S5A_FINAL_GATE_RECORD.md, docs/06-phase-reports/p8-s5/P8_S5A_DELIVERY_REPORT.md, docs/06-phase-reports/p8-s5/P8_S5A_REVIEW_REPORT.md, docs/06-phase-reports/p8-s5/TASK_BRIEF_P8S5.md, apps/admin-web/src/reports-page.tsx, apps/admin-web/src/reports-model.ts, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S5a) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058, D-059, D-060; P8_S0_CONTRACT_FREEZE.md §4/§5; P8_S5A_REVIEW_REPORT.md (APPROVED 0C/0H/0M/4L) |
+| **Status** | **APPROVED (REVOCABLE)** |
