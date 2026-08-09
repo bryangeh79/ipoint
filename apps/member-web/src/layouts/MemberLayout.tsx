@@ -8,7 +8,16 @@ import {
   BottomNavigation,
   Drawer,
 } from '@ipoint/ui';
-import { House, Store, Wallet, User, LogOut } from 'lucide-react';
+import {
+  House,
+  Store,
+  Wallet,
+  Gift,
+  Users,
+  ShoppingBag,
+  User,
+  LogOut,
+} from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 
 interface MemberLayoutProps {
@@ -16,28 +25,14 @@ interface MemberLayoutProps {
 }
 
 const NAV_ITEMS = [
-  { id: 'home', label: 'Home', href: '/', icon: <House size={20} /> },
-  {
-    id: 'merchants',
-    label: 'Merchants',
-    href: '/merchants',
-    icon: <Store size={20} />,
-  },
-  {
-    id: 'wallet',
-    label: 'Wallet',
-    href: '/#wallet',
-    icon: <Wallet size={20} />,
-  },
-  {
-    id: 'profile',
-    label: 'Profile',
-    href: '/profile',
-    icon: <User size={20} />,
-  },
+  { id: 'home', href: '/', icon: <House size={20} /> },
+  { id: 'merchants', href: '/merchants', icon: <Store size={20} /> },
+  { id: 'wallet', href: '/wallet', icon: <Wallet size={20} /> },
+  { id: 'reward', href: '/reward', icon: <Gift size={20} /> },
+  { id: 'team', href: '/team', icon: <Users size={20} /> },
+  { id: 'redemption', href: '/redemption', icon: <ShoppingBag size={20} /> },
+  { id: 'profile', href: '/profile', icon: <User size={20} /> },
 ] as const;
-
-//  is intentionally unused - shows 'Coming Soon' in bottom nav = NAV_ITEMS[2]; // Wallet - shows "Coming Soon"
 
 export function MemberLayout({ children }: MemberLayoutProps) {
   const { t } = useTranslation();
@@ -46,19 +41,20 @@ export function MemberLayout({ children }: MemberLayoutProps) {
   const { user, logout } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const navItems = NAV_ITEMS.map((item) => ({
+    ...item,
+    label: t(`nav.${item.id}`),
+  }));
+
   const activeSegment = location.pathname.split('/')[1] ?? 'home';
   const activeId =
     activeSegment === '' || activeSegment === 'home'
       ? 'home'
-      : (NAV_ITEMS.find((item) => item.href === `/${activeSegment}`)?.id ??
+      : (navItems.find((item) => item.href === `/${activeSegment}`)?.id ??
         'home');
 
   const handleNavigate = useCallback(
-    (item: (typeof NAV_ITEMS)[number]) => {
-      if (item.id === 'wallet') {
-        // Phase 3 not authorized — show "Coming Soon" placeholder
-        return;
-      }
+    (item: (typeof navItems)[number]) => {
       if (item.href) {
         void navigate(item.href);
         setDrawerOpen(false);
@@ -85,16 +81,13 @@ export function MemberLayout({ children }: MemberLayoutProps) {
 
   const sideNav = (
     <SideNavigation
-      items={NAV_ITEMS.map((item) => ({
-        ...item,
-        disabled: item.id === 'wallet',
-      }))}
+      items={navItems}
       activeId={activeId}
       onNavigate={(navItem) => {
-        const found = NAV_ITEMS.find((n) => n.id === navItem.id);
+        const found = navItems.find((n) => n.id === navItem.id);
         if (found) handleNavigate(found);
       }}
-      label="Primary navigation"
+      label={t('nav.primary')}
     />
   );
 
@@ -115,37 +108,31 @@ export function MemberLayout({ children }: MemberLayoutProps) {
       sideNavigation={sideNav}
       bottomNavigation={
         <BottomNavigation
-          items={NAV_ITEMS.map((item) => ({
-            ...item,
-            disabled: item.id === 'wallet',
-          }))}
+          items={navItems}
           activeId={activeId}
           onNavigate={(navItem) => {
-            const found = NAV_ITEMS.find((n) => n.id === navItem.id);
+            const found = navItems.find((n) => n.id === navItem.id);
             if (found) handleNavigate(found);
           }}
-          label="Primary navigation"
+          label={t('nav.bottom')}
         />
       }
     >
       <Drawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        title={`${t('app.name')} navigation`}
+        title={`${t('app.name')} ${t('nav.drawerTitle')}`}
         placement="left"
       >
         <SideNavigation
-          items={NAV_ITEMS.map((item) => ({
-            ...item,
-            disabled: item.id === 'wallet',
-          }))}
+          items={navItems}
           activeId={activeId}
           onNavigate={(navItem) => {
-            const found = NAV_ITEMS.find((n) => n.id === navItem.id);
+            const found = navItems.find((n) => n.id === navItem.id);
             if (found) handleNavigate(found);
             setDrawerOpen(false);
           }}
-          label="Mobile navigation"
+          label={t('nav.mobile')}
         />
       </Drawer>
       {children}

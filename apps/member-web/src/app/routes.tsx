@@ -18,6 +18,10 @@ import { QrPage } from '../pages/QrPage';
 import { MerchantListPage } from '../pages/MerchantListPage';
 import { MerchantDetailPage } from '../pages/MerchantDetailPage';
 import { NearbyPage } from '../pages/NearbyPage';
+import { WalletPage } from '../pages/WalletPage';
+import { RewardPage } from '../pages/RewardPage';
+import { TeamPage } from '../pages/TeamPage';
+import { RedemptionPage } from '../pages/RedemptionPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 
@@ -190,6 +194,46 @@ export const routes: RouteObject[] = [
       <ProtectedRoute>
         <MemberLayout>
           <NearbyPage />
+        </MemberLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/wallet',
+    element: (
+      <ProtectedRoute>
+        <MemberLayout>
+          <WalletPage />
+        </MemberLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/reward',
+    element: (
+      <ProtectedRoute>
+        <MemberLayout>
+          <RewardPage />
+        </MemberLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/team',
+    element: (
+      <ProtectedRoute>
+        <MemberLayout>
+          <TeamPage />
+        </MemberLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/redemption',
+    element: (
+      <ProtectedRoute>
+        <MemberLayout>
+          <RedemptionPage />
         </MemberLayout>
       </ProtectedRoute>
     ),
