@@ -39,6 +39,7 @@ import { CommissionModule } from './commission/commission.module.js';
 import { RedemptionModule } from './redemption/redemption.module.js';
 import { AdsContentModule } from './ads-content/ads-content.module.js';
 import { AdminReconciliationOpsModule } from './admin-reconciliation-ops/admin-reconciliation-ops.module.js';
+import { AdminRiskControlsModule } from './admin-risk-controls/admin-risk-controls.module.js';
 import {
   RequestIdMiddleware,
   resolveRequestId,
@@ -117,6 +118,7 @@ import {
     RedemptionModule,
     AdsContentModule,
     AdminReconciliationOpsModule,
+    AdminRiskControlsModule,
   ],
 })
 export class AppModule implements NestModule {
