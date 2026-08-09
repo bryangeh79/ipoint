@@ -1,4 +1,11 @@
-import { ApiClient, MemberAdsContentApiClient } from '@ipoint/api-client';
+import {
+  ApiClient,
+  MemberAdsContentApiClient,
+  MemberWalletApiClient,
+  MemberRewardApiClient,
+  MemberTeamApiClient,
+  MemberRedemptionApiClient,
+} from '@ipoint/api-client';
 
 const DEFAULT_BASE_URL = 'http://localhost:3000/api/v1';
 
@@ -22,3 +29,7 @@ function getBaseUrl(): string {
  */
 export const apiClient = new ApiClient(getBaseUrl());
 export const memberAdsContentApi = new MemberAdsContentApiClient(apiClient);
+export const memberWalletApi = new MemberWalletApiClient(apiClient);
+export const memberRewardApi = new MemberRewardApiClient(apiClient);
+export const memberTeamApi = new MemberTeamApiClient(apiClient);
+export const memberRedemptionApi = new MemberRedemptionApiClient(apiClient);

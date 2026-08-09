@@ -4314,6 +4314,482 @@ export class MemberAdsContentApiClient {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/*  P8-S5B Member Wallet / Reward / Team / Redemption clients          */
+/*                                                                     */
+/*  Append-only section (do not move or merge). Member-domain          */
+/*  adapters over the frozen Phase 3/5/6 member controllers:           */
+/*    wallet:     GET /wallets, GET /wallets/:id,                      */
+/*                GET /wallets/:id/entries (limit/offset paging)       */
+/*    reward:     GET /rewards/plans (member-scoped, page paging)      */
+/*    referral:   GET /referral/tree (anonymized tree + own code)      */
+/*    agent:      GET /agent/status (optional market code filter)      */
+/*    commission: GET /commission/summary,                             */
+/*                GET /commission/ledger (limit/offset paging)         */
+/*    redemption: GET /redemption/catalog (page paging),               */
+/*                GET /redemption/catalog/:itemId,                     */
+/*                GET /redemption/catalog/:itemId/quote,               */
+/*                POST /redemption/orders (idempotency key in body)    */
+/*                                                                     */
+/*  All monetary amounts are exact decimal strings and are passed      */
+/*  through untouched. The member scope is derived server-side from    */
+/*  the authenticated actor; the client never invents a market id.     */
+/* ------------------------------------------------------------------ */
+
+/* ---- P8-S5B Member Wallet ---- */
+
+export type MemberWalletEntryType =
+  | 'PENDING'
+  | 'AVAILABLE'
+  | 'REVERSED'
+  | 'COMPENSATION'
+  | 'ADJUSTMENT';
+
+/** GET /wallets — one wallet account per market for the member. */
+export interface MemberWalletAccountDto {
+  id: string;
+  memberId: string;
+  marketId: string;
+  pendingBalance: string;
+  availableBalance: string;
+  reversedBalance: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** GET /wallets/:id/entries — immutable ledger entry (newest first). */
+export interface MemberWalletEntryDto {
+  id: string;
+  walletAccountId: string;
+  memberId: string;
+  marketId: string;
+  entrySequence: number;
+  entryType: MemberWalletEntryType;
+  amount: string;
+  balanceBefore: string;
+  balanceAfter: string;
+  idempotencyKey: string;
+  referenceType: string | null;
+  referenceId: string | null;
+  description: string | null;
+  reason: string | null;
+  actorId: string | null;
+  marketTimezone: string | null;
+  createdAt: string;
+}
+
+export interface MemberWalletEntriesPageDto {
+  entries: MemberWalletEntryDto[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * P8-S5B member wallet adapter. Balances are exact decimal strings;
+ * the wallet surface carries no currency (currency is resolved per
+ * market in the consuming app).
+ */
+export class MemberWalletApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** All wallets of the authenticated member (one per market). */
+  async listWallets(): Promise<MemberWalletAccountDto[]> {
+    return (await this.client.get<MemberWalletAccountDto[]>('/wallets')).data;
+  }
+
+  async getWallet(id: string): Promise<MemberWalletAccountDto> {
+    return (
+      await this.client.get<MemberWalletAccountDto>(
+        `/wallets/${encodeURIComponent(id)}`,
+      )
+    ).data;
+  }
+
+  /** Paginated immutable ledger history for one wallet, newest first. */
+  async walletEntries(
+    id: string,
+    query: { limit?: number; offset?: number } = {},
+  ): Promise<MemberWalletEntriesPageDto> {
+    return (
+      await this.client.get<MemberWalletEntriesPageDto>(
+        `/wallets/${encodeURIComponent(id)}/entries${queryString(query)}`,
+      )
+    ).data;
+  }
+}
+
+/* ---- P8-S5B Member Reward ---- */
+
+export type MemberRewardPlanStatus =
+  | 'SCHEDULED'
+  | 'ACTIVE'
+  | 'CAPPED'
+  | 'SUSPENDED'
+  | 'REVERSED'
+  | 'COMPLETED';
+
+/** GET /rewards/plans — a member reward (accrual) plan. */
+export interface MemberRewardPlanDto {
+  id: string;
+  sourceType: string;
+  sourceId: string;
+  memberId: string;
+  marketId: string;
+  merchantId: string;
+  status: MemberRewardPlanStatus;
+  totalEarned: string;
+  capAmount: string | null;
+  snapshot: Record<string, unknown> | null;
+  ruleVersionId: string | null;
+  activatedAt: string | null;
+  completedAt: string | null;
+  reversedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MemberRewardPlansPageDto {
+  items: MemberRewardPlanDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/**
+ * P8-S5B member reward adapter. Reward amounts are exact decimal
+ * strings (totalEarned / capAmount).
+ */
+export class MemberRewardApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Member reward plans (accrual records), paginated. */
+  async plans(
+    query: {
+      page?: number;
+      pageSize?: number;
+      status?: MemberRewardPlanStatus;
+    } = {},
+  ): Promise<MemberRewardPlansPageDto> {
+    return (
+      await this.client.get<MemberRewardPlansPageDto>(
+        `/rewards/plans${queryString(query)}`,
+      )
+    ).data;
+  }
+}
+
+/* ---- P8-S5B Member Team (referral / agent / commission) ---- */
+
+/** GET /referral/tree — anonymized tree plus the member's own code. */
+export interface MemberReferralTreeDto {
+  myCode: string;
+  referrer: { maskedReference: string; isAgent: boolean } | null;
+  referrals: {
+    g1Count: number;
+    g2Count: number;
+    g1Agents: number;
+    g2Agents: number;
+  };
+}
+
+/** GET /agent/status — agent activation status (nullable when none). */
+export interface MemberAgentActivationStatusDto {
+  activationId: string;
+  status: string;
+  market: string;
+  activatedAt: string | null;
+  currency: string;
+  feeRateVersionId: string | null;
+  activationFee: string | null;
+  activationFeeCurrency: string;
+  paymentReference: string | null;
+  courseReference: string | null;
+  rejectionReason: string | null;
+  revocationReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MemberCommissionMarketSummaryDto {
+  market: string;
+  currency: string;
+  totalEarned: string;
+  entryCount: number;
+}
+
+/** GET /commission/summary — per-market totals with grand total. */
+export interface MemberCommissionSummaryDto {
+  memberId: string;
+  markets: MemberCommissionMarketSummaryDto[];
+  grandTotal: string;
+  currency: string;
+}
+
+/** GET /commission/ledger — one commission ledger entry. */
+export interface MemberCommissionLedgerEntryDto {
+  id: string;
+  publicReference: string;
+  beneficiaryId: string;
+  sourceType: string;
+  sourceReference: string;
+  market: string;
+  currency: string;
+  amount: string;
+  generation: number;
+  entryType: string;
+  postingStatus: string;
+  effectiveTime: string;
+  createdAt: string;
+  reversalLinkage: string | null;
+  auditLinkage: string | null;
+  notes: string | null;
+}
+
+export interface MemberCommissionLedgerPageDto {
+  entries: MemberCommissionLedgerEntryDto[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * P8-S5B member team adapter: referral tree, agent activation status
+ * and commission summary/ledger. Amounts are exact decimal strings.
+ */
+export class MemberTeamApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Anonymized referral tree with the member's own referral code. */
+  async referralTree(): Promise<MemberReferralTreeDto> {
+    return (
+      await this.client.get<MemberReferralTreeDto>('/referral/tree?depth=2')
+    ).data;
+  }
+
+  /**
+   * Agent activation status. Without a market the server returns the
+   * most recent activation across markets.
+   */
+  async agentStatus(
+    market?: string,
+  ): Promise<MemberAgentActivationStatusDto | null> {
+    const query = market ? `?market=${encodeURIComponent(market)}` : '';
+    return (
+      await this.client.get<MemberAgentActivationStatusDto | null>(
+        `/agent/status${query}`,
+      )
+    ).data;
+  }
+
+  /** Per-market commission totals with grand total (exact strings). */
+  async commissionSummary(): Promise<MemberCommissionSummaryDto> {
+    return (
+      await this.client.get<MemberCommissionSummaryDto>('/commission/summary')
+    ).data;
+  }
+
+  /** Paginated commission ledger for the authenticated member. */
+  async commissionLedger(
+    query: {
+      market?: string;
+      status?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): Promise<MemberCommissionLedgerPageDto> {
+    return (
+      await this.client.get<MemberCommissionLedgerPageDto>(
+        `/commission/ledger${queryString(query)}`,
+      )
+    ).data;
+  }
+}
+
+/* ---- P8-S5B Member Redemption ---- */
+
+export type MemberRedemptionItemType =
+  | 'PHYSICAL'
+  | 'DIGITAL_VOUCHER'
+  | 'SERVICE';
+
+export type MemberRedemptionFulfilmentMode =
+  | 'DELIVERY'
+  | 'PICKUP'
+  | 'DELIVERY_OR_PICKUP'
+  | 'DIGITAL'
+  | 'SERVICE';
+
+export type MemberRedemptionCatalogQuery = {
+  page?: number;
+  pageSize?: number;
+  query?: string;
+  itemType?: MemberRedemptionItemType;
+  fulfilmentMode?: MemberRedemptionFulfilmentMode;
+  sort?: 'name:asc' | 'name:desc' | 'sortOrder:asc';
+};
+
+/** GET /redemption/catalog — one catalogue row for the member market. */
+export interface MemberRedemptionCatalogItemDto {
+  id: string;
+  name: string;
+  sku: string | null;
+  itemType: string;
+  fiatReferenceValue: string;
+  fiatCurrency: string;
+  inventoryMode: string;
+  fulfilmentMode: string;
+  imageUrl: string | null;
+  tags: string[];
+  isFeatured: boolean;
+  sortOrder: number;
+}
+
+export interface MemberRedemptionCatalogPageDto {
+  items: MemberRedemptionCatalogItemDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** GET /redemption/catalog/:itemId — item detail with version + terms. */
+export interface MemberRedemptionItemDetailDto {
+  id: string;
+  marketId: string;
+  name: string;
+  description: string | null;
+  itemType: string;
+  fiatReferenceValue: string;
+  fiatCurrency: string;
+  inventoryMode: string;
+  imageUrl: string | null;
+  terms: string | null;
+  fulfilmentMode: string;
+  tags: string[];
+  isFeatured: boolean;
+  effectiveFrom: string;
+  effectiveUntil: string | null;
+  version: number;
+}
+
+/** GET /redemption/catalog/:itemId/quote — server-locked point cost. */
+export interface MemberRedemptionQuoteDto {
+  quoteId: string;
+  catalogItemId: string;
+  marketId: string;
+  rateVersionId: string;
+  rateSnapshot: Record<string, unknown>;
+  unroundedPointCost: string;
+  postedPointCost: string;
+  quantity: number;
+  payloadHash: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+/** POST /redemption/orders — owner confirm payload (P6-S4). */
+export interface MemberRedemptionOrderInput {
+  quoteId: string;
+  idempotencyKey: string;
+  expectedItemVersion: number;
+  expectedTotalPoints: string;
+  expectedQuantity: string;
+  fulfilment: {
+    type: 'DELIVERY' | 'PICKUP';
+    deliveryAddress?: {
+      name: string;
+      phone: string;
+      line1: string;
+      line2?: string;
+      city: string;
+      state?: string;
+      postcode: string;
+      country: string;
+    };
+    pickupLocationId?: string;
+  };
+  termsAcceptance: { accepted: true; termsVersion: string };
+  shippingPaymentIntentReference?: string;
+}
+
+/** POST /redemption/orders response — confirmed order. */
+export interface MemberRedemptionOrderDto {
+  id: string;
+  orderReference: string;
+  marketId: string;
+  memberId: string;
+  itemId: string;
+  walletAccountId: string;
+  walletEntryId: string;
+  quoteId: string;
+  status: string;
+  totalPointCost: string;
+  quantity: string;
+  backorderQuantity: string;
+  itemSnapshot: Record<string, unknown>;
+  rateSnapshot: Record<string, unknown>;
+  idempotencyKey: string | null;
+  confirmedAt: string;
+  createdAt: string;
+}
+
+/**
+ * P8-S5B member redemption adapter. The catalogue and quotes are
+ * resolved against the member's server-selected current market; the
+ * confirm-order idempotency key travels inside the owner payload.
+ */
+export class MemberRedemptionApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Member catalogue for the server-resolved current market. */
+  async catalog(
+    query: MemberRedemptionCatalogQuery = {},
+  ): Promise<MemberRedemptionCatalogPageDto> {
+    return (
+      await this.client.get<MemberRedemptionCatalogPageDto>(
+        `/redemption/catalog${queryString(query)}`,
+      )
+    ).data;
+  }
+
+  /** Catalogue item detail (includes catalog version and terms text). */
+  async itemDetail(itemId: string): Promise<MemberRedemptionItemDetailDto> {
+    return (
+      await this.client.get<MemberRedemptionItemDetailDto>(
+        `/redemption/catalog/${encodeURIComponent(itemId)}`,
+      )
+    ).data;
+  }
+
+  /** Server-locked quote for an item + quantity (rate locked at quote time). */
+  async quote(itemId: string, quantity = 1): Promise<MemberRedemptionQuoteDto> {
+    return (
+      await this.client.get<MemberRedemptionQuoteDto>(
+        `/redemption/catalog/${encodeURIComponent(itemId)}/quote?quantity=${quantity}`,
+      )
+    ).data;
+  }
+
+  /**
+   * Confirm a redemption order (Direct Atomic Debit). The idempotency
+   * key is part of the owner payload: same key + same payload replays
+   * the existing order; same key + different payload is rejected with
+   * REDEMPTION_IDEMPOTENCY_MISMATCH.
+   */
+  async confirmOrder(
+    input: MemberRedemptionOrderInput,
+  ): Promise<MemberRedemptionOrderDto> {
+    return (
+      await this.client.post<MemberRedemptionOrderDto>(
+        '/redemption/orders',
+        input,
+      )
+    ).data;
+  }
+}
+
 function queryString(
   options: Record<string, string | number | boolean | undefined>,
 ): string {
