@@ -221,8 +221,11 @@ describe('TransactionsPage', () => {
   it('shows the market gate on a 403 market error', async () => {
     listMock.mockRejectedValue(
       new ApiError(403, {
-        code: 'MARKET_ACCESS_DENIED',
-        message: 'Market access is denied for this account.',
+        // Real frozen controller code (transaction.errors.ts) — the generic
+        // MARKET_ACCESS_DENIED is never returned by this surface.
+        code: 'TRANSACTION_MARKET_MISMATCH',
+        message:
+          'Transaction market does not match the current market context.',
       }),
     );
     renderTransactionsPage();

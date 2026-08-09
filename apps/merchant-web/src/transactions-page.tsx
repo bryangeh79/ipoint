@@ -12,6 +12,7 @@ import {
   Textarea,
 } from '@ipoint/ui';
 import {
+  ApiError,
   createIdempotencyKey,
   describeApiError,
   type MerchantTransactionListPageDto,
@@ -710,7 +711,7 @@ function LiveCard({ title, value }: { title: string; value: string }) {
 }
 
 function ErrorAlert({ error }: { error: unknown }) {
-  const described = describeApiError(error);
+  const described = describeTransactionError(error);
   return (
     <Alert tone="error" title={described.title}>
       {described.detail}
@@ -719,7 +720,7 @@ function ErrorAlert({ error }: { error: unknown }) {
 }
 
 function ErrorState({ error, retry }: { error: unknown; retry: () => void }) {
-  const described = describeApiError(error);
+  const described = describeTransactionError(error);
   return (
     <EmptyState
       title={described.title}
@@ -727,6 +728,33 @@ function ErrorState({ error, retry }: { error: unknown; retry: () => void }) {
       action={<Button onClick={retry}>Retry</Button>}
     />
   );
+}
+
+/**
+ * Market-scope errors surfaced by the frozen transaction controller
+ * (TRANSACTION_MARKET_MISMATCH / TRANSACTION_MARKET_SETTINGS_MISSING) are
+ * 403s but are not in describeApiError's market list, so without this map
+ * they would render as "Permission denied". Map them to the market gate
+ * copy so the real behaviour matches the page's market-gate claim.
+ */
+function describeTransactionError(error: unknown): {
+  title: string;
+  detail: string;
+} {
+  const described = describeApiError(error);
+  if (
+    error instanceof ApiError &&
+    (error.body.code === 'TRANSACTION_MARKET_MISMATCH' ||
+      error.body.code === 'TRANSACTION_MARKET_SETTINGS_MISSING')
+  ) {
+    return {
+      title: 'Market access denied',
+      detail:
+        error.body.message ??
+        'The transaction market does not match your current market context.',
+    };
+  }
+  return described;
 }
 
 function Loading() {
