@@ -428,6 +428,8 @@ describe('database foundation schema', () => {
       '0035_p7_s7a_mcp_adjustment_conformance.sql',
       '0036_p6_sec02_refund_ledger_owner.sql',
       '0037_ads_content_operations.sql',
+      '0038_reconciliation.sql',
+      '0039_risk_controls.sql',
     ]);
     const migration = await readFile(
       `${migrationsDirectory}/0000_database_foundation.sql`,

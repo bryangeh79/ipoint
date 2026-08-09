@@ -588,6 +588,20 @@ export const canonicalPermissionCatalog = [
     { marketScoped: true },
   ),
   permission(
+    'risk.view',
+    'View selected-market risk indicators, detection runs, events and review queues.',
+    'Risk / Fraud / Operational Controls',
+    ALL,
+    { marketScoped: true },
+  ),
+  permission(
+    'risk.review.manage',
+    'Manage selected-market risk indicator definitions, detection runs and review queue lifecycle.',
+    'Risk / Fraud / Operational Controls',
+    ['SUPER_ADMIN', 'OPERATIONS_ADMIN', 'FINANCE_OPERATOR', 'FINANCE_APPROVER'],
+    { marketScoped: true },
+  ),
+  permission(
     'audit.read',
     'View allowlisted audit projections.',
     'Platform Access',
