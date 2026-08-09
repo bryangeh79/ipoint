@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+﻿import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, sql } from 'drizzle-orm';
 import {
@@ -329,7 +329,7 @@ export class AdminReconciliationOpsService {
               eq(reconciliationRuns.id, runId),
               eq(reconciliationRuns.marketId, marketId),
               eq(reconciliationRuns.status, status),
-              eq(reconciliationRuns.version, run.version),
+              eq(reconciliationRuns.version, run.version as number),
             ),
           )
           .returning();
@@ -546,7 +546,7 @@ export class AdminReconciliationOpsService {
         if ((current.status as string) === 'CLOSED')
           this.invalidTransition('CLOSED', 'NOTES');
         const now = new Date();
-        const stamp = `${now.toISOString()} — ${actor.adminUserId}: ${input.notes}`;
+        const stamp = `${now.toISOString()} â€” ${actor.adminUserId}: ${input.notes}`;
         const previous = (current.investigationNotes as string | null) ?? null;
         const investigationNotes = previous ? `${previous}\n${stamp}` : stamp;
         const rows = await tx
@@ -740,7 +740,7 @@ export class AdminReconciliationOpsService {
   }
 
   /**
-   * iPoint: per-wallet-entry ledger invariant — the recorded balance delta
+   * iPoint: per-wallet-entry ledger invariant â€” the recorded balance delta
    * must equal the signed amount for the entry type. Debit types (REVERSED,
    * REDEMPTION_DEBIT) move down; credit types move up.
    */
@@ -1399,7 +1399,7 @@ export class AdminReconciliationOpsService {
 // ---------------------------------------------------------------------------
 
 export function toScaledBigInt(
-  value: string | number | null | undefined,
+  value: unknown,
 ): bigint {
   if (value == null) return ZERO;
   const textValue = text(value).trim();
@@ -1431,8 +1431,8 @@ export function sub(
 }
 
 export function eqScaled(
-  a: string | number | null | undefined,
-  b: string | number | null | undefined,
+  a: unknown,
+  b: unknown,
 ): boolean {
   return toScaledBigInt(a) === toScaledBigInt(b);
 }
