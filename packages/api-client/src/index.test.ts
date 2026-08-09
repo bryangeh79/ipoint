@@ -58,6 +58,7 @@ import {
   AdminReportDetailDto,
   ApiClient,
   ApiError,
+  MerchantTransactionApiClient,
 } from './index.js';
 
 const BASE_URL = 'http://localhost:3000/api/v1';
@@ -3385,5 +3386,210 @@ describe('AdminReportOpsApiClient (P7-S9 basic reports)', () => {
     expect(detail.state).toBe('UNAVAILABLE');
     expect(detail.unavailable).toBe(true);
     expect(detail.value).toBeUndefined(); // never a fabricated zero
+  });
+});
+
+describe('MerchantTransactionApiClient (P8-S5C merchant transaction surface)', () => {
+  const transactionApi = new MerchantTransactionApiClient(createClient());
+
+  function lastCall(mock: ReturnType<typeof mockFetch>) {
+    return {
+      url: mock.mock.calls[0]?.[0] as string,
+      init: mock.mock.calls[0]?.[1] as RequestInit,
+    };
+  }
+
+  it('lists confirmed transactions with cursor paging on the exact path', async () => {
+    const mock = mockFetch(200, {
+      items: [
+        {
+          transactionNumber: '42',
+          status: 'CONFIRMED',
+          merchant: {
+            merchantId: 'm-1',
+            merchantName: 'Kopitiam',
+            branchName: 'Main',
+          },
+          member: { maskedReference: 'M-****-1234', displayName: null },
+          market: { marketCode: 'MY' },
+          currency: 'MYR',
+          purchaseAmount: '120.0000000000',
+          package: { packageName: 'Standard', serviceFeeRate: '10.0000000000' },
+          serviceFeeAmount: '12.0000000000',
+          reward: {
+            rewardRate: '1.0000000000',
+            dailyRewardAmount: '1.2000000000',
+            rewardCap: '10.0000000000',
+            rewardStartBusinessDate: '2026-08-10',
+          },
+          merchantReceiptNumber: null,
+          transactionNote: null,
+          transactionTime: '2026-08-10T00:30:00.000Z',
+          mcpDeducted: '12.0000000000',
+          mcpBalanceAfter: '113.0000000000',
+        },
+      ],
+      nextCursor: 'cursor-2',
+    });
+    const page = await transactionApi.list({ limit: 20, cursor: 'cursor-1' });
+    expect(page.items[0]?.purchaseAmount).toBe('120.0000000000');
+    expect(page.nextCursor).toBe('cursor-2');
+    const { url, init } = lastCall(mock);
+    expect(url).toBe(
+      `${BASE_URL}/merchant/transactions?limit=20&cursor=cursor-1`,
+    );
+    expect(init.method).toBe('GET');
+  });
+
+  it('reads a single transaction receipt from the detail path', async () => {
+    const mock = mockFetch(200, {
+      transactionNumber: '7',
+      status: 'CONFIRMED',
+      merchant: {
+        merchantId: 'm-1',
+        merchantName: 'Kopitiam',
+        branchName: 'Main',
+      },
+      member: { maskedReference: 'M-****-1234', displayName: 'Ali' },
+      market: { marketCode: 'MY' },
+      currency: 'MYR',
+      purchaseAmount: '88.5000000000',
+      package: { packageName: 'Standard', serviceFeeRate: '10.0000000000' },
+      serviceFeeAmount: '8.8500000000',
+      reward: {
+        rewardRate: '1.0000000000',
+        dailyRewardAmount: '0.8850000000',
+        rewardCap: '10.0000000000',
+        rewardStartBusinessDate: '2026-08-10',
+      },
+      merchantReceiptNumber: 'R-001',
+      transactionNote: 'Lunch',
+      transactionTime: '2026-08-10T00:30:00.000Z',
+      mcpDeducted: '8.8500000000',
+      mcpBalanceAfter: '116.1500000000',
+    });
+    const receipt = await transactionApi.detail('7');
+    expect(receipt.transactionNumber).toBe('7');
+    expect(receipt.merchantReceiptNumber).toBe('R-001');
+    const { url } = lastCall(mock);
+    expect(url).toBe(`${BASE_URL}/merchant/transactions/7`);
+  });
+
+  it('creates a preview with Idempotency-Key and x-market-id headers', async () => {
+    const mock = mockFetch(200, {
+      previewSessionId: 'session-1',
+      protectedMemberReference: 'M-****-1234',
+      amount: '120.5000000000',
+      currency: 'MYR',
+      selectedPackage: { name: 'Standard', rate: '10.0000000000' },
+      serviceFeeRate: '10.0000000000',
+      estimatedMcpDebit: '12.0500000000',
+      currentMcpBalance: '125.0000000000',
+      estimatedMcpBalanceAfter: '112.9500000000',
+      mcpSufficient: true,
+      confirmAllowed: true,
+      mcpShortfall: '0.0000000000',
+      rewardRate: '1.0000000000',
+      expectedDailyRewardAmount: '1.2050000000',
+      rewardCap: '10.0000000000',
+      rewardStartDate: '2026-08-10',
+      transactionMarket: { code: 'MY', timezone: 'Asia/Kuala_Lumpur' },
+      previewExpiresAt: '2026-08-10T02:00:00.000Z',
+    });
+    const quote = await transactionApi.preview(
+      { amount: '120.50', memberQrToken: 'qr-1', transactionNote: 'Note' },
+      'market-1',
+      'idem-preview',
+    );
+    expect(quote.previewSessionId).toBe('session-1');
+    const { url, init } = lastCall(mock);
+    expect(url).toBe(`${BASE_URL}/merchant/transactions/preview`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(String(init.body))).toEqual({
+      amount: '120.50',
+      memberQrToken: 'qr-1',
+      transactionNote: 'Note',
+    });
+    const headers = init.headers as Headers;
+    expect(headers.get('idempotency-key')).toBe('idem-preview');
+    expect(headers.get('x-market-id')).toBe('market-1');
+  });
+
+  it('confirms a preview session with the Idempotency-Key header', async () => {
+    const mock = mockFetch(201, {
+      transactionNumber: '43',
+      status: 'CONFIRMED',
+      transactionTime: '2026-08-10T00:45:00.000Z',
+      merchant: {
+        merchantId: 'm-1',
+        merchantName: 'Kopitiam',
+        branchName: 'Main',
+      },
+      market: { marketCode: 'MY' },
+      currency: 'MYR',
+      amount: '120.5000000000',
+      serviceFee: '12.0500000000',
+      mcpDeducted: '12.0500000000',
+      mcpBalanceAfter: '112.9500000000',
+      dailyRewardAmount: '1.2050000000',
+      rewardCap: '10.0000000000',
+      rewardStartBusinessDate: '2026-08-10',
+      receiptData: {
+        transactionNumber: '43',
+        status: 'CONFIRMED',
+        merchant: {
+          merchantId: 'm-1',
+          merchantName: 'Kopitiam',
+          branchName: 'Main',
+        },
+        member: { maskedReference: 'M-****-1234', displayName: null },
+        market: { marketCode: 'MY' },
+        currency: 'MYR',
+        purchaseAmount: '120.5000000000',
+        package: { packageName: 'Standard', serviceFeeRate: '10.0000000000' },
+        serviceFeeAmount: '12.0500000000',
+        reward: {
+          rewardRate: '1.0000000000',
+          dailyRewardAmount: '1.2050000000',
+          rewardCap: '10.0000000000',
+          rewardStartBusinessDate: '2026-08-10',
+        },
+        merchantReceiptNumber: null,
+        transactionNote: null,
+        transactionTime: '2026-08-10T00:45:00.000Z',
+      },
+    });
+    const confirmed = await transactionApi.confirm(
+      'session-1',
+      { merchantReceiptNumber: 'R-002' },
+      'idem-confirm',
+    );
+    expect(confirmed.transactionNumber).toBe('43');
+    expect(confirmed.receiptData.purchaseAmount).toBe('120.5000000000');
+    const { url, init } = lastCall(mock);
+    expect(url).toBe(`${BASE_URL}/merchant/transactions/session-1/confirm`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(String(init.body))).toEqual({
+      merchantReceiptNumber: 'R-002',
+    });
+    expect((init.headers as Headers).get('idempotency-key')).toBe(
+      'idem-confirm',
+    );
+  });
+
+  it('propagates server errors as ApiError (preview idempotency mismatch)', async () => {
+    mockFetch(409, {
+      code: 'TRANSACTION_IDEMPOTENCY_MISMATCH',
+      message: 'The idempotency key was used with a different payload.',
+    });
+    const attempt = transactionApi.preview(
+      { amount: '10.00', memberQrToken: 'qr-1' },
+      'market-1',
+      'idem-preview',
+    );
+    await expect(attempt).rejects.toMatchObject({
+      status: 409,
+      body: { code: 'TRANSACTION_IDEMPOTENCY_MISMATCH' },
+    });
   });
 });
