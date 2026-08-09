@@ -436,4 +436,31 @@ describe('RedemptionPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Retry')).toBeInTheDocument();
   });
+
+  it('starts a fresh order attempt after success ("Confirm another order")', async () => {
+    const confirmMock = (
+      mockedRedemptionApi.confirmOrder as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(MOCK_ORDER);
+    renderRedemptionPage();
+    await screen.findAllByTestId('redemption-catalogue-item');
+    await user.click(screen.getByText('Gift Card'));
+    await waitFor(() => {
+      expect(screen.getByTestId('redemption-quote')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('redemption-terms-checkbox'));
+    await user.click(screen.getByTestId('redemption-confirm'));
+    expect(
+      await screen.findByTestId('redemption-order-success'),
+    ).toBeInTheDocument();
+
+    // The success-state button closes the checkout so the next selection
+    // starts a brand-new logical order attempt (new quote, new key).
+    await user.click(screen.getByTestId('redemption-confirm'));
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId('redemption-checkout'),
+      ).not.toBeInTheDocument();
+    });
+    expect(confirmMock).toHaveBeenCalledTimes(1);
+  });
 });

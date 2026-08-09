@@ -218,6 +218,11 @@ export function RedemptionPage() {
       if (abortController.signal.aborted) return;
       setOrder(result);
       setSubmitState('success');
+      // A completed order ends this logical order attempt: reset the key so
+      // any further submission (new item, new quantity, "Order again")
+      // creates a NEW order instead of replaying this one. Failed attempts
+      // keep the key so retries replay the same order (idempotent).
+      idempotencyKeyRef.current = null;
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       const description = describeApiError(err);
@@ -498,7 +503,11 @@ export function RedemptionPage() {
 
                   <Button
                     variant="primary"
-                    onClick={() => void handleConfirmOrder()}
+                    onClick={() =>
+                      submitState === 'success'
+                        ? handleCloseDetail()
+                        : void handleConfirmOrder()
+                    }
                     disabled={
                       submitState === 'submitting' ||
                       quoteState !== 'success' ||
