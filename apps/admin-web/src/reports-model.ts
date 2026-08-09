@@ -16,6 +16,26 @@ export function formatReportAsOf(value: string): string {
   return date.toLocaleString();
 }
 
+/**
+ * P8-S5a lossless exact-decimal amount display (P8-S4 rule, D-062):
+ * every advanced-report amount arrives as a numeric(38,10) string
+ * ('187.0000000000') produced by sum(...)::text in PostgreSQL — never a
+ * float. Display the string as-is; trailing zeros are trimmed ONLY when
+ * lossless (187.0000000000 → 187). Number()/parseFloat are forbidden for
+ * display because they round exact decimals. Null/undefined never occur
+ * for an authoritative row; the '0' fallback exists purely for the
+ * defensive type surface and never invents a row.
+ */
+export function formatReportAmount(
+  value: string | number | null | undefined,
+): string {
+  if (value === null || value === undefined) return '0';
+  const text = String(value);
+  if (!text.includes('.')) return text;
+  const trimmed = text.replace(/0+$/u, '').replace(/\.$/u, '');
+  return trimmed === '' || trimmed === '-' || trimmed === '-0' ? '0' : trimmed;
+}
+
 export interface ReportPageErrorCopy {
   title: string;
   description: string;
