@@ -4790,13 +4790,224 @@ export class MemberRedemptionApiClient {
   }
 }
 
-function queryString(
-  options: Record<string, string | number | boolean | undefined>,
-): string {
+function queryString<T>(options: T): string {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(options)) {
-    if (value !== undefined && value !== '') params.set(key, String(value));
+  for (const [key, value] of Object.entries(
+    options as Record<string, unknown>,
+  )) {
+    if (value === undefined || value === '') continue;
+    if (typeof value === 'string') params.set(key, value);
+    else if (typeof value === 'number' || typeof value === 'boolean') {
+      params.set(key, `${value}`);
+    }
   }
   const query = params.toString();
   return query ? `?${query}` : '';
+}
+
+/* ------------------------------------------------------------------ */
+/*  P8-S5C Merchant Transaction typed client (append-only section)     */
+/*                                                                     */
+/*  Typed adapter over the frozen Phase 4 merchant transaction         */
+/*  controller (`apps/api/src/transaction/transaction.controller.ts`,  */
+/*  `@Controller('merchant/transactions')`):                           */
+/*    history: GET /merchant/transactions (cursor paging)              */
+/*    receipt: GET /merchant/transactions/:transactionNumber           */
+/*    preview: POST /merchant/transactions/preview                     */
+/*             (Idempotency-Key + x-market-id headers required)        */
+/*    confirm: POST /merchant/transactions/:previewSessionId/confirm   */
+/*             (Idempotency-Key header required)                       */
+/*                                                                     */
+/*  All monetary amounts are exact decimal strings passed through      */
+/*  untouched; JavaScript Number is never used for amounts. The        */
+/*  preview market context is the merchant's persisted `x-market-id`   */
+/*  header (the client never invents a market id). Reversal/refund     */
+/*  endpoints exist on the frozen controller but are intentionally     */
+/*  NOT exposed here (G-05(a) preview/confirm/receipt/history only).   */
+/* ------------------------------------------------------------------ */
+
+/** GET /merchant/transactions — cursor-paged confirmed history. */
+export interface MerchantTransactionListQuery {
+  cursor?: string;
+  limit?: number;
+  status?: 'CONFIRMED';
+  marketCode?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  branchId?: string;
+  merchantReceiptNumber?: string;
+  transactionNumber?: string;
+}
+
+/**
+ * Receipt fields shared by list rows, transaction detail, and the
+ * confirm response (`receiptData`). Mirrors the frozen read DTO
+ * (`transaction-read.dto.ts`) and `TransactionReceiptData`.
+ */
+export interface MerchantTransactionReceiptDto {
+  transactionNumber: string;
+  status: 'CONFIRMED';
+  merchant: {
+    merchantId: string;
+    merchantName: string;
+    branchName: string | null;
+  };
+  member: {
+    maskedReference: string;
+    displayName: string | null;
+  };
+  market: { marketCode: string };
+  currency: string;
+  purchaseAmount: string;
+  package: {
+    packageName: string;
+    serviceFeeRate: string;
+  };
+  serviceFeeAmount: string;
+  reward: {
+    rewardRate: string;
+    dailyRewardAmount: string;
+    rewardCap: string;
+    rewardStartBusinessDate: string;
+  };
+  merchantReceiptNumber: string | null;
+  transactionNote: string | null;
+  transactionTime: string;
+}
+
+/** Merchant receipt row: receipt base plus the MCP debit projection. */
+export interface MerchantTransactionListItemDto extends MerchantTransactionReceiptDto {
+  mcpDeducted: string;
+  mcpBalanceAfter: string;
+}
+
+/** GET /merchant/transactions response — newest first, cursor paging. */
+export interface MerchantTransactionListPageDto {
+  items: MerchantTransactionListItemDto[];
+  nextCursor: string | null;
+}
+
+/** POST /merchant/transactions/preview — preview session request. */
+export interface MerchantTransactionPreviewRequest {
+  amount: string;
+  memberQrToken: string;
+  packageId?: string;
+  marketId?: string;
+  transactionNote?: string;
+}
+
+/** POST /merchant/transactions/preview response — server quote. */
+export interface MerchantTransactionPreviewDto {
+  previewSessionId: string;
+  protectedMemberReference: string;
+  amount: string;
+  currency: string;
+  selectedPackage: {
+    name: string;
+    rate: string;
+  };
+  serviceFeeRate: string;
+  estimatedMcpDebit: string;
+  currentMcpBalance: string;
+  estimatedMcpBalanceAfter: string;
+  mcpSufficient: boolean;
+  confirmAllowed: boolean;
+  mcpShortfall: string;
+  rewardRate: string;
+  expectedDailyRewardAmount: string;
+  rewardCap: string;
+  rewardStartDate: string;
+  transactionMarket: {
+    code: string;
+    timezone: string;
+  };
+  previewExpiresAt: string;
+}
+
+/** POST /merchant/transactions/:previewSessionId/confirm — request body. */
+export interface MerchantTransactionConfirmRequest {
+  merchantReceiptNumber?: string;
+}
+
+/** POST /merchant/transactions/:previewSessionId/confirm — response. */
+export interface MerchantTransactionConfirmDto {
+  transactionNumber: string;
+  status: 'CONFIRMED';
+  transactionTime: string;
+  merchant: MerchantTransactionReceiptDto['merchant'];
+  market: { marketCode: string };
+  currency: string;
+  amount: string;
+  serviceFee: string;
+  mcpDeducted: string;
+  mcpBalanceAfter: string;
+  dailyRewardAmount: string;
+  rewardCap: string;
+  rewardStartBusinessDate: string;
+  receiptData: MerchantTransactionReceiptDto;
+}
+
+/**
+ * P8-S5C merchant transaction adapter.
+ *
+ * `preview` and `confirm` are idempotent commands: the caller supplies
+ * ONE key per logical order attempt (created once, reused on retry,
+ * reset after success — P8-S5b M-1 lesson). The `x-market-id` header
+ * on preview is the merchant's persisted market context; the client
+ * never invents a market id.
+ */
+export class MerchantTransactionApiClient {
+  constructor(private readonly client: ApiClient) {}
+
+  /** Confirmed transaction history, newest first (cursor paging). */
+  async list(
+    query: MerchantTransactionListQuery = {},
+  ): Promise<MerchantTransactionListPageDto> {
+    return (
+      await this.client.get<MerchantTransactionListPageDto>(
+        `/merchant/transactions${queryString(query)}`,
+      )
+    ).data;
+  }
+
+  /** Single confirmed transaction (receipt view). */
+  async detail(
+    transactionNumber: string,
+  ): Promise<MerchantTransactionListItemDto> {
+    return (
+      await this.client.get<MerchantTransactionListItemDto>(
+        `/merchant/transactions/${encodeURIComponent(transactionNumber)}`,
+      )
+    ).data;
+  }
+
+  /** Create a preview session (quote). Idempotency-Key + x-market-id. */
+  async preview(
+    input: MerchantTransactionPreviewRequest,
+    marketId: string,
+    idempotencyKey: string,
+  ): Promise<MerchantTransactionPreviewDto> {
+    return (
+      await this.client.post<MerchantTransactionPreviewDto>(
+        '/merchant/transactions/preview',
+        input,
+        { marketId, idempotencyKey },
+      )
+    ).data;
+  }
+
+  /** Confirm a preview session. Idempotency-Key header required. */
+  async confirm(
+    previewSessionId: string,
+    input: MerchantTransactionConfirmRequest,
+    idempotencyKey: string,
+  ): Promise<MerchantTransactionConfirmDto> {
+    return (
+      await this.client.post<MerchantTransactionConfirmDto>(
+        `/merchant/transactions/${encodeURIComponent(previewSessionId)}/confirm`,
+        input,
+        { idempotencyKey },
+      )
+    ).data;
+  }
 }
