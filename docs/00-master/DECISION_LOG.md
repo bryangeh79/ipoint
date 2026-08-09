@@ -1801,3 +1801,20 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058, D-059, D-060; P8_S0_CONTRACT_FREEZE.md §5; P8_S5B_REVIEW_REPORT.md (APPROVED 0C/0H/1M/9L/6N) |
 | **Status** | **APPROVED (REVOCABLE)** |
+
+## D-065 - P8-S5c Merchant Transaction UI APPROVED (OPENCLAW-ACTING-COMMAND-CENTER)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-065 |
+| **Date** | 2026-08-10 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization) |
+| **Old Rule** | P8-S5c AUTHORIZED / IN_PROGRESS (D-058 continuous execution; gap audit F-01: merchant-web missing Transaction UI) |
+| **New Decision** | P8-S5c APPROVED (OPENCLAW-ACTING-COMMAND-CENTER, revocable). Merchant Transaction UI delivered: transactions page (preview/confirm/receipt/history) over frozen Phase 4 merchant/transactions endpoints; append-only MerchantTransactionApiClient (4 methods, field-accurate); merchant-web vitest test infrastructure added (was absent); idempotency one-key-per-attempt / retry reuse / post-success reset / double-submit guard; x-market-id only on preview; real 403 codes mapped to market gate. Independent Review B'\'' APPROVED 0C/0H/1M/3L; M-1 (403 test used non-existent code, real 403 rendered wrong copy) fixed by OpenClaw bounded fix f5ce39bb. Merge 7fe4ed28 on phase/8-final-delivery-readiness. Gate record P8_S5C_FINAL_GATE_RECORD.md. Reversal/refund UI out of scope (not G-05(a)). |
+| **Reason** | Review evidence chain (implementer subagent + independent reviewer B'\'' + host verification) complete; gates green (merchant-web 24/24 incl. new infra + M-1 regression, api-client 100/100, build/typecheck/lint/prettier clean, static scans clean); M-1 fixed and verified; zero Critical/High findings. |
+| **Affected Files** | docs/06-phase-reports/p8-s5/P8_S5C_FINAL_GATE_RECORD.md, P8_S5C_DELIVERY_REPORT.md, P8_S5C_REVIEW_REPORT.md, TASK_BRIEF_P8S5C.md, apps/merchant-web/src/{transactions-page.tsx, merchant-app.tsx, api/client.ts, amount.ts, vitest.config.ts}, packages/api-client/src/index.ts, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S5c) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058, D-059, D-060; P8_S0_CONTRACT_FREEZE.md §5; P8_S5C_REVIEW_REPORT.md (APPROVED 0C/0H/1M/3L) |
+| **Status** | **APPROVED (REVOCABLE)** |
