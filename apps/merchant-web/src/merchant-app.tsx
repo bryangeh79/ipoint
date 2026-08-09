@@ -1,8 +1,4 @@
-import {
-  ApiClient,
-  createIdempotencyKey,
-  describeApiError,
-} from '@ipoint/api-client';
+import { createIdempotencyKey, describeApiError } from '@ipoint/api-client';
 import {
   Alert,
   AppShell,
@@ -30,12 +26,16 @@ import {
   type ReactNode,
 } from 'react';
 
+import { api } from './api/client';
+import { TransactionsPage } from './transactions-page';
+
 type MerchantPage =
   | 'overview'
   | 'access'
   | 'profile'
   | 'verification'
   | 'packages'
+  | 'transactions'
   | 'mcp';
 type JsonRecord = Record<string, unknown>;
 interface MerchantContext {
@@ -43,11 +43,6 @@ interface MerchantContext {
   marketId: string;
 }
 
-const apiBaseUrl: string =
-  typeof import.meta.env.VITE_API_BASE_URL === 'string'
-    ? import.meta.env.VITE_API_BASE_URL
-    : '/api/v1';
-const api = new ApiClient(apiBaseUrl, 'ipoint.merchant.session');
 const contextKey = 'ipoint.merchant.context';
 const navigation: ReadonlyArray<NavigationItem> = [
   { id: 'overview', label: 'Overview' },
@@ -55,6 +50,7 @@ const navigation: ReadonlyArray<NavigationItem> = [
   { id: 'profile', label: 'Profile' },
   { id: 'verification', label: 'Verification' },
   { id: 'packages', label: 'Packages' },
+  { id: 'transactions', label: 'Transactions' },
   { id: 'mcp', label: 'MCP' },
 ];
 
@@ -156,6 +152,8 @@ function MerchantPageView(props: {
       return <VerificationPage context={props.context} />;
     case 'packages':
       return <PackagesPage context={props.context} />;
+    case 'transactions':
+      return <TransactionsPage context={props.context} />;
     case 'mcp':
       return <McpPage context={props.context} />;
     default:
