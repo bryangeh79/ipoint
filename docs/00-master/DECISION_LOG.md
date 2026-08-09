@@ -1733,3 +1733,20 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Status** | **ACTIVE (TEMPORARY, REVOCABLE)** |
 
 *End of current entries. New decisions must be appended below.*
+
+## D-061 - P8-S3 Risk / Fraud / Operational Controls APPROVED (OPENCLAW-ACTING-COMMAND-CENTER)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-061 |
+| **Date** | 2026-08-09 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization) |
+| **Old Rule** | P8-S3 AUTHORIZED / IN_PROGRESS (D-058, contract freeze P8_S0_CONTRACT_FREEZE.md §3) |
+| **New Decision** | P8-S3 APPROVED (OPENCLAW-ACTING-COMMAND-CENTER, revocable). Risk / Fraud / Operational Controls (Stage 1) delivered: migration 0039 (40/40 checksums), 8-category detection engine, risk events + review queue + admin APIs, RBAC risk.view/risk.review.manage. Zero enforcement side-effects. Independent Review B\' APPROVED 0C/0H/0M/6L. L-1/L-2/L-3 (em-dash encoding corruption + BOM) repaired in d64dc91d. Merge 04babe35 on phase/8-final-delivery-readiness (--no-ff). Final gate record P8_S3_FINAL_GATE_RECORD.md committed as 4000bbcc. |
+| **Reason** | Review evidence chain (implementer A\' + independent reviewer B\' + host verification) complete; all gates green; zero Critical/High findings; L-1/L-2/L-3 repaired before merge. |
+| **Affected Files** | docs/06-phase-reports/p8-s3/P8_S3_FINAL_GATE_RECORD.md, docs/06-phase-reports/p8-s3/P8_S3_DELIVERY_REPORT.md, docs/06-phase-reports/p8-s3/P8_S3_REVIEW_REPORT.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S3) |
+| **Migration** | 0039 (risk controls domain, 5 tables + 6 enums) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058, D-059, D-060; P8_S0_CONTRACT_FREEZE.md §3; P8_S3_REVIEW_REPORT.md (APPROVED 0C/0H/0M/6L) |
+| **Status** | **APPROVED (REVOCABLE)** |
