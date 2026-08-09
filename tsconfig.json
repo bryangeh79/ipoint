@@ -10,6 +10,7 @@
     "vitest.config.ts",
     "vitest.workspace.ts",
     "tests/**/*.ts",
-    "apps/member-web/vitest.config.ts"
+    "apps/member-web/vitest.config.ts",
+    "apps/merchant-web/vitest.config.ts"
   ]
 }
