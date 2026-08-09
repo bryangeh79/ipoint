@@ -1784,3 +1784,20 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058, D-059, D-060; P8_S0_CONTRACT_FREEZE.md §4/§5; P8_S5A_REVIEW_REPORT.md (APPROVED 0C/0H/0M/4L) |
 | **Status** | **APPROVED (REVOCABLE)** |
+
+## D-064 - P8-S5b Member Web UI Gap Closure APPROVED (OPENCLAW-ACTING-COMMAND-CENTER)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-064 |
+| **Date** | 2026-08-09 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization) |
+| **Old Rule** | P8-S5b AUTHORIZED / IN_PROGRESS (D-058 continuous execution; gap audit F-01: member-web missing Wallet/Reward/Team/Redemption UI) |
+| **New Decision** | P8-S5b APPROVED (OPENCLAW-ACTING-COMMAND-CENTER, revocable). Member Web UI Gap Closure delivered: 4 new pages (Wallet/Reward/Team/Redemption) as adapters over frozen Phase 3/5/6 backends; api-client append-only member-domain clients (11 methods, field-accurate vs frozen controllers); MemberLayout Wallet nav activated + Reward/Team/Redemption added; i18n en/zh (535 keys each); redemption write path (POST /redemption/orders) with owner payload + idempotency + double-submit guard, PICKUP-only with honest delivery-unavailable note. Independent Review B'\'' APPROVED 0C/0H/1M/9L/6N; M-1 (idempotency key not reset after success) fixed by OpenClaw bounded fix 85b4f811 + regression test. Merge a71d0a46 on phase/8-final-delivery-readiness. Gate record P8_S5B_FINAL_GATE_RECORD.md. |
+| **Reason** | Review evidence chain (implementer subagent + independent reviewer B'\'' + host verification) complete; gates green (member-web 311/311, api-client 95/95, build/typecheck/lint/prettier clean, static scans clean); M-1 fixed and verified; zero Critical/High findings. |
+| **Affected Files** | docs/06-phase-reports/p8-s5/P8_S5B_FINAL_GATE_RECORD.md, P8_S5B_DELIVERY_REPORT.md, P8_S5B_REVIEW_REPORT.md, TASK_BRIEF_P8S5B.md, apps/member-web/src/pages/{Wallet,Reward,Team,Redemption}Page.tsx, apps/member-web/src/layouts/MemberLayout.tsx, apps/member-web/src/app/routes.tsx, apps/member-web/src/api/client.ts, packages/api-client/src/index.ts, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S5b) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058, D-059, D-060; P8_S0_CONTRACT_FREEZE.md §5; P8_S5B_REVIEW_REPORT.md (APPROVED 0C/0H/1M/9L/6N) |
+| **Status** | **APPROVED (REVOCABLE)** |
