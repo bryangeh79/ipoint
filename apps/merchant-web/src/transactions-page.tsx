@@ -750,7 +750,7 @@ function describeTransactionError(error: unknown): {
     return {
       title: 'Market access denied',
       detail:
-        error.body.message ??
+        error.message ||
         'The transaction market does not match your current market context.',
     };
   }
