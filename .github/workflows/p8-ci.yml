@@ -41,7 +41,7 @@ jobs:
       - name: Prettier check (CI workflows + P8-S5d delivery report)
         run: pnpm exec prettier --check ".github/workflows/*.yml" docs/06-phase-reports/p8-s5/P8_S5D_DELIVERY_REPORT.md
       - name: Typecheck (all packages; known-baseline-failing spec/test files scoped out)
-        run: pnpm -r --if-present --filter '!@ipoint/api' --filter '!@ipoint/database' --filter '!@ipoint/merchant-web' typecheck
+        run: pnpm -r --if-present --filter '!@ipoint/api' --filter '!@ipoint/database' typecheck
       - name: Typecheck api src (build config, spec files excluded)
         run: pnpm --filter @ipoint/api exec tsc -p tsconfig.build.json --noEmit
       - name: Typecheck database src (build config, tests excluded)
@@ -60,8 +60,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Build (merchant-web scoped out — pre-existing TS2322 baseline failure)
-        run: pnpm -r --if-present --filter '!@ipoint/merchant-web' build
+      - name: Build (all packages)
+        run: pnpm -r --if-present build
 
   unit:
     name: Unit tests
