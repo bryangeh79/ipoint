@@ -858,9 +858,16 @@ describe.skipIf(!databaseUrl)(
         .expect(200);
       const body = response.body as CatalogBody;
       expect(body.marketId).toBe(marketA);
-      expect(body.items).toHaveLength(4);
+      // P8-S4 (G-04) extended the server-owned catalog with the 15 advanced
+      // views (R05–R19); the envelope contract below applies to all 19.
+      expect(body.items).toHaveLength(19);
       const ids = body.items.map((item) => item.id);
-      expect(ids).toEqual(['R01', 'R02', 'R03', 'R04']);
+      expect(ids).toEqual(
+        Array.from(
+          { length: 19 },
+          (_, index) => `R${String(index + 1).padStart(2, '0')}`,
+        ),
+      );
       for (const item of body.items) {
         expect(typeof item.asOf).toBe('string');
         expect(['FRESH', 'STALE', 'UNAVAILABLE']).toContain(item.state);
