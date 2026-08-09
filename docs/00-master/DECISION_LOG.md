@@ -1818,3 +1818,20 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058, D-059, D-060; P8_S0_CONTRACT_FREEZE.md §5; P8_S5C_REVIEW_REPORT.md (APPROVED 0C/0H/1M/3L) |
 | **Status** | **APPROVED (REVOCABLE)** |
+
+## D-066 - P8-S5d Full-Repo Phase 8 CI Workflow APPROVED (OPENCLAW-ACTING-COMMAND-CENTER)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-066 |
+| **Date** | 2026-08-10 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization) |
+| **Old Rule** | P8-S5d AUTHORIZED / IN_PROGRESS (D-058 continuous execution; gap audit F-03: no full-repo Phase 8 CI workflow) |
+| **New Decision** | P8-S5d APPROVED (OPENCLAW-ACTING-COMMAND-CENTER, revocable). Full-Repo Phase 8 CI Workflow delivered: `.github/workflows/p8-ci.yml` (6 jobs: quality/build/unit/database/openapi/api-integration; triggers workflow_dispatch/push/pull_request; permissions contents:read; concurrency cancel-in-progress) covering all 4 apps + 8 packages + 4 P8 fail-closed guarded integration suites (S1-S4 against dedicated ipoint_p8sN_* DBs with opt-in guards, never ipoint_ci); merchant-web vitest test infra wired (workspace registration; 24 tests). Baseline-failing files documented and scoped out with compensation checks. Real defect fixed: merchant-web transactions-page.tsx TS2322 (introduced by P8-S5c f5ce39bb) resolved on main 5326c3de (cherry-picked fdbe9000, patch-id identical) and merchant-web re-enabled in CI. Independent Review B'\'' round 1 CHANGES REQUIRED (H-1/M-1/Lows) -> round 2 APPROVED. Merge eb83daaf on phase/8-final-delivery-readiness. Gate record P8_S5D_FINAL_GATE_RECORD.md. |
+| **Reason** | Review evidence chain (implementer subagent + 2-round independent review + host verification) complete; gates green (YAML parse, lint 0, prettier, repo-wide typecheck/build 13 projects, 2,070 tests, checksum 40/40 + migrate/seed/drift, openapi validate, P8 suites S1 12/12 S2 18/18 S3 20/20 S4 32/32); H-1/M-1 fixed and verified; zero Critical/High. |
+| **Affected Files** | .github/workflows/p8-ci.yml, apps/merchant-web/src/transactions-page.tsx (TS2322 fix), docs/06-phase-reports/p8-s5/P8_S5D_*.md, apps/merchant-web/{vitest.config.ts,package.json,test/setup.ts}, vitest.workspace.ts, pnpm-lock.yaml, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S5d) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058, D-059, D-060; P8_S0_CONTRACT_FREEZE.md §5; P8_S5D_REVIEW2_REPORT.md (APPROVED) |
+| **Status** | **APPROVED (REVOCABLE)** |
