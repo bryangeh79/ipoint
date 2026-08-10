@@ -28,11 +28,12 @@
     "class-validator": "^0.14.1",
     "decimal.js": "^10.4.3",
     "drizzle-orm": "0.45.2",
+    "ioredis": "^6.0.0",
     "nestjs-pino": "^4.1.0",
+    "pg": "8.22.0",
     "pino": "^9.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "pg": "8.22.0",
     "uuid": "^11.0.0",
     "zod": "^4.1.0"
   },
