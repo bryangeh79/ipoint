@@ -1968,3 +1968,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058, D-059, D-060, D-067..D-072; P8_S0_CONTRACT_FREEZE.md §8/§11/§12; P8_S0_GAP_AUDIT_REPORT.md G-08; TASK_BRIEF_P8S8.md @ `5059616f` |
 | **Status** | **APPROVED (REVOCABLE)** |
+
+---
+
+## D-074 - P8-S8 Full Final UAT APPROVED / CLOSED (OPENCLAW-ACTING-COMMAND-CENTER; OBS-04 + SEC-01 gate conditions PENDING Bryan)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-074 |
+| **Date** | 2026-08-10 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization) |
+| **Old Rule** | P8-S8 IN_PROGRESS; UAT executed 35/36 with 2 High defects (DEF-001/002); round-2 review CHANGES REQUIRED (M1/M2 + security findings (b)/(c)) |
+| **New Decision** | P8-S8 APPROVED / CLOSED (OPENCLAW-ACTING-COMMAND-CENTER, revocable). Final UAT evidence merged via `8095a9b6`: **U-01..U-36 matrix 36/36 PASS (41/41 tests, 224/224 assertions)** + **browser E2E 7/7 PASS** (real Chromium + real API + real PG). UAT-introduced defect set **0C/0H/0M** after §11 rounds: DEF-001 (wallet controller passed accountId vs member_id filter) fixed `cff32767`; DEF-002 (member-web called non-existent GET /members/me) fixed `eb4e599d` (new member-self controller, canonical guard pattern, member-web zero-change); **DEF-003 Critical (POST /wallets arbitrary credit — AuthGuard-only, arbitrary memberId/amount direct AVAILABLE credit, no legit callers, not in P3 contract) REMOVED** `0583505e` (O-13 precedent; service kept as unconditional LEDGER_ENTRY_CREATE_DISABLED tripwire; 6 real write paths zero-touched, grep-proven); **DEF-004 High (GET /wallets/:id/entries IDOR) fixed** `067da3ea` (owner dual-condition + uniform WALLET_NOT_FOUND); M1 (member-self ProfileError→400) fixed `14465033`; M2 (evidence counts) corrected `c0709e38`. Reviewer B' round-3 (rerun) APPROVED 0C/0H/0M/1L (L = commit-message path-count wording, covered by corrected docs; no action). Observations recorded: OBS-06 (merchant-web transactions page INTERNAL_ERROR, API layer green, root cause unisolated — P9 item), OBS-07 (member-web client path misuse /profile, /markets — P9 member-web fix, no backend surface; **/members/me/qr real gap on L-06 locked feature — decision PENDING Bryan: bounded implement vs formal DEFERRED**), OBS-10 (member-home red error panel from /profile 404). GATE CONDITION stamp applied: **OBS-04 (engine pool stall) + SEC-01 (10 pre-existing HIGH deps) PENDING Bryan — "0 unresolved HIGH" declaration deferred to P8-S9 gate per D-070/D-072**. |
+| **Reason** | Complete evidence chain (UAT verifier execution + 3 independent review rounds + host integration gate; merge `8095a9b6`; fsck exit 0; tracked 0); UAT caught and closed 4 real defects incl. 1 Critical financial route (removed) and 1 IDOR (owner-scoped) — the exact production-readiness value G-08 exists for; remaining items are explicitly recorded Bryan-decision dependencies, not silent carryovers. |
+| **Affected Files** | apps/api/src/uat/**, apps/api/src/wallet/*, apps/api/src/profile/member-self.controller.ts + profile.service.ts, tests/e2e/p8-s8-uat.spec.ts, docs/06-phase-reports/p8-s8/*, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S8 CLOSED; next P8-S9 Production Readiness Gate G-09 — final gate) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058, D-059, D-060, D-067..D-073; TASK_BRIEF_P8S8.md; P8_S8_UAT_RESULTS_MATRIX.md + DEFECT_LOG.md; Reviewer B' round-3 APPROVED; host gate verification 2026-08-10 |
+| **Status** | **APPROVED / CLOSED (REVOCABLE)** |
