@@ -2025,3 +2025,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058 §19, D-059, D-060, D-067..D-075; P8_S0_CONTRACT_FREEZE.md §9; P8_S0_GAP_AUDIT_REPORT.md G-09; TASK_BRIEF_P8S9.md @ `17c01a76` |
 | **Status** | **APPROVED (REVOCABLE)** |
+
+---
+
+## D-077 - OBS-04 CLOSED: FIX-005 Integrated + Reviewer APPROVED (OPENCLAW-ACTING-COMMAND-CENTER)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-077 |
+| **Date** | 2026-08-10 |
+| **Source** | OpenClaw acting Command Center (D-059); Bryan Option A decision (D-075) executed |
+| **Old Rule** | OBS-04 (High, OPEN) — reconciliation-path pool deadlock (10/10 idle-in-transaction) documented since D-070; remediation PENDING Bryan (D-070/D-072/D-074) |
+| **New Decision** | **OBS-04 CLOSED — FIX-005 integrated** (merge `8d452835` + docs correction merge `53f27e65` on `phase/8-final-delivery-readiness`; fix `9868c4dd`; branch `fix/p8-obs04-engine`). Root cause: `executeRun` transaction held a pool connection while 7 detect queries (`detectMcp`/`detectIpoint`/`detectTransactionLedger`/`detectCommission`/`detectRefund`×2/`detectRedemption`) acquired NEW pool connections in-transaction → pool self-deadlock under sustained concurrency (FIX-002 timeouts could not fire — no statement executing). Fix: full detect chain + `runNotFound`/`exceptionNotFound` moved to the tx-scoped client (optional tx param; controller paths use pool); SQL semantically identical (drizzle positional-param renumbering verified via PgDialect render; integration 18/18 per-detect-kind evidence). Reviewer B' APPROVED 7/7 with independent re-runs: J10 L2 storm 11.2s (pre-fix 300s timeout+hang), n=400 0 unexpected, 3×20=60/60 COMPLETED, pg_stat_activity 6 samples 0 idle-in-transaction (pre-fix 10/10), S2 unit 7/7 + integration 18/18, J2/J3 L2 0 unexpected, zero-bypass re-scan 478 files / 0 direct bypass. L-1/L-2 (fix-record precision: 2000→1400 samples; byte-identical→semantically identical) corrected in `3fd74f1f`. L-4 determined not applicable (single-table FOR UPDATE, no JOIN). Pool acquire timeout NOT implementable at config layer (pg-pool 3.14.0 verified: requires `connectionTimeoutMillis` Pool option; `new Pool({connectionString})` does not parse URL params — needs frozen `packages/database/src/client.ts` change) → recorded as deployment config item under the D-075 frozen-code boundary, not implemented. P8-S9 gate rows G-18/G-21/G-30 now consumable. |
+| **Reason** | Option A executed per Bryan (D-075); the structural fix eliminates the defect class (zero pool acquisition inside reconciliation transactions); independent review with fresh reproductions confirms the stall recipe no longer reproduces; OBS-04 no longer blocks a 0-unresolved-HIGH declaration (subject to SEC-01 + QR dispositions at G-30). |
+| **Affected Files** | apps/api/src/admin-reconciliation-ops/admin-reconciliation-ops.service.ts, apps/api/src/load/journeys/j10-reconciliation.ts (test), docs/06-phase-reports/p8-s8/FIX_RECORD_OBS04.md, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (OBS-04 CLOSED; SEC-01 fix next per D-075; P8-S9 gate then executes on final state) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) + Bryan (Option A, D-075) |
+| **Basis** | D-075; P8_S6 OBS-04 reproduction ledger; FIX_RECORD_OBS04.md; Reviewer B' FIX-005 APPROVED (7/7); host integration gate 2026-08-10 |
+| **Status** | **CLOSED (APPROVED)** |
