@@ -101,13 +101,14 @@ export class RedemptionController {
     query: QuoteQueryDto,
   ) {
     const marketId = await this.resolveCurrentMarket(actor.accountId);
+    // P8-S6 bounded fix (fix record FIX-001): redemption_quotes.member_id
+    // references members.id, so the member id must be resolved from the
+    // account before delegating — passing the account id violated the FK
+    // and 500'd every member quote request (the confirm-order flow could
+    // never obtain a quote over HTTP).
+    const memberId = await this.resolveMemberId(actor.accountId);
     return this.handle(() =>
-      this.redemption.generateQuote(
-        actor.accountId,
-        marketId,
-        itemId,
-        query.quantity,
-      ),
+      this.redemption.generateQuote(memberId, marketId, itemId, query.quantity),
     );
   }
 
