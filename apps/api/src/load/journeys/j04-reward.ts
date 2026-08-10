@@ -113,16 +113,15 @@ export async function runJourneyJ4(ctx: LoadContext): Promise<JourneyResult> {
 
     const walletEntry = await ctx.pool.query<{ count: string }>(
       `SELECT count(*)::text AS count
-         FROM member_wallet_entries entry
-         JOIN reward_sources source ON entry.reference_id = source.id::text
-        WHERE source.member_id = $1 AND source.transaction_amount = '100.0000000000'`,
+         FROM member_wallet_entries
+        WHERE member_id = $1 AND reason = 'TRANSACTION_REWARD'`,
       [memberId],
     );
     const entryCount = Number(walletEntry.rows[0]?.count ?? 0);
     result.assertions.push({
-      name: 'J4 every reward source has exactly one wallet entry',
+      name: 'J4 every confirm writes exactly one reward wallet entry',
       pass: entryCount === confirmed,
-      detail: `reward-linked wallet entries = ${entryCount} (expected ${confirmed})`,
+      detail: `TRANSACTION_REWARD entries = ${entryCount} (expected ${confirmed})`,
     });
   }
 

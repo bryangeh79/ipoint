@@ -192,6 +192,15 @@ export async function runJourneyJ2(ctx: LoadContext): Promise<JourneyResult> {
     if (publicPreviewId) {
       // -- storm: concurrent confirm, one key ------------------------------
       const confirmKey = `j2-confirm-storm-${randomSuffixLocal()}`;
+      // Capture the MCP balance before the storm (the measured confirm op
+      // has already debited 10.00 per confirm; the storm must debit exactly
+      // one more — delta assertion, no absolute balance dependence).
+      const mcpBeforeRows = await ctx.pool.query<{ balance: string }>(
+        `SELECT available_balance::text AS balance
+           FROM mcp_accounts WHERE merchant_branch_id = $1`,
+        [world.branchId],
+      );
+      const mcpBeforeValue = mcpBeforeRows.rows[0]?.balance ?? '';
       const confirmations = await Promise.all(
         Array.from({ length: 20 }, () =>
           confirmTransaction(ctx, publicPreviewId, {
@@ -219,10 +228,17 @@ export async function runJourneyJ2(ctx: LoadContext): Promise<JourneyResult> {
           chain.walletEntries === 1,
         detail: JSON.stringify(chain),
       });
+      const mcpAfterRows = await ctx.pool.query<{ balance: string }>(
+        `SELECT available_balance::text AS balance
+           FROM mcp_accounts WHERE merchant_branch_id = $1`,
+        [world.branchId],
+      );
+      const mcpValue = mcpAfterRows.rows[0]?.balance ?? '';
+      const delta = Number(mcpBeforeValue) - Number(mcpValue);
       result.assertions.push({
-        name: 'J2 confirm storm debits MCP exactly once (5000 → 4900)',
-        pass: chain.mcpBalance === '4900.0000000000',
-        detail: `mcp available_balance = ${chain.mcpBalance} (expected 4900.0000000000)`,
+        name: 'J2 confirm storm debits MCP exactly once (delta 10.00)',
+        pass: Math.abs(delta - 10) < 0.000001,
+        detail: `mcp delta = ${delta.toFixed(4)} (${mcpBeforeValue} → ${mcpValue}; expected 10.0000)`,
       });
     }
 

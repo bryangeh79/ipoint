@@ -21,7 +21,6 @@ import {
 import { randomSuffix, stringId } from './common.js';
 
 const OK = new Set([200]);
-const CREATED = new Set([201]);
 // 409 = REDEMPTION_QUOTE_EXPIRED when a concurrent order consumed the same
 // quote first — the correct exactly-once outcome (FIX-003), not an error.
 const ORDER_OK = new Set([201, 409]);
@@ -181,24 +180,35 @@ export async function runJourneyJ6(ctx: LoadContext): Promise<JourneyResult> {
   });
 
   // -- order storm ---------------------------------------------------------
+  // Quotes are pre-generated serially (each with a distinct idempotency key)
+  // so the storm exercises ORDER concurrency, not quote-ms-dedupe; then 20
+  // concurrent order confirms on distinct quotes must create exactly 20
+  // orders with exactly 20 wallet debits and zero 5xx.
   if (ctx.level !== 'L0') {
     const beforeOrders = await orderCount(ctx, memberId);
     const stormCount = 20;
+    const quotes: Array<{ quoteId: string; postedPointCost: string }> = [];
+    for (let i = 0; i < stormCount; i += 1) {
+      const quote = await httpCall(ctx.baseUrl, {
+        method: 'GET',
+        path: `/api/v1/redemption/catalog/${fixture.itemId}/quote?quantity=1`,
+        token: memberToken,
+      });
+      const quoteBody = quote.body as {
+        quoteId?: string;
+        postedPointCost?: string;
+      };
+      if (!quoteBody.quoteId || !quoteBody.postedPointCost) {
+        throw new Error('J6 storm quote generation failed');
+      }
+      quotes.push({
+        quoteId: quoteBody.quoteId,
+        postedPointCost: quoteBody.postedPointCost,
+      });
+    }
     const stormed = await Promise.all(
-      Array.from({ length: stormCount }, async () => {
-        const quote = await httpCall(ctx.baseUrl, {
-          method: 'GET',
-          path: `/api/v1/redemption/catalog/${fixture.itemId}/quote?quantity=1`,
-          token: memberToken,
-        });
-        const quoteBody = quote.body as {
-          quoteId?: string;
-          postedPointCost?: string;
-        };
-        if (!quoteBody.quoteId || !quoteBody.postedPointCost) {
-          return { status: 500, orderId: '' };
-        }
-        const order = await httpCall(ctx.baseUrl, {
+      quotes.map((quoteBody) =>
+        httpCall(ctx.baseUrl, {
           method: 'POST',
           path: '/api/v1/redemption/orders',
           token: memberToken,
@@ -214,19 +224,21 @@ export async function runJourneyJ6(ctx: LoadContext): Promise<JourneyResult> {
             },
             termsAcceptance: { accepted: true, termsVersion: 'v1' },
           },
-        });
-        return {
-          status: order.status,
-          orderId: stringId(order.body, ['id', 'orderId']),
-        };
-      }),
+        }),
+      ),
     );
     const created = stormed.filter((r) => r.status === 201).length;
+    const fiveHundreds = stormed.filter((r) => r.status >= 500).length;
     const afterOrders = await orderCount(ctx, memberId);
     result.assertions.push({
       name: 'J6 order storm → exactly one order per confirm (no duplicates)',
       pass: afterOrders - beforeOrders === created && created === stormCount,
-      detail: `before=${beforeOrders} after=${afterOrders} created=${created}/${stormCount}`,
+      detail: `before=${beforeOrders} after=${afterOrders} created=${created}/${stormCount} statuses=${stormed.map((r) => r.status).join(',')}`,
+    });
+    result.assertions.push({
+      name: 'J6 order storm has zero 5xx',
+      pass: fiveHundreds === 0,
+      detail: `5xx = ${fiveHundreds}`,
     });
 
     // One wallet debit per order.
