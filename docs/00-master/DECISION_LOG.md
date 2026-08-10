@@ -1987,3 +1987,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058, D-059, D-060, D-067..D-073; TASK_BRIEF_P8S8.md; P8_S8_UAT_RESULTS_MATRIX.md + DEFECT_LOG.md; Reviewer B' round-3 APPROVED; host gate verification 2026-08-10 |
 | **Status** | **APPROVED / CLOSED (REVOCABLE)** |
+
+---
+
+## D-075 - Bryan Decisions: OBS-04 = Option A (bounded engine fix); SEC-01 = upgrade multer + written acceptance of remainder
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-075 |
+| **Date** | 2026-08-10 |
+| **Source** | Bryan (final business decision owner) — command-center directive 2026-08-10 22:15 MYT |
+| **Old Rule** | OBS-04 remediation decision PENDING (D-070/D-072/D-074); SEC-01 remediation decision PENDING (D-072/D-074) |
+| **New Decision** | **(1) OBS-04: Option A — bounded engine remediation AUTHORIZED.** Scope: reconciliation `detect*` methods take the tx-scoped client (no pool-level queries inside an open transaction); pool acquire timeout via pool config where available; L-4 FOR UPDATE OF narrowing evaluated and recorded; frozen `DatabaseManager` foundation NOT modified without re-escalation to Command Center; acceptance = P8-S2 suites + J10 L2 sustained storm (20-way) completing WITHOUT pool stall + zero-owner-bypass re-scan + independent review (Reviewer B') + re-verification. **(2) SEC-01: upgrade multer (patched version; preferred via pnpm overrides to avoid a NestJS major bump; verify no API breakage) + Bryan formal written risk acceptance for the remaining 7 HIGH advisories (lodash×1, js-yaml×2, fast-uri×2, react-router×1) with the reachability analysis recorded in the security report.** (3) /members/me/qr (L-06 gap): still OPEN — Bryan to decide bounded implement vs formal DEFERRED (non-gate-blocking, but affects V1 feature completeness statement). |
+| **Reason** | Bryan's explicit decisions resolve the two P8-S9 gate-condition items named in D-070/D-072/D-074. Option A preserves financial-correctness hardening with a bounded P8-S2-domain change; multer upgrade addresses the runtime-tree DoS advisories with minimal blast radius (overrides, no framework bump); the remaining advisories are accepted per documented reachability (frontend/tooling paths, zero financial exposure) — recorded, not silent. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md (this entry); execution branches to follow: `fix/p8-obs04-engine`, `fix/p8-sec01-deps` |
+| **Affected Phases** | Phase 8 (OBS-04 remediation; SEC-01 dependency remediation; P8-S9 gate inputs) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | Bryan |
+| **Basis** | Bryan directive 2026-08-10 22:15 MYT; D-070/D-072/D-074 gate-condition records; P8_S6 OBS-04 reproduction ledger; P8_S7_SECURITY_READINESS_REPORT.md audit section |
+| **Status** | **DECIDED (EXECUTION AUTHORIZED)** |
