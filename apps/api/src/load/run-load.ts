@@ -25,6 +25,9 @@ import { JOURNEYS, runJourney } from './journeys/index.js';
 import { assertLoadTestAllowed } from './guards.js';
 
 const databaseUrl = process.env['DATABASE_URL'];
+// Per-journey watchdog: a stalled journey (OBS-04 pool stall) must not lose
+// the already-collected evidence or block the runner forever.
+const JOURNEY_TIMEOUT_MS = 900_000;
 const level = (process.env['P8S6_LOAD_LEVEL'] ?? 'L0') as 'L0' | 'L1' | 'L2';
 const runId = `run-${new Date().toISOString().replaceAll(':', '-')}`;
 
