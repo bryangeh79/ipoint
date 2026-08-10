@@ -116,11 +116,12 @@ export async function runJourneyJ9(ctx: LoadContext): Promise<JourneyResult> {
     });
 
   // -- measured ops (fresh request per iteration) ---------------------------
-  // The 4-call maker→checker chain is serial per iteration; at L2 it is
-  // capped (concurrency 10 × 10) with a 30s client bound (pool-stall
-  // protection, OBS-04).
-  // OBS-04 (High, open): both Maker/Checker adjust workflows reproduce a\n  // pool-level stall at =10-way concurrency; L2 measures the chain at 5-way\n  // (the proven-stable ceiling). See report �9.\n  const chainScale =
-  ctx.level === 'L2' ? { concurrency: 5, iterations: 10 } : undefined;
+  // The 4-call maker→checker chain is serial per iteration. OBS-04 (High,
+  // open): both Maker/Checker adjust workflows reproduce a pool-level stall
+  // at ≥10-way concurrency; L2 measures the chain at 5-way (the
+  // proven-stable ceiling) with a 30s client bound. See report §9.
+  const chainScale =
+    ctx.level === 'L2' ? { concurrency: 5, iterations: 10 } : undefined;
 
   await measureOp(
     ctx,
