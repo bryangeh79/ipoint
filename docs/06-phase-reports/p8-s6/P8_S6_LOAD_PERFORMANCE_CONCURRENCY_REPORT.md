@@ -2,7 +2,7 @@
 
 > Phase 8 · Sub-phase **P8-S6** · Branch `task/p8-s6-load-performance-concurrency`
 > Contract: `P8_S0_CONTRACT_FREEZE.md` §6 (G-06) · Brief: `docs/06-phase-reports/p8-s6/TASK_BRIEF_P8S6.md`
-> D-069 (O-1..O-4): zero new dependencies; additive CI L0 smoke; zero production code by default (bounded fixes only, FIX-001..003); no invented thresholds — measured values + delta.
+> D-069 (O-1..O-4): zero new dependencies; additive CI L0 smoke; zero production code by default (bounded fixes only, FIX-001..004); no invented thresholds — measured values + delta.
 > Executor provenance and gate record: filed by OpenClaw at gate time (D-058). Reviewer: Reviewer B' (D-060).
 
 ---
@@ -27,8 +27,10 @@ buckets are cleared between measured blocks (P2-S4D / P4-S7 methodology); login-
 ops are measured at the frozen limiter ceiling (10/IP/300s, 5/email/300s) and the 429
 beyond the ceiling is measured explicitly (J1 L2). Config-scheduling ops (J4 rule,
 J5 rate) are measured serially — overlapping windows are a documented 409 business
-invariant, not a load failure. Adjust-chain ops (J3/J9) and reconciliation (J10) are
-measured at the proven-stable 5-way ceiling at L2 (OBS-04, §9).
+invariant, not a load failure. Adjust-chain ops (J3/J9) are measured at the 5-way
+L2 profile; since round-1 FIX-004 their write boundaries carry the frozen
+transaction-engine timeouts (statement 10s / lock 3s / 2 retries). Reconciliation
+(J10) remains capped at L2 (OBS-04 residual, §9).
 
 **Honesty contract**: every number is traceable to raw evidence under
 `apps/api/.local/p8-s6-load/**` (per-journey JSON + summary) and the commands in §10.
@@ -47,7 +49,7 @@ No number is fabricated; a failed measurement is reported as such.
 | J7  | fulfilment (queues/suspend/resume/retry)       | per-iteration fresh state transitions                    | ✅  | ✅                   |
 | J8  | refund (reversal/refund, retry-safe)           | 20-way same-key reversal + execution exactly-once        | ✅  | ✅                   |
 | J9  | Maker/Checker (iPoint adjust)                  | double-decision storm                                    | ✅  | ✅ (5-way chain)     |
-| J10 | reconciliation (run/execute/exceptions)        | 5-way execute storm (L1); L2 stalled → OBS-04            | ✅  | ⚠ L1 evidence + note |
+| J10 | reconciliation (run/execute/exceptions)        | storm scale history: persisted evidence 20-way (L1 `…06-27-47…`, L2 06:41 trial); HEAD bounds at 2-way L1 / serial L2 (`a4ead703`→`b4bd5082`); round-1 L2 re-run stalled again (OBS-04 residual, §9) | ✅  | ⚠ L2 stalled (OBS-04) — L1 evidence + note |
 | J11 | reports (R01–R19)                              | read storm (scale 0.25 at L2)                            | ✅  | ✅                   |
 | J12 | content delivery (ads/content home)            | read storm                                               | ✅  | ✅                   |
 
@@ -116,6 +118,12 @@ OBS-01) — expected, zero unexpected.
 
 and final `…08-16-57.531Z…`; J3/J9 chains 5×10, J4/J5 schedule serial, J11 scale 0.25)
 
+> **L-2 note (not two independent runs):** `…08-01-57.497Z…` and `…08-16-57.531Z…`
+> are two incremental snapshots of the SAME run (identical summary SHA-256
+> `A43AF4776387`, same runId `run-2026-08-10T07-59-55.615Z`). The 08-16-57 write is
+> the final post-watchdog snapshot after J10 stalled; both contain the same 11
+> completed journeys (J10 absent).
+
 | Journey | Op                           |    n |      tps |     p50 |    p95 |    p99 |  err |                 unexp |
 | ------- | ---------------------------- | ---: | -------: | ------: | -----: | -----: | ---: | --------------------: |
 | J1      | login/refresh/otp (ceiling)  |   40 |   64–386 |  11–108 | 14–144 | 14–144 |    0 |                     0 |
@@ -134,17 +142,40 @@ and final `…08-16-57.531Z…`; J3/J9 chains 5×10, J4/J5 schedule serial, J11 
 | J6      | order-create                 |  400 |    206.7 |    48.0 |   90.7 |  109.6 | 390¹ |                     0 |
 | J7      | fulfilment ops               | 2400 |  371–600 |   33–49 |  40–55 |  41–59 |    0 |                     0 |
 | J8      | reversal/refund ops          | 1600 |    50–52 |   27–37 |  41–84 | 55–177 |    0 |                     0 |
-| J9      | adjust chain (5-way) + queue |  250 |   50–480 |   15–40 |  19–49 |  21–54 |    0 |                     0 |
+| J9      | adjust chain (5-way) + queue |  600 |   50–480 |   15–40 |  19–49 |  21–54 |    0 |                     0 |
 | J11     | report-list                  |   25 |    260.8 |     8.4 |   61.3 |   61.5 |    0 |                     0 |
 | J11     | report-R01..R19              |  475 |  455–627 | 7.3–8.9 |   9–21 |  10–22 |    0 |                     0 |
 | J12     | content ops + member home    | 2400 |  170–360 |   55–94 | 59–106 | 61–113 |    0 |                     0 |
 
 ¹ 390 errors = expected quote-race 409s (OBS-01), zero unexpected.
 
+**L-1 note (J9 n):** the J9 L2 row counts chain ops 50×4 = 200 (maker-create /
+submit / checker-decision / checker-execute at 5-way × 10) + queue-read 400
+(20×20, uncapped) = **600 samples** (per-op breakdown in
+`…08-16-57.531Z…/J9.json`; the earlier “250” under-counted the uncapped
+queue-read).
+
+**Round-1 post-FIX-004 re-runs (J3/J9 at L2):** both adjust chains were re-run in
+a dedicated `ipoint_p8s6_test` DB after FIX-004 (evidence `…08-41-59.831Z-p8s6-l2/`
+and `…08-42-19.242Z-p8s6-l2/`): J3 1200 read + 200 chain samples, J9 200 chain +
+400 queue samples — **0 unexpected errors each**, double-decision storm PASS
+(200/409, final state APPROVED), no pool stall. The table numbers above (same
+5-way profile) are unchanged and remain valid; the re-runs prove the
+OBS-04-class adjust-chain stall is closed (see FIX-004).
+
 **J10 L2**: reconciliation run-create/execute at L2 stalled the DB pool on 4
-consecutive attempts (OBS-04 — see §9); L2 row uses the L1 numbers above. The
-watchdog recorded the stall explicitly in the final evidence run
-(`J10 threw: journey exceeded 900s watchdog (OBS-04 pool stall)`).
+observed attempts (OBS-04 — see §9; persisted-evidence vs console-observed
+enumeration in the OBS-04 row); the L2 row uses the L1 numbers above. The
+900s-journey watchdog fired on the final evidence run and was **console-observed
+only** — no J10.json was persisted for that attempt (the final snapshot
+`…08-16-57.531Z…` holds the same 11 journeys as `…08-01-57.497Z…`, see L-2 note).
+Console citation: `J10 threw: journey exceeded 900s watchdog (OBS-04 pool stall)`.
+A round-1 L2 re-run (16:43 MYT 2026-08-10, post-FIX-004) reproduced the stall:
+pg_stat_activity showed 10/10 pooled sessions “idle in transaction / ClientRead”
+on `update reconciliation_runs` (snapshots in
+`…08-44Z-j10-l2-rerun-stall/OBSERVATION.md`; test timeout + pool teardown hang,
+client killed → PG aborted all 10 sessions within seconds — the residual is the
+client-side connection lifecycle, see OBS-04).
 
 ---
 
@@ -179,9 +210,24 @@ Method note: P4-S7 used supertest against the in-process server; S6 uses real HT
 | J6      | 20-way order storm (distinct quotes)  | exactly 20 orders, 20 wallet debits, 0×5xx                                                                                          | PASS | PASS                    |             |
 | J8      | 20 concurrent reversals, one key      | exactly one correction_request; execution restores MCP fee exactly once (+10.00 delta); re-execution rejected with no second impact | PASS | PASS                    |             |
 | J9      | double-decision on one iPoint adjust  | exactly one accepted transition                                                                                                     | PASS | PASS                    |             |
-| J10     | 5-way execute storm, one run          | exactly one COMPLETED run; all responses bounded (FIX-002)                                                                          | PASS | L1 evidence (L2 OBS-04) |             |
+| J10     | same-run execute storm (20-way in persisted evidence; 2-way at HEAD) | exactly one COMPLETED run; waiters bounded (FIX-002 timeouts) — 55P03-class 500s are OBS-02 (bounded) | PASS | L1 PASS (20-way, bounded); L2 trial PASS w/ 9 bounded 55P03 (06:41); L2 HEAD-scale re-run stalled (OBS-04 residual) |             |
 
-Zero unexpected errors in every measured storm (P4-S7 precedent: 0/80 target).
+**Unexpected-error scope (M-2):** the final reported matrix — 12/12 journeys at
+L0/L1, 11/11 persisted journeys at L2 — shows 0 unexpected errors in every
+measured storm. One earlier L2 trial (06:41 run, `…06-43-42.109Z…`, pre-ceiling
+commit) recorded 9 unexpected 500s on J10 run-execute: all bounded `55P03`
+lock-timeout waiters (OBS-02) with final state COMPLETED and the storm assertion
+PASS; that trial is documented in §2/§9 and is NOT part of the final matrix
+(P4-S7 precedent: 0/80 target).
+
+**Scale-history note (M-1):** persisted J10 storm evidence is **20-way** — L1
+06-27-47 assertion lists 20 concurrent statuses (17×500 bounded 55P03 + 3×200,
+final COMPLETED); L2 06:41 trial run-execute n=400 at 20×20 (9×500 bounded). The
+report’s earlier “5-way” wording was the intermediate intended ceiling, not what
+the evidence shows. HEAD code now bounds the storm at **2-way (L1-only) with
+serial L2** (commits `a4ead703` → `d90597b6` → `48ff8125` → `e2a84297` →
+`b4bd5082`, OBS-04 mitigations). All three values are now reconciled above and
+in §1/§2.
 
 ---
 
@@ -207,7 +253,9 @@ Fix: apply the frozen transaction-engine timeouts (`statement_timeout` 10s,
 `lock_timeout` 3s — P4-S7 contract) at the start of every reconciliation write
 transaction (`withIdempotency`). Post-fix: waiters fail bounded; J10 storm all-bounded
 at L1. Residual (Low): a lost client connection can still hold a run lock until the
-backend reaps the socket.
+backend reaps the socket. Commit note (L-3): `1db4fb69` also bundled the necessary
+prettier reformatting of the helper functions `toScaledBigInt`/`sub`/`eqScaled`
+(pure formatting, no semantic change).
 
 ### FIX-003 — High (fixed, round 1, commit `1db4fb69`)
 
@@ -217,8 +265,65 @@ concurrent quote calls in the same millisecond return the SAME quote, and two or
 confirms on one quote raced the `uq_order_quote` unique index → unhandled 500 (~30%
 of a 10-way storm pre-fix; 3/10 reproduced in a probe). Fix: `FOR UPDATE` on the quote
 load in `confirmOrder` so the second consumer observes the consumed quote and returns
-the bounded `REDEMPTION_QUOTE_EXPIRED` 409. Post-fix: concurrent order storm =
-201/409 only, 0×500 (verified: `201,409,201,201,201,201,409,409,409,201`).
+the bounded `REDEMPTION_QUOTE_EXPIRED` 409. Post-fix status histogram (traceable,
+M-6 — replaces the earlier inline console string): J6 L1 order-create n=50 →
+**10×201 + 40×409** (`…/2026-08-10T06-27-47.381Z…/J6.json`); J6 L2 order-create
+n=400 → **10×201 + 390×409** (`…/2026-08-10T08-16-57.531Z…/J6.json`); 0×500 at
+every level. (The probe string `201,409,201,201,201,201,409,409,409,201` was
+console-observed during development and is superseded by the persisted
+histograms.)
+
+### FIX-004 — Medium (OBS-04 routine-repairable part; fixed round 1, commit `d6bab1da`)
+
+**MCP/iPoint adjust-owner write boundaries ran without transaction
+timeouts/retries (reviewer H-1).** The 10 `DatabaseService.runTransaction` call
+sites in `apps/api/src/merchant/mcp-adjustment.owner.service.ts`
+(create/submit/decide/execute/markFailed) and `apps/api/src/wallet/wallet-adjustment.owner.service.ts`
+(same 5) passed NO options → no `statement_timeout`, no `lock_timeout`, no
+40001/40P01 retry. Under a sustained decision storm, waiters blocked on the
+request row lock (or on a stalled client’s open transaction) without any time
+bound — the OBS-04 class reproduced on both adjust chains at ≥10-way during
+development.
+- **Root cause:** bounded-fix gap — write boundaries missing the frozen engine
+timeouts (FIX-002 precedent: `1db4fb69` applied them to reconciliation
+`withIdempotency` only).
+- **Fix:** pass the frozen `TRANSACTION_EXECUTION_OPTIONS` (statement 10s /
+lock 3s / 2 retries, P4-S7 contract, `transaction-reliability.ts:11-15`) at all
+10 call sites. `set_config(..., true)` is session-local → pooled connections are
+not mutated after COMMIT/ROLLBACK; retries are SQLSTATE 40001/40P01 only
+(`database.service.ts:26-73`). Diff: 2 files, 12 insertions / 10 deletions
+(1 import + 10 call-site option args). No behavior change beyond
+timeouts/retry bounds; no migration; checksums untouched.
+- **Tests:** owner unit suites 38/38 (mcp 20/20, wallet 18/18); L0 full load
+suite 17/17; L2 re-runs — J3 (1200 read + 200 chain samples) and J9 (200 chain +
+400 queue): **0 unexpected errors each**, double-decision storm PASS (200/409,
+final APPROVED), no pool stall (evidence `…08-41-59.831Z-p8s6-l2/`,
+`…08-42-19.242Z-p8s6-l2/`).
+- **Zero-bypass re-scan** (P7-S10 gate-18 / S5e method, `node .local/p8-s5e/scan-zerobypass.mjs`):
+464 files scanned (445 S5e baseline + 19 S6 load files), 5 benign keyword hits
+(same classes as the S5e baseline: 2 helper default-params + 1 explicit
+no-fallback comment), **0 direct owner bypass**.
+- **Residual (unchanged, escalated):** the OBS-04 engine-level part —
+idle-in-transaction connection lifecycle on the reconciliation path — is
+unaffected by FIX-004 and remains OPEN for the Command Center (§9).
+
+### 5.1 Round-1 reviewer closure (CHANGES REQUIRED → resubmission)
+
+| Item | Finding | Disposition | Where addressed |
+| ---- | ------- | ----------- | --------------- |
+| **H-1** | 10 `runTransaction` calls (mcp L233/309/377/494/948, wallet L231/309/377/497/960) missing timeouts/retries | **FIXED — FIX-004** (options at all 10 sites; re-run evidence J3/J9 L2 PASS) | §5 FIX-004; commit `d6bab1da` |
+| **M-1** | J10 storm scale inconsistent (report 5-way / evidence 20-way / HEAD 2-way) | **Corrected** — scale history reconciled + difference reason documented | §1 journey table, §2 J10 note, §4 scale-history note |
+| **M-2** | “Zero unexpected errors in every measured storm” overstates | **Corrected** — scoped to the final reported matrix; 06:41 L2 trial (9× bounded 55P03) recorded separately | §4 |
+| **M-3** | watchdog citation console-only | **Corrected** — marked console-observed; no J10.json persisted; L-2 snapshot identity clarified | §2 J10 note |
+| **M-4** | OBS-04 “Reproduced 4×” not matched to persisted evidence | **Corrected** — per-reproduction enumeration (persisted vs console) + round-1 pg_stat_activity snapshots added | §9 OBS-04 row, `…08-44Z-j10-l2-rerun-stall/OBSERVATION.md` |
+| **M-5** | retry-site first row implied engine-wide defaults | **Corrected** — per-call-site opt-in qualifier + not-opted-in domain list (incl. J3/J9 post-FIX-004 state) | §6 |
+| **M-6** | FIX-003 verification string console-only | **Corrected** — replaced with persisted histograms (J6 L1 10×201+40×409; L2 10×201+390×409) | §5 FIX-003 |
+| **L-1** | §2 L2 J9 n=250 wrong | **Corrected** — 600 (chain 50×4=200 + queue 400) | §2 L-1 note |
+| **L-2** | 08-16-57 vs 08-01-57 identical bytes | **Corrected** — clarified as one run, two snapshots (same summary SHA) | §2 L-2 note |
+| **L-3** | FIX-002 commit bundled prettier reflow | **Recorded** in the fix record | §5 FIX-002 |
+| **L-4** | FOR UPDATE OF hardening suggestion | **Recorded** — see §9 OBS-04 residual note (lock-target narrowing candidate for Command Center) | §9 |
+| **L-5** | historical process note | **Recorded** — see §9 OBS-04 reproduction ledger | §9 |
+| **L-6** | quote-key entropy product decision | **Recorded** — ms-granular quote idempotency key is a product decision (OBS-01 documented, safe/bounded); entropy change would be a Command Center product call | §9 OBS-01 |
 
 ---
 
@@ -230,7 +335,7 @@ bounded (visited-set cycle guards, `running`-flag scheduler loops, cleared sampl
 
 | Site                                                  | Bound                                                           | Guard                                                           | Evidence                                               |
 | ----------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
-| `DatabaseService.runTransaction` (transaction engine) | 2 retries                                                       | SQLSTATE 40001/40P01 only; never HTTP/validation/business       | `database.service.ts:13,60,65,83`                      |
+| `DatabaseService.runTransaction` (transaction engine) — **opt-in per call site (M-5)** | 2 retries + statement 10s / lock 3s | SQLSTATE 40001/40P01 only; never HTTP/validation/business; timeouts/retries apply ONLY where the caller passes `TRANSACTION_EXECUTION_OPTIONS` | `database.service.ts:26-73`; options `transaction-reliability.ts:11-15` |
 | `transaction-reliability.ts`                          | statement 10s / lock 3s / 2 retries                             | centralized write-boundary limits                               | `transaction-reliability.ts:14`                        |
 | Outbox worker                                         | `max_attempts`, BATCH 10, stale-lock recovery                   | `attempts < max_attempts`; `FOR UPDATE SKIP LOCKED` claim       | worker:27,31,111,114; J5 drain PASS; DB-obs drain 60→0 |
 | Commission integrator                                 | replay key `canonical_processing_key` per tx                    | exactly-once on replay; admin reprocess endpoint                | `transaction-commission.integrator.ts:12-19`           |
@@ -238,6 +343,19 @@ bounded (visited-set cycle guards, `running`-flag scheduler loops, cleared sampl
 | Redemption confirmOrder                               | quote FOR UPDATE (FIX-003) + wallet advisory lock               | consumed-quote 409, never 500                                   | J6 storm 0×5xx                                         |
 | MCP/iPoint adjust workflows                           | operation-scoped idempotency keys + step-up grants (single-use) | same-key replay returns original result; Maker≠Checker enforced | J3/J9 storms                                           |
 | UI double-submit guards                               | `isSubmitting` / idempotency keys                               | member-web `useKyc.ts`, `CountryChangePage.tsx:272`             | S5b/S5c suites                                         |
+
+**Per-call-site opt-in note (M-5):** the engine applies timeouts/retries only
+where the caller passes `TRANSACTION_EXECUTION_OPTIONS`. Opted-in at HEAD:
+transaction confirm/correction write boundaries (`transaction.service.ts:458,1047`,
+`transaction-correction.service.ts:296,580`), reconciliation `withIdempotency`
+(FIX-002, `admin-reconciliation-ops.service.ts:1272+`), and — since round-1
+FIX-004 — all 10 MCP/iPoint adjust-owner write boundaries (J3 MCP, J9 iPoint:
+create/submit/decide/execute/markFailed in `mcp-adjustment.owner.service.ts` and
+`wallet-adjustment.owner.service.ts`). **NOT opted-in at HEAD**: auth, kyc, market,
+merchant, reward, redemption, fulfilment, refund, job/scheduler write boundaries
+— they run without statement/lock timeouts and without 40001/40P01 retry (no
+unbounded retry exists, but long lock waits are not time-boxed there). The engine
+never retries without options.
 
 ---
 
@@ -253,10 +371,11 @@ Evidence: `.local/p8-s6-load/*-db-observations/observations.json` (see §10 comm
 | 30-way confirm storm                               | 1093 ms, 30×201, 0 errors                                                                |
 | Deadlock counter delta (pg_stat_database)          | 0 → 0 (no deadlocks)                                                                     |
 | Transaction rollback/commit delta                  | rollback 0 → 0 (no unexpected rollbacks); commit +168                                    |
-| Connection pool                                    | 2 → 10 sessions during storm; stable at pool max, no exhaustion                          |
+| Connection pool                                    | 2 → 10 sessions during storm; stable at pool max, no exhaustion (pre-round-1 DB-obs run) |
 | Lock-wait samples during storm                     | 1–8 sessions waiting on locks (advisory-lock serialization, bounded)                     |
 | Outbox drain                                       | 60 PENDING → 0 in 2.6 s; 60 COMPLETED; attempts ≤ max_attempts (0 over)                  |
 | Timeout defaults                                   | statement/lock timeouts set locally per write boundary (0 session defaults, as designed) |
+| OBS-04 round-1 L2 re-run pool state (16:44/16:50 MYT, pg_stat_activity) | **10/10 pooled sessions “idle in transaction / ClientRead” on `update reconciliation_runs`** (tx_age = query_age = 4:42); client kill → PG aborted all 10 within seconds (client-side lifecycle, no DB leak) |
 
 ---
 
@@ -273,8 +392,12 @@ Evidence: `.local/p8-s6-load/*-db-observations/observations.json` (see §10 comm
 - Login-family ops are measured at the frozen rate-limiter ceiling (10/IP/300s,
   5/email/300s); sustained single-IP login throughput beyond the ceiling is
   intentionally blocked (security property; 429 observed and asserted at L2).
-- J3/J9 adjust chains and J10 reconciliation are measured at ≤5-way at L2 because of
-  OBS-04 (≥10-way pool stall, see §9) — the documented ceiling.
+- J3/J9 adjust chains are measured at the 5-way L2 profile; since round-1 FIX-004
+  their write boundaries carry the frozen transaction timeouts/retries and both
+  chains complete at L2 with 0 unexpected errors (the OBS-04-class ≥10-way adjust
+  chain stall is closed). J10 reconciliation remains capped at ≤5-way/serial at L2
+  because the OBS-04 idle-in-transaction pool stall reproduced again in the
+  round-1 L2 re-run (see §9) — the residual is engine-level and escalated.
 - J6 order-create reports the quote-race 409 as an expected error (OBS-01) — the
   latency percentiles include those 409s.
 - No production SLA is claimed (P4-S7 wording: engineering evidence).
@@ -285,18 +408,23 @@ Evidence: `.local/p8-s6-load/*-db-observations/observations.json` (see §10 comm
 | ------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | FIX-001 | High            | broken member redemption journey via HTTP (quote route account/member id mix-up)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | FIXED round 1 — **Reviewer B' verification required** |
 | FIX-002 | High            | unbounded lock wait + pool leak under concurrent run execute                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | FIXED round 1 — **Reviewer B' verification required** |
-| FIX-003 | High            | concurrent order 500 on shared quote (23505)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | FIXED round 1 — **Reviewer B' verification required** |
-| OBS-04  | **High — OPEN** | **`DatabaseService.runTransaction`-based flows stall the DB pool under sustained concurrent transactions: sessions stuck "idle in transaction / Client" on all pooled connections (10/10), requests block on the pool queue. Reproduced 4× at L2 on reconciliation execute (J10) and both Maker/Checker adjust chains (J3 MCP, J9 iPoint); the earlier 18-min L1 stall was the same class. Data-volume dependent (more rows → longer transactions → higher probability). The transaction engine is the frozen P4-S7 financial-correctness backbone — a fix needs deep driver/connection tracing and full regression, beyond S6's bounded-fix scope. Recommend Command Center + Reviewer deep-dive; harness mitigations (5-way cap, client timeouts, journey watchdog, incremental evidence) are documented in §1/§8.** | OPEN — escalated                                      |
+| FIX-003 | High            | concurrent order 500 on shared quote (23505)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | FIXED round 1 — traceability corrected in round-1 revision (M-6) |
+| FIX-004 | Medium          | adjust-owner write boundaries missing frozen transaction timeouts/retries (OBS-04 routine-repairable part; reviewer H-1)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | FIXED round 1 — **Reviewer B' verification required** |
+| OBS-04  | **High — OPEN (residual)** | **Idle-in-transaction connection-lifecycle stall on the reconciliation path.** Sessions stuck “idle in transaction / ClientRead” on ALL pooled connections (10/10) holding `UPDATE reconciliation_runs`; requests block on the pool queue. No statement/lock timeout can fire because no statement is executing (client idle) — FIX-002’s 10s/3s bound waiters but cannot prevent this class. **Reproduction ledger (M-4 — evidence vs console):** (a) *persisted evidence* — L2 run `…07-59-55.615Z` family: J10 900s watchdog fired, J10.json absent from the `…08-16-57.531Z` final snapshot (console: `J10 threw: journey exceeded 900s watchdog`); L2 run `…07-52-08.117Z` family: J10 absent (process terminated, console-observed); (b) *completed trials* — L1 06-27-47 J10 storm 20-way completed with 17 bounded 55P03 (OBS-02) 500s, assertion PASS; L2 06:41 trial J10 20-way completed with 9 bounded 55P03 500s, assertion PASS (both persisted); (c) *round-1 re-run (post-FIX-004)* 2026-08-10 ~16:43 MYT: L2 J10 stalled again — pg_stat_activity snapshots 10/10 idle-in-transaction on `update reconciliation_runs` (tx_age = query_age = 4:42), test timeout + pool teardown hang; client killed → PG aborted all 10 sessions in seconds (residual is client-side lifecycle, no DB-side leak; the earlier 18-min L1 stall was the same class). J3/J9 adjust-chain stalls (the remainder of the former 4× total, console-observed during development) are **closed by FIX-004** — round-1 L2 re-runs pass 0 unexpected. Engine-level fix (pool acquire timeout / tx-scoped connection discipline / driver tracing; FOR UPDATE OF narrowing per reviewer L-4) is OUT of bounded-fix scope — **Command Center decision** (D-069 O-3, §3.7). | OPEN — escalated (residual scoped to the reconciliation path; adjust chains closed via FIX-004) |
 | OBS-01  | Medium          | quote ms-granular idempotency key dedupes concurrent distinct requests into one quote → 409 consumed for the loser (safe, bounded; J6 ~98%)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | documented                                            |
 | OBS-02  | Low             | reconciliation lock-timeout waiters surface as 500 (55P03), not 409                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | documented                                            |
 | OBS-03  | Low             | outbox worker logs "Dispatch failed: not CONFIRMED" for transactions reversed before drain                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | expected business rejection, bounded (attempts ≤ max) |
 | OBS-05  | Low             | deprecated recharge route (`merchant.mcp.recharge.review`) 403s by design (P7-S2C)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | verified as intended                                  |
 
-Approval bar: 0 Critical / 0 High / 0 Medium at final gate — FIX-001..003 (High) are
-fixed with round-1 evidence and require Reviewer B' verification; OBS-04 (High, open)
-is escalated to the Command Center per §3.7 stop conditions. **The S6 gate cannot be
-approved as fully green while OBS-04 is open** — this is flagged explicitly for the
-verifier.
+Approval bar: 0 Critical / 0 High / 0 Medium at final gate — FIX-001..003 (High)
+are fixed with round-1 evidence, with traceability corrections in this round-1
+revision; FIX-004 (Medium, OBS-04 routine-repairable part) is fixed in round 1
+with re-run evidence and requires Reviewer B' verification; OBS-04 (High,
+residual — reconciliation idle-in-transaction connection lifecycle only) is
+escalated to the Command Center per §3.7 stop conditions; the J3/J9 adjust-chain
+class of OBS-04 is closed by FIX-004. **The S6 gate cannot be approved as fully
+green while the OBS-04 residual is open** — this is flagged explicitly for the
+verifier. Round-1 closure table: §5.1.
 
 ## 10. Evidence commands and raw outputs
 
@@ -311,10 +439,24 @@ pnpm exec tsx src/load/run-load.ts                          # L0/L1/L2 (host run
 # DB/worker observations + retry scan
 pnpm exec tsx src/load/run-db-observations.ts
 pnpm exec tsx src/load/run-retry-scan.ts
+
+# Round-1 re-run (post-FIX-004, 2026-08-10 MYT, dedicated ipoint_p8s6_test DB)
+$env:P8S6_LOAD_LEVEL='L0'
+pnpm vitest run src/load/load.spec.ts --reporter verbose     # 17/17 (…08-41-44.592Z-p8s6-l0)
+$env:P8S6_LOAD_LEVEL='L2'
+pnpm vitest run src/load/load.spec.ts -t "J3 MCP debit"     # 1/1 PASS (…08-41-59.831Z-p8s6-l2)
+pnpm vitest run src/load/load.spec.ts -t "J9 Maker/Checker" # 1/1 PASS (…08-42-19.242Z-p8s6-l2)
+pnpm vitest run src/load/load.spec.ts -t "J10 reconciliation" # stalled — OBS-04 residual reproduced
+#   (pg_stat_activity snapshots in …08-44Z-j10-l2-rerun-stall/OBSERVATION.md)
 ```
 
 Raw evidence (host): `apps/api/.local/p8-s6-load/` —
 `2026-08-10T06-27-47.381Z-run-…` (L1 12/12), `2026-08-10T08-01-57.497Z-run-…` and
-`2026-08-10T08-16-57.531Z-run-…` (L2, incremental), `*-db-observations/` (DB/worker),
-`*-retry-scan/` (retry sites). Each run's `summary.json` + per-journey `J*.json`
-contains every sample, percentile, status histogram, assertion and observation.
+`2026-08-10T08-16-57.531Z-run-…` (L2, incremental — same run, two snapshots, see
+L-2 note), `2026-08-10T06-43-42.109Z-run-…` (L2 trial incl. J10 20-way,
+9× bounded 55P03), `*-db-observations/` (DB/worker), `*-retry-scan/` (retry
+sites), round-1 re-runs `2026-08-10T08-41-44.592Z-p8s6-l0` (L0 17/17),
+`2026-08-10T08-41-59.831Z-p8s6-l2` (J3), `2026-08-10T08-42-19.242Z-p8s6-l2` (J9),
+`2026-08-10T08-44Z-j10-l2-rerun-stall/OBSERVATION.md` (J10 stall snapshots). Each
+run's `summary.json` + per-journey `J*.json` contains every sample, percentile,
+status histogram, assertion and observation.
