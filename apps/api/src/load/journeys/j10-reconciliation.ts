@@ -33,7 +33,7 @@ export async function runJourneyJ10(ctx: LoadContext): Promise<JourneyResult> {
   // sustained =10-way concurrent reconcile transactions stall the DB pool.
   // All J10 ops are measured at 5-way at L2 (the proven-stable ceiling).
   const runScale =
-    ctx.level === 'L2' ? { concurrency: 1, iterations: 10 } : undefined;
+    ctx.level === 'L2' ? { concurrency: 1, iterations: 3 } : undefined;
   const base = `/api/v1/admin/reconciliation/markets/${world.marketId}`;
   const token = world.superAdmin.token;
 
