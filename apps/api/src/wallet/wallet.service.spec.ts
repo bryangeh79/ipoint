@@ -109,13 +109,14 @@ describe('WalletService', () => {
   });
 
   describe('getWallet', () => {
-    it('returns wallet for existing member+market', async () => {
+    it('returns the wallet for the owning member', async () => {
       const db = createMockDb();
       db.limit.mockResolvedValueOnce([sampleWalletRow]);
       const svc = makeService(db);
 
-      const result = await svc.getWallet(memberId, marketId);
+      const result = await svc.getWallet(walletId, memberId);
       expect(result.id).toBe(walletId);
+      expect(result.memberId).toBe(memberId);
     });
 
     it('throws WalletError when wallet not found', async () => {
@@ -123,7 +124,7 @@ describe('WalletService', () => {
       db.limit.mockResolvedValueOnce([]);
       const svc = makeService(db);
 
-      await expect(svc.getWallet(memberId, marketId)).rejects.toThrow(
+      await expect(svc.getWallet(walletId, memberId)).rejects.toThrow(
         WalletError,
       );
     });

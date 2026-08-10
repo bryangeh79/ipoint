@@ -103,19 +103,20 @@ export class WalletService {
   }
 
   /**
-   * Get a specific wallet by memberId + marketId.
+   * Get a specific wallet by wallet id, scoped to the owning member.
+   * The member scoping is what prevents cross-member wallet reads.
    */
   async getWallet(
+    walletId: string,
     memberId: string,
-    marketId: string,
   ): Promise<WalletAccountResponse> {
     const rows = await this.database.db
       .select()
       .from(memberWalletAccounts)
       .where(
         and(
+          eq(memberWalletAccounts.id, walletId),
           eq(memberWalletAccounts.memberId, memberId),
-          eq(memberWalletAccounts.marketId, marketId),
         ),
       )
       .limit(1);

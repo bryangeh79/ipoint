@@ -16,10 +16,13 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { members } from '@ipoint/database';
+import { eq } from 'drizzle-orm';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentActor } from '../auth/current-actor.decorator.js';
 import type { RequestActor } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
+import { DatabaseService } from '../database/database.service.js';
 import {
   createLedgerEntrySchema,
   paginationQuerySchema,
@@ -40,7 +43,29 @@ import type {
 export class WalletController {
   constructor(
     @Inject(WalletService) private readonly walletService: WalletService,
+    @Inject(DatabaseService) private readonly database: DatabaseService,
   ) {}
+
+  /**
+   * Canonical account -> member resolution (mirrors the redemption quote
+   * route pattern, D-073 DEF-001 fix): wallets are keyed by member id, but
+   * the authenticated actor carries the ACCOUNT id.
+   */
+  private async resolveMemberId(accountId: string): Promise<string> {
+    const memberResult = await this.database.db
+      .select({ id: members.id })
+      .from(members)
+      .where(eq(members.accountId, accountId))
+      .limit(1);
+    const memberRow = memberResult[0];
+    if (!memberRow) {
+      throw new BadRequestException({
+        code: 'WALLET_MEMBER_NOT_FOUND',
+        message: 'Member profile not found.',
+      });
+    }
+    return memberRow.id;
+  }
 
   @Get()
   @ApiOperation({
@@ -53,7 +78,8 @@ export class WalletController {
     @CurrentActor() actor: RequestActor,
   ): Promise<WalletAccountResponse[]> {
     try {
-      return await this.walletService.getWallets(actor.accountId);
+      const memberId = await this.resolveMemberId(actor.accountId);
+      return await this.walletService.getWallets(memberId);
     } catch (e) {
       if (e instanceof WalletError) {
         throw new BadRequestException({ code: e.code, message: e.message });
@@ -75,7 +101,8 @@ export class WalletController {
     @Param('id') id: string,
   ): Promise<WalletAccountResponse> {
     try {
-      return await this.walletService.getWallet(actor.accountId, id);
+      const memberId = await this.resolveMemberId(actor.accountId);
+      return await this.walletService.getWallet(id, memberId);
     } catch (e) {
       if (e instanceof WalletError) {
         throw new BadRequestException({ code: e.code, message: e.message });
