@@ -69,7 +69,7 @@ idle-in-transaction signature observed.
 - `runNotFound`/`exceptionNotFound` accept an optional transaction client: `lockRun` /
   `lockException` (in-transaction callers) pass `tx`; controller-level callers
   (`runById`/`exceptionById`, outside any transaction) keep the pool path.
-- Zero behavior change: the SQL text is byte-identical (positional `$n` params become
+- Zero behavior change: the SQL text is semantically identical (positional `$n` params become
   drizzle `sql`-template params in the same order; Date/uuid/`::numeric`/`::int` values
   serialize identically through the same pg driver). Detection remains strictly
   read-only; frozen financial tables are never written; no migration; no checksum
@@ -142,7 +142,7 @@ All runs on host (Node 26.4.0, PostgreSQL 17.10 @ 127.0.0.1:55432), dedicated fr
 | S6 load L0 (CI shape) | `P8S6_LOAD_LEVEL=L0 pnpm vitest run src/load/load.spec.ts` | **17/17 PASS** |
 | **J10 L2 acceptance (stall recipe)** | `P8S6_LOAD_LEVEL=L2 pnpm vitest run src/load/load.spec.ts -t "J10 reconciliation"` | **PASS in 11.4s** - see §6.1 |
 | Regression J2 L2 | same harness `-t "J2 transactions"` | PASS, 1600 samples, 0 unexpected |
-| Regression J3 L2 | same harness `-t "J3 MCP debit"` | PASS, 2000 samples, 0 unexpected |
+| Regression J3 L2 | same harness `-t "J3 MCP debit"` | PASS, 1400 samples, 0 unexpected |
 | Zero-owner-bypass re-scan | `node .local/p8-s5e/scan-zerobypass.mjs` (S5e method) | 478 files, 13 benign keyword hits (same classes as S5e baseline: helper default-params incl. the pre-existing `text` helper - not part of this diff; explicit no-fallback comment; UAT scenario names), **0 direct owner bypass** |
 | CI-equivalent | `tsc -p tsconfig.build.json --noEmit`; `pnpm build`; eslint (changed files); prettier (changed files) | all clean |
 
