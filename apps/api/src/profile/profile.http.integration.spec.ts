@@ -125,6 +125,41 @@ describe.skipIf(!databaseUrl)('Profile HTTP integration', () => {
     });
   });
 
+  describe('GET /api/v1/members/me', () => {
+    it('returns the current member identity', async () => {
+      const { email } = await createMember();
+      const token = await getToken(email);
+      const res = await supertest(server)
+        .get('/api/v1/members/me')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      expect(res.body as { email: string }).toBeDefined();
+      expect(res.body.email).toBe(email);
+    });
+
+    it('returns 400 (not 500) for an account without a member row (merchant account)', async () => {
+      const email = `${randomUUID()}@example.com`;
+      const inserted = await database.db
+        .insert(accounts)
+        .values({
+          publicId: `acct_${randomUUID()}`,
+          email,
+          accountCountry: 'MY',
+          status: 'ACTIVE',
+        })
+        .returning({ id: accounts.id });
+      await auth.setPassword(inserted[0]?.id ?? '', 'Member-Password-123!');
+      const token = await getToken(email);
+      const res = await supertest(server)
+        .get('/api/v1/members/me')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(400);
+      expect((res.body as { error?: { code?: string } }).error?.code).toBe(
+        'PROFILE_NOT_FOUND',
+      );
+    });
+  });
+
   describe('PATCH /api/v1/members/me/profile', () => {
     it('updates display name', async () => {
       const { email } = await createMember();

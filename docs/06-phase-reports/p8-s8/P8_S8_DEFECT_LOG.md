@@ -9,12 +9,16 @@
 
 ## 1. UAT-introduced defect set (close state)
 
-| ID | Severity | Scenario(s) | Status | Disposition |
-|---|---|---|---|---|
-| DEF-001 | **High** | U-07 (API), BW-M3 (browser) | OPEN — recorded | Route to Command Center via §11 A→B→C (production fix, out of S8 verifier scope) |
-| DEF-002 | **High** | BW-M1 (browser, member login journey) | OPEN — recorded | Route to Command Center via §11 A→B→C (production fix, out of S8 verifier scope) |
+| ID      | Severity     | Scenario(s)                                                            | Status                                     | Disposition                                                                                                                                                                             |
+| ------- | ------------ | ---------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DEF-001 | **High**     | U-07 (API), BW-M3 (browser)                                            | **FIXED** — §11 round 1 (fix record below) | Bounded production fix `fix/p8-s8-uat-defects` @ `cff32767` (D-060 alternate executor, D-058 §5 Codex CLI unavailable for this round); re-test green (U-07 PASS, BW-M3 PASS)            |
+| DEF-002 | **High**     | BW-M1 (browser, member login journey)                                  | **FIXED** — §11 round 1 (fix record below) | Bounded production fix `fix/p8-s8-uat-defects` @ `eb4e599d` (D-060 alternate executor); re-test green (BW-M1 PASS — UI leaves `/login`)                                                 |
+| DEF-003 | **Critical** | POST /wallets arbitrary credit (Reviewer B' round-2 finding (c))       | **FIXED** — §11 round 2 (fix record §3.2)  | Bounded production fix `fix/p8-s8-uat-defects` @ `0583505e` (route removed, O-13 precedent; service tripwire); re-test green (UAT 36/36, OpenAPI POST absent, wallet unit 19/19)        |
+| DEF-004 | **High**     | Wallet entries IDOR (Reviewer B' round-2 finding (b))                  | **FIXED** — §11 round 2 (fix record §3.3)  | Bounded production fix `fix/p8-s8-uat-defects` @ `067da3ea` (owner scoping, DEF-001 pattern); re-test green (UAT 36/36 incl. U-07 entries, wallet unit 19/19 incl. owner-scoping tests) |
+| M-1     | **Medium**   | GET /members/me unhandled ProfileError -> 500 (Reviewer B' round-2 M1) | **FIXED** — §11 round 2 (fix record §3.4)  | Bounded production fix `fix/p8-s8-uat-defects` @ `14465033` (catchProfileError mapping); re-test green (profile HTTP 11/11 incl. merchant-account 400-not-500)                          |
+| M-2     | **Medium**   | Evidence counts vs measured runs (Reviewer B' round-2 M2)              | **FIXED** — §11 round 2 (fix record §3.5)  | Docs correction `fix/p8-s8-uat-defects` @ `c0709e38` (13/13 -> 9/9; 28+13 -> 19+9; 226/226 -> 224/224); counts re-verified by re-running both suites                                    |
 
-0 Critical / 0 Medium UAT-introduced. The two Highs block any "0 unresolved HIGH" UAT-close declaration for the affected journeys; OBS-04/SEC-01 are recorded PENDING-Bryan gate dependencies (matrix §6), not UAT defects.
+0 Critical / 0 Medium UAT-introduced at round-1 close. The two round-1 Highs are FIXED (§§2-3); the round-2 set (Reviewer B' CHANGES REQUIRED: DEF-003 Critical, DEF-004 High, M-1/M-2 Medium) is FIXED with fix records and re-test evidence (§3.2-§3.5, matrix §8) - approval bar 0C/0H/0M after round 2 (§7). The remaining "0 unresolved HIGH" declaration is deferred to P8-S9 pending Bryan's decisions on OBS-04/SEC-01 (matrix §6), per the GATE CONDITION stamp.
 
 ## 2. DEF-001 — Member wallet read surface returns empty / not-found for every member
 
@@ -29,6 +33,22 @@
 - **Fix record:** NONE in S8 (production code change → §11 A→B→C; candidate: resolve the member id from the account id at the controller boundary, mirroring the redemption quote route pattern from FIX-001, and add an HTTP-level wallet read integration test).
 - **Re-test evidence:** U-07/BW-M3 evidence above; re-run after the authorized fix.
 
+### 2.1 DEF-001 fix record (§11 A→B→C round 1, D-060 alternate executor)
+
+- **Authorized:** D-060 backup-executor authorization for §11 bounded round 1; wallet module (Phase 3 frozen) touched only for this defect, per the round-1 brief red lines.
+- **Root cause (confirmed code-level):** `WalletController.getWallets/getWallet` passed `actor.accountId` (the ACCOUNT id — `accounts.id`) into `WalletService.getWallets/getWallet`, which filter `member_wallet_accounts.member_id` (the MEMBER id — `members.id`). Account id ≠ member id → `GET /wallets` → `[]` and `GET /wallets/:id` → `WALLET_NOT_FOUND` for every member.
+- **Fix (minimal diff, controller boundary + one service correction):**
+  1. `wallet.controller.ts` — added the canonical account→member resolution at the controller boundary (mirrors `RedemptionController.resolveMemberId` / `ProfileService.resolveMemberId`: `select id from members where account_id = ?`), and `getWallets`/`getWallet` now pass the resolved member id. New `WALLET_MEMBER_NOT_FOUND` 400 for tokens with no member row.
+  2. `wallet.service.ts` — `getWallet(memberId, marketId)` → `getWallet(walletId, memberId)`: the `GET /wallets/:id` route param is a wallet UUID (per U-07 and the api-client `MemberWalletApiClient.getWallet`), so the lookup is now `id = walletId AND member_id = memberId` (owner-scoped, consistent with `getBalance`/`getEntries`/`getEntry` which already key by wallet id). No other caller of the old signature existed (only the broken route + its spec).
+  3. `wallet.service.spec.ts` — the two `getWallet` tests updated to the new signature.
+- **No behavior change:** `getWallets` still returns the member's full cross-market wallet list; no other wallet route touched; ledger writes (`createLedgerEntry`) untouched.
+- **Decision basis:** the route's documented semantics ("wallet details for the given wallet ID"), U-07 (passes the wallet UUID), and the api-client contract all key wallet reads by wallet id; the old `(memberId, marketId)` service signature had zero legitimate callers.
+- **Re-test evidence:**
+  - `apps/api/src/uat/uat.spec.ts` full guarded run (`P8S8_DESTRUCTIVE_TEST=1`, fresh `ipoint_p8s8_test`, run `2026-08-10T12-01-05.637Z-p8s8-uat-l0`): **36/36 scenarios PASS, 41/41 tests PASS**; U-07 assertions all green — list 200 containing the current-market wallet (`availableBalance 100000.0000000000`), detail 200 exact-decimal, entries 200. Evidence: `apps/api/.local/p8-s8-uat/2026-08-10T12-01-05.637Z-p8s8-uat-l0/U-07.json`.
+  - Browser suite (`ipoint_p8s8_browser`, host Chromium): **BW-M3 PASS** — `GET /wallets` non-empty and contains the fixture wallet; `GET /wallets/:id` 200 with `availableBalance 100000`.
+  - Unit: `wallet.service.spec.ts` 19/19 PASS; API `tsc -p tsconfig.build.json --noEmit` + build green; eslint/prettier clean on changed files; OpenAPI runtime validation green (300 paths, 0 errors).
+  - Zero-owner-bypass re-scan (P7 gate-18/S5e method) over the changed scope: **0 findings** (repo hits unchanged benign baseline classes + UAT scenario-name strings).
+
 ## 3. DEF-002 — Member-web login can never reach the authenticated home (missing `GET /members/me` route)
 
 - **Severity:** High — broken contract a real user journey hits (member-web login + all authenticated member journeys).
@@ -42,14 +62,64 @@
 - **Fix record:** NONE in S8 (production change → §11 A→B→C; candidate: add the member self-summary route the app calls — or point `loadUser` at an existing route — plus a real-HTTP member-web login E2E).
 - **Re-test evidence:** BW-M1 evidence; re-run after the authorized fix.
 
+### 3.1 DEF-002 fix record (§11 A→B→C round 1, D-060 alternate executor)
+
+- **Authorized:** D-060 backup-executor authorization for §11 bounded round 1; the new route is exactly `GET /members/me` (red-line carve-out: "DEF-002 若需新路由：只能加 `GET /members/me` 且跟既有 guard 模式，OpenAPI 同步"). No other member surface changed.
+- **Decision: option (b) — no equivalent endpoint exists (evidence):**
+  1. Controller scan: member self-routes are `members/me/profile`, `members/me/market`, `members/me/kyc`, `members/me/transactions`, `members/me/account-country-change`; the auth controller is POST-only (no `/auth/me`); the discovery controller (`members`) has no `me`; there is no bare `GET /members/me`.
+  2. Closest candidate `GET /members/me/profile` (`ProfileResponse`) does NOT return the member identity the app needs: no `email`, no `countryCode`, no `kycStatus`, and its `id` is the member_profiles record id, not `members.id`. The member-web `User` contract requires `email` (asserted in `AuthProvider.test.tsx` and displayed by `MemberLayout`).
+  3. `packages/api-client` has no current-member method (confirmed by scan + DEFECT_LOG).
+  4. Option (a) would therefore require degrading the `User` contract (drop email) or composing 2-3 calls client-side with no email source — strictly worse than (b).
+- **Fix (minimal, canonical member guard):**
+  1. `profile.service.ts` — new `getMemberSelf(accountId)`: resolves the member from the account id, joins `accounts` (email, account country) and `member_profiles` (display name, phone); `kycStatus` derived from the member KYC case status with a `kyc_level` fallback for legacy/fixture-approved rows (`APPROVED→approved`, `REJECTED→rejected`, DRAFT/SUBMITTED/UNDER_REVIEW/MORE_INFO_REQUIRED/REVERIFICATION_REQUIRED→pending`, none+NONE→not_started`, none+LEVEL_1→pending`, none+LEVEL_2→approved`).
+  2. `member-self.controller.ts` (new) — `@Controller('members/me')` + `@Get()`, `AuthGuard` + `CurrentActor` + member-account type check (mirrors the KYC controller's member guard); 400 `MEMBER_SELF_NOT_ALLOWED` for non-ACCOUNT actors. Registered in `ProfileModule`.
+  3. `profile.types.ts` — `MemberSelfResponse` shape aligned to the member-web `User` type (`id`, `email`, `name`, `phone`, `countryCode`, `kycStatus`, `createdAt`).
+  4. `profile.service.spec.ts` — 4 new `getMemberSelf` unit tests (approved case, kyc_level fallback, rejected case, member-missing).
+- **Member-web side:** `AuthProvider.tsx` already calls `GET /members/me` — no change needed; the endpoint now exists and returns the `User`-shaped payload.
+- **Re-test evidence:**
+  - Browser suite (`ipoint_p8s8_browser`, host Chromium): **BW-M1 PASS** — real-API registration + OTP + login; `POST /auth/login` 200; the member-web UI now transitions away from `/login` to the authenticated home (screenshot `test-results/p8s8-member-login-fixed.png`).
+  - Full UAT API suite still 36/36 PASS (no regression; `GET /members/me` is exercised through the AppModule boot + OpenAPI validation).
+  - OpenAPI runtime validation green — new path `/api/v1/members/me` registered, 300 paths, 0 broken $refs.
+  - Unit: `profile.service.spec.ts` 9/9 PASS; API build-config typecheck + build green; eslint/prettier clean; zero-owner-bypass re-scan over changed scope **0 findings**.
+
+## 3.2 DEF-003 fix record (§11 A→B→C round 2, D-060 alternate executor) — Critical: unguarded POST /wallets arbitrary credit (Reviewer B' finding (c))
+
+- **Authorized:** D-060 backup-executor authorization for §11 bounded round 2 (Reviewer B' round-2 CHANGES REQUIRED, scope narrowed to M1/M2 + findings (b)/(c)); wallet module (Phase 3 frozen) touched only for these defects, per the round-2 brief red lines.
+- **Exploit path confirmation (step 1, code-verified):**
+  1. `wallet.controller.ts` L114 `@Post()` on the class-level `@UseGuards(AuthGuard)` controller — ANY authenticated actor (a self-registered member token suffices, U-01) reaches it. No RBAC, no permission, no ownership check anywhere on the path.
+  2. `createLedgerEntrySchema` accepts arbitrary `memberId` (any UUID), `marketId` (any UUID), `entryType` ∈ {PENDING, AVAILABLE, REVERSED, COMPENSATION, ADJUSTMENT} and `amount` (positive numeric string, ≤10 decimals).
+  3. `WalletService.createLedgerEntry` (L180) — the ONLY guard is `Number(amount) > 0`; it then get-or-creates `member_wallet_accounts` for the supplied `(memberId, marketId)` — **creating a wallet if it does not exist** — and applies the entryType delta: AVAILABLE / COMPENSATION / ADJUSTMENT credit `available_balance` directly by the supplied amount; REVERSED moves to reversed; no service-level ownership/RBAC/market validation.
+  4. **Confirmed exploitable:** any authenticated actor can mint arbitrary iPoint into ANY member's wallet (their own or any other member_id they can guess/obtain) and fabricate immutable `member_wallet_entries` history, or create wallets for arbitrary member+market pairs. No implicit validation inside the service limits this.
+- **Caller verification (grep):** the controller route was the **only** caller of `walletService.createLedgerEntry`. No internal service callers exist — all real ledger writes go through dedicated guarded writers (`wallet-adjustment.owner.service.ts` [secured iPoint Maker/Checker owner, own implementation], `transaction-confirmation-reward.writer.ts`, `transaction-reward-linkage.service.ts`, `transaction-correction.service.ts`, `daily-job/job.service.ts`, `redemption-refund.service.ts`), all grep-verified unaffected. No api-client method, no UI, no UAT/browser test exercises POST /wallets; the route is not in the P3 frozen contract.
+- **Fix decision (step 2):** O-13 precedent (`bb8d6f01`/`0e6080e2` — member reward-rule create route removal; route was the sole caller): **remove the POST /wallets route** (no legitimate caller + not in contract = minimal security fix). Explicitly NOT "add a permission code and keep" — the route has no business purpose. Service method kept as an unconditional `LEDGER_ENTRY_CREATE_DISABLED` tripwire (O-13 deep-defense pattern) so any future accidental direct or in-process call fails loudly instead of performing an uncontrolled insert/credit.
+- **Changes (@ `0583505e`):** `wallet.controller.ts` — POST route + swagger block removed (imports cleaned); `wallet.dto.ts` — `createLedgerEntrySchema` / `CreateLedgerEntryDto` / `walletEntryTypeSchema` removed (used only by the removed route; pagination schema untouched); `wallet.service.ts` — `createLedgerEntry` body replaced with the unconditional tripwire (signature retained); `wallet.service.spec.ts` — the 4 createLedgerEntry behavior tests replaced by 2 tripwire tests (any call / any entryType+amount rejected with `LEDGER_ENTRY_CREATE_DISABLED`); `wallet.http.integration.spec.ts` — skipped POST placeholder removed.
+- **Re-test evidence:** wallet unit 19/19 (round-2 state; 2 tripwire tests + 2 new owner-scoping tests balance the removed tests); OpenAPI document enumeration confirms `/api/v1/wallets` exposes only the four GET operations (POST absent); full UAT suite 36/36 scenarios / 41/41 tests / 224/224 assertions (UAT never used the route — no regression); browser 7/7; zero-owner-bypass re-scan over changed scope 0 findings; build-config typecheck + build + eslint + prettier clean.
+
+## 3.3 DEF-004 fix record (§11 A→B→C round 2, D-060 alternate executor) — High: wallet entries routes IDOR (Reviewer B' finding (b))
+
+- **Confirmed:** `GET /wallets/:id/entries` and `GET /wallets/:id/entries/:entryId` resolved entries only by `walletAccountId` with no owner filter — any authenticated member could enumerate wallet ids and read another member's immutable ledger history.
+- **Fix (@ `067da3ea`, DEF-001 pattern):** controller boundary — both routes now resolve the member id via `resolveMemberId(actor.accountId)` (canonical `members.account_id` lookup; `WALLET_MEMBER_NOT_FOUND` 400 for tokens with no member row) and pass it to the service; service — `getEntries(walletId, memberId, pagination)` and `getEntry(walletId, memberId, entryId)` now require the wallet to belong to the requesting member (`id = walletId AND member_id = memberId`). A foreign wallet id is indistinguishable from a non-existent wallet (unified `WALLET_NOT_FOUND` — no wallet-existence leak); entry lookups run only after the owner check passes.
+- **Re-test evidence:** wallet unit 19/19 (both suites updated to the new signature + one foreign-wallet `WALLET_NOT_FOUND` owner-scoping test each); UAT 36/36 (U-07 wallet entries 200 for the owner unchanged); browser 7/7 (BW-M3 wallet read surface PASS); zero-bypass changed-scope 0 findings; build-config typecheck + build + eslint + prettier clean.
+
+## 3.4 M-1 fix record (§11 A→B→C round 2, D-060 alternate executor) — Medium: member-self profile errors unmapped (Reviewer B' M1)
+
+- **Confirmed:** `GET /members/me` (DEF-002 fix) called `ProfileService.getMemberSelf` without catching `ProfileError`, so an ACCOUNT session with no `members` row (e.g. merchant accounts) received an unhandled 500 instead of a clean 4xx.
+- **Fix (@ `14465033`):** `member-self.controller.ts` now wraps the service call with the canonical `catchProfileError` pattern (mirrors `ProfileController`): `ProfileError -> BadRequestException({code, message})`; the existing `MEMBER_SELF_NOT_ALLOWED` guard for non-ACCOUNT actors is unchanged. No route/permission change.
+- **Re-test evidence:** `profile.http.integration.spec.ts` 11/11 including two new real-HTTP tests — member account returns 200 with identity, and an account without a member row returns **400 `PROFILE_NOT_FOUND` (not 500)**; profile unit 9/9; UAT 36/36; browser 7/7 (BW-M1 login journey unchanged); build-config typecheck + build + eslint + prettier clean.
+
+## 3.5 M-2 fix record (§11 round 2) — Medium: evidence counts vs measured runs (Reviewer B' M2)
+
+- **Confirmed (measured):** `profile.service.spec.ts` has **9** tests (5 top-level + 4 `getMemberSelf`), not 13; `wallet.service.spec.ts` has **19** tests, not 28; the round-1 UAT re-test evidence `summary.json` (`2026-08-10T12-01-05.637Z-p8s8-uat-l0`) sums to **224/224 assertions**, not 226/226.
+- **Fix (@ `c0709e38`):** DEFECT_LOG §3.1 `13/13` -> `9/9`; RESULTS_MATRIX §1 totals `221/224 -> 226/226` -> `221/224 -> 224/224`; RESULTS_MATRIX §7 `(28 + 13 tests)` -> `(19 + 9 tests)`. Counts re-verified by re-running both suites on the round-2 state (wallet 19/19, profile 9/9).
+
 ## 4. Observations recorded (not defects)
 
-| ID | Class | Detail | UAT handling |
-|---|---|---|---|
+| ID     | Class                                      | Detail                                                                                                                                                                                                                                                                                                                                                                                             | UAT handling                      |
+| ------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
 | OBS-06 | Observation (not confirmed product defect) | Merchant-web transactions page renders an `INTERNAL_ERROR` state against the real API in the UAT harness (`BW-MC1`, screenshot `p8s8-merchant-transactions.png`); the underlying merchant transaction API passes at U-04 (API) and BW-N1 (preview/confirm/replay). Root cause not isolated within UAT (harness fixture/context interplay cannot be excluded) — triage input for P8-S9/implementer. | Recorded; not counted as a defect |
-| DOC-01 | Documented behavior (not a defect) | `redemption_voucher_codes.expiry_date` is stored metadata; no platform code path rejects an expired voucher at reveal/use (voucher use is off-platform; P6-S5 contract does not require platform-side expiry rejection). | U-27(c) note; recorded |
-| DOC-02 | Fixture boundary (not a defect) | Admin merchant branch-DETAIL composition requires the merchant-application fixture set (owner `getProfile` + application/kyc composition); the S6 world fixture has none. Covered by `admin-merchant-ops.integration.spec.ts`. | U-17 note; recorded |
-| DOC-03 | Cross-check (expected, not defects) | OBS-01 (quote race 409), OBS-02 (bounded 55P03), OBS-03 (outbox not-CONFIRMED rejection), OBS-05 (403-by-design recharge route) — verified/cited per the S6 expected-outcome catalogue. | Matrix §4 |
+| DOC-01 | Documented behavior (not a defect)         | `redemption_voucher_codes.expiry_date` is stored metadata; no platform code path rejects an expired voucher at reveal/use (voucher use is off-platform; P6-S5 contract does not require platform-side expiry rejection).                                                                                                                                                                           | U-27(c) note; recorded            |
+| DOC-02 | Fixture boundary (not a defect)            | Admin merchant branch-DETAIL composition requires the merchant-application fixture set (owner `getProfile` + application/kyc composition); the S6 world fixture has none. Covered by `admin-merchant-ops.integration.spec.ts`.                                                                                                                                                                     | U-17 note; recorded               |
+| DOC-03 | Cross-check (expected, not defects)        | OBS-01 (quote race 409), OBS-02 (bounded 55P03), OBS-03 (outbox not-CONFIRMED rejection), OBS-05 (403-by-design recharge route) — verified/cited per the S6 expected-outcome catalogue.                                                                                                                                                                                                            | Matrix §4                         |
 
 ## 5. Routine/repairable items fixed in-brief (test/fixture/doc only)
 
@@ -60,9 +130,9 @@ All UAT-harness issues found during execution were test/fixture logic on the ver
 - **OBS-04** (High, OPEN, D-070/D-072): engine-level reconciliation-path limitation; UAT executed U-21/U-36 at the mitigated profile and records the dependency — see matrix §6. No S8 fix attempted.
 - **SEC-01** (10 pre-existing HIGH dependency advisories, D-072): structurally pre-existing, frozen lockfile, zero financial-path exposure; excluded from this log; gate-condition dependency for P8-S9 — see matrix §6.
 
-## 7. Approval-bar status at S8 close
+## 7. Approval-bar status at round-2 close (post §11 fixes)
 
-- UAT-introduced: **0 Critical / 2 High (DEF-001, DEF-002) / 0 Medium / 0 Low**. Both Highs recorded with full repro evidence and routed to the §11 A→B→C Command Center path.
-- Overall "0 unresolved HIGH" declaration: **deferred to P8-S9** pending Bryan's decisions on DEF-001/DEF-002 (via A→B→C) and on OBS-04/SEC-01 (matrix §6 GATE CONDITION stamp).
+- UAT-introduced: **0 Critical / 0 High / 0 Medium / 0 Low unresolved at round-2 close** — DEF-001/DEF-002 FIXED in round 1 (§2.1/§3.1); the round-2 set (DEF-003 Critical, DEF-004 High, M-1/M-2 Medium, Reviewer B' CHANGES REQUIRED) FIXED with fix records (§3.2-§3.5) and re-test evidence (UAT 36/36 scenarios / 41/41 tests / 224/224 assertions run `2026-08-10T12-35-09.959Z`; browser 7/7 incl. BW-M1/BW-M3; OpenAPI 300 paths 0 errors with POST /wallets absent; wallet unit 19/19; profile unit 9/9 + HTTP integration 11/11).
+- Overall "0 unresolved HIGH" declaration: **still deferred to P8-S9** — the GATE CONDITION dependencies OBS-04/SEC-01 remain PENDING Bryan (matrix §6). The §11 round-1 + round-2 fixes remove the UAT-introduced Criticals/Highs/Mediums from that gate; independent review (Reviewer B' round-2) is the next step before Command Center acceptance per D-058 §21 / brief §3.8.
 
 _Forward-only log. Do not delete or rewrite._

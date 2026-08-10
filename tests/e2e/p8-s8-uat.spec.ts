@@ -91,6 +91,7 @@ const merchantPassword = 'Merchant-UAT-Password-123!';
 let memberQrToken = '';
 let redemptionItemId = '';
 let pickupLocationId = '';
+let memberWalletId = '';
 
 function decodeBase32(value: string): Buffer {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -478,12 +479,22 @@ test.beforeAll(async ({ request }) => {
     .where(eq(members.publicMemberId, memberPublicId))
     .limit(1);
   const memberId = memberRows[0]?.id ?? '';
-  await database.pool.query(
+  const walletRows = await database.pool.query<{ id: string }>(
     `INSERT INTO member_wallet_accounts (member_id, market_id, pending_balance, available_balance, reversed_balance)
      VALUES ($1, $2, '0', '100000', '0')
-     ON CONFLICT DO NOTHING`,
+     ON CONFLICT DO NOTHING
+     RETURNING id`,
     [memberId, primaryMarketId],
   );
+  memberWalletId =
+    walletRows.rows[0]?.id ??
+    (
+      await database.pool.query<{ id: string }>(
+        `SELECT id FROM member_wallet_accounts WHERE member_id = $1 AND market_id = $2 LIMIT 1`,
+        [memberId, primaryMarketId],
+      )
+    ).rows[0]?.id ??
+    '';
   // Ads/content fixture for the admin ads page + member home surface.
 });
 
@@ -581,22 +592,25 @@ test('BW-M1: member registration + OTP + login over the real API and UI', async 
   await page.getByLabel('Email').fill(uiEmail);
   await page.getByLabel('Password').fill('Ui-Registration-Password-123!');
   await page.getByRole('button', { name: 'Log In' }).click();
+  // Settle window for the login POST + post-login bootstrap (GET /members/me)
+  // before asserting the fixed journey.
   await page.waitForTimeout(3_000);
-  // DEF-002 (High): the login POST succeeds (200, tokens issued) but the
-  // app's post-login profile bootstrap (GET /members/me) has no matching API
-  // route, so the member-web UI never transitions to the authenticated home
-  // and stays on /login. Recorded, not hidden — the member-web critical
-  // journeys are therefore asserted at the real-API level (BW-M2/M3/M4).
+  // DEF-002 (High, FIXED): the post-login profile bootstrap (GET /members/me)
+  // previously 404'd because no such route existed, so the UI never left
+  // /login. The route now exists; the assertion is the fixed journey: login
+  // succeeds (200) and the member-web UI transitions away from /login to the
+  // authenticated home.
   expect(loginStatus).toBe(200);
-  expect(page.url()).toContain('/login');
-  await page.screenshot({ path: 'test-results/p8s8-member-login-def002.png' });
+  await expect(page).not.toHaveURL(/\/login/u, { timeout: 20_000 });
+  await page.screenshot({ path: 'test-results/p8s8-member-login-fixed.png' });
 });
 
 test('BW-M2: member discovery shows the fixture merchant (U-03, real API)', async ({
   request,
 }) => {
-  // UI leg blocked by DEF-002 (member-web post-login bootstrap); the
-  // discovery journey is asserted against the real API + PostgreSQL.
+  // The member-web post-login bootstrap (GET /members/me) is fixed by
+  // DEF-002 and asserted in BW-M1; this scenario asserts the discovery
+  // journey against the real API + PostgreSQL.
   const login = await request.post(`${apiBase}/auth/member/login`, {
     data: { email: memberEmail, password: memberPassword },
   });
@@ -617,7 +631,7 @@ test('BW-M2: member discovery shows the fixture merchant (U-03, real API)', asyn
   expect(items.length).toBeGreaterThan(0);
 });
 
-test('BW-M3: member wallet read surface (U-07, real API — DEF-001 evidence)', async ({
+test('BW-M3: member wallet read surface (U-07, real API — DEF-001 re-test)', async ({
   request,
 }) => {
   const login = await request.post(`${apiBase}/auth/member/login`, {
@@ -625,15 +639,27 @@ test('BW-M3: member wallet read surface (U-07, real API — DEF-001 evidence)', 
   });
   expect(login.status()).toBe(200);
   const token = ((await login.json()) as { accessToken: string }).accessToken;
-  // DEF-001 (High): GET /wallets filters member_wallet_accounts.member_id by
-  // the ACCOUNT id — returns [] for every member despite an existing
-  // current-market wallet with 100000 points (fixture above).
+  // DEF-001 (High, FIXED): GET /wallets previously filtered
+  // member_wallet_accounts.member_id by the ACCOUNT id — empty for every
+  // member despite the seeded current-market wallet (100000 points). The
+  // controller now resolves the member id from the account id, so the list
+  // must contain the fixture wallet.
   const list = await request.get(`${apiBase}/wallets`, {
     headers: { authorization: `Bearer ${token}` },
   });
   expect(list.status()).toBe(200);
   const wallets = (await list.json()) as Array<{ id: string }>;
-  expect(wallets).toHaveLength(0);
+  expect(wallets.length).toBeGreaterThan(0);
+  expect(wallets.some((wallet) => wallet.id === memberWalletId)).toBe(true);
+  // GET /wallets/:id must return the member's own wallet (200).
+  const detail = await request.get(`${apiBase}/wallets/${memberWalletId}`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  expect(detail.status()).toBe(200);
+  const detailBody = (await detail.json()) as { availableBalance: string };
+  // Balance is an exact-decimal string (numeric(38,10) column formatting).
+  expect(/^\d+(\.\d+)?$/u.test(detailBody.availableBalance)).toBe(true);
+  expect(Number(detailBody.availableBalance)).toBe(100000);
 });
 
 test('BW-M4: member redemption catalog + order + OBS-01 quote race (U-12, real API)', async ({
