@@ -127,12 +127,14 @@ export class WalletController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'Wallet not found.' })
   async getEntries(
+    @CurrentActor() actor: RequestActor,
     @Param('id') id: string,
     @Query(new ZodValidationPipe(paginationQuerySchema))
     query: PaginationQueryDto,
   ): Promise<PaginatedWalletEntriesResponse> {
     try {
-      return await this.walletService.getEntries(id, query);
+      const memberId = await this.resolveMemberId(actor.accountId);
+      return await this.walletService.getEntries(id, memberId, query);
     } catch (e) {
       if (e instanceof WalletError) {
         throw new BadRequestException({ code: e.code, message: e.message });
@@ -150,11 +152,13 @@ export class WalletController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'Entry not found.' })
   async getEntry(
+    @CurrentActor() actor: RequestActor,
     @Param('id') id: string,
     @Param('entryId') entryId: string,
   ): Promise<WalletEntryResponse> {
     try {
-      return await this.walletService.getEntry(id, entryId);
+      const memberId = await this.resolveMemberId(actor.accountId);
+      return await this.walletService.getEntry(id, memberId, entryId);
     } catch (e) {
       if (e instanceof WalletError) {
         throw new BadRequestException({ code: e.code, message: e.message });

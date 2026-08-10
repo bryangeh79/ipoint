@@ -288,7 +288,10 @@ describe('WalletService', () => {
 
       const svc = makeService(db);
 
-      const result = await svc.getEntries(walletId, { limit: 20, offset: 0 });
+      const result = await svc.getEntries(walletId, memberId, {
+        limit: 20,
+        offset: 0,
+      });
       expect(result).toBeDefined();
       expect(result.limit).toBe(20);
       expect(result.offset).toBe(0);
@@ -300,8 +303,20 @@ describe('WalletService', () => {
       const svc = makeService(db);
 
       await expect(
-        svc.getEntries(walletId, { limit: 20, offset: 0 }),
+        svc.getEntries(walletId, memberId, { limit: 20, offset: 0 }),
       ).rejects.toThrow(WalletError);
+    });
+
+    it('rejects a foreign wallet as WALLET_NOT_FOUND (owner scoping)', async () => {
+      const db = createMockDb();
+      // Wallet owner check fails: the wallet exists but belongs to another
+      // member, so it is indistinguishable from a non-existent wallet.
+      db.limit.mockResolvedValueOnce([]);
+      const svc = makeService(db);
+
+      await expect(
+        svc.getEntries(randomUUID(), memberId, { limit: 20, offset: 0 }),
+      ).rejects.toMatchObject({ code: 'WALLET_NOT_FOUND' });
     });
   });
 
@@ -309,21 +324,36 @@ describe('WalletService', () => {
     it('returns a single entry', async () => {
       const entryId = randomUUID();
       const db = createMockDb();
+      // wallet owner check passes, then the entry lookup returns the row
+      db.limit.mockResolvedValueOnce([{ id: walletId }]);
       db.limit.mockResolvedValueOnce([{ ...sampleEntryRow, id: entryId }]);
       const svc = makeService(db);
 
-      const result = await svc.getEntry(walletId, entryId);
+      const result = await svc.getEntry(walletId, memberId, entryId);
       expect(result.id).toBe(entryId);
     });
 
     it('throws error for non-existent entry', async () => {
       const db = createMockDb();
+      // wallet owner check passes; the entry does not exist
+      db.limit.mockResolvedValueOnce([{ id: walletId }]);
       db.limit.mockResolvedValueOnce([]);
       const svc = makeService(db);
 
-      await expect(svc.getEntry(walletId, randomUUID())).rejects.toThrow(
-        WalletError,
-      );
+      await expect(
+        svc.getEntry(walletId, memberId, randomUUID()),
+      ).rejects.toThrow(WalletError);
+    });
+
+    it('rejects a foreign wallet as WALLET_NOT_FOUND (owner scoping)', async () => {
+      const db = createMockDb();
+      // Wallet owner check fails: the wallet belongs to another member.
+      db.limit.mockResolvedValueOnce([]);
+      const svc = makeService(db);
+
+      await expect(
+        svc.getEntry(randomUUID(), memberId, randomUUID()),
+      ).rejects.toMatchObject({ code: 'WALLET_NOT_FOUND' });
     });
   });
 

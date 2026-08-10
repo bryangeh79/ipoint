@@ -195,17 +195,26 @@ export class WalletService {
   }
 
   /**
-   * Get paginated ledger entries for a wallet.
+   * Get paginated ledger entries for a wallet, scoped to the owning member.
+   * The member scoping prevents reading another member's ledger via IDOR:
+   * a wallet that does not belong to the requesting member is
+   * indistinguishable from a non-existent wallet (WALLET_NOT_FOUND).
    */
   async getEntries(
     walletId: string,
+    memberId: string,
     pagination: { limit: number; offset: number },
   ): Promise<PaginatedWalletEntriesResponse> {
-    // Verify wallet exists
+    // Verify the wallet exists AND belongs to the requesting member.
     const walletCheck = await this.database.db
       .select({ id: memberWalletAccounts.id })
       .from(memberWalletAccounts)
-      .where(eq(memberWalletAccounts.id, walletId))
+      .where(
+        and(
+          eq(memberWalletAccounts.id, walletId),
+          eq(memberWalletAccounts.memberId, memberId),
+        ),
+      )
       .limit(1);
 
     if (!walletCheck[0]) throw walletNotFoundError();
@@ -233,12 +242,30 @@ export class WalletService {
   }
 
   /**
-   * Get a single ledger entry by ID.
+   * Get a single ledger entry by ID, scoped to the owning member.
+   * The member scoping prevents reading another member's ledger entries via
+   * IDOR: a wallet that does not belong to the requesting member is
+   * indistinguishable from a non-existent wallet (WALLET_NOT_FOUND).
    */
   async getEntry(
     walletId: string,
+    memberId: string,
     entryId: string,
   ): Promise<WalletEntryResponse> {
+    // Owner scoping first: a foreign wallet id is reported as not found.
+    const walletCheck = await this.database.db
+      .select({ id: memberWalletAccounts.id })
+      .from(memberWalletAccounts)
+      .where(
+        and(
+          eq(memberWalletAccounts.id, walletId),
+          eq(memberWalletAccounts.memberId, memberId),
+        ),
+      )
+      .limit(1);
+
+    if (!walletCheck[0]) throw walletNotFoundError();
+
     const rows = await this.database.db
       .select()
       .from(memberWalletEntries)
