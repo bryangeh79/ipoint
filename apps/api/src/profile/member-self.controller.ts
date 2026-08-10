@@ -15,7 +15,7 @@ import { AuthGuard } from '../auth/auth.guard.js';
 import { CurrentActor } from '../auth/current-actor.decorator.js';
 import type { RequestActor } from '../auth/auth.types.js';
 import { ProfileService } from './profile.service.js';
-import type { MemberSelfResponse } from './profile.types.js';
+import { ProfileError, type MemberSelfResponse } from './profile.types.js';
 
 /**
  * Current-member self surface (GET /members/me).
@@ -24,13 +24,30 @@ import type { MemberSelfResponse } from './profile.types.js';
  * calls GET /members/me after login/refresh, but no such route existed
  * (only /members/me/profile, /members/me/kyc, /members/me/market, ...).
  * Follows the canonical member guard pattern (AuthGuard + CurrentActor +
- * member-account type check, mirroring the KYC controller).
+ * member-account type check, mirroring the KYC controller), and maps
+ * ProfileError to 400 (mirroring ProfileController.catchProfileError) so
+ * an ACCOUNT session without a member row (e.g. merchant accounts) gets a
+ * clean 4xx instead of an unhandled 500.
  */
 @ApiTags('Members')
 @Controller('members/me')
 @UseGuards(AuthGuard)
 @ApiBearerAuth()
 export class MemberSelfController {
+  private async catchProfileError<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (error) {
+      if (error instanceof ProfileError) {
+        throw new BadRequestException({
+          code: error.code,
+          message: error.message,
+        });
+      }
+      throw error;
+    }
+  }
+
   constructor(
     @Inject(ProfileService) private readonly profileService: ProfileService,
   ) {}
@@ -56,6 +73,8 @@ export class MemberSelfController {
         message: 'Only member accounts can access this endpoint.',
       });
     }
-    return this.profileService.getMemberSelf(actor.accountId);
+    return this.catchProfileError(() =>
+      this.profileService.getMemberSelf(actor.accountId),
+    );
   }
 }
