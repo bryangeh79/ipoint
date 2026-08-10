@@ -1949,3 +1949,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058, D-059, D-060, D-067..D-071; TASK_BRIEF_P8S7.md; P8_S7_DELIVERY_REPORT.md; Reviewer B' APPROVED (0C/0H/0M/8L); host gate verification 2026-08-10 |
 | **Status** | **APPROVED (REVOCABLE)** |
+
+---
+
+## D-073 - P8-S8 Task Brief Accepted + Open Decision Points O-1..O-7 Resolved (OPENCLAW-ACTING-COMMAND-CENTER)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-073 |
+| **Date** | 2026-08-10 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization) |
+| **Old Rule** | P8-S8 (G-08 Full Final UAT) awaiting task brief; O-1..O-7 unresolved |
+| **New Decision** | P8-S8 task brief ACCEPTED (commit `5059616f`, `docs/06-phase-reports/p8-s8/TASK_BRIEF_P8S8.md`, single docs file, UTF-8 no BOM). Open decisions resolved: **O-1** = full U-01..U-36 matrix at API level (L0 acceptance) + browser journeys for the critical user-facing set; S6/S5e/P7-S10 cited, not re-run; **O-2** = cite P7-S10 18/18 baseline; overlapping legacy scenarios folded into the expanded suite single host run (no separate full baseline re-run); **O-3** = no new CI job; browser evidence host-only (K-02 precedent); **O-4** = fresh dedicated `ipoint_p8s8_*` DB per run + negative-path fixture seeds; no production-like dataset (test-scale sufficient); **O-5** = defect disposition: routine/repairable (test/fixture/doc) fixed in-brief with records; Critical/High production defects → §11 bounded repair round 1 → Reviewer B' → round 2 → Command Center (Codex CLI priority per D-058 §5, D-060 alternate); OBS-04/SEC-01-class items never route into S8 fixes; **O-6** = UAT close reports PASS-with-documented-limitations + explicit GATE CONDITION stamp while OBS-04/SEC-01 PENDING Bryan; no "0 unresolved HIGH" declaration by S8; **O-7** = S8 deliverables are the P8-S9 UAT input layer (P9 cites, does not re-execute UAT scenarios); handoff table in the delivery report. Dispatch UAT executor (verifier class per contract §8; D-060 reviewer/verifier pool) authorized on branch `task/p8-s8-full-final-uat`. |
+| **Reason** | Brief mirrors the established quality bar (evidence-traceable DoD, K-02 host/CI honesty, OBS-04/SEC-01 gate-condition stamping, verifier-class execution per contract, A→B→C fix path); decisions keep evidence flow moving while recording the Bryan-decision dependencies explicitly. |
+| **Affected Files** | docs/06-phase-reports/p8-s8/TASK_BRIEF_P8S8.md, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S8) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058, D-059, D-060, D-067..D-072; P8_S0_CONTRACT_FREEZE.md §8/§11/§12; P8_S0_GAP_AUDIT_REPORT.md G-08; TASK_BRIEF_P8S8.md @ `5059616f` |
+| **Status** | **APPROVED (REVOCABLE)** |
