@@ -1911,3 +1911,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058, D-059, D-060, D-067..D-069; TASK_BRIEF_P8S6.md; P8_S6_LOAD_PERFORMANCE_CONCURRENCY_REPORT.md; Reviewer B' round-2 APPROVED (conditional); host gate verification 2026-08-10 |
 | **Status** | **APPROVED (REVOCABLE)** |
+
+---
+
+## D-071 - P8-S7 Task Brief Accepted + Open Decision Points O-1..O-7 Resolved (OPENCLAW-ACTING-COMMAND-CENTER)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-071 |
+| **Date** | 2026-08-10 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization) |
+| **Old Rule** | P8-S7 (G-07 + F-02 Backup/Restore/Monitoring/Security Readiness) awaiting task brief; O-1..O-7 unresolved |
+| **New Decision** | P8-S7 task brief ACCEPTED (commit `ec361c02`, `docs/06-phase-reports/p8-s7/TASK_BRIEF_P8S7.md`, single docs file, UTF-8 no BOM). Open decisions resolved: **O-1** = authorize host-PG real rehearsal on dedicated `ipoint_p8s7_*` test DBs (dump→restore→verify incl. write-path smoke); production backup/PITR remain deployment blockers; **O-2** = Redis client **ioredis** (mature, TS-first, single lib; the one authorized Phase 8 lockfile change); module boundary = limiter/lock/queue ports only, Redis lock/queue MUST NOT touch any PG-correctness path (advisory locks, idempotency, outbox exactly-once, reconciliation withIdempotency); financial-adjacent Redis proposals escalate; **O-3** = monitoring as committed templates + host-validated probes only; no prom-client-class runtime endpoint without escalation; **O-4** = reuse in-repo scanners + `pnpm audit`; external tools (gitleaks/osv-scanner) require escalation; **O-5** = RTO/RPO + alert thresholds as CONFIGURABLE proposals; final production values signed by Bryan at production-launch policy (deployment blocker); **O-6** = S7 acceptance = observability of OBS-04 class (host demonstration against recorded stall evidence) only — remediation stays on the D-070 decision path (pending Bryan A/B); **O-7** = bounded health readiness extension (DB + Redis-when-configured checks behind existing route, spec update, zero-bypass re-scan) with recorded boundary decision; verify-only fallback if judged frozen. Dispatch to independent implementer per D-060 authorized (branch `task/p8-s7-backup-restore-monitoring-security`). |
+| **Reason** | Brief mirrors S5e/S6 quality bar (evidence-traceable DoD, fail-closed guards, no-deployment self-consistency, OBS-04 observability-vs-remediation boundary, executor-class gate); decisions preserve frozen correctness mechanisms and deployment boundaries while authorizing the contract-mandated Redis introduction (F-02/D-019-C closes AHS-003). |
+| **Affected Files** | docs/06-phase-reports/p8-s7/TASK_BRIEF_P8S7.md, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S7) |
+| **Migration** | NONE (checksums 40/40 frozen; rehearsal-only evidence runs) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058, D-059, D-060, D-067..D-070; P8_S0_CONTRACT_FREEZE.md §7/§11/§12; P8_S0_GAP_AUDIT_REPORT.md G-07/F-02; TASK_BRIEF_P8S7.md @ `ec361c02`; repo audit (no existing Redis dep; RateLimitPort seam; CI redis service provisioned) |
+| **Status** | **APPROVED (REVOCABLE)** |
