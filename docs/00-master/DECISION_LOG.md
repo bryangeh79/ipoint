@@ -1835,3 +1835,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058, D-059, D-060; P8_S0_CONTRACT_FREEZE.md §5; P8_S5D_REVIEW2_REPORT.md (APPROVED) |
 | **Status** | **APPROVED (REVOCABLE)** |
+
+---
+
+## D-067 - Git repository hygiene repair + P8-S5e dispatch authorization (OPENCLAW-ACTING-COMMAND-CENTER)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-067 |
+| **Date** | 2026-08-10 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization); Bryan command-center directive 2026-08-10 |
+| **Old Rule** | Repo auto-gc failing (since unknown date): 739 corrupt-unreachable loose tree objects reported; `git prune`/`git gc` fatal (`too-short tree object` / `bad tree object 10d3ba68`); P8-S5e brief committed (`3eac5f4a`) but implementation not yet dispatched |
+| **New Decision** | **(1) Git hygiene — Option A executed (safe cleanup, reversible).** Root cause (first-hand verified): 396 corrupt loose objects (tree/blob, isomorphic-git/raw-object-script era) + 3 garbage reflog entries referencing orphan commits with missing trees (`e7c626a9`→`a8c1d57a`, `d9c8a173`→`76f93abe`, `d6607802`→`10d3ba68`). Corrupt set proven NOT in any branch history (`rev-list --all` prefix-match: 0 hits; reflog-only reachable; HEAD/log/status unaffected throughout). Fix: 396 corrupt loose objects quarantined to `%TEMP%\ipoint-git-corrupt-quarantine-20260810\` (manifest.csv); 3 garbage reflog entries deleted (`HEAD@{516}`, `task/p3-s1-wallet-reward-contract-freeze@{60}`, `HEAD@{519}`); full `git reflog expire --expire=now --all` after backup (`.git/logs` + `.git/worktrees` → quarantine). Final state: `git fsck --full` COMPLETELY CLEAN (0 errors / 0 dangling / 0 warnings / 0 broken links); single pack 25,783 objects, 0 loose; `git gc --auto` exit 0; HEAD `3eac5f4a` unchanged; ahead-of-origin 54 unchanged; tracked files 0 modified. Earlier report claim "connectivity-only zero errors" was INCORRECT (connectivity-only did error on the reflog-reachable corrupt trees) — corrected by this first-hand investigation. **(2) P8-S5e dispatch: AUTHORIZED immediately** per D-060 (independent coding subagent + independent Reviewer B', OpenClaw integration gate). Task branch `task/p8-s5e-cross-platform-consistency` from phase/8 HEAD. |
+| **Reason** | Option A approved (Option B rejected: garbage would keep accumulating and auto-gc would keep failing). Plain `git prune` alone was impossible while reflog garbage references existed — executed quarantine + reflog-entry removal instead, fully reversible (backups + quarantine retained). Dispatch approved to keep Phase 8 continuous execution moving (D-058). |
+| **Affected Files** | `.git` internals only (no tracked content changed): quarantined loose objects, deleted reflog entries, pack layout (3 packs → 1). Governance: this file. |
+| **Affected Phases** | Phase 8 (P8-S5e dispatch); git hygiene affects whole repo with zero content change |
+| **Migration** | NONE (DB checksums 40/40 frozen; no database change) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058, D-059, D-060; P8_S0_CONTRACT_FREEZE.md §5; TASK_BRIEF_P8S5E.md; first-hand fsck/rev-list/prune/gc verification 2026-08-10 |
+| **Status** | **APPROVED (REVOCABLE)** |
