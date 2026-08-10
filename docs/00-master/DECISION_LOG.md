@@ -2044,3 +2044,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) + Bryan (Option A, D-075) |
 | **Basis** | D-075; P8_S6 OBS-04 reproduction ledger; FIX_RECORD_OBS04.md; Reviewer B' FIX-005 APPROVED (7/7); host integration gate 2026-08-10 |
 | **Status** | **CLOSED (APPROVED)** |
+
+---
+
+## D-078 - SEC-01 CLOSED: multer upgraded + written acceptance recorded (OPENCLAW-ACTING-COMMAND-CENTER)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-078 |
+| **Date** | 2026-08-10 |
+| **Source** | OpenClaw acting Command Center (D-059); Bryan decision executed (D-075: upgrade multer + written acceptance of remainder) |
+| **Old Rule** | SEC-01 (10 pre-existing HIGH dependency advisories) OPEN since D-072; remediation PENDING Bryan |
+| **New Decision** | **SEC-01 CLOSED** — integrated via merge `50808892` on `phase/8-final-delivery-readiness` (branch `fix/p8-sec01-deps`; commits `7d83128c` + `a9cec5b6`; 3 files: root package.json, pnpm-lock.yaml, P8_S7_SECURITY_READINESS_REPORT.md). multer upgraded **2.0.2 → 2.2.0** via `pnpm.overrides` (required: @nestjs/platform-express@10.4.22 pins `"multer":"2.0.2"` exactly; override avoids a Nest major bump; GHSA-72gw-mp4g-v24j patched ≥2.2.0 verified; 5 multer advisories cleared; zero code usage of multer in repo). Audit: `--prod` **10H → 6H** (0C/6H/14M/2L), full **24H → 20H** (2C/20H/20M/2L), **zero new advisories**; remaining 6 HIGH = exactly the D-075 accepted set {lodash×1 GHSA-r5fr-rjxr-66jc, js-yaml×2 GHSA-52cp-r559-cp3m/GHSA-5p4m-2wfm-xmqj, fast-uri×2 GHSA-v2hh-gcrm-f6hx/GHSA-7p8r-x3mc-p8w7, react-router×1 GHSA-qwww-vcr4-c8h2} with reachability documented (financial-path zero exposure; tooling/framework/frontend paths) and **Bryan written acceptance recorded** in the S7 report §4 ("re-review at the final production-launch strategy gate"). Reviewer B' APPROVED 0C/0H/0M/4L with independent re-runs (override necessity + binding version verified against npm registry + advisory; lockfile diff strictly multer-only, no tsx/vitest drift — frozen-lockfile install passes; audit numbers re-derived from JSON; CI-equivalent all green incl. 1433 unit tests + redis 14/14 + openapi 300 paths; base-worktree comparison independently confirms the host Node 26 `tsx src/main.ts` swagger crash is PRE-EXISTING, not introduced). L items: L-1 (D-075 "7" vs enumerated 6 — report transparently notes; audit confirms 6); L-2 (untracked `packages/database/tests/p6-s1-schema.test.ts` workspace-hygiene artifact, not in CI, recorded for later cleanup); L-3 (admin-web axe test flake, pre-existing, not multer-related); L-4 (hung processes cleaned during review). P8-S9 gate rows G-25/G-30 now consumable. |
+| **Reason** | D-075 executed with full evidence chain (implementer + independent review with adversarial re-runs + host integration gate); the runtime-tree DoS advisory set is cleared; the remaining advisories are formally accepted by Bryan with reachability analysis — recorded, not silent. |
+| **Affected Files** | package.json (overrides), pnpm-lock.yaml, docs/06-phase-reports/p8-s7/P8_S7_SECURITY_READINESS_REPORT.md, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (SEC-01 CLOSED; next: QR decision (L-06) then P8-S9 final gate) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) + Bryan (D-075) |
+| **Basis** | D-075; P8_S7_SECURITY_READINESS_REPORT.md §4; Reviewer B' SEC-01 APPROVED (7/7); host integration gate 2026-08-10 |
+| **Status** | **CLOSED (APPROVED)** |
