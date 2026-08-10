@@ -1,0 +1,122 @@
+{
+  "__description": "P8-S7 dashboard TEMPLATE (Grafana-compatible JSON). Template form only — no deployed infra. Panels map the P8_S7_MONITORING_ALERTING_REPORT.md metric inventory (ops doc §7 categories + OBS-04 indicator set). Thresholds are CONFIGURABLE proposals (O-5).",
+  "title": "iPoint V1 — Operations Overview (P8-S7 template)",
+  "uid": "ipoint-p8-s7-ops",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "utc",
+  "tags": ["ipoint", "p8-s7"],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "text": "Prometheus", "value": "prometheus" }
+      },
+      {
+        "name": "database",
+        "type": "query",
+        "query": "label_values(pg_stat_database_numbackends, datname)",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "current": { "text": "ipoint", "value": "ipoint" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Auth failures & abuse (ops §7)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{service=\"ipoint-api\", route=~\"/api/v1/auth/.*\", status=~\"4(01|03|29)\"}[5m]))",
+          "legendFormat": "auth failures"
+        }
+      ],
+      "description": "Alert: IpointHighAuthFailureRate. Expected-outcome note: OBS-05 deprecated recharge 403s excluded by route matcher."
+    },
+    {
+      "id": 2,
+      "title": "API error rate & latency (ops §7)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{service=\"ipoint-api\", status=~\"5..\"}[5m])) / sum(rate(http_requests_total{service=\"ipoint-api\"}[5m]))",
+          "legendFormat": "5xx share"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"ipoint-api\"}[5m])) by (le))",
+          "legendFormat": "p95 latency"
+        }
+      ],
+      "description": "Alerts: IpointApiErrorRateHigh, IpointApiP95LatencyHigh."
+    },
+    {
+      "id": 3,
+      "title": "OBS-04 class — idle-in-transaction on reconciliation path",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "pg_stat_activity_idle_in_transaction{datname=~\"$database\"}",
+          "legendFormat": "idle in transaction sessions"
+        },
+        {
+          "expr": "reconciliation_runs_running_age_seconds{datname=~\"$database\"}",
+          "legendFormat": "oldest RUNNING run age (s)"
+        }
+      ],
+      "description": "Alert: IpointIdleInTransaction + IpointReconcileRunStall. This is the known HIGH limitation made observable (S6 OBS-04 / D-070); remediation remains a Command Center decision. Probe: scripts/p8-s7/monitoring-probe.mjs."
+    },
+    {
+      "id": 4,
+      "title": "DB health — pool saturation & deadlocks (ops §7)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "(pg_stat_activity_total{datname=~\"$database\"} / pg_settings_max_connections) * 100",
+          "legendFormat": "pool saturation %"
+        },
+        {
+          "expr": "increase(pg_stat_database_deadlocks{datname=~\"$database\"}[15m])",
+          "legendFormat": "deadlock delta"
+        }
+      ],
+      "description": "Alerts: IpointPoolSaturation, IpointDeadlockDelta. S6 baseline: deadlock delta 0."
+    },
+    {
+      "id": 5,
+      "title": "Outbox backlog (ops §7 queue health)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "transaction_commission_dispatch_pending{datname=~\"$database\"}",
+          "legendFormat": "PENDING rows"
+        }
+      ],
+      "description": "Alert: IpointOutboxBacklog. Expected-outcome note (OBS-03): reversed-transaction dispatch rejections are expected; watch backlog, not log lines. S6 baseline: 60 -> 0 in ~3s."
+    },
+    {
+      "id": 6,
+      "title": "Reconciliation differences & MCP failures (ops §7)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "reconciliation_exceptions_open{datname=~\"$database\"}",
+          "legendFormat": "open exceptions"
+        },
+        {
+          "expr": "sum(rate(http_requests_total{service=\"ipoint-api\", route=~\"/api/v1/admin/.*/mcp/.*\", status=~\"5..\"}[5m]))",
+          "legendFormat": "MCP 5xx"
+        }
+      ],
+      "description": "Alerts: IpointLedgerReconciliationDifference, IpointMcpDebitFailureRate. Expected-outcome notes: OBS-01 quote 409s excluded; OBS-02 55P03 500s bounded."
+    }
+  ]
+}
