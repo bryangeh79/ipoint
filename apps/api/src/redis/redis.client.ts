@@ -64,15 +64,35 @@ export class RedisClientService
 
   /**
    * True when Redis responds to PING. Never throws: an unreachable Redis
-   * reports `false` so readiness can report per-check status honestly.
+   * reports `false` so readiness can report per-check status honestly. The
+   * call waits briefly for the initial connection (bounded, ~400ms) so a
+   * just-booted process does not false-negative on a healthy Redis.
    */
   async isAvailable(): Promise<boolean> {
+    const client = this.getClient();
+    if (client.status !== 'ready') {
+      const ready = await this.waitUntilReady(client, 400);
+      if (!ready) return false;
+    }
     try {
-      const reply = await this.getClient().ping();
+      const reply = await client.ping();
       return reply === 'PONG';
     } catch {
       return false;
     }
+  }
+
+  private async waitUntilReady(
+    client: Redis,
+    timeoutMs: number,
+  ): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (client.status === 'ready') return true;
+      if (client.status === 'end' || client.status === 'close') return false;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    return client.status === 'ready';
   }
 
   async onApplicationShutdown(): Promise<void> {

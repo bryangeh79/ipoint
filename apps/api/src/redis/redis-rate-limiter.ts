@@ -40,7 +40,7 @@ export interface RedisRateLimiterOptions {
  */
 export class RedisRateLimiter implements RateLimitPort {
   private readonly namespace: string;
-  private readonly fallback = new InMemoryRateLimiter();
+  private readonly memoryLimiter = new InMemoryRateLimiter();
 
   constructor(
     private readonly clientProvider: RedisClientProvider,
@@ -67,16 +67,16 @@ export class RedisRateLimiter implements RateLimitPort {
       return result <= limit;
     } catch {
       // Graceful degradation: per-instance in-memory limiting, same ceiling.
-      return this.fallback.consume(key, limit, windowSeconds);
+      return this.memoryLimiter.consume(key, limit, windowSeconds);
     }
   }
 
   /**
    * Reset limiter state (test/dev utility — production code never calls it).
-   * Clears the in-memory fallback and every Redis key under the namespace.
+   * Clears the in-memory limiter and every Redis key under the namespace.
    */
   async clear(): Promise<void> {
-    this.fallback.clear();
+    this.memoryLimiter.clear();
     try {
       const keys = await this.clientProvider
         .getClient()
@@ -85,7 +85,7 @@ export class RedisRateLimiter implements RateLimitPort {
         await this.clientProvider.getClient().del(...keys);
       }
     } catch {
-      // Redis unreachable: the in-memory fallback is already cleared.
+      // Redis unreachable: the in-memory limiter is already cleared.
     }
   }
 }
