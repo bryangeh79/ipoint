@@ -29,23 +29,35 @@ const WINDOW = {
 export async function runJourneyJ10(ctx: LoadContext): Promise<JourneyResult> {
   const result = newJourneyResult(ctx, 'J10', 'reconciliation');
   const world = ctx.world;
+  // Reconciliation execute is a heavy admin batch op; OBS-04 (High, open):
+  // sustained =10-way concurrent reconcile transactions stall the DB pool.
+  // All J10 ops are measured at 5-way at L2 (the proven-stable ceiling).
+  const runScale =
+    ctx.level === 'L2' ? { concurrency: 5, iterations: 10 } : undefined;
   const base = `/api/v1/admin/reconciliation/markets/${world.marketId}`;
   const token = world.superAdmin.token;
 
   let runId = '';
-  await measureOp(ctx, result, 'run-create', CREATED, async () => {
-    const created = await httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `${base}/runs`,
-      token,
-      idempotencyKey: `j10-create-${randomSuffix()}`,
-      body: { kind: 'MCP', ...WINDOW, reason: 'P8-S6 load run.' },
-    });
-    if (created.status === 201) {
-      runId = stringId(created.body, ['id']);
-    }
-    return created;
-  });
+  await measureOp(
+    ctx,
+    result,
+    'run-create',
+    CREATED,
+    async () => {
+      const created = await httpCall(ctx.baseUrl, {
+        method: 'POST',
+        path: `${base}/runs`,
+        token,
+        idempotencyKey: `j10-create-${randomSuffix()}`,
+        body: { kind: 'MCP', ...WINDOW, reason: 'P8-S6 load run.' },
+      });
+      if (created.status === 201) {
+        runId = stringId(created.body, ['id']);
+      }
+      return created;
+    },
+    runScale,
+  );
 
   // Each measured iteration executes a FRESH run (distinct run id) so the
   // latency sample measures a single uncontended execute; the same-run
