@@ -73,9 +73,9 @@ describe('P8-S8 destructive fresh-database guard', () => {
 
   it('fail-closes when DATABASE_URL is missing or wrong', () => {
     expect(() => assertUatAllowed(undefined)).toThrow(/fail-closed/u);
-    expect(() =>
-      assertUatAllowed('postgresql://localhost/ipoint_ci'),
-    ).toThrow(/fail-closed/u);
+    expect(() => assertUatAllowed('postgresql://localhost/ipoint_ci')).toThrow(
+      /fail-closed/u,
+    );
   });
 });
 
@@ -89,7 +89,9 @@ describe.skipIf(!databaseUrl || !destructiveTestOptIn(process.env))(
     let ctx: UatContext;
     let app: INestApplication;
     let server: Server;
-    const results: Awaited<ReturnType<(typeof UAT_SCENARIOS)[number]['run']>>[] = [];
+    const results: Awaited<
+      ReturnType<(typeof UAT_SCENARIOS)[number]['run']>
+    >[] = [];
 
     beforeAll(async () => {
       ctx = await bootUatApp();

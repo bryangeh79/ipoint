@@ -51,7 +51,11 @@ const NO_CONTENT = new Set([204]);
 // ---------------------------------------------------------------------------
 
 export async function runU01(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-01', 'member registration/login (+ OTP, MFA, session reuse)');
+  const result = newUatResult(
+    ctx,
+    'U-01',
+    'member registration/login (+ OTP, MFA, session reuse)',
+  );
   const email = `uat01-${randomSuffix()}@example.com`;
   const password = 'Uat-Registration-Password-123!';
 
@@ -70,7 +74,12 @@ export async function runU01(ctx: UatContext): Promise<JourneyResult> {
       locale: 'en-MY',
     },
   });
-  assertStatus(result, 'U-01 registration initiate returns 202', initiate, ACCEPTED);
+  assertStatus(
+    result,
+    'U-01 registration initiate returns 202',
+    initiate,
+    ACCEPTED,
+  );
   const otpId = stringId(initiate.body, ['otp_id']);
   const devCode = stringId(initiate.body, ['development_code']);
   recordAssertion(
@@ -114,7 +123,12 @@ export async function runU01(ctx: UatContext): Promise<JourneyResult> {
     path: '/api/v1/auth/member/register/complete',
     body: { otp_id: otpId, idempotency_key: completionKey },
   });
-  assertStatus(result, 'U-01 registration complete replay returns 200', replayed, OK);
+  assertStatus(
+    result,
+    'U-01 registration complete replay returns 200',
+    replayed,
+    OK,
+  );
   // Exactly-once identity: the replay returns the same member identity and
   // never creates a second registration.
   recordAssertion(
@@ -173,7 +187,12 @@ export async function runU01(ctx: UatContext): Promise<JourneyResult> {
     path: '/api/v1/members/content/home',
     token: newAccessToken,
   });
-  assertStatus(result, 'U-01 session reuse (authenticated read) returns 200', reuse, OK);
+  assertStatus(
+    result,
+    'U-01 session reuse (authenticated read) returns 200',
+    reuse,
+    OK,
+  );
 
   const logout = await httpCall(ctx.baseUrl, {
     method: 'POST',
@@ -198,7 +217,12 @@ export async function runU01(ctx: UatContext): Promise<JourneyResult> {
     path: '/api/v1/auth/member/login',
     body: { email, password: 'Wrong-Password-999!' },
   });
-  assertStatus(result, 'U-01 wrong password rejected (401)', wrongPassword, new Set([401]));
+  assertStatus(
+    result,
+    'U-01 wrong password rejected (401)',
+    wrongPassword,
+    new Set([401]),
+  );
 
   // -- rate-limit ceiling --------------------------------------------------
   const { clearRateLimiter } = await import('../load/harness.js');
@@ -222,7 +246,12 @@ export async function runU01(ctx: UatContext): Promise<JourneyResult> {
   );
 
   // -- admin MFA surface (MFA_REQUIRED 202) --------------------------------
-  const mfaAdmin = await createAdmin(ctx.database, ctx.auth, [ctx.world.marketId], 'SUPER_ADMIN');
+  const mfaAdmin = await createAdmin(
+    ctx.database,
+    ctx.auth,
+    [ctx.world.marketId],
+    'SUPER_ADMIN',
+  );
   await seedMfaFactor(ctx, mfaAdmin);
   await selectMarketFor(ctx, mfaAdmin.accountId, ctx.world.marketId);
   const mfaAdminEmailRows = await ctx.pool.query<{ email: string }>(
@@ -235,7 +264,12 @@ export async function runU01(ctx: UatContext): Promise<JourneyResult> {
     path: '/api/v1/auth/admin/login',
     body: { email: mfaAdminEmail, password: PASSWORD },
   });
-  assertStatus(result, 'U-01 admin login with MFA returns 202 MFA_REQUIRED', mfaLogin, ACCEPTED);
+  assertStatus(
+    result,
+    'U-01 admin login with MFA returns 202 MFA_REQUIRED',
+    mfaLogin,
+    ACCEPTED,
+  );
   recordAssertion(
     result,
     'U-01 admin login body code is MFA_REQUIRED',
@@ -310,8 +344,14 @@ export async function runU02(ctx: UatContext): Promise<JourneyResult> {
     path: '/api/v1/members/merchants',
     token: member.token,
   });
-  assertStatus(result, 'U-02 market-scoped discovery under M2 returns 200', merchantsM2, OK);
-  const items = (merchantsM2.body as { items?: Array<{ id: string }> })?.items ?? [];
+  assertStatus(
+    result,
+    'U-02 market-scoped discovery under M2 returns 200',
+    merchantsM2,
+    OK,
+  );
+  const items =
+    (merchantsM2.body as { items?: Array<{ id: string }> })?.items ?? [];
   recordAssertion(
     result,
     'U-02 zero cross-market fallback: M1 merchant absent from M2 list',
@@ -343,7 +383,8 @@ export async function runU03(ctx: UatContext): Promise<JourneyResult> {
     token: world.member.token,
   });
   assertStatus(result, 'U-03 discovery list returns 200', list, OK);
-  const items = (list.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
+  const items =
+    (list.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
   const merchantPublicRows = await ctx.pool.query<{ merchantId: string }>(
     `SELECT merchant_id AS "merchantId" FROM merchant_branches WHERE id = $1`,
     [world.merchant.branchId],
@@ -362,7 +403,8 @@ export async function runU03(ctx: UatContext): Promise<JourneyResult> {
     `items=${items.length} publicMerchantId=${publicMerchantId}`,
   );
   const firstId =
-    stringId(items[0] ?? {}, ['merchantId', 'merchant_id', 'id']) || publicMerchantId;
+    stringId(items[0] ?? {}, ['merchantId', 'merchant_id', 'id']) ||
+    publicMerchantId;
   if (firstId) {
     const detail = await httpCall(ctx.baseUrl, {
       method: 'GET',
@@ -371,7 +413,12 @@ export async function runU03(ctx: UatContext): Promise<JourneyResult> {
     });
     assertStatus(result, 'U-03 merchant detail returns 200', detail, OK);
   } else {
-    recordAssertion(result, 'U-03 merchant detail 200', false, 'no merchant id to fetch');
+    recordAssertion(
+      result,
+      'U-03 merchant detail 200',
+      false,
+      'no merchant id to fetch',
+    );
   }
   const home = await httpCall(ctx.baseUrl, {
     method: 'GET',
@@ -387,7 +434,11 @@ export async function runU03(ctx: UatContext): Promise<JourneyResult> {
 // ---------------------------------------------------------------------------
 
 export async function runU04(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-04', 'merchant transaction (preview/confirm/receipt/history)');
+  const result = newUatResult(
+    ctx,
+    'U-04',
+    'merchant transaction (preview/confirm/receipt/history)',
+  );
   const world = ctx.world.merchant;
 
   const preview = await previewTransaction(ctx, { amount: '100.00' });
@@ -413,7 +464,12 @@ export async function runU04(ctx: UatContext): Promise<JourneyResult> {
   });
   assertStatus(result, 'U-04 confirm returns 201', confirm, CREATED);
   const transactionNumber = stringId(confirm.body, ['transactionNumber']);
-  recordAssertion(result, 'U-04 confirm returns transaction number', transactionNumber !== '', JSON.stringify(confirm.body));
+  recordAssertion(
+    result,
+    'U-04 confirm returns transaction number',
+    transactionNumber !== '',
+    JSON.stringify(confirm.body),
+  );
 
   const chain = await confirmationState(ctx, previewSessionId);
   recordAssertion(
@@ -434,7 +490,12 @@ export async function runU04(ctx: UatContext): Promise<JourneyResult> {
     idempotencyKey: confirmKey,
     merchantReceiptNumber: receiptNumber,
   });
-  assertStatus(result, 'U-04 confirm replay (same key) returns 201', replay, CREATED);
+  assertStatus(
+    result,
+    'U-04 confirm replay (same key) returns 201',
+    replay,
+    CREATED,
+  );
   recordAssertion(
     result,
     'U-04 double-submit guard: replay returns the same transaction number',
@@ -498,8 +559,18 @@ export async function runU05(ctx: UatContext): Promise<JourneyResult> {
   assertStatus(result, 'U-05 admin MCP read returns 200', adminRead, OK);
 
   // Governed adjustment chain: maker -> submit -> checker decision -> execute.
-  const maker = await createAdmin(ctx.database, ctx.auth, [world.marketId], 'SUPER_ADMIN');
-  const checker = await createAdmin(ctx.database, ctx.auth, [world.marketId], 'SUPER_ADMIN');
+  const maker = await createAdmin(
+    ctx.database,
+    ctx.auth,
+    [world.marketId],
+    'SUPER_ADMIN',
+  );
+  const checker = await createAdmin(
+    ctx.database,
+    ctx.auth,
+    [world.marketId],
+    'SUPER_ADMIN',
+  );
   await seedMfaFactor(ctx, maker);
   await seedMfaFactor(ctx, checker);
   await selectMarketFor(ctx, maker.accountId, world.marketId);
@@ -529,7 +600,12 @@ export async function runU05(ctx: UatContext): Promise<JourneyResult> {
   });
   assertStatus(result, 'U-05 adjustment create returns 201', created, CREATED);
   const requestId = stringId(created.body, ['id']);
-  recordAssertion(result, 'U-05 adjustment request id present', requestId !== '', JSON.stringify(created.body));
+  recordAssertion(
+    result,
+    'U-05 adjustment request id present',
+    requestId !== '',
+    JSON.stringify(created.body),
+  );
 
   const submit = await httpCall(ctx.baseUrl, {
     method: 'POST',
@@ -538,7 +614,12 @@ export async function runU05(ctx: UatContext): Promise<JourneyResult> {
   });
   assertStatus(result, 'U-05 maker submit returns 200', submit, OK);
 
-  const approveStepUp = await seedStepUpGrant(ctx, checker, 'merchant.mcp.adjust.approve', world.marketId);
+  const approveStepUp = await seedStepUpGrant(
+    ctx,
+    checker,
+    'merchant.mcp.adjust.approve',
+    world.marketId,
+  );
   const decision = await httpCall(ctx.baseUrl, {
     method: 'POST',
     path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${requestId}/decision`,
@@ -548,14 +629,23 @@ export async function runU05(ctx: UatContext): Promise<JourneyResult> {
   });
   assertStatus(result, 'U-05 checker decision returns 200', decision, OK);
 
-  const executeStepUp = await seedStepUpGrant(ctx, checker, 'merchant.mcp.adjust.execute', world.marketId);
-  const executed = await httpCallWithTimeout(ctx.baseUrl, {
-    method: 'POST',
-    path: `/api/v1/admin/markets/${world.marketId}/adjustments/${requestId}/execute`,
-    token: checker.token,
-    headers: { 'x-step-up-token': executeStepUp },
-    body: { decision: 'APPROVED', reason: 'Execute.' },
-  }, 30_000);
+  const executeStepUp = await seedStepUpGrant(
+    ctx,
+    checker,
+    'merchant.mcp.adjust.execute',
+    world.marketId,
+  );
+  const executed = await httpCallWithTimeout(
+    ctx.baseUrl,
+    {
+      method: 'POST',
+      path: `/api/v1/admin/markets/${world.marketId}/adjustments/${requestId}/execute`,
+      token: checker.token,
+      headers: { 'x-step-up-token': executeStepUp },
+      body: { decision: 'APPROVED', reason: 'Execute.' },
+    },
+    30_000,
+  );
   assertStatus(result, 'U-05 adjustment execute returns 200', executed, OK);
 
   const balanceAfterRows = await ctx.pool.query<{ balance: string }>(
@@ -604,7 +694,8 @@ export async function runU05(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-05 create replay (same key) returns original request',
-    replayCreate.status === 201 && stringId(replayCreate.body, ['id']) === requestId,
+    replayCreate.status === 201 &&
+      stringId(replayCreate.body, ['id']) === requestId,
     `status ${replayCreate.status}`,
   );
 
@@ -669,7 +760,9 @@ export async function runU06(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-06 one confirmed transaction earns exactly one reward source',
-    Number(sourcesAfter.rows[0]?.count ?? 0) - Number(sourcesBefore.rows[0]?.count ?? 0) === 1,
+    Number(sourcesAfter.rows[0]?.count ?? 0) -
+      Number(sourcesBefore.rows[0]?.count ?? 0) ===
+      1,
     `sources ${sourcesBefore.rows[0]?.count} -> ${sourcesAfter.rows[0]?.count}`,
   );
 
@@ -678,7 +771,12 @@ export async function runU06(ctx: UatContext): Promise<JourneyResult> {
     idempotencyKey: confirmKey,
     merchantReceiptNumber: receipt,
   });
-  assertStatus(result, 'U-06 confirm replay (same key) returns 201', replay, CREATED);
+  assertStatus(
+    result,
+    'U-06 confirm replay (same key) returns 201',
+    replay,
+    CREATED,
+  );
   const sourcesReplay = await ctx.pool.query<{ count: string }>(
     `SELECT count(*)::text AS count FROM reward_sources WHERE member_id = $1`,
     [memberId],
@@ -686,7 +784,8 @@ export async function runU06(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-06 replay does not double-credit (no second reward source)',
-    Number(sourcesReplay.rows[0]?.count ?? 0) === Number(sourcesAfter.rows[0]?.count ?? 0),
+    Number(sourcesReplay.rows[0]?.count ?? 0) ===
+      Number(sourcesAfter.rows[0]?.count ?? 0),
     `sources after replay=${sourcesReplay.rows[0]?.count}`,
   );
   const entriesReplay = await ctx.pool.query<{ count: string }>(
@@ -720,7 +819,9 @@ export async function runU07(ctx: UatContext): Promise<JourneyResult> {
     token: member.token,
   });
   assertStatus(result, 'U-07 wallet list returns 200', list, OK);
-  const listBody = list.body as Array<Record<string, unknown>> | { items?: Array<Record<string, unknown>> };
+  const listBody = list.body as
+    | Array<Record<string, unknown>>
+    | { items?: Array<Record<string, unknown>> };
   const items = Array.isArray(listBody) ? listBody : (listBody.items ?? []);
   recordAssertion(
     result,
@@ -735,11 +836,16 @@ export async function runU07(ctx: UatContext): Promise<JourneyResult> {
     token: member.token,
   });
   assertStatus(result, 'U-07 wallet detail returns 200', detail, OK);
-  const balance = stringId(detail.body, ['availableBalance', 'available_balance']);
+  const balance = stringId(detail.body, [
+    'availableBalance',
+    'available_balance',
+  ]);
   recordAssertion(
     result,
     'U-07 wallet balance is an exact-decimal string (no float, no fabricated zero)',
-    balance !== '' && /^\d+(\.\d+)?$/u.test(balance) && Number(balance) === 100000,
+    balance !== '' &&
+      /^\d+(\.\d+)?$/u.test(balance) &&
+      Number(balance) === 100000,
     `balance=${balance} body=${JSON.stringify(detail.body).slice(0, 300)}`,
   );
 
@@ -789,7 +895,12 @@ export async function runU08(ctx: UatContext): Promise<JourneyResult> {
       locale: 'en-MY',
     },
   });
-  assertStatus(result, 'U-08 referral registration initiate returns 202', initiate, ACCEPTED);
+  assertStatus(
+    result,
+    'U-08 referral registration initiate returns 202',
+    initiate,
+    ACCEPTED,
+  );
   const otpId = stringId(initiate.body, ['otp_id']);
   const devCode = stringId(initiate.body, ['development_code']);
   const verify = await httpCall(ctx.baseUrl, {
@@ -797,13 +908,23 @@ export async function runU08(ctx: UatContext): Promise<JourneyResult> {
     path: '/api/v1/auth/member/register/verify',
     body: { otp_id: otpId, code: devCode },
   });
-  assertStatus(result, 'U-08 referral registration verify returns 200', verify, OK);
+  assertStatus(
+    result,
+    'U-08 referral registration verify returns 200',
+    verify,
+    OK,
+  );
   const complete = await httpCall(ctx.baseUrl, {
     method: 'POST',
     path: '/api/v1/auth/member/register/complete',
     body: { otp_id: otpId, idempotency_key: `registration-${randomUUID()}` },
   });
-  assertStatus(result, 'U-08 referral registration complete returns 200', complete, OK);
+  assertStatus(
+    result,
+    'U-08 referral registration complete returns 200',
+    complete,
+    OK,
+  );
 
   const login = await httpCall(ctx.baseUrl, {
     method: 'POST',
@@ -892,7 +1013,8 @@ export async function runU09(ctx: UatContext): Promise<JourneyResult> {
     headers: { 'x-market-id': world.marketId },
   });
   assertStatus(result, 'U-09 merchant package list returns 200', list, OK);
-  const items = (list.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
+  const items =
+    (list.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
   recordAssertion(
     result,
     'U-09 merchant has exactly the seeded active package',
@@ -923,7 +1045,12 @@ export async function runU09(ctx: UatContext): Promise<JourneyResult> {
       `status ${pause.status} code=${errorCode(pause.body) ?? 'n/a'}`,
     );
   } else {
-    recordAssertion(result, 'U-09 last-active-pause guard exercised', false, `active assignments=${activeAssignments.length}`);
+    recordAssertion(
+      result,
+      'U-09 last-active-pause guard exercised',
+      false,
+      `active assignments=${activeAssignments.length}`,
+    );
   }
 
   return finishUatResult(result);
@@ -939,16 +1066,30 @@ export async function runU10(ctx: UatContext): Promise<JourneyResult> {
   const admin = world.superAdmin;
   const base = `/api/v1/admin/package-ops/markets/${world.marketId}/special-percentages`;
 
-  const stepUp = await seedStepUpGrant(ctx, admin, 'merchant.special_package.manage', world.marketId);
+  const stepUp = await seedStepUpGrant(
+    ctx,
+    admin,
+    'merchant.special_package.manage',
+    world.marketId,
+  );
   const created = await httpCall(ctx.baseUrl, {
     method: 'POST',
     path: base,
     token: admin.token,
     idempotencyKey: `uat10-special-${randomSuffix()}`,
     headers: { 'x-step-up-token': stepUp },
-    body: { rate: '12', description: 'UAT special percentage 12%', reason: 'UAT U-10 fixture.' },
+    body: {
+      rate: '12',
+      description: 'UAT special percentage 12%',
+      reason: 'UAT U-10 fixture.',
+    },
   });
-  assertStatus(result, 'U-10 special percentage create returns 201', created, CREATED);
+  assertStatus(
+    result,
+    'U-10 special percentage create returns 201',
+    created,
+    CREATED,
+  );
   const createdRate = stringId(created.body, ['rate']);
   recordAssertion(
     result,
@@ -963,14 +1104,23 @@ export async function runU10(ctx: UatContext): Promise<JourneyResult> {
     ['over-100', '101'],
     ['7-decimals', '1.1234567'],
   ] as const) {
-    const stepUpBad = await seedStepUpGrant(ctx, admin, 'merchant.special_package.manage', world.marketId);
+    const stepUpBad = await seedStepUpGrant(
+      ctx,
+      admin,
+      'merchant.special_package.manage',
+      world.marketId,
+    );
     const rejected = await httpCall(ctx.baseUrl, {
       method: 'POST',
       path: base,
       token: admin.token,
       idempotencyKey: `uat10-bad-${label}-${randomSuffix()}`,
       headers: { 'x-step-up-token': stepUpBad },
-      body: { rate: badRate, description: 'Invalid rate', reason: 'UAT negative fixture.' },
+      body: {
+        rate: badRate,
+        description: 'Invalid rate',
+        reason: 'UAT negative fixture.',
+      },
     });
     recordAssertion(
       result,
@@ -980,7 +1130,12 @@ export async function runU10(ctx: UatContext): Promise<JourneyResult> {
     );
   }
 
-  const stepUpList = await seedStepUpGrant(ctx, admin, 'merchant.special_package.manage', world.marketId);
+  const stepUpList = await seedStepUpGrant(
+    ctx,
+    admin,
+    'merchant.special_package.manage',
+    world.marketId,
+  );
   const list = await httpCall(ctx.baseUrl, {
     method: 'GET',
     path: base,
@@ -988,11 +1143,15 @@ export async function runU10(ctx: UatContext): Promise<JourneyResult> {
     headers: { 'x-step-up-token': stepUpList },
   });
   assertStatus(result, 'U-10 special percentage list returns 200', list, OK);
-  const items = (list.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
+  const items =
+    (list.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
   recordAssertion(
     result,
     'U-10 special percentage list contains the created rate',
-    items.some((item) => String(item['rate']) === '12.000000' || String(item['rate']) === '12'),
+    items.some(
+      (item) =>
+        String(item['rate']) === '12.000000' || String(item['rate']) === '12',
+    ),
     `items=${items.length}`,
   );
 
@@ -1015,7 +1174,9 @@ export async function runU11(ctx: UatContext): Promise<JourneyResult> {
   });
   assertStatus(result, 'U-11 reward rule list returns 200', listBefore, OK);
 
-  const futureDate = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10);
+  const futureDate = new Date(Date.now() + 2 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
   // Package C shares the 0.05%/day governance ceiling (S6 comment: B 0.025,
   // C/D/E/F 0.05); package A caps at 0.0125 so the ceiling test must use C.
   const scheduled = await httpCall(ctx.baseUrl, {
@@ -1031,15 +1192,26 @@ export async function runU11(ctx: UatContext): Promise<JourneyResult> {
       description: 'UAT rule',
     },
   });
-  assertStatus(result, 'U-11 reward rule schedule returns 201', scheduled, CREATED);
+  assertStatus(
+    result,
+    'U-11 reward rule schedule returns 201',
+    scheduled,
+    CREATED,
+  );
 
   const listAfter = await httpCall(ctx.baseUrl, {
     method: 'GET',
     path: base,
     token: world.superAdmin.token,
   });
-  assertStatus(result, 'U-11 reward rule list reflects the scheduled rule', listAfter, OK);
-  const items = (listAfter.body as { rules?: Array<Record<string, unknown>> })?.rules ?? [];
+  assertStatus(
+    result,
+    'U-11 reward rule list reflects the scheduled rule',
+    listAfter,
+    OK,
+  );
+  const items =
+    (listAfter.body as { rules?: Array<Record<string, unknown>> })?.rules ?? [];
   recordAssertion(
     result,
     'U-11 scheduled rule appears in the market-scoped list',
@@ -1067,7 +1239,8 @@ export async function runU11(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-11 rate above the 0.05%/day governance ceiling is rejected',
-    (over.status === 400 || over.status === 422) && errorCode(over.body) === 'REWARD_RATE_EXCEEDS_GOVERNANCE_LIMIT',
+    (over.status === 400 || over.status === 422) &&
+      errorCode(over.body) === 'REWARD_RATE_EXCEEDS_GOVERNANCE_LIMIT',
     `status ${over.status} code=${errorCode(over.body) ?? 'n/a'}`,
   );
 
@@ -1082,7 +1255,8 @@ export async function runU11(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-11 foreign-market rule read denied (409 MARKET_CONTEXT_MISMATCH)',
-    foreign.status === 409 && errorCode(foreign.body) === 'MARKET_CONTEXT_MISMATCH',
+    foreign.status === 409 &&
+      errorCode(foreign.body) === 'MARKET_CONTEXT_MISMATCH',
     `status ${foreign.status} code=${errorCode(foreign.body) ?? 'n/a'}`,
   );
 
@@ -1094,7 +1268,11 @@ export async function runU11(ctx: UatContext): Promise<JourneyResult> {
 // ---------------------------------------------------------------------------
 
 export async function runU12(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-12', 'redemption (catalog/quote/order/voucher)');
+  const result = newUatResult(
+    ctx,
+    'U-12',
+    'redemption (catalog/quote/order/voucher)',
+  );
   const world = ctx.world;
   const fixture = await seedRedemptionFixture(ctx);
   const memberToken = world.merchant.memberToken;
@@ -1105,7 +1283,8 @@ export async function runU12(ctx: UatContext): Promise<JourneyResult> {
     token: memberToken,
   });
   assertStatus(result, 'U-12 catalog returns 200', catalog, OK);
-  const catalogItems = (catalog.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
+  const catalogItems =
+    (catalog.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
   recordAssertion(
     result,
     'U-12 catalog is market-scoped (contains the seeded item)',
@@ -1119,7 +1298,11 @@ export async function runU12(ctx: UatContext): Promise<JourneyResult> {
     token: memberToken,
   });
   assertStatus(result, 'U-12 quote returns 200', quote, OK);
-  const quoteBody = quote.body as { quoteId?: string; postedPointCost?: string; expiresAt?: string };
+  const quoteBody = quote.body as {
+    quoteId?: string;
+    postedPointCost?: string;
+    expiresAt?: string;
+  };
   recordAssertion(
     result,
     'U-12 quote returns exact-decimal point cost + expiry',
@@ -1160,7 +1343,12 @@ export async function runU12(ctx: UatContext): Promise<JourneyResult> {
     token: memberToken,
     body: orderBody,
   });
-  assertStatus(result, 'U-12 order replay (same key) returns 201', replayOrder, CREATED);
+  assertStatus(
+    result,
+    'U-12 order replay (same key) returns 201',
+    replayOrder,
+    CREATED,
+  );
   recordAssertion(
     result,
     'U-12 order replay returns the same order (exactly-once)',
@@ -1176,7 +1364,9 @@ export async function runU12(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-12 exactly one wallet debit per order',
-    Number(debitsAfter.rows[0]?.count ?? 0) - Number(debitsBefore.rows[0]?.count ?? 0) === 1,
+    Number(debitsAfter.rows[0]?.count ?? 0) -
+      Number(debitsBefore.rows[0]?.count ?? 0) ===
+      1,
     `debits ${debitsBefore.rows[0]?.count} -> ${debitsAfter.rows[0]?.count}`,
   );
 
@@ -1195,13 +1385,19 @@ export async function runU12(ctx: UatContext): Promise<JourneyResult> {
   );
 
   // Market isolation: M1 item must not appear in the M2 member catalog.
-  const m2Member = await createMember(ctx.database, ctx.auth, world.secondaryMarketId);
+  const m2Member = await createMember(
+    ctx.database,
+    ctx.auth,
+    world.secondaryMarketId,
+  );
   const foreignCatalog = await httpCall(ctx.baseUrl, {
     method: 'GET',
     path: '/api/v1/redemption/catalog',
     token: m2Member.token,
   });
-  const foreignItems = (foreignCatalog.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
+  const foreignItems =
+    (foreignCatalog.body as { items?: Array<Record<string, unknown>> })
+      ?.items ?? [];
   recordAssertion(
     result,
     'U-12 zero cross-market fallback: M1 item absent from M2 catalog',
@@ -1217,17 +1413,33 @@ export async function runU12(ctx: UatContext): Promise<JourneyResult> {
 // ---------------------------------------------------------------------------
 
 export async function runU13(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-13', 'fulfilment (pickup/suspend/exception/retry)');
+  const result = newUatResult(
+    ctx,
+    'U-13',
+    'fulfilment (pickup/suspend/exception/retry)',
+  );
   const world = ctx.world;
   const fixture = await seedFulfilmentFixture(ctx);
   const base = `/api/v1/admin/redemption-fulfilment-ops/markets/${world.marketId}`;
   const token = world.superAdmin.token;
 
-  const queues = await httpCall(ctx.baseUrl, { method: 'GET', path: `${base}/queues`, token });
+  const queues = await httpCall(ctx.baseUrl, {
+    method: 'GET',
+    path: `${base}/queues`,
+    token,
+  });
   assertStatus(result, 'U-13 fulfilment queues return 200', queues, OK);
-  const pickup = await httpCall(ctx.baseUrl, { method: 'GET', path: `${base}/queues/READY_FOR_PICKUP`, token });
+  const pickup = await httpCall(ctx.baseUrl, {
+    method: 'GET',
+    path: `${base}/queues/READY_FOR_PICKUP`,
+    token,
+  });
   assertStatus(result, 'U-13 READY_FOR_PICKUP queue returns 200', pickup, OK);
-  const detail = await httpCall(ctx.baseUrl, { method: 'GET', path: `${base}/orders/${fixture.confirmedOrderId}`, token });
+  const detail = await httpCall(ctx.baseUrl, {
+    method: 'GET',
+    path: `${base}/orders/${fixture.confirmedOrderId}`,
+    token,
+  });
   assertStatus(result, 'U-13 order detail returns 200', detail, OK);
 
   const suspend = await httpCall(ctx.baseUrl, {
@@ -1269,7 +1481,12 @@ export async function runU13(ctx: UatContext): Promise<JourneyResult> {
     path: `${base}/queues/FULFILMENT_EXCEPTION`,
     token,
   });
-  assertStatus(result, 'U-13 FULFILMENT_EXCEPTION queue returns 200', exceptionQueue, OK);
+  assertStatus(
+    result,
+    'U-13 FULFILMENT_EXCEPTION queue returns 200',
+    exceptionQueue,
+    OK,
+  );
 
   return finishUatResult(result);
 }
@@ -1345,8 +1562,18 @@ export async function runU15(ctx: UatContext): Promise<JourneyResult> {
   const result = newUatResult(ctx, 'U-15', 'manual MCP Maker/Checker');
   const world = ctx.world;
   await seedMcpAdjustFixtures(ctx);
-  const maker = await createAdmin(ctx.database, ctx.auth, [world.marketId], 'SUPER_ADMIN');
-  const checker = await createAdmin(ctx.database, ctx.auth, [world.marketId], 'SUPER_ADMIN');
+  const maker = await createAdmin(
+    ctx.database,
+    ctx.auth,
+    [world.marketId],
+    'SUPER_ADMIN',
+  );
+  const checker = await createAdmin(
+    ctx.database,
+    ctx.auth,
+    [world.marketId],
+    'SUPER_ADMIN',
+  );
   await seedMfaFactor(ctx, maker);
   await seedMfaFactor(ctx, checker);
   await selectMarketFor(ctx, maker.accountId, world.marketId);
@@ -1377,7 +1604,12 @@ export async function runU15(ctx: UatContext): Promise<JourneyResult> {
   assertStatus(result, 'U-15 maker submit returns 200', submit, OK);
 
   // Checker must NOT be the maker (L-16): the maker's own decision is denied.
-  const makerOwnStepUp = await seedStepUpGrant(ctx, maker, 'merchant.mcp.adjust.approve', world.marketId);
+  const makerOwnStepUp = await seedStepUpGrant(
+    ctx,
+    maker,
+    'merchant.mcp.adjust.approve',
+    world.marketId,
+  );
   const makerOwnDecision = await httpCall(ctx.baseUrl, {
     method: 'POST',
     path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${requestId}/decision`,
@@ -1388,11 +1620,18 @@ export async function runU15(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-15 maker cannot self-approve (L-16 maker != checker)',
-    makerOwnDecision.status === 403 || makerOwnDecision.status === 409 || makerOwnDecision.status === 400,
+    makerOwnDecision.status === 403 ||
+      makerOwnDecision.status === 409 ||
+      makerOwnDecision.status === 400,
     `status ${makerOwnDecision.status} code=${errorCode(makerOwnDecision.body) ?? 'n/a'}`,
   );
 
-  const checkerStepUp = await seedStepUpGrant(ctx, checker, 'merchant.mcp.adjust.approve', world.marketId);
+  const checkerStepUp = await seedStepUpGrant(
+    ctx,
+    checker,
+    'merchant.mcp.adjust.approve',
+    world.marketId,
+  );
   const decision = await httpCall(ctx.baseUrl, {
     method: 'POST',
     path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${requestId}/decision`,
@@ -1424,8 +1663,18 @@ export async function runU15(ctx: UatContext): Promise<JourneyResult> {
     token: maker.token,
   });
   const [grantA, grantB] = await Promise.all([
-    seedStepUpGrant(ctx, checker, 'merchant.mcp.adjust.approve', world.marketId),
-    seedStepUpGrant(ctx, checker, 'merchant.mcp.adjust.approve', world.marketId),
+    seedStepUpGrant(
+      ctx,
+      checker,
+      'merchant.mcp.adjust.approve',
+      world.marketId,
+    ),
+    seedStepUpGrant(
+      ctx,
+      checker,
+      'merchant.mcp.adjust.approve',
+      world.marketId,
+    ),
   ]);
   const [decisionA, decisionB] = await Promise.all([
     httpCall(ctx.baseUrl, {
@@ -1450,7 +1699,8 @@ export async function runU15(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-15 concurrent double-decision -> exactly one accepted transition',
-    finalStateRows.rows[0]?.state === 'APPROVED' && decisionA.status !== decisionB.status,
+    finalStateRows.rows[0]?.state === 'APPROVED' &&
+      decisionA.status !== decisionB.status,
     `statuses ${decisionA.status},${decisionB.status}; final=${finalStateRows.rows[0]?.state}`,
   );
 
@@ -1465,8 +1715,18 @@ export async function runU16(ctx: UatContext): Promise<JourneyResult> {
   const result = newUatResult(ctx, 'U-16', 'manual iPoint Maker/Checker');
   const world = ctx.world;
   await seedIpointAdjustFixtures(ctx);
-  const maker = await createAdmin(ctx.database, ctx.auth, [world.marketId], 'SUPER_ADMIN');
-  const checker = await createAdmin(ctx.database, ctx.auth, [world.marketId], 'SUPER_ADMIN');
+  const maker = await createAdmin(
+    ctx.database,
+    ctx.auth,
+    [world.marketId],
+    'SUPER_ADMIN',
+  );
+  const checker = await createAdmin(
+    ctx.database,
+    ctx.auth,
+    [world.marketId],
+    'SUPER_ADMIN',
+  );
   await seedMfaFactor(ctx, maker);
   await seedMfaFactor(ctx, checker);
   await selectMarketFor(ctx, maker.accountId, world.marketId);
@@ -1500,24 +1760,42 @@ export async function runU16(ctx: UatContext): Promise<JourneyResult> {
   });
   assertStatus(result, 'U-16 maker submit returns 200', submit, OK);
 
-  const checkerStepUp = await seedStepUpGrant(ctx, checker, 'wallet.ipoint.adjust.checker', world.marketId);
-  const decision = await httpCallWithTimeout(ctx.baseUrl, {
-    method: 'POST',
-    path: `${base}/${requestId}/decision`,
-    token: checker.token,
-    headers: { 'x-step-up-token': checkerStepUp },
-    body: { decision: 'APPROVED', reason: 'Evidence verified.' },
-  }, 30_000);
+  const checkerStepUp = await seedStepUpGrant(
+    ctx,
+    checker,
+    'wallet.ipoint.adjust.checker',
+    world.marketId,
+  );
+  const decision = await httpCallWithTimeout(
+    ctx.baseUrl,
+    {
+      method: 'POST',
+      path: `${base}/${requestId}/decision`,
+      token: checker.token,
+      headers: { 'x-step-up-token': checkerStepUp },
+      body: { decision: 'APPROVED', reason: 'Evidence verified.' },
+    },
+    30_000,
+  );
   assertStatus(result, 'U-16 checker decision returns 200', decision, OK);
 
-  const executeStepUp = await seedStepUpGrant(ctx, checker, 'wallet.ipoint.adjust.execute', world.marketId);
-  const executed = await httpCallWithTimeout(ctx.baseUrl, {
-    method: 'POST',
-    path: `${base}/${requestId}/execute`,
-    token: checker.token,
-    headers: { 'x-step-up-token': executeStepUp },
-    body: { decision: 'APPROVED', reason: 'Execute.' },
-  }, 30_000);
+  const executeStepUp = await seedStepUpGrant(
+    ctx,
+    checker,
+    'wallet.ipoint.adjust.execute',
+    world.marketId,
+  );
+  const executed = await httpCallWithTimeout(
+    ctx.baseUrl,
+    {
+      method: 'POST',
+      path: `${base}/${requestId}/execute`,
+      token: checker.token,
+      headers: { 'x-step-up-token': executeStepUp },
+      body: { decision: 'APPROVED', reason: 'Execute.' },
+    },
+    30_000,
+  );
   assertStatus(result, 'U-16 checker execute returns 200', executed, OK);
 
   const walletRows = await ctx.pool.query<{ balance: string }>(
@@ -1531,7 +1809,11 @@ export async function runU16(ctx: UatContext): Promise<JourneyResult> {
     `balance=${walletRows.rows[0]?.balance}`,
   );
 
-  const queue = await httpCall(ctx.baseUrl, { method: 'GET', path: base, token: checker.token });
+  const queue = await httpCall(ctx.baseUrl, {
+    method: 'GET',
+    path: base,
+    token: checker.token,
+  });
   assertStatus(result, 'U-16 adjustment queue read returns 200', queue, OK);
 
   return finishUatResult(result);
@@ -1553,7 +1835,8 @@ export async function runU17(ctx: UatContext): Promise<JourneyResult> {
   });
   assertStatus(result, 'U-17 member list returns 200', members, OK);
   const memberPublicId = stringId(
-    (members.body as { members?: Array<Record<string, unknown>> })?.members?.[0] ?? {},
+    (members.body as { members?: Array<Record<string, unknown>> })
+      ?.members?.[0] ?? {},
     ['publicMemberId', 'publicId'],
   );
   if (memberPublicId) {
@@ -1567,14 +1850,26 @@ export async function runU17(ctx: UatContext): Promise<JourneyResult> {
       method: 'POST',
       path: `/api/v1/admin/member-ops/members/${memberPublicId}/notes`,
       token,
-      body: { content: 'UAT U-17 acceptance note', idempotencyKey: randomUUID() },
+      body: {
+        content: 'UAT U-17 acceptance note',
+        idempotencyKey: randomUUID(),
+      },
     });
     assertStatus(result, 'U-17 member note create returns 200', note, OK);
   } else {
-    recordAssertion(result, 'U-17 member detail/note exercised', false, 'no member public id');
+    recordAssertion(
+      result,
+      'U-17 member detail/note exercised',
+      false,
+      'no member public id',
+    );
   }
 
-  const kycQueue = await httpCall(ctx.baseUrl, { method: 'GET', path: '/api/v1/admin/kyc-ops/members', token });
+  const kycQueue = await httpCall(ctx.baseUrl, {
+    method: 'GET',
+    path: '/api/v1/admin/kyc-ops/members',
+    token,
+  });
   assertStatus(result, 'U-17 KYC queue returns 200', kycQueue, OK);
 
   const merchants = await httpCall(ctx.baseUrl, {
@@ -1646,7 +1941,8 @@ export async function runU18(ctx: UatContext): Promise<JourneyResult> {
     token: superToken,
   });
   assertStatus(result, 'U-18 audit entries list returns 200', entries, OK);
-  const items = (entries.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
+  const items =
+    (entries.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
   recordAssertion(
     result,
     'U-18 audit contains the member-note mutation action',
@@ -1680,7 +1976,12 @@ export async function runU18(ctx: UatContext): Promise<JourneyResult> {
         'x-sensitive-access-reason': 'UAT U-18 raw audit evidence check',
       },
     });
-    assertStatus(result, 'U-18 raw audit view allowed for super admin', rawSuper, OK);
+    assertStatus(
+      result,
+      'U-18 raw audit view allowed for super admin',
+      rawSuper,
+      OK,
+    );
     const rawSupport = await httpCall(ctx.baseUrl, {
       method: 'GET',
       path: `/api/v1/admin/audit-ops/markets/${world.marketId}/entries/${firstId}/raw`,
@@ -1694,7 +1995,12 @@ export async function runU18(ctx: UatContext): Promise<JourneyResult> {
       `status ${rawSupport.status} code=${errorCode(rawSupport.body) ?? 'n/a'}`,
     );
   } else {
-    recordAssertion(result, 'U-18 audit detail/raw exercised', false, 'no audit entry id');
+    recordAssertion(
+      result,
+      'U-18 audit detail/raw exercised',
+      false,
+      'no audit entry id',
+    );
   }
 
   // Historical immutability: re-reading the same entry yields the same
@@ -1707,9 +2013,17 @@ export async function runU18(ctx: UatContext): Promise<JourneyResult> {
     method: 'POST',
     path: `/api/v1/admin/member-ops/members/${memberPublicId}/notes`,
     token: superToken,
-    body: { content: 'UAT U-18 immutability probe', idempotencyKey: randomUUID() },
+    body: {
+      content: 'UAT U-18 immutability probe',
+      idempotencyKey: randomUUID(),
+    },
   });
-  assertStatus(result, 'U-18 second audit probe mutation returns 200', note2, OK);
+  assertStatus(
+    result,
+    'U-18 second audit probe mutation returns 200',
+    note2,
+    OK,
+  );
   const afterRows = await ctx.pool.query<{ count: string }>(
     `SELECT count(*)::text AS count FROM audit_logs WHERE entity_id = $1`,
     [world.merchant.memberId],
@@ -1717,7 +2031,8 @@ export async function runU18(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-18 audit log is append-only (rows only grow, nothing rewritten)',
-    Number(afterRows.rows[0]?.count ?? 0) > Number(beforeRows.rows[0]?.count ?? 0),
+    Number(afterRows.rows[0]?.count ?? 0) >
+      Number(beforeRows.rows[0]?.count ?? 0),
     `rows ${beforeRows.rows[0]?.count} -> ${afterRows.rows[0]?.count}`,
   );
 
@@ -1733,9 +2048,16 @@ export async function runU19(ctx: UatContext): Promise<JourneyResult> {
   const world = ctx.world;
   const base = `/api/v1/admin/report-ops/markets/${world.marketId}/reports`;
   const token = world.superAdmin.token;
-  const codes = Array.from({ length: 19 }, (_, i) => `R${String(i + 1).padStart(2, '0')}`);
+  const codes = Array.from(
+    { length: 19 },
+    (_, i) => `R${String(i + 1).padStart(2, '0')}`,
+  );
 
-  const list = await httpCall(ctx.baseUrl, { method: 'GET', path: base, token });
+  const list = await httpCall(ctx.baseUrl, {
+    method: 'GET',
+    path: base,
+    token,
+  });
   assertStatus(result, 'U-19 report list returns 200', list, OK);
   let allOk = true;
   const failures: string[] = [];
@@ -1828,7 +2150,11 @@ export async function runU20(ctx: UatContext): Promise<JourneyResult> {
     path: `${base}/ads/${adId}/status`,
     token,
     idempotencyKey: `uat20-ad-status-${randomSuffix()}`,
-    body: { status: 'ACTIVE', expectedVersion: adVersion, reason: 'UAT activate.' },
+    body: {
+      status: 'ACTIVE',
+      expectedVersion: adVersion,
+      reason: 'UAT activate.',
+    },
   });
   assertStatus(result, 'U-20 ad activate returns 200', activateAd, OK);
 
@@ -1840,18 +2166,33 @@ export async function runU20(ctx: UatContext): Promise<JourneyResult> {
   assertStatus(result, 'U-20 member content home returns 200', home, OK);
 
   // Market isolation: M1 content must not surface in the M2 member home.
-  const m2Member = await createMember(ctx.database, ctx.auth, world.secondaryMarketId);
+  const m2Member = await createMember(
+    ctx.database,
+    ctx.auth,
+    world.secondaryMarketId,
+  );
   const foreignHome = await httpCall(ctx.baseUrl, {
     method: 'GET',
     path: '/api/v1/members/content/home',
     token: m2Member.token,
   });
-  assertStatus(result, 'U-20 foreign-market member home returns 200', foreignHome, OK);
-  const foreignItems = (foreignHome.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
+  assertStatus(
+    result,
+    'U-20 foreign-market member home returns 200',
+    foreignHome,
+    OK,
+  );
+  const foreignItems =
+    (foreignHome.body as { items?: Array<Record<string, unknown>> })?.items ??
+    [];
   recordAssertion(
     result,
     'U-20 zero cross-market fallback: M1 content absent from M2 home',
-    !foreignItems.some((item) => item['title'] === 'UAT local dining week' || item['title'] === 'UAT market update'),
+    !foreignItems.some(
+      (item) =>
+        item['title'] === 'UAT local dining week' ||
+        item['title'] === 'UAT market update',
+    ),
     `M2 home items=${foreignItems.length}`,
   );
 
@@ -1863,7 +2204,11 @@ export async function runU20(ctx: UatContext): Promise<JourneyResult> {
 // ---------------------------------------------------------------------------
 
 export async function runU21(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-21', 'reconciliation (run/execute/exceptions)');
+  const result = newUatResult(
+    ctx,
+    'U-21',
+    'reconciliation (run/execute/exceptions)',
+  );
   const world = ctx.world;
   const base = `/api/v1/admin/reconciliation/markets/${world.marketId}`;
   const token = world.superAdmin.token;
@@ -1881,12 +2226,16 @@ export async function runU21(ctx: UatContext): Promise<JourneyResult> {
   const runId = stringId(created.body, ['id']);
 
   // OBS-04-mitigated profile: single serial execute with a 25s client bound.
-  const executed = await httpCallWithTimeout(ctx.baseUrl, {
-    method: 'POST',
-    path: `${base}/runs/${runId}/execute`,
-    token,
-    idempotencyKey: `uat21-execute-${randomSuffix()}`,
-  }, 25_000);
+  const executed = await httpCallWithTimeout(
+    ctx.baseUrl,
+    {
+      method: 'POST',
+      path: `${base}/runs/${runId}/execute`,
+      token,
+      idempotencyKey: `uat21-execute-${randomSuffix()}`,
+    },
+    25_000,
+  );
   assertStatus(result, 'U-21 run-execute returns 200', executed, OK);
   recordAssertion(
     result,
@@ -1907,11 +2256,23 @@ export async function runU21(ctx: UatContext): Promise<JourneyResult> {
     `U-21: run COMPLETED with ${mismatchCount} mismatch(es) = the fixture opening-balance drift class (un-ledgered balance), detected OPEN and never auto-corrected — cross-checked in U-36. No transaction-path drift is expected.`,
   );
 
-  const runs = await httpCall(ctx.baseUrl, { method: 'GET', path: `${base}/runs`, token });
+  const runs = await httpCall(ctx.baseUrl, {
+    method: 'GET',
+    path: `${base}/runs`,
+    token,
+  });
   assertStatus(result, 'U-21 run list returns 200', runs, OK);
-  const detail = await httpCall(ctx.baseUrl, { method: 'GET', path: `${base}/runs/${runId}`, token });
+  const detail = await httpCall(ctx.baseUrl, {
+    method: 'GET',
+    path: `${base}/runs/${runId}`,
+    token,
+  });
   assertStatus(result, 'U-21 run detail returns 200', detail, OK);
-  const exceptions = await httpCall(ctx.baseUrl, { method: 'GET', path: `${base}/exceptions`, token });
+  const exceptions = await httpCall(ctx.baseUrl, {
+    method: 'GET',
+    path: `${base}/exceptions`,
+    token,
+  });
   assertStatus(result, 'U-21 exception queue returns 200', exceptions, OK);
 
   return finishUatResult(result);
@@ -1927,8 +2288,17 @@ export async function runU22(ctx: UatContext): Promise<JourneyResult> {
   const base = `/api/v1/admin/risk-controls/markets/${world.marketId}`;
   const token = world.superAdmin.token;
 
-  const definitions = await httpCall(ctx.baseUrl, { method: 'GET', path: `${base}/definitions`, token });
-  assertStatus(result, 'U-22 risk definitions list returns 200', definitions, OK);
+  const definitions = await httpCall(ctx.baseUrl, {
+    method: 'GET',
+    path: `${base}/definitions`,
+    token,
+  });
+  assertStatus(
+    result,
+    'U-22 risk definitions list returns 200',
+    definitions,
+    OK,
+  );
 
   const definition = await httpCall(ctx.baseUrl, {
     method: 'POST',
@@ -1948,7 +2318,12 @@ export async function runU22(ctx: UatContext): Promise<JourneyResult> {
       reason: 'UAT U-22 fixture.',
     },
   });
-  assertStatus(result, 'U-22 definition create returns 201', definition, CREATED);
+  assertStatus(
+    result,
+    'U-22 definition create returns 201',
+    definition,
+    CREATED,
+  );
 
   const windowStart = '2026-01-01T00:00:00.000Z';
   const windowEnd = '2031-01-01T00:00:00.000Z';
@@ -1957,7 +2332,12 @@ export async function runU22(ctx: UatContext): Promise<JourneyResult> {
     path: `${base}/runs`,
     token,
     idempotencyKey: `uat22-run-${randomSuffix()}`,
-    body: { category: 'SUSPICIOUS_TRANSACTION', windowStart, windowEnd, reason: 'UAT U-22 run.' },
+    body: {
+      category: 'SUSPICIOUS_TRANSACTION',
+      windowStart,
+      windowEnd,
+      reason: 'UAT U-22 run.',
+    },
   });
   assertStatus(result, 'U-22 risk run create returns 201', run, CREATED);
   const runId = stringId(run.body, ['id']);
@@ -1976,9 +2356,14 @@ export async function runU22(ctx: UatContext): Promise<JourneyResult> {
   });
   assertStatus(result, 'U-22 risk events list returns 200', events, OK);
 
-  const queue = await httpCall(ctx.baseUrl, { method: 'GET', path: `${base}/queue`, token });
+  const queue = await httpCall(ctx.baseUrl, {
+    method: 'GET',
+    path: `${base}/queue`,
+    token,
+  });
   assertStatus(result, 'U-22 risk queue returns 200', queue, OK);
-  const queueItems = (queue.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
+  const queueItems =
+    (queue.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
   const taskId = stringId(queueItems[0] ?? {}, ['id']);
   if (taskId) {
     const assigned = await httpCall(ctx.baseUrl, {
@@ -1994,7 +2379,12 @@ export async function runU22(ctx: UatContext): Promise<JourneyResult> {
       path: `${base}/queue/${taskId}/decide`,
       token,
       idempotencyKey: `uat22-decide-${randomSuffix()}`,
-      body: { expectedVersion: 2, decision: 'WATCH', decisionReason: 'Monitor.', reason: 'Decision recorded.' },
+      body: {
+        expectedVersion: 2,
+        decision: 'WATCH',
+        decisionReason: 'Monitor.',
+        reason: 'Decision recorded.',
+      },
     });
     assertStatus(result, 'U-22 queue decide returns 200', decided, OK);
     const resolved = await httpCall(ctx.baseUrl, {
@@ -2012,7 +2402,12 @@ export async function runU22(ctx: UatContext): Promise<JourneyResult> {
       JSON.stringify(resolved.body),
     );
   } else {
-    recordAssertion(result, 'U-22 queue review lifecycle exercised', false, 'no queued task on clean data');
+    recordAssertion(
+      result,
+      'U-22 queue review lifecycle exercised',
+      false,
+      'no queued task on clean data',
+    );
   }
 
   // No enforcement side-effects: flagging/review never freezes the member.

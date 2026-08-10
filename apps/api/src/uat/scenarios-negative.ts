@@ -82,11 +82,16 @@ export async function runU23(ctx: UatContext): Promise<JourneyResult> {
     token: world.member.token,
   });
   assertStatus(result, 'U-23 member discovery list returns 200', list, OK);
-  const items = (list.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
+  const items =
+    (list.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
   recordAssertion(
     result,
     'U-23 zero cross-market fallback: foreign merchant absent from M1 list',
-    !items.some((item) => item['id'] === foreignMerchant.branchId || item['branchId'] === foreignMerchant.branchId),
+    !items.some(
+      (item) =>
+        item['id'] === foreignMerchant.branchId ||
+        item['branchId'] === foreignMerchant.branchId,
+    ),
     `M1 items=${items.length}`,
   );
 
@@ -136,14 +141,20 @@ export async function runU23(ctx: UatContext): Promise<JourneyResult> {
         $1, $2, $3, 'UAT foreign item', 'PHYSICAL', 'PLATFORM_OWNED', 'ACTIVE',
         '100.0000000000', 'SGD', 'PICKUP', 'TRACKED', $4, 1
        )`,
-    [foreignItemId, foreignMarketId, `UATFOREIGN-${randomSuffix()}`, world.superAdmin.adminUserId],
+    [
+      foreignItemId,
+      foreignMarketId,
+      `UATFOREIGN-${randomSuffix()}`,
+      world.superAdmin.adminUserId,
+    ],
   );
   const catalog = await httpCall(ctx.baseUrl, {
     method: 'GET',
     path: '/api/v1/redemption/catalog',
     token: world.merchant.memberToken,
   });
-  const catalogItems = (catalog.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
+  const catalogItems =
+    (catalog.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
   recordAssertion(
     result,
     'U-23 foreign redemption item absent from M1 catalog (zero fallback)',
@@ -169,7 +180,11 @@ export async function runU24(ctx: UatContext): Promise<JourneyResult> {
     path: `/api/v1/admin/package-ops/markets/${world.marketId}/special-percentages`,
     token: support.token,
     idempotencyKey: `uat24-support-${randomSuffix()}`,
-    body: { rate: '12', description: 'Support attempt', reason: 'Should be denied.' },
+    body: {
+      rate: '12',
+      description: 'Support attempt',
+      reason: 'Should be denied.',
+    },
   });
   recordAssertion(
     result,
@@ -225,8 +240,11 @@ export async function runU24(ctx: UatContext): Promise<JourneyResult> {
 // ---------------------------------------------------------------------------
 
 export async function runU25(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-25', 'duplicate/replay (idempotency-key reuse)');
-  const world = ctx.world;
+  const result = newUatResult(
+    ctx,
+    'U-25',
+    'duplicate/replay (idempotency-key reuse)',
+  );
 
   // Preview one-key replay (2 concurrent) -> single preview session.
   const key = `uat25-preview-${randomSuffix()}`;
@@ -263,7 +281,8 @@ export async function runU25(ctx: UatContext): Promise<JourneyResult> {
     'U-25 confirm replay (same key) returns the single chain result',
     first.status === 201 &&
       replay.status === 201 &&
-      stringId(first.body, ['transactionNumber']) === stringId(replay.body, ['transactionNumber']),
+      stringId(first.body, ['transactionNumber']) ===
+        stringId(replay.body, ['transactionNumber']),
     `first=${first.status} replay=${replay.status}`,
   );
   const dupWalletKeys = await ctx.pool.query<{ count: string }>(
@@ -326,7 +345,12 @@ export async function runU26(ctx: UatContext): Promise<JourneyResult> {
       transactionNote: '',
     },
   });
-  assertStatus(result, 'U-26 preview with zero MCP still returns 201 (no debit yet)', poorPreview, CREATED);
+  assertStatus(
+    result,
+    'U-26 preview with zero MCP still returns 201 (no debit yet)',
+    poorPreview,
+    CREATED,
+  );
   const poorPreviewId = stringId(poorPreview.body, ['previewSessionId']);
   // The public previewSessionId is an opaque reference; resolve the internal
   // preview uuid for DB assertions (P4-S7/S6 method).
@@ -338,7 +362,8 @@ export async function runU26(ctx: UatContext): Promise<JourneyResult> {
       LIMIT 1`,
     [poorPreviewId],
   );
-  const poorPreviewInternalId = resolvedPreview.rows[0]?.previewSessionId ?? poorPreviewId;
+  const poorPreviewInternalId =
+    resolvedPreview.rows[0]?.previewSessionId ?? poorPreviewId;
   const poorConfirm = await httpCall(ctx.baseUrl, {
     method: 'POST',
     path: `/api/v1/merchant/transactions/${poorPreviewId}/confirm`,
@@ -354,7 +379,11 @@ export async function runU26(ctx: UatContext): Promise<JourneyResult> {
       errorCode(poorConfirm.body) === 'TRANSACTION_INSUFFICIENT_MCP',
     `status ${poorConfirm.status} code=${errorCode(poorConfirm.body) ?? 'n/a'}`,
   );
-  const partialRows = await ctx.pool.query<{ tx: string; debits: string; entries: string }>(
+  const partialRows = await ctx.pool.query<{
+    tx: string;
+    debits: string;
+    entries: string;
+  }>(
     `SELECT
        (SELECT count(*) FROM transactions WHERE preview_session_id = $1)::text AS tx,
        (SELECT count(*) FROM transaction_mcp_debits debit
@@ -391,7 +420,10 @@ export async function runU26(ctx: UatContext): Promise<JourneyResult> {
     path: `/api/v1/redemption/catalog/${fixture.itemId}/quote?quantity=1`,
     token: world.merchant.memberToken,
   });
-  const quoteBody = quote.body as { quoteId?: string; postedPointCost?: string };
+  const quoteBody = quote.body as {
+    quoteId?: string;
+    postedPointCost?: string;
+  };
   await ctx.pool.query(
     `UPDATE member_wallet_accounts SET available_balance = '1'
       WHERE member_id = $1 AND market_id = $2`,
@@ -412,7 +444,10 @@ export async function runU26(ctx: UatContext): Promise<JourneyResult> {
       expectedItemVersion: 1,
       expectedTotalPoints: quoteBody.postedPointCost,
       expectedQuantity: '1',
-      fulfilment: { type: 'PICKUP', pickupLocationId: fixture.pickupLocationId },
+      fulfilment: {
+        type: 'PICKUP',
+        pickupLocationId: fixture.pickupLocationId,
+      },
       termsAcceptance: { accepted: true, termsVersion: 'v1' },
     },
   });
@@ -501,7 +536,10 @@ export async function runU27(ctx: UatContext): Promise<JourneyResult> {
     path: `/api/v1/redemption/catalog/${fixture.itemId}/quote?quantity=1`,
     token: world.merchant.memberToken,
   });
-  const quoteBody = quote.body as { quoteId?: string; postedPointCost?: string };
+  const quoteBody = quote.body as {
+    quoteId?: string;
+    postedPointCost?: string;
+  };
   const expiredQuote = await ctx.pool.query<{ id: string }>(
     `INSERT INTO redemption_quotes (
         id, member_id, market_id, catalog_item_id, status, rate_version_id,
@@ -528,14 +566,18 @@ export async function runU27(ctx: UatContext): Promise<JourneyResult> {
       expectedItemVersion: 1,
       expectedTotalPoints: quoteBody.postedPointCost,
       expectedQuantity: '1',
-      fulfilment: { type: 'PICKUP', pickupLocationId: fixture.pickupLocationId },
+      fulfilment: {
+        type: 'PICKUP',
+        pickupLocationId: fixture.pickupLocationId,
+      },
       termsAcceptance: { accepted: true, termsVersion: 'v1' },
     },
   });
   recordAssertion(
     result,
     'U-27 expired quote rejected with REDEMPTION_QUOTE_EXPIRED (no consumption)',
-    expiredOrder.status === 409 && errorCode(expiredOrder.body) === 'REDEMPTION_QUOTE_EXPIRED',
+    expiredOrder.status === 409 &&
+      errorCode(expiredOrder.body) === 'REDEMPTION_QUOTE_EXPIRED',
     `status ${expiredOrder.status} code=${errorCode(expiredOrder.body) ?? 'n/a'}`,
   );
 
@@ -566,15 +608,24 @@ export async function runU27(ctx: UatContext): Promise<JourneyResult> {
 // ---------------------------------------------------------------------------
 
 export async function runU28(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-28', 'suspension (member/merchant/account)');
+  const result = newUatResult(
+    ctx,
+    'U-28',
+    'suspension (member/merchant/account)',
+  );
   const world = ctx.world;
 
   // (a) Suspended member cannot log in (member-level suspension -> the
   //     frozen AUTH_MEMBER_INACTIVE 403 contract).
-  const suspendedMember = await createMember(ctx.database, ctx.auth, world.marketId);
-  await ctx.pool.query(`UPDATE members SET status = 'SUSPENDED' WHERE id = $1`, [
-    suspendedMember.memberId,
-  ]);
+  const suspendedMember = await createMember(
+    ctx.database,
+    ctx.auth,
+    world.marketId,
+  );
+  await ctx.pool.query(
+    `UPDATE members SET status = 'SUSPENDED' WHERE id = $1`,
+    [suspendedMember.memberId],
+  );
   const login = await httpCall(ctx.baseUrl, {
     method: 'POST',
     path: '/api/v1/auth/member/login',
@@ -594,9 +645,10 @@ export async function runU28(ctx: UatContext): Promise<JourneyResult> {
     world.marketId,
     world.superAdmin.adminUserId,
   );
-  await ctx.pool.query(`UPDATE merchant_branches SET status = 'SUSPENDED' WHERE id = $1`, [
-    suspendedMerchant.branchId,
-  ]);
+  await ctx.pool.query(
+    `UPDATE merchant_branches SET status = 'SUSPENDED' WHERE id = $1`,
+    [suspendedMerchant.branchId],
+  );
   const preview = await httpCall(ctx.baseUrl, {
     method: 'POST',
     path: '/api/v1/merchant/transactions/preview',
@@ -640,8 +692,11 @@ export async function runU28(ctx: UatContext): Promise<JourneyResult> {
 // ---------------------------------------------------------------------------
 
 export async function runU29(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-29', 'retry (bounded retries, retry-safe)');
-  const world = ctx.world;
+  const result = newUatResult(
+    ctx,
+    'U-29',
+    'retry (bounded retries, retry-safe)',
+  );
 
   // Sequential same-key confirm retry: both calls succeed, one chain.
   const preview = await previewTransaction(ctx);
@@ -661,7 +716,8 @@ export async function runU29(ctx: UatContext): Promise<JourneyResult> {
     'U-29 same-key confirm retry is retry-safe (single chain result)',
     first.status === 201 &&
       second.status === 201 &&
-      stringId(first.body, ['transactionNumber']) === stringId(second.body, ['transactionNumber']),
+      stringId(first.body, ['transactionNumber']) ===
+        stringId(second.body, ['transactionNumber']),
     `first=${first.status} second=${second.status}`,
   );
 
@@ -700,7 +756,11 @@ export async function runU29(ctx: UatContext): Promise<JourneyResult> {
 // ---------------------------------------------------------------------------
 
 export async function runU30(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-30', 'worker failure (outbox, daily jobs)');
+  const result = newUatResult(
+    ctx,
+    'U-30',
+    'worker failure (outbox, daily jobs)',
+  );
   const world = ctx.world;
 
   // Two confirmed transactions -> dispatch rows exist. The outbox worker
@@ -781,9 +841,17 @@ export async function runU30(ctx: UatContext): Promise<JourneyResult> {
     idempotencyKey: `uat30-reversal-${randomSuffix()}`,
     body: { reasonCode: 'CUSTOMER_REQUEST' },
   });
-  assertStatus(result, 'U-30 reversal-request for the OBS-03 probe returns 201', reversal, CREATED);
+  assertStatus(
+    result,
+    'U-30 reversal-request for the OBS-03 probe returns 201',
+    reversal,
+    CREATED,
+  );
   await ctx.outboxWorker.processBatchOnce();
-  const reversedRows = await ctx.pool.query<{ count: string; attempts: string }>(
+  const reversedRows = await ctx.pool.query<{
+    count: string;
+    attempts: string;
+  }>(
     `SELECT count(*)::text AS count, max(attempts)::text AS attempts
        FROM transaction_commission_dispatch
       WHERE transaction_id = (
@@ -794,7 +862,8 @@ export async function runU30(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-30 reversed-before-drain stays bounded (OBS-03 expected, no runaway retries)',
-    Number(reversedRows.rows[0]?.attempts ?? 0) <= Number(process.env['OUTBOX_MAX_ATTEMPTS'] ?? 10),
+    Number(reversedRows.rows[0]?.attempts ?? 0) <=
+      Number(process.env['OUTBOX_MAX_ATTEMPTS'] ?? 10),
     JSON.stringify(reversedRows.rows[0]),
   );
 
@@ -806,17 +875,31 @@ export async function runU30(ctx: UatContext): Promise<JourneyResult> {
 // ---------------------------------------------------------------------------
 
 export async function runU31(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-31', 'network/API failure (downstream unavailable)');
+  const result = newUatResult(
+    ctx,
+    'U-31',
+    'network/API failure (downstream unavailable)',
+  );
 
   // (a) Redis unavailable: health/ready degrades, API still serves.
-  const deadRedis = await bootDegradedApp({ REDIS_URL: 'redis://127.0.0.1:6399' });
+  const deadRedis = await bootDegradedApp({
+    REDIS_URL: 'redis://127.0.0.1:6399',
+  });
   try {
     const ready = await httpCall(deadRedis.baseUrl, {
       method: 'GET',
       path: '/health/ready',
     });
-    const readyBody = ready.body as { status?: string; checks?: Record<string, string> };
-    assertStatus(result, 'U-31 dead-Redis /health/ready still returns 200', ready, OK);
+    const readyBody = ready.body as {
+      status?: string;
+      checks?: Record<string, string>;
+    };
+    assertStatus(
+      result,
+      'U-31 dead-Redis /health/ready still returns 200',
+      ready,
+      OK,
+    );
     recordAssertion(
       result,
       'U-31 dead-Redis readiness reports degraded + redis unavailable (graceful)',
@@ -826,7 +909,11 @@ export async function runU31(ctx: UatContext): Promise<JourneyResult> {
       JSON.stringify(readyBody),
     );
     // API surface still functional (in-memory limiter fallback).
-    const member = await createMember(ctx.database, ctx.auth, ctx.world.marketId);
+    const member = await createMember(
+      ctx.database,
+      ctx.auth,
+      ctx.world.marketId,
+    );
     const login = await httpCall(deadRedis.baseUrl, {
       method: 'POST',
       path: '/api/v1/auth/member/login',
@@ -840,24 +927,36 @@ export async function runU31(ctx: UatContext): Promise<JourneyResult> {
     );
   } finally {
     await deadRedis.app.close();
-    await new Promise<void>((resolve) => deadRedis.server.close(() => resolve()));
+    await new Promise<void>((resolve) =>
+      deadRedis.server.close(() => resolve()),
+    );
   }
 
   // (b) Database unavailable: health/ready reports database unavailable.
   const deadDb = await bootDegradedApp({
-    DATABASE_URL: 'postgresql://ipoint:ipoint-local-only@127.0.0.1:55999/ipoint_p8s8_dead',
+    DATABASE_URL:
+      'postgresql://ipoint:ipoint-local-only@127.0.0.1:55999/ipoint_p8s8_dead',
   });
   try {
     const ready = await httpCall(deadDb.baseUrl, {
       method: 'GET',
       path: '/health/ready',
     });
-    const readyBody = ready.body as { status?: string; checks?: Record<string, string> };
-    assertStatus(result, 'U-31 dead-DB /health/ready still returns 200', ready, OK);
+    const readyBody = ready.body as {
+      status?: string;
+      checks?: Record<string, string>;
+    };
+    assertStatus(
+      result,
+      'U-31 dead-DB /health/ready still returns 200',
+      ready,
+      OK,
+    );
     recordAssertion(
       result,
       'U-31 dead-DB readiness reports degraded + database unavailable',
-      readyBody.status === 'degraded' && readyBody.checks?.['database'] === 'unavailable',
+      readyBody.status === 'degraded' &&
+        readyBody.checks?.['database'] === 'unavailable',
       JSON.stringify(readyBody),
     );
   } finally {
@@ -879,13 +978,27 @@ export async function runU31(ctx: UatContext): Promise<JourneyResult> {
 // ---------------------------------------------------------------------------
 
 export async function runU32(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-32', 'concurrency (double decision, storm race)');
+  const result = newUatResult(
+    ctx,
+    'U-32',
+    'concurrency (double decision, storm race)',
+  );
   const world = ctx.world;
   await seedIpointAdjustFixtures(ctx);
 
   // (a) iPoint double-decision (2-way) -> exactly one accepted transition.
-  const maker = await createAdmin(ctx.database, ctx.auth, [world.marketId], 'SUPER_ADMIN');
-  const checker = await createAdmin(ctx.database, ctx.auth, [world.marketId], 'SUPER_ADMIN');
+  const maker = await createAdmin(
+    ctx.database,
+    ctx.auth,
+    [world.marketId],
+    'SUPER_ADMIN',
+  );
+  const checker = await createAdmin(
+    ctx.database,
+    ctx.auth,
+    [world.marketId],
+    'SUPER_ADMIN',
+  );
   await seedMfaFactor(ctx, maker);
   await seedMfaFactor(ctx, checker);
   await selectMarketFor(ctx, maker.accountId, world.marketId);
@@ -908,10 +1021,24 @@ export async function runU32(ctx: UatContext): Promise<JourneyResult> {
     },
   });
   const requestId = stringId(created.body, ['id']);
-  await httpCall(ctx.baseUrl, { method: 'POST', path: `${base}/${requestId}/submit`, token: maker.token });
+  await httpCall(ctx.baseUrl, {
+    method: 'POST',
+    path: `${base}/${requestId}/submit`,
+    token: maker.token,
+  });
   const [grantA, grantB] = await Promise.all([
-    seedStepUpGrant(ctx, checker, 'wallet.ipoint.adjust.checker', world.marketId),
-    seedStepUpGrant(ctx, checker, 'wallet.ipoint.adjust.checker', world.marketId),
+    seedStepUpGrant(
+      ctx,
+      checker,
+      'wallet.ipoint.adjust.checker',
+      world.marketId,
+    ),
+    seedStepUpGrant(
+      ctx,
+      checker,
+      'wallet.ipoint.adjust.checker',
+      world.marketId,
+    ),
   ]);
   const [decisionA, decisionB] = await Promise.all([
     httpCall(ctx.baseUrl, {
@@ -936,7 +1063,8 @@ export async function runU32(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-32 iPoint double-decision -> exactly one accepted transition',
-    finalState.rows[0]?.state === 'APPROVED' && decisionA.status !== decisionB.status,
+    finalState.rows[0]?.state === 'APPROVED' &&
+      decisionA.status !== decisionB.status,
     `statuses ${decisionA.status},${decisionB.status}; final=${finalState.rows[0]?.state}`,
   );
 
@@ -968,7 +1096,9 @@ export async function runU32(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-32 concurrent same-key reversals -> exactly one request row',
-    revA.status === 201 && revB.status === 201 && Number(reversalRows.rows[0]?.count ?? 0) === 1,
+    revA.status === 201 &&
+      revB.status === 201 &&
+      Number(reversalRows.rows[0]?.count ?? 0) === 1,
     `statuses ${revA.status},${revB.status}; rows=${reversalRows.rows[0]?.count}`,
   );
 
@@ -979,7 +1109,10 @@ export async function runU32(ctx: UatContext): Promise<JourneyResult> {
     path: `/api/v1/redemption/catalog/${fixture.itemId}/quote?quantity=1`,
     token: world.merchant.memberToken,
   });
-  const quoteBody = quote.body as { quoteId?: string; postedPointCost?: string };
+  const quoteBody = quote.body as {
+    quoteId?: string;
+    postedPointCost?: string;
+  };
   const orderPayload = (key: string) => ({
     quoteId: quoteBody.quoteId,
     idempotencyKey: key,
@@ -1007,7 +1140,7 @@ export async function runU32(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-32 quote race -> one 201 + one bounded 409 (OBS-01 expected, no 5xx)',
-    (statuses === '201,409') && raceA.status !== 500 && raceB.status !== 500,
+    statuses === '201,409' && raceA.status !== 500 && raceB.status !== 500,
     `statuses ${statuses}`,
   );
 
@@ -1022,7 +1155,11 @@ export async function runU32(ctx: UatContext): Promise<JourneyResult> {
 // ---------------------------------------------------------------------------
 
 export async function runU33(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-33', 'stale/unavailable (freshness semantics)');
+  const result = newUatResult(
+    ctx,
+    'U-33',
+    'stale/unavailable (freshness semantics)',
+  );
   const world = ctx.world;
   const base = `/api/v1/admin/report-ops/markets/${world.marketId}/reports`;
   const token = world.superAdmin.token;
@@ -1105,7 +1242,12 @@ export async function runU34(ctx: UatContext): Promise<JourneyResult> {
     path: `${base}/queues/FULFILMENT_EXCEPTION`,
     token,
   });
-  assertStatus(result, 'U-34 FULFILMENT_EXCEPTION queue returns 200', exceptionQueue, OK);
+  assertStatus(
+    result,
+    'U-34 FULFILMENT_EXCEPTION queue returns 200',
+    exceptionQueue,
+    OK,
+  );
 
   // Retry is bounded and audited.
   const retry = await httpCall(ctx.baseUrl, {
@@ -1136,7 +1278,11 @@ export async function runU34(ctx: UatContext): Promise<JourneyResult> {
 // ---------------------------------------------------------------------------
 
 export async function runU35(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-35', 'refund retry (duplicate refund request)');
+  const result = newUatResult(
+    ctx,
+    'U-35',
+    'refund retry (duplicate refund request)',
+  );
   const world = ctx.world;
 
   const { transactionNumber } = await confirmFreshTransaction(ctx);
@@ -1158,7 +1304,12 @@ export async function runU35(ctx: UatContext): Promise<JourneyResult> {
     idempotencyKey: key,
     body: { reasonCode: 'CUSTOMER_REQUEST' },
   });
-  assertStatus(result, 'U-35 refund retry (same key) returns 201', replay, CREATED);
+  assertStatus(
+    result,
+    'U-35 refund retry (same key) returns 201',
+    replay,
+    CREATED,
+  );
   recordAssertion(
     result,
     'U-35 refund retry returns the original request (claim-first, exactly-once)',
@@ -1187,7 +1338,11 @@ export async function runU35(ctx: UatContext): Promise<JourneyResult> {
 // ---------------------------------------------------------------------------
 
 export async function runU36(ctx: UatContext): Promise<JourneyResult> {
-  const result = newUatResult(ctx, 'U-36', 'reconciliation mismatch (difference detection)');
+  const result = newUatResult(
+    ctx,
+    'U-36',
+    'reconciliation mismatch (difference detection)',
+  );
   const world = ctx.world;
   const base = `/api/v1/admin/reconciliation/markets/${world.marketId}`;
   const token = world.superAdmin.token;
@@ -1235,12 +1390,16 @@ export async function runU36(ctx: UatContext): Promise<JourneyResult> {
   const runId = stringId(run.body, ['id']);
 
   // OBS-04-mitigated profile: single serial execute with a 25s client bound.
-  const executed = await httpCallWithTimeout(ctx.baseUrl, {
-    method: 'POST',
-    path: `${base}/runs/${runId}/execute`,
-    token,
-    idempotencyKey: `uat36-execute-${randomSuffix()}`,
-  }, 25_000);
+  const executed = await httpCallWithTimeout(
+    ctx.baseUrl,
+    {
+      method: 'POST',
+      path: `${base}/runs/${runId}/execute`,
+      token,
+      idempotencyKey: `uat36-execute-${randomSuffix()}`,
+    },
+    25_000,
+  );
   assertStatus(result, 'U-36 run-execute returns 200', executed, OK);
   // Other fixture MCP accounts (un-ledgered opening balances from the S6
   // world builder) are flagged by the same engine invariant; the seeded
@@ -1248,13 +1407,21 @@ export async function runU36(ctx: UatContext): Promise<JourneyResult> {
   recordAssertion(
     result,
     'U-36 seeded mismatch is detected (mismatched_count >= 1)',
-    Number((executed.body as { mismatched_count?: number })?.mismatched_count ?? 0) >= 1,
+    Number(
+      (executed.body as { mismatched_count?: number })?.mismatched_count ?? 0,
+    ) >= 1,
     JSON.stringify(executed.body).slice(0, 400),
   );
 
-  const exceptions = await httpCall(ctx.baseUrl, { method: 'GET', path: `${base}/exceptions`, token });
+  const exceptions = await httpCall(ctx.baseUrl, {
+    method: 'GET',
+    path: `${base}/exceptions`,
+    token,
+  });
   assertStatus(result, 'U-36 exception queue returns 200', exceptions, OK);
-  const items = (exceptions.body as { items?: Array<Record<string, unknown>> })?.items ?? [];
+  const items =
+    (exceptions.body as { items?: Array<Record<string, unknown>> })?.items ??
+    [];
   const mismatch = items.find(
     (item) =>
       item['reference_type'] === 'mcp_account_total' &&

@@ -124,8 +124,7 @@ export function confirmTransaction(
     method: 'POST',
     path: `/api/v1/merchant/transactions/${previewSessionId}/confirm`,
     token: ctx.world.merchant.merchantToken,
-    idempotencyKey:
-      options.idempotencyKey ?? `confirm-${randomSuffix()}`,
+    idempotencyKey: options.idempotencyKey ?? `confirm-${randomSuffix()}`,
     headers: { 'x-market-id': ctx.world.merchant.marketId },
     body: {
       merchantReceiptNumber:
@@ -191,7 +190,9 @@ export async function confirmationState(
     [previewSessionId],
   );
   const row = rows.rows[0] ?? {};
-  const out: Record<string, number | string> = { previewStatus: row['previewStatus'] ?? '' };
+  const out: Record<string, number | string> = {
+    previewStatus: row['previewStatus'] ?? '',
+  };
   for (const key of [
     'transactions',
     'fees',

@@ -58,10 +58,18 @@ export async function runUatScenario(
 }
 
 export const UAT_SCENARIOS: readonly UatScenarioDefinition[] = [
-  { id: 'U-01', name: 'member registration/login (+ OTP, MFA, session reuse)', run: runU01 },
+  {
+    id: 'U-01',
+    name: 'member registration/login (+ OTP, MFA, session reuse)',
+    run: runU01,
+  },
   { id: 'U-02', name: 'market switching', run: runU02 },
   { id: 'U-03', name: 'merchant discovery', run: runU03 },
-  { id: 'U-04', name: 'merchant transaction (preview/confirm/receipt/history)', run: runU04 },
+  {
+    id: 'U-04',
+    name: 'merchant transaction (preview/confirm/receipt/history)',
+    run: runU04,
+  },
   { id: 'U-05', name: 'MCP (merchant cash pool)', run: runU05 },
   { id: 'U-06', name: 'iPoint earning', run: runU06 },
   { id: 'U-07', name: 'wallet', run: runU07 },
@@ -70,7 +78,11 @@ export const UAT_SCENARIOS: readonly UatScenarioDefinition[] = [
   { id: 'U-10', name: 'special percentage', run: runU10 },
   { id: 'U-11', name: 'reward rules', run: runU11 },
   { id: 'U-12', name: 'redemption (catalog/quote/order/voucher)', run: runU12 },
-  { id: 'U-13', name: 'fulfilment (pickup/suspend/exception/retry)', run: runU13 },
+  {
+    id: 'U-13',
+    name: 'fulfilment (pickup/suspend/exception/retry)',
+    run: runU13,
+  },
   { id: 'U-14', name: 'refund (reversal/refund)', run: runU14 },
   { id: 'U-15', name: 'manual MCP Maker/Checker', run: runU15 },
   { id: 'U-16', name: 'manual iPoint Maker/Checker', run: runU16 },
@@ -88,10 +100,22 @@ export const UAT_SCENARIOS: readonly UatScenarioDefinition[] = [
   { id: 'U-28', name: 'suspension (member/merchant/account)', run: runU28 },
   { id: 'U-29', name: 'retry (bounded retries, retry-safe)', run: runU29 },
   { id: 'U-30', name: 'worker failure (outbox, daily jobs)', run: runU30 },
-  { id: 'U-31', name: 'network/API failure (downstream unavailable)', run: runU31 },
-  { id: 'U-32', name: 'concurrency (double decision, storm race)', run: runU32 },
+  {
+    id: 'U-31',
+    name: 'network/API failure (downstream unavailable)',
+    run: runU31,
+  },
+  {
+    id: 'U-32',
+    name: 'concurrency (double decision, storm race)',
+    run: runU32,
+  },
   { id: 'U-33', name: 'stale/unavailable (freshness semantics)', run: runU33 },
   { id: 'U-34', name: 'failed fulfilment', run: runU34 },
   { id: 'U-35', name: 'refund retry (duplicate refund request)', run: runU35 },
-  { id: 'U-36', name: 'reconciliation mismatch (difference detection)', run: runU36 },
+  {
+    id: 'U-36',
+    name: 'reconciliation mismatch (difference detection)',
+    run: runU36,
+  },
 ];
