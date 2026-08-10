@@ -1,8 +1,6 @@
 import {
   Controller,
   Get,
-  Post,
-  Body,
   Param,
   Query,
   UseGuards,
@@ -23,11 +21,8 @@ import { CurrentActor } from '../auth/current-actor.decorator.js';
 import type { RequestActor } from '../auth/auth.types.js';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe.js';
 import { DatabaseService } from '../database/database.service.js';
-import {
-  createLedgerEntrySchema,
-  paginationQuerySchema,
-} from './wallet.dto.js';
-import type { CreateLedgerEntryDto, PaginationQueryDto } from './wallet.dto.js';
+import { paginationQuerySchema } from './wallet.dto.js';
+import type { PaginationQueryDto } from './wallet.dto.js';
 import { WalletService } from './wallet.service.js';
 import { WalletError } from './wallet.types.js';
 import type {
@@ -103,33 +98,6 @@ export class WalletController {
     try {
       const memberId = await this.resolveMemberId(actor.accountId);
       return await this.walletService.getWallet(id, memberId);
-    } catch (e) {
-      if (e instanceof WalletError) {
-        throw new BadRequestException({ code: e.code, message: e.message });
-      }
-      throw e;
-    }
-  }
-
-  @Post()
-  @ApiOperation({
-    summary: 'Create ledger entry',
-    description:
-      'Creates an immutable ledger entry. This is the ONLY way to change a wallet balance. Idempotent via idempotencyKey.',
-  })
-  @ApiResponse({ status: 201, description: 'Ledger entry created.' })
-  @ApiResponse({ status: 400, description: 'Validation error.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  async createLedgerEntry(
-    @CurrentActor() actor: RequestActor,
-    @Body(new ZodValidationPipe(createLedgerEntrySchema))
-    body: CreateLedgerEntryDto,
-  ): Promise<WalletEntryResponse> {
-    try {
-      return await this.walletService.createLedgerEntry({
-        ...body,
-        actorId: body.actorId ?? actor.accountId,
-      });
     } catch (e) {
       if (e instanceof WalletError) {
         throw new BadRequestException({ code: e.code, message: e.message });

@@ -30,8 +30,4 @@ describe('Wallet HTTP Integration', () => {
   it.skip('GET /wallets/:id/entries returns paginated entries', async () => {
     expect(true).toBe(true); // Placeholder
   });
-
-  it.skip('POST /wallets creates ledger entry (idempotent)', async () => {
-    expect(true).toBe(true); // Placeholder
-  });
 });

@@ -196,7 +196,7 @@ describe('WalletService', () => {
   });
 
   describe('createLedgerEntry', () => {
-    it('validates amount > 0', async () => {
+    it('is disabled (tripwire) - rejects any call with LEDGER_ENTRY_CREATE_DISABLED', async () => {
       const db = createMockDb();
       const svc = makeService(db);
 
@@ -204,108 +204,43 @@ describe('WalletService', () => {
         svc.createLedgerEntry({
           memberId,
           marketId,
-          entryType: 'PENDING',
-          amount: '0',
-          idempotencyKey: 'ik-test-zero',
+          entryType: 'AVAILABLE',
+          amount: '1000000.0000000000',
+          idempotencyKey: 'ik-tripwire-1',
         }),
       ).rejects.toThrow(WalletError);
+      await expect(
+        svc.createLedgerEntry({
+          memberId,
+          marketId,
+          entryType: 'AVAILABLE',
+          amount: '1000000.0000000000',
+          idempotencyKey: 'ik-tripwire-1',
+        }),
+      ).rejects.toMatchObject({ code: 'LEDGER_ENTRY_CREATE_DISABLED' });
     });
 
-    it('creates a pending entry successfully', async () => {
+    it('is disabled regardless of entry type or amount (no uncontrolled credit path)', async () => {
       const db = createMockDb();
-      // Mock duplicate check: no existing entry
-      db.limit.mockResolvedValueOnce([]); // idempotency key check
-      // Mock wallet lookup (existing wallet)
-      db.limit.mockResolvedValueOnce([sampleWalletRow]); // wallet select+for update
-      // Mock max sequence
-      const maxSeqChain = {
-        select: vi.fn().mockReturnThis(),
-        from: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis(),
-        then: vi.fn((cb: any) => Promise.resolve(cb([{ maxSeq: 0n }]))),
-      };
-      // Mock wallet insert returning (wallet doesn't exist yet — select chain returns [])
-      db.returning.mockResolvedValueOnce([
-        { ...sampleWalletRow, pendingBalance: '0', version: 1 },
-      ]);
-      // Mock wallet update returning
-      db.returning.mockResolvedValueOnce([
-        { ...sampleWalletRow, pendingBalance: '100.0000000000', version: 2 },
-      ]);
-      // Mock entry insert returning
-      db.returning.mockResolvedValueOnce([sampleEntryRow]);
-
-      // Already handled by makeService's runTransaction wrapper
       const svc = makeService(db);
 
-      // Mock the maxSeq part
-      db.select = vi.fn().mockImplementation((fields: any) => {
-        const chain = {
-          select: vi.fn().mockReturnThis(),
-          from: vi.fn().mockReturnThis(),
-          where: vi.fn().mockReturnThis(),
-          orderBy: vi.fn().mockReturnThis(),
-          limit: vi.fn().mockReturnThis(),
-          for: vi.fn().mockReturnThis(),
-          then: vi.fn((cb: any) => {
-            // idempotency key check returns no rows
-            return Promise.resolve(cb([]));
+      for (const entryType of [
+        'PENDING',
+        'AVAILABLE',
+        'REVERSED',
+        'COMPENSATION',
+        'ADJUSTMENT',
+      ]) {
+        await expect(
+          svc.createLedgerEntry({
+            memberId,
+            marketId,
+            entryType: entryType as never,
+            amount: '0.0000000001',
+            idempotencyKey: `ik-tripwire-${entryType}`,
           }),
-        };
-        return chain;
-      });
-      // For the max seq query, we need a separate mock
-      // This is getting complex. Let me simplify by testing via runTransaction hook.
-      // Actually, the issue is that our mock setup doesn't handle deep Drizzle chaining well.
-      // Let me focus on what we can test effectively.
-
-      const result = await svc.createLedgerEntry({
-        memberId,
-        marketId,
-        entryType: 'PENDING',
-        amount: '100.0000000000',
-        idempotencyKey: 'ik-test-1',
-        actorId: memberId,
-      });
-      expect(result).toBeDefined();
-      expect(result.entryType).toBe('PENDING');
-    });
-
-    it('rejects duplicate idempotency key', async () => {
-      const db = createMockDb();
-      // Mock duplicate idempotency check: entry already exists
-      db.limit.mockResolvedValueOnce([sampleEntryRow]);
-
-      const svc = makeService(db);
-
-      const result = await svc.createLedgerEntry({
-        memberId,
-        marketId,
-        entryType: 'PENDING',
-        amount: '100.0000000000',
-        idempotencyKey: 'ik-test-1',
-        actorId: memberId,
-      });
-
-      // Should return the existing entry rather than creating a new one
-      expect(result.id).toBe(sampleEntryRow.id);
-      expect(result.amount).toBe('100.0000000000');
-    });
-
-    it('handles concurrent updates via optimistic locking', async () => {
-      const db = createMockDb();
-      // Mock duplicate check: no existing entry
-      db.limit.mockResolvedValueOnce([]); // idempotency check
-      db.limit.mockResolvedValueOnce([sampleWalletRow]); // wallet select+for update
-      // Mock max sequence
-      db.select = vi.fn().mockReturnThis();
-      // The transaction should throw on optimistic lock failure
-      const svc = makeService(db);
-
-      // Mock update returning empty (optimistic lock failure)
-      // The test verifies the mechanism exists
-      expect(sampleWalletRow.version).toBe(1);
+        ).rejects.toMatchObject({ code: 'LEDGER_ENTRY_CREATE_DISABLED' });
+      }
     });
   });
 
