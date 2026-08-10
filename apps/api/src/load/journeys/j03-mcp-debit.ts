@@ -20,6 +20,7 @@ import {
   ensureRolePermissions,
   finishJourneyResult,
   httpCall,
+  httpCallWithTimeout,
   measureOp,
   newJourneyResult,
   seedMfaFactor,
@@ -31,10 +32,18 @@ import { randomSuffix, stringId } from './common.js';
 const OK = new Set([200]);
 const CREATED = new Set([201]);
 
+/** 30s client bound for chain calls (pool-stall protection, OBS-04). */
+const CHAIN_TIMEOUT_MS = 30_000;
+
 export async function runJourneyJ3(ctx: LoadContext): Promise<JourneyResult> {
   const result = newJourneyResult(ctx, 'J3', 'MCP debit');
   const world = ctx.world;
   const merchant = world.merchant;
+  await ensureRolePermissions(ctx, 'FINANCE_OPERATOR', ['merchant.mcp.adjust']);
+  await ensureRolePermissions(ctx, 'FINANCE_APPROVER', [
+    'merchant.mcp.adjust.approve',
+    'merchant.mcp.adjust.execute',
+  ]);
 
   // Market rule + reason code for the governed MCP adjustment owner (fixture
   // per the P7-S2A integration suite; no production code touched).
@@ -53,11 +62,6 @@ export async function runJourneyJ3(ctx: LoadContext): Promise<JourneyResult> {
      ON CONFLICT DO NOTHING`,
     [world.marketCode],
   );
-  await ensureRolePermissions(ctx, 'FINANCE_OPERATOR', ['merchant.mcp.adjust']);
-  await ensureRolePermissions(ctx, 'FINANCE_APPROVER', [
-    'merchant.mcp.adjust.approve',
-    'merchant.mcp.adjust.execute',
-  ]);
 
   // -- read surfaces -------------------------------------------------------
   await measureOp(ctx, result, 'merchant-mcp-read', OK, async () =>
@@ -130,111 +134,158 @@ export async function runJourneyJ3(ctx: LoadContext): Promise<JourneyResult> {
     ...overrides,
   });
 
+  // Adjust-workflow ops: the 4-call maker→checker chain is inherently serial
+  // per iteration. At L2 the chain is capped (concurrency 10 × 10) with a 30s
+  // client bound: a pool-level stall then surfaces as a recorded timeout
+  // instead of wedging the whole run (OBS-04, see report §9).
+  const adjustScale =
+    ctx.level === 'L2' ? { concurrency: 10, iterations: 10 } : undefined;
+
   let requestId = '';
-  await measureOp(ctx, result, 'adjust-create', CREATED, async () => {
-    const created = await httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: base,
-      token: maker.token,
-      idempotencyKey: `j3-adjust-${randomSuffix()}`,
-      body: adjustPayload(),
-    });
-    if (created.status === 201) {
-      requestId = stringId(created.body, ['id']);
-    }
-    return created;
-  });
+  await measureOp(
+    ctx,
+    result,
+    'adjust-create',
+    CREATED,
+    async () => {
+      const created = await httpCall(ctx.baseUrl, {
+        method: 'POST',
+        path: base,
+        token: maker.token,
+        idempotencyKey: `j3-adjust-${randomSuffix()}`,
+        body: adjustPayload(),
+      });
+      if (created.status === 201) {
+        requestId = stringId(created.body, ['id']);
+      }
+      return created;
+    },
+    adjustScale,
+  );
 
-  await measureOp(ctx, result, 'adjust-submit', OK, async () => {
-    // Fresh request per iteration (a second submit on the same request is a
-    // state conflict by design).
-    const created = await httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: base,
-      token: maker.token,
-      idempotencyKey: `j3-adjust-${randomSuffix()}`,
-      body: adjustPayload(),
-    });
-    if (created.status !== 201) return created;
-    const freshId = stringId(created.body, ['id']);
-    return httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${freshId}/submit`,
-      token: maker.token,
-    });
-  });
+  await measureOp(
+    ctx,
+    result,
+    'adjust-submit',
+    OK,
+    async () => {
+      // Fresh request per iteration (a second submit on the same request is a
+      // state conflict by design).
+      const created = await httpCall(ctx.baseUrl, {
+        method: 'POST',
+        path: base,
+        token: maker.token,
+        idempotencyKey: `j3-adjust-${randomSuffix()}`,
+        body: adjustPayload(),
+      });
+      if (created.status !== 201) return created;
+      const freshId = stringId(created.body, ['id']);
+      return httpCallWithTimeout(
+        ctx.baseUrl,
+        {
+          method: 'POST',
+          path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${freshId}/submit`,
+          token: maker.token,
+        },
+        CHAIN_TIMEOUT_MS,
+      );
+    },
+    adjustScale,
+  );
 
-  await measureOp(ctx, result, 'adjust-decision', OK, async () => {
-    const created = await httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: base,
-      token: maker.token,
-      idempotencyKey: `j3-adjust-${randomSuffix()}`,
-      body: adjustPayload(),
-    });
-    if (created.status !== 201) return created;
-    const freshId = stringId(created.body, ['id']);
-    await httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${freshId}/submit`,
-      token: maker.token,
-    });
-    const stepUp = await seedStepUpGrant(
-      ctx,
-      checker,
-      'merchant.mcp.adjust.approve',
-      world.marketId,
-    );
-    return httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${freshId}/decision`,
-      token: checker.token,
-      headers: { 'x-step-up-token': stepUp },
-      body: { decision: 'APPROVED', reason: 'P8-S6 load approve.' },
-    });
-  });
+  await measureOp(
+    ctx,
+    result,
+    'adjust-decision',
+    OK,
+    async () => {
+      const created = await httpCall(ctx.baseUrl, {
+        method: 'POST',
+        path: base,
+        token: maker.token,
+        idempotencyKey: `j3-adjust-${randomSuffix()}`,
+        body: adjustPayload(),
+      });
+      if (created.status !== 201) return created;
+      const freshId = stringId(created.body, ['id']);
+      await httpCall(ctx.baseUrl, {
+        method: 'POST',
+        path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${freshId}/submit`,
+        token: maker.token,
+      });
+      const stepUp = await seedStepUpGrant(
+        ctx,
+        checker,
+        'merchant.mcp.adjust.approve',
+        world.marketId,
+      );
+      return httpCallWithTimeout(
+        ctx.baseUrl,
+        {
+          method: 'POST',
+          path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${freshId}/decision`,
+          token: checker.token,
+          headers: { 'x-step-up-token': stepUp },
+          body: { decision: 'APPROVED', reason: 'P8-S6 load approve.' },
+        },
+        CHAIN_TIMEOUT_MS,
+      );
+    },
+    adjustScale,
+  );
 
-  await measureOp(ctx, result, 'adjust-execute', OK, async () => {
-    const created = await httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: base,
-      token: maker.token,
-      idempotencyKey: `j3-adjust-${randomSuffix()}`,
-      body: adjustPayload(),
-    });
-    if (created.status !== 201) return created;
-    const freshId = stringId(created.body, ['id']);
-    await httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${freshId}/submit`,
-      token: maker.token,
-    });
-    const approveStepUp = await seedStepUpGrant(
-      ctx,
-      checker,
-      'merchant.mcp.adjust.approve',
-      world.marketId,
-    );
-    await httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${freshId}/decision`,
-      token: checker.token,
-      headers: { 'x-step-up-token': approveStepUp },
-      body: { decision: 'APPROVED', reason: 'P8-S6 load approve.' },
-    });
-    const executeStepUp = await seedStepUpGrant(
-      ctx,
-      checker,
-      'merchant.mcp.adjust.execute',
-      world.marketId,
-    );
-    return httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `/api/v1/admin/markets/${world.marketId}/adjustments/${freshId}/execute`,
-      token: checker.token,
-      headers: { 'x-step-up-token': executeStepUp },
-    });
-  });
+  await measureOp(
+    ctx,
+    result,
+    'adjust-execute',
+    OK,
+    async () => {
+      const created = await httpCall(ctx.baseUrl, {
+        method: 'POST',
+        path: base,
+        token: maker.token,
+        idempotencyKey: `j3-adjust-${randomSuffix()}`,
+        body: adjustPayload(),
+      });
+      if (created.status !== 201) return created;
+      const freshId = stringId(created.body, ['id']);
+      await httpCall(ctx.baseUrl, {
+        method: 'POST',
+        path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${freshId}/submit`,
+        token: maker.token,
+      });
+      const approveStepUp = await seedStepUpGrant(
+        ctx,
+        checker,
+        'merchant.mcp.adjust.approve',
+        world.marketId,
+      );
+      await httpCall(ctx.baseUrl, {
+        method: 'POST',
+        path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${freshId}/decision`,
+        token: checker.token,
+        headers: { 'x-step-up-token': approveStepUp },
+        body: { decision: 'APPROVED', reason: 'P8-S6 load approve.' },
+      });
+      const executeStepUp = await seedStepUpGrant(
+        ctx,
+        checker,
+        'merchant.mcp.adjust.execute',
+        world.marketId,
+      );
+      return httpCallWithTimeout(
+        ctx.baseUrl,
+        {
+          method: 'POST',
+          path: `/api/v1/admin/markets/${world.marketId}/adjustments/${freshId}/execute`,
+          token: checker.token,
+          headers: { 'x-step-up-token': executeStepUp },
+        },
+        CHAIN_TIMEOUT_MS,
+      );
+    },
+    adjustScale,
+  );
 
   // -- storm: concurrent double-decision -----------------------------------
   if (ctx.level !== 'L0') {
@@ -266,20 +317,28 @@ export async function runJourneyJ3(ctx: LoadContext): Promise<JourneyResult> {
       ),
     ]);
     const [decisionA, decisionB] = await Promise.all([
-      httpCall(ctx.baseUrl, {
-        method: 'POST',
-        path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${stormRequestId}/decision`,
-        token: checker.token,
-        headers: { 'x-step-up-token': grantA },
-        body: { decision: 'APPROVED', reason: 'Concurrent A.' },
-      }),
-      httpCall(ctx.baseUrl, {
-        method: 'POST',
-        path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${stormRequestId}/decision`,
-        token: checker.token,
-        headers: { 'x-step-up-token': grantB },
-        body: { decision: 'APPROVED', reason: 'Concurrent B.' },
-      }),
+      httpCallWithTimeout(
+        ctx.baseUrl,
+        {
+          method: 'POST',
+          path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${stormRequestId}/decision`,
+          token: checker.token,
+          headers: { 'x-step-up-token': grantA },
+          body: { decision: 'APPROVED', reason: 'Concurrent A.' },
+        },
+        CHAIN_TIMEOUT_MS,
+      ),
+      httpCallWithTimeout(
+        ctx.baseUrl,
+        {
+          method: 'POST',
+          path: `/api/v1/admin/markets/${world.marketId}/mcp/adjustments/${stormRequestId}/decision`,
+          token: checker.token,
+          headers: { 'x-step-up-token': grantB },
+          body: { decision: 'APPROVED', reason: 'Concurrent B.' },
+        },
+        CHAIN_TIMEOUT_MS,
+      ),
     ]);
     const states = [decisionA.status, decisionB.status].sort().join(',');
     const stateRows = await ctx.pool.query<{ state: string }>(

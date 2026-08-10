@@ -18,6 +18,7 @@ import {
   ensureRolePermissions,
   finishJourneyResult,
   httpCall,
+  httpCallWithTimeout,
   measureOp,
   newJourneyResult,
   seedMfaFactor,
@@ -115,72 +116,113 @@ export async function runJourneyJ9(ctx: LoadContext): Promise<JourneyResult> {
     });
 
   // -- measured ops (fresh request per iteration) ---------------------------
-  await measureOp(ctx, result, 'maker-create', CREATED, async () =>
-    httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: base,
-      token: maker.token,
-      idempotencyKey: `j9-create-${randomSuffix()}`,
-      body: adjustmentPayload(),
-    }),
+  // The 4-call maker→checker chain is serial per iteration; at L2 it is
+  // capped (concurrency 10 × 10) with a 30s client bound (pool-stall
+  // protection, OBS-04).
+  const chainScale =
+    ctx.level === 'L2' ? { concurrency: 10, iterations: 10 } : undefined;
+
+  await measureOp(
+    ctx,
+    result,
+    'maker-create',
+    CREATED,
+    async () =>
+      httpCall(ctx.baseUrl, {
+        method: 'POST',
+        path: base,
+        token: maker.token,
+        idempotencyKey: `j9-create-${randomSuffix()}`,
+        body: adjustmentPayload(),
+      }),
+    chainScale,
   );
 
-  await measureOp(ctx, result, 'maker-submit', OK, async () => {
-    const requestId = await createRequest();
-    if (!requestId) return { status: 500, latencyMs: 0 };
-    return submitRequest(requestId);
-  });
+  await measureOp(
+    ctx,
+    result,
+    'maker-submit',
+    OK,
+    async () => {
+      const requestId = await createRequest();
+      if (!requestId) return { status: 500, latencyMs: 0 };
+      return submitRequest(requestId);
+    },
+    chainScale,
+  );
 
-  await measureOp(ctx, result, 'checker-decision', OK, async () => {
-    const requestId = await createRequest();
-    if (!requestId) return { status: 500, latencyMs: 0 };
-    await submitRequest(requestId);
-    const stepUp = await seedStepUpGrant(
-      ctx,
-      checker,
-      'wallet.ipoint.adjust.checker',
-      world.marketId,
-    );
-    return httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `${base}/${requestId}/decision`,
-      token: checker.token,
-      headers: { 'x-step-up-token': stepUp },
-      body: { decision: 'APPROVED', reason: 'Evidence verified.' },
-    });
-  });
+  await measureOp(
+    ctx,
+    result,
+    'checker-decision',
+    OK,
+    async () => {
+      const requestId = await createRequest();
+      if (!requestId) return { status: 500, latencyMs: 0 };
+      await submitRequest(requestId);
+      const stepUp = await seedStepUpGrant(
+        ctx,
+        checker,
+        'wallet.ipoint.adjust.checker',
+        world.marketId,
+      );
+      return httpCallWithTimeout(
+        ctx.baseUrl,
+        {
+          method: 'POST',
+          path: `${base}/${requestId}/decision`,
+          token: checker.token,
+          headers: { 'x-step-up-token': stepUp },
+          body: { decision: 'APPROVED', reason: 'Evidence verified.' },
+        },
+        30_000,
+      );
+    },
+    chainScale,
+  );
 
-  await measureOp(ctx, result, 'checker-execute', OK, async () => {
-    const requestId = await createRequest();
-    if (!requestId) return { status: 500, latencyMs: 0 };
-    await submitRequest(requestId);
-    const approveStepUp = await seedStepUpGrant(
-      ctx,
-      checker,
-      'wallet.ipoint.adjust.checker',
-      world.marketId,
-    );
-    await httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `${base}/${requestId}/decision`,
-      token: checker.token,
-      headers: { 'x-step-up-token': approveStepUp },
-      body: { decision: 'APPROVED', reason: 'Evidence verified.' },
-    });
-    const executeStepUp = await seedStepUpGrant(
-      ctx,
-      checker,
-      'wallet.ipoint.adjust.execute',
-      world.marketId,
-    );
-    return httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `${base}/${requestId}/execute`,
-      token: checker.token,
-      headers: { 'x-step-up-token': executeStepUp },
-      body: { decision: 'APPROVED', reason: 'Execute.' },
-    });
-  });
+  await measureOp(
+    ctx,
+    result,
+    'checker-execute',
+    OK,
+    async () => {
+      const requestId = await createRequest();
+      if (!requestId) return { status: 500, latencyMs: 0 };
+      await submitRequest(requestId);
+      const approveStepUp = await seedStepUpGrant(
+        ctx,
+        checker,
+        'wallet.ipoint.adjust.checker',
+        world.marketId,
+      );
+      await httpCall(ctx.baseUrl, {
+        method: 'POST',
+        path: `${base}/${requestId}/decision`,
+        token: checker.token,
+        headers: { 'x-step-up-token': approveStepUp },
+        body: { decision: 'APPROVED', reason: 'Evidence verified.' },
+      });
+      const executeStepUp = await seedStepUpGrant(
+        ctx,
+        checker,
+        'wallet.ipoint.adjust.execute',
+        world.marketId,
+      );
+      return httpCallWithTimeout(
+        ctx.baseUrl,
+        {
+          method: 'POST',
+          path: `${base}/${requestId}/execute`,
+          token: checker.token,
+          headers: { 'x-step-up-token': executeStepUp },
+          body: { decision: 'APPROVED', reason: 'Execute.' },
+        },
+        30_000,
+      );
+    },
+    chainScale,
+  );
 
   await measureOp(ctx, result, 'queue-read', OK, async () =>
     httpCall(ctx.baseUrl, { method: 'GET', path: base, token: checker.token }),
