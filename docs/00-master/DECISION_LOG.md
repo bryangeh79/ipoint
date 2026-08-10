@@ -1873,3 +1873,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058, D-059, D-060, D-067; TASK_BRIEF_P8S5E.md; P8_S5E_FINAL_GATE_RECORD.md (Reviewer B' APPROVED); host gate verification 2026-08-10 |
 | **Status** | **APPROVED (REVOCABLE)** |
+
+---
+
+## D-069 - P8-S6 Task Brief Accepted + Open Decision Points O-1..O-4 Resolved (OPENCLAW-ACTING-COMMAND-CENTER)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-069 |
+| **Date** | 2026-08-10 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization) |
+| **Old Rule** | P8-S6 (G-06 Load / Performance / Concurrency) awaiting task brief; open decision points O-1..O-4 unresolved |
+| **New Decision** | P8-S6 task brief ACCEPTED (commit `e4ae27f4`, `docs/06-phase-reports/p8-s6/TASK_BRIEF_P8S6.md`, single docs file, UTF-8 no BOM). Open decisions resolved: **O-1** = zero new dependencies (frozen `pnpm-lock.yaml`; Node built-in `fetch` + existing `supertest`; dedicated load tool requires escalation, never self-authorized); **O-2** = additive fail-closed L0 smoke wired into `.github/workflows/p8-ci.yml` (S1–S4 `P8SN_DESTRUCTIVE_TEST` pattern, dedicated `ipoint_p8s6_*` DB, never `ipoint_ci`; sustained L1/L2 load is host-only, K-02-class limitation); **O-3** = G-06 is evidence + bounded-fix only: zero production code by default, §11 bounded fixes only for proven defects (written fix records + zero-bypass re-scan + reviewer re-verification), **NO migration 0040** (checksums 40/40 frozen; schema-level defect escalates to Command Center); **O-4** = report measured values + delta vs P4-S7 baseline + observations, no invented thresholds. Dispatch to independent implementer per D-060 authorized (task branch `task/p8-s6-load-performance-concurrency`). |
+| **Reason** | Brief mirrors the S5e quality bar (evidence-traceable DoD, fail-closed guards, Do-Not-Touch, §11 boundary, host/CI constraint honesty); continuous execution per D-058; resolutions preserve frozen lockfile/migration/owner boundaries while enabling an additive CI smoke (S5d/D-066 precedent). |
+| **Affected Files** | docs/06-phase-reports/p8-s6/TASK_BRIEF_P8S6.md, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S6) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058, D-059, D-060, D-067, D-068; P8_S0_CONTRACT_FREEZE.md §6/§11; TASK_BRIEF_P8S6.md @ `e4ae27f4` |
+| **Status** | **APPROVED (REVOCABLE)** |
