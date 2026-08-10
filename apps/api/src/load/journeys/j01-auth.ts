@@ -241,7 +241,9 @@ export async function runJourneyJ1(ctx: LoadContext): Promise<JourneyResult> {
     const replayed = await httpCall(ctx.baseUrl, {
       method: 'POST',
       path: '/api/v1/auth/refresh',
-      body: { refresh_token: 'definitely-not-a-real-token' },
+      // Well-formed opaque token (64 hex) that was never issued: the server
+      // must reject it with 401, not fail format validation.
+      body: { refresh_token: 'a'.repeat(64) },
     });
     const pass = replayed.status === 401;
     result.assertions.push({
