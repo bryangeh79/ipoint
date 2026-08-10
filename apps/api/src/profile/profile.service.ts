@@ -1,5 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { memberProfiles, members } from '@ipoint/database';
+import {
+  accounts,
+  memberKycCases,
+  memberProfiles,
+  members,
+} from '@ipoint/database';
 import { eq, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service.js';
 import {
@@ -11,7 +16,11 @@ import {
   phoneInvalidError,
   profileNotFoundError,
 } from './profile.errors.js';
-import type { ProfileResponse, UpdateProfileInput } from './profile.types.js';
+import type {
+  MemberSelfResponse,
+  ProfileResponse,
+  UpdateProfileInput,
+} from './profile.types.js';
 
 @Injectable()
 export class ProfileService {
@@ -86,6 +95,85 @@ export class ProfileService {
   private validateAndNormalizePhone(phone: string): string {
     if (!/^\+[1-9]\d{6,14}$/.test(phone)) throw phoneInvalidError();
     return this.normalizeE164(phone);
+  }
+
+  /**
+   * Current-member summary (GET /members/me, DEF-002 fix).
+   * Resolves the member from the account id and joins the account identity
+   * (email/country) and profile display fields; KYC status is derived from
+   * the member's KYC case status with a kyc_level fallback for legacy rows
+   * that were set directly (e.g. fixture-approved members).
+   */
+  async getMemberSelf(accountId: string): Promise<MemberSelfResponse> {
+    const memberRows = await this.database.db
+      .select({
+        id: members.id,
+        kycLevel: members.kycLevel,
+        createdAt: members.createdAt,
+        email: accounts.email,
+        countryCode: accounts.accountCountry,
+      })
+      .from(members)
+      .innerJoin(accounts, eq(accounts.id, members.accountId))
+      .where(eq(members.accountId, accountId))
+      .limit(1);
+
+    const memberRow = memberRows[0];
+    if (!memberRow) throw profileNotFoundError();
+
+    const profileRows = await this.database.db
+      .select({
+        displayName: memberProfiles.displayName,
+        phone: memberProfiles.phone,
+      })
+      .from(memberProfiles)
+      .where(eq(memberProfiles.memberId, memberRow.id))
+      .limit(1);
+    const profileRow = profileRows[0];
+
+    const kycCaseRows = await this.database.db
+      .select({ status: memberKycCases.status })
+      .from(memberKycCases)
+      .where(eq(memberKycCases.memberId, memberRow.id))
+      .limit(1);
+    const kycCaseStatus = kycCaseRows[0]?.status;
+
+    return {
+      id: memberRow.id,
+      email: memberRow.email,
+      name: profileRow?.displayName ?? null,
+      phone: profileRow?.phone ?? null,
+      countryCode: memberRow.countryCode,
+      kycStatus: this.mapKycStatus(kycCaseStatus, memberRow.kycLevel),
+      createdAt: memberRow.createdAt.toISOString(),
+    };
+  }
+
+  /**
+   * Map KYC case status -> member-web kycStatus, falling back to the
+   * member kyc_level when no case exists (legacy/fixture-approved rows).
+   */
+  private mapKycStatus(
+    caseStatus: string | null | undefined,
+    kycLevel: string,
+  ): 'not_started' | 'pending' | 'approved' | 'rejected' {
+    switch (caseStatus) {
+      case 'APPROVED':
+        return 'approved';
+      case 'REJECTED':
+        return 'rejected';
+      case 'DRAFT':
+      case 'SUBMITTED':
+      case 'UNDER_REVIEW':
+      case 'MORE_INFO_REQUIRED':
+      case 'REVERIFICATION_REQUIRED':
+        return 'pending';
+      default:
+        // No case (or NOT_STARTED) — fall back to the member kyc level.
+        if (kycLevel === 'LEVEL_2') return 'approved';
+        if (kycLevel === 'LEVEL_1') return 'pending';
+        return 'not_started';
+    }
   }
 
   async getProfile(accountId: string): Promise<ProfileResponse> {

@@ -39,3 +39,24 @@ export interface UpdateProfileInput {
   marketingOptIn?: boolean;
   gender?: string;
 }
+
+/**
+ * Current-member summary served by GET /members/me (DEF-002 fix).
+ * Shape mirrors the member-web `User` contract consumed by AuthProvider.
+ */
+export interface MemberSelfResponse {
+  /** members.id */
+  id: string;
+  /** accounts.email */
+  email: string;
+  /** member_profiles.displayName */
+  name: string | null;
+  /** member_profiles.phone */
+  phone: string | null;
+  /** accounts.accountCountry */
+  countryCode: string;
+  /** Derived from the member KYC case status (fallback: kyc_level). */
+  kycStatus: 'not_started' | 'pending' | 'approved' | 'rejected';
+  /** members.createdAt */
+  createdAt: string;
+}

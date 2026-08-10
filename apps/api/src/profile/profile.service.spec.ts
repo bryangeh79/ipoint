@@ -12,6 +12,7 @@ describe('ProfileService', () => {
     return {
       select: vi.fn().mockReturnThis(),
       from: vi.fn().mockReturnThis(),
+      innerJoin: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
       limit: vi.fn(),
       orderBy: vi.fn().mockReturnThis(),
@@ -86,5 +87,83 @@ describe('ProfileService', () => {
     await expect(
       svc.updateProfile(accountId, { phone: '+60123456789' }, {}),
     ).rejects.toThrow(ProfileError);
+  });
+
+  describe('getMemberSelf', () => {
+    it('returns the member identity summary with approved KYC case', async () => {
+      const db = createMockDb();
+      db.limit.mockResolvedValueOnce([
+        {
+          id: memberId,
+          kycLevel: 'LEVEL_2',
+          createdAt: new Date('2025-01-01T00:00:00Z'),
+          email: 'member@example.com',
+          countryCode: 'MY',
+        },
+      ]); // member + account join
+      db.limit.mockResolvedValueOnce([
+        { displayName: 'John Doe', phone: '+60123456789' },
+      ]); // profile
+      db.limit.mockResolvedValueOnce([{ status: 'APPROVED' }]); // kyc case
+      const svc = makeService(db);
+
+      const result = await svc.getMemberSelf(accountId);
+      expect(result).toEqual({
+        id: memberId,
+        email: 'member@example.com',
+        name: 'John Doe',
+        phone: '+60123456789',
+        countryCode: 'MY',
+        kycStatus: 'approved',
+        createdAt: '2025-01-01T00:00:00.000Z',
+      });
+    });
+
+    it('falls back to kyc_level when no KYC case exists', async () => {
+      const db = createMockDb();
+      db.limit.mockResolvedValueOnce([
+        {
+          id: memberId,
+          kycLevel: 'LEVEL_2',
+          createdAt: new Date('2025-01-01T00:00:00Z'),
+          email: 'member@example.com',
+          countryCode: 'MY',
+        },
+      ]); // member + account join
+      db.limit.mockResolvedValueOnce([{ displayName: null, phone: null }]); // profile
+      db.limit.mockResolvedValueOnce([]); // no kyc case
+      const svc = makeService(db);
+
+      const result = await svc.getMemberSelf(accountId);
+      expect(result.kycStatus).toBe('approved');
+      expect(result.name).toBeNull();
+    });
+
+    it('maps a rejected KYC case to rejected', async () => {
+      const db = createMockDb();
+      db.limit.mockResolvedValueOnce([
+        {
+          id: memberId,
+          kycLevel: 'NONE',
+          createdAt: new Date('2025-01-01T00:00:00Z'),
+          email: 'member@example.com',
+          countryCode: 'MY',
+        },
+      ]); // member + account join
+      db.limit.mockResolvedValueOnce([{ displayName: null, phone: null }]); // profile
+      db.limit.mockResolvedValueOnce([{ status: 'REJECTED' }]); // kyc case
+      const svc = makeService(db);
+
+      const result = await svc.getMemberSelf(accountId);
+      expect(result.kycStatus).toBe('rejected');
+    });
+
+    it('throws ProfileError when the member does not exist', async () => {
+      const db = createMockDb();
+      db.limit.mockResolvedValueOnce([]); // member + account join empty
+      const svc = makeService(db);
+
+      await expect(svc.getMemberSelf(accountId)).rejects.toThrow(ProfileError);
+    });
   });
 });
