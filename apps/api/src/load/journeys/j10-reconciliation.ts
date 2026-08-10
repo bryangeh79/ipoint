@@ -97,7 +97,10 @@ export async function runJourneyJ10(ctx: LoadContext): Promise<JourneyResult> {
   );
 
   // -- storm: concurrent execute, one run ----------------------------------
-  if (ctx.level !== 'L0') {
+  // Client-side bounded (25s). OBS-04 (High, open): the same-run storm
+  // reproduces a pool-level stall at Phase-8 data volume, so the storm runs
+  // at L1 only; the L2 row uses the L1 storm evidence (report §9).
+  if (ctx.level === 'L1') {
     const stormCreate = await httpCall(ctx.baseUrl, {
       method: 'POST',
       path: `${base}/runs`,

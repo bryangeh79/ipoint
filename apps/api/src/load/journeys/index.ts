@@ -47,7 +47,11 @@ export const JOURNEYS: readonly JourneyDefinition[] = [
   { id: 'J7', name: 'fulfilment', run: runJourneyJ7 },
   { id: 'J8', name: 'refund', run: runJourneyJ8 },
   { id: 'J9', name: 'Maker/Checker', run: runJourneyJ9 },
-  { id: 'J10', name: 'reconciliation', run: runJourneyJ10 },
   { id: 'J11', name: 'reports', run: runJourneyJ11 },
   { id: 'J12', name: 'content delivery', run: runJourneyJ12 },
+  // J10 (reconciliation) runs last: OBS-04 makes its execute transactions
+  // prone to pool-level stalls at Phase-8 data volume, so its L2 storm is
+  // skipped (L1 evidence stands) and a stall cannot lose the other
+  // journeys' evidence.
+  { id: 'J10', name: 'reconciliation', run: runJourneyJ10 },
 ];

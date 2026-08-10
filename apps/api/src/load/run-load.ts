@@ -91,8 +91,23 @@ async function main(): Promise<number> {
     const startedAt = Date.now();
     console.log(`[P8-S6] ${journey.id} ${journey.name} ...`);
     try {
-      const result = await runJourney(journey, ctx);
+      const result = await Promise.race([
+        runJourney(journey, ctx),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `journey exceeded ${JOURNEY_TIMEOUT_MS / 1000}s watchdog (OBS-04 pool stall)`,
+                ),
+              ),
+            JOURNEY_TIMEOUT_MS,
+          ),
+        ),
+      ]);
       results.push(result);
+      // Write evidence incrementally so a later stall never loses this run.
+      recordRunEvidence(ctx, results, runId);
       const failed = result.assertions.filter((a) => !a.pass);
       const unexpected = result.ops.filter((op) => op.unexpectedErrorCount > 0);
       const durationSec = ((Date.now() - startedAt) / 1000).toFixed(1);
