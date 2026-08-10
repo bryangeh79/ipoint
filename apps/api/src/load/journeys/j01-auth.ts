@@ -54,6 +54,9 @@ export async function runJourneyJ1(ctx: LoadContext): Promise<JourneyResult> {
   );
   const defaultActor = pool[0];
   if (!defaultActor) throw new Error('J1 auth pool is empty.');
+  // Fixture creation above performed 40 logins; reset the limiter so the
+  // measured blocks start from a clean window.
+  clearRateLimiter(ctx);
 
   // Login-family ops measured at the limiter ceiling: 10 samples per cleared
   // block at L1/L2 (the IP ceiling is 10/300s), full scale at L0 (≤6).
