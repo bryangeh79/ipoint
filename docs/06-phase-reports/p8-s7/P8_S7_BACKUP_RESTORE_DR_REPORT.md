@@ -39,7 +39,7 @@ Rehearsal run `20260810t172809` (`.local/p8-s7-backup/20260810t172809/`):
 | 1. Source DB create | `CREATE DATABASE ipoint_p8s7_source_20260810t172809` | ok |
 | 2. Migrate + seed source at Phase 8 state | `pnpm db:migrate` / `pnpm db:seed` (DATABASE_URL=source) | "Database migrations are current." / seeds current |
 | 3. Baseline integrity | `pnpm db:checksum` / `pnpm db:drift` | 40/40 / no drift |
-| 4. Backup | `pg_dump -Fc` → `ipoint_p8s7_source_20260810t172809.dump` (**623,381 bytes**) | ok |
+| 4. Backup | `pg_dump -Fc` → `ipoint_p8s7_source_20260810t172809.dump` (**623,382 bytes**) | ok |
 | 5. Restore DB create | `CREATE DATABASE ipoint_p8s7_restore_20260810t172809` | ok |
 | 6. Restore | `pg_restore -d ipoint_p8s7_restore_20260810t172809 <dump>` | **exit 0** |
 | 7. Verify (probe `scripts/p8-s7/verify-restored-db.mjs`) | row-count parity + migrations parity + write round trip + read query | **VERIFY_RESULT: PASS** |

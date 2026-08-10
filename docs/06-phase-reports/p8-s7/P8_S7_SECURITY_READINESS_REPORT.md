@@ -22,7 +22,7 @@
 
 ## 2. Secret scan (P7-S10 gate-19 method, re-run at Phase 8 state)
 
-**Command (real):** `node .local/p8-s7-check/scan-secrets.mjs` — scans every tracked file (git ls-files, **1199 files**) plus the S7 committed evidence/templates specifically.
+**Command (real):** `node .local/p8-s7-check/scan-secrets.mjs` — scans every tracked file (git ls-files, **1205 files**) plus the S7 committed evidence/templates specifically.
 
 **Result: SECRET_SCAN_RESULT: CLEAN — 0 findings.**
 

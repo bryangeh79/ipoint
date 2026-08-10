@@ -1930,3 +1930,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058, D-059, D-060, D-067..D-070; P8_S0_CONTRACT_FREEZE.md §7/§11/§12; P8_S0_GAP_AUDIT_REPORT.md G-07/F-02; TASK_BRIEF_P8S7.md @ `ec361c02`; repo audit (no existing Redis dep; RateLimitPort seam; CI redis service provisioned) |
 | **Status** | **APPROVED (REVOCABLE)** |
+
+---
+
+## D-072 - P8-S7 Backup / Restore / Monitoring / Security Readiness APPROVED (OPENCLAW-ACTING-COMMAND-CENTER; SEC-01 documented + OBS-04 decision pending)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-072 |
+| **Date** | 2026-08-10 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization) |
+| **Old Rule** | P8-S7 IN_PROGRESS; implementer delivered task branch `task/p8-s7-backup-restore-monitoring-security` @ `d3f95590`; independent review pending |
+| **New Decision** | P8-S7 APPROVED (OPENCLAW-ACTING-COMMAND-CENTER, revocable). Merged via `7916df69` onto `phase/8-final-delivery-readiness`: Redis module (ioredis 6.0.0, `RedisRateLimiter` on `RateLimitPort` with frozen ceilings config-sourced, lock/queue ports, graceful degradation — PG correctness mechanisms zero-touched, grep-proven), health readiness dependency checks (DB+Redis, 3s bounds, no connection-string leak), backup→restore→verify rehearsal (VERIFY PASS, 13-table parity, migrations 40=40), migration fresh+upgrade rehearsal (40/40, drift clean, `packages/database` zero change), monitoring/alert/dashboard templates incl. OBS-04-class indicators (probe ALERT demonstrated on reproduced stall), log-redaction verification (467 files 0 hits, runtime 0 leak, requestId/service/env fields), runbooks + release checklist, security readiness (secret scan 1205 tracked files CLEAN, zero-bypass 10 files 0, `pnpm audit --prod` 0C/10H/15M/2L), additive CI wiring. Reviewer B' independent review: **0C/0H/0M/8L, APPROVED** (all 10 checks re-run on host; redis 14/14 + 5+9 skip, auth 102/102, health smoke, backup/migration independent DB direct-queries, probe re-run OK, all scans re-run). L-1..L-3 (report count errata) corrected in a docs commit; L-4 (lockfile parse noise) documented; L-5/L-6 (health degraded-Http-200 + e2e assert coupling) recorded for deployment docs; L-7 (gitignored scanner robustness) non-deliverable; L-8 (untracked p6-s1 test stale filename) recorded as repo-hygiene item. **SEC-01**: 10 pre-existing HIGH dependency advisories (multer×4/lodash×1/js-yaml×2/fast-uri×2/react-router×1) — structurally proven pre-existing (frozen lockfile, ioredis 0 contribution), financial-path zero exposure, reachability analysis documented; remediation decision PENDING Bryan (written risk acceptance at final gate vs bounded upgrade round — minimum recommended: multer via @nestjs/platform-express). **OBS-04**: remediation decision (Option A bounded P8-S2-domain fix / Option B documented-risk) PENDING Bryan; S7 delivers observability only. Both items required before Phase 8 final gate (D-058 "0 unresolved HIGH"). |
+| **Reason** | Full evidence chain (implementer 7 commits + independent review with all checks re-run + host integration gate: merge `7916df69`, fsck exit 0, tracked 0); DoD bar met (0C/0H/0M introduced); SEC-01/OBS-04 explicitly recorded with named decision paths (Phase 4 documented-risk precedent), not silent. |
+| **Affected Files** | apps/api/src/redis/**, apps/api/src/health/*, apps/api/src/auth/auth.module.ts, apps/api/src/app.module.ts, apps/api/src/__tests__/app.e2e.spec.ts, apps/api/package.json, pnpm-lock.yaml (ioredis-only + parse noise), .env.example, .github/workflows/p8-ci.yml, scripts/p8-s7/**, docs/06-phase-reports/p8-s7/*, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S7 CLOSED; next P8-S8 Full Final UAT G-08) |
+| **Migration** | NONE (checksums 40/40 frozen; rehearsal-only) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058, D-059, D-060, D-067..D-071; TASK_BRIEF_P8S7.md; P8_S7_DELIVERY_REPORT.md; Reviewer B' APPROVED (0C/0H/0M/8L); host gate verification 2026-08-10 |
+| **Status** | **APPROVED (REVOCABLE)** |

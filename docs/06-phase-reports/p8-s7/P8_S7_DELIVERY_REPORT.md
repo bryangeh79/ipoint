@@ -48,7 +48,7 @@ All pushed to `origin/task/p8-s7-backup-restore-monitoring-security` (local = re
 | E1 | `pnpm exec tsc -p tsconfig.build.json --noEmit` / eslint / prettier on S7 code | exit 0 all |
 | E2 | `pnpm exec vitest run src/redis/redis.integration.spec.ts` (live Redis + PG) | **14/14 passed** |
 | E3 | fail-closed check: same spec without `P8S7_DESTRUCTIVE_TEST` | 5 passed, 9 skipped (guarded suite refuses) |
-| E4 | `auth.http.integration.spec.ts` / `admin-auth.http.integration.spec.ts` / `app.e2e.spec.ts` / `health.controller.spec.ts` | 36/36 · 9/9 · 11/11 · 4/4 |
+| E4 | `auth.http.integration.spec.ts` / `admin-auth.http.integration.spec.ts` / `app.e2e.spec.ts` / `health.controller.spec.ts` | 36/36 · 2/2 · 7/7 · 4/4 |
 | E5 | CI-shaped unit scope (apps/api, CI excludes) | **1252 passed, 12 skipped, 0 failed** |
 | E6 | P8-S1 guarded suite (AppModule + Redis module wiring) | 12/12 |
 | E7 | Live HTTP smoke `GET /health/live` + `/health/ready` (real DB + Redis) | live ok; ready `{"status":"ok","checks":{"config":"ok","database":"ok","redis":"ok"}}` |
