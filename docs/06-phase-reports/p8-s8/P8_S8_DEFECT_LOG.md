@@ -76,7 +76,7 @@
   - Browser suite (`ipoint_p8s8_browser`, host Chromium): **BW-M1 PASS** — real-API registration + OTP + login; `POST /auth/login` 200; the member-web UI now transitions away from `/login` to the authenticated home (screenshot `test-results/p8s8-member-login-fixed.png`).
   - Full UAT API suite still 36/36 PASS (no regression; `GET /members/me` is exercised through the AppModule boot + OpenAPI validation).
   - OpenAPI runtime validation green — new path `/api/v1/members/me` registered, 300 paths, 0 broken $refs.
-  - Unit: `profile.service.spec.ts` 13/13 PASS; API build-config typecheck + build green; eslint/prettier clean; zero-owner-bypass re-scan over changed scope **0 findings**.
+  - Unit: `profile.service.spec.ts` 9/9 PASS; API build-config typecheck + build green; eslint/prettier clean; zero-owner-bypass re-scan over changed scope **0 findings**.
 
 ## 4. Observations recorded (not defects)
 

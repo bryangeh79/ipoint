@@ -61,7 +61,7 @@ Environment: fresh `ipoint_p8s8_test` DB (db:migrate + db:seed + UAT fixtures), 
 | U-35 | refund retry                                           | **PASS**                                                     | U-35.json                                         | same-key refund-request replay → original request (claim-first, exactly-once); exactly one refund row                                                                                                                                                                         |
 | U-36 | reconciliation mismatch                                | **PASS**                                                     | U-36.json                                         | seeded drift (total 95, empty ledger, P8-S2 INSERT pattern) → run COMPLETED, mismatch detected, exception OPEN `AMOUNT_MISMATCH` expected 0 / actual 95 / difference 95; no auto-correction (balance untouched); run audited                                                  |
 
-**Totals (API): 36 PASS / 0 FAIL / 0 PARTIAL (after §11 round-1 fix; 221/224 → 226/226 assertions).** Pre-fix run: 35 PASS / 1 FAIL (U-07 = DEF-001) / 0 PARTIAL.
+**Totals (API): 36 PASS / 0 FAIL / 0 PARTIAL (after §11 round-1 fix; 221/224 → 224/224 assertions).** Pre-fix run: 35 PASS / 1 FAIL (U-07 = DEF-001) / 0 PARTIAL.
 
 ## 2. Browser E2E results (host, real API + real PostgreSQL, `ipoint_p8s8_browser`)
 
@@ -121,7 +121,7 @@ Environment: fresh `ipoint_p8s8_test` DB (db:migrate + db:seed + UAT fixtures), 
 - **Scope:** fix branch `fix/p8-s8-uat-defects`; production changes only for the two defects (wallet controller/service + new `GET /members/me`), test assertions updated to assert the fixed behaviour, docs updated. Fix records: `P8_S8_DEFECT_LOG.md` §2.1 (DEF-001) and §3.1 (DEF-002), including the option (a)→(b) decision evidence for DEF-002.
 - **API re-test:** `P8S8_DESTRUCTIVE_TEST=1` + fresh `ipoint_p8s8_test` — `apps/api/src/uat/uat.spec.ts` **36/36 scenarios PASS, 41/41 tests PASS** (run `2026-08-10T12-01-05.637Z-p8s8-uat-l0`); U-07 list/detail/entries assertions green, exact-decimal balance preserved.
 - **Browser re-test:** `tests/e2e/p8-s8-uat.spec.ts` on `ipoint_p8s8_browser` — **7/7 PASS**: BW-M1 login leaves `/login` (screenshot `p8s8-member-login-fixed.png`), BW-M3 wallet list non-empty + contains the fixture wallet + detail 200 (`availableBalance 100000`), BW-M2/M4/MC1/A/N1 unchanged green.
-- **CI-equivalent checks:** API build-config typecheck + build green; eslint + prettier clean on all changed files; OpenAPI runtime validation green (300 paths, 0 errors — new `/api/v1/members/me` registered); wallet + profile unit suites green (28 + 13 tests).
+- **CI-equivalent checks:** API build-config typecheck + build green; eslint + prettier clean on all changed files; OpenAPI runtime validation green (300 paths, 0 errors - new `/api/v1/members/me` registered); wallet + profile unit suites green (19 + 9 tests).
 - **Zero-owner-bypass re-scan (P7 gate-18 / S5e method):** changed scope **0 findings**; repo-wide hits unchanged benign baseline classes + UAT scenario-name strings.
 - **Do-Not-Touch compliance:** `packages/database/**` zero change (no migrations/checksums touched); no merge to main/phase/8; no deploy; no new permission codes; no `.npmrc`; committed files UTF-8 no BOM; exact-path staging only.
 
