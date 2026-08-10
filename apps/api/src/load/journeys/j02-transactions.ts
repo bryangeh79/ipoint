@@ -162,7 +162,7 @@ export async function runJourneyJ2(ctx: LoadContext): Promise<JourneyResult> {
   await measureOp(ctx, result, 'history/list', OK, async () =>
     httpCall(ctx.baseUrl, {
       method: 'GET',
-      path: '/api/v1/merchant/transactions?limit=20&offset=0',
+      path: '/api/v1/merchant/transactions?limit=20',
       token: world.merchantToken,
     }),
   );

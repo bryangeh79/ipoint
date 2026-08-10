@@ -2,15 +2,17 @@
  * J12 — content delivery (ads / content member read surface).
  *
  * Contract §6 journey 12. Admin ops over real HTTP: placement / ad / article
- * creation + status transitions; member read surface `GET
- * /api/v1/members/content/home` stormed at full concurrency (this is the
- * "content delivery" surface the contract names).
+ * creation + status transitions (fresh resource per measured iteration — a
+ * second status write on the same resource is a stale 409 by design), and the
+ * member read surface `GET /api/v1/members/content/home` stormed at full
+ * concurrency (the "content delivery" surface the contract names).
  *
  * @packageDocumentation
  */
 
 import type { LoadContext, JourneyResult } from '../harness.js';
 import {
+  ensureRolePermissions,
   finishJourneyResult,
   httpCall,
   measureOp,
@@ -26,12 +28,14 @@ export async function runJourneyJ12(ctx: LoadContext): Promise<JourneyResult> {
   const world = ctx.world;
   const base = `/api/v1/admin/ads-content/markets/${world.marketId}`;
   const token = world.superAdmin.token;
+  await ensureRolePermissions(ctx, 'SUPER_ADMIN', [
+    'ads.manage',
+    'ads.view',
+    'content.manage',
+    'content.view',
+  ]);
 
   let placementId = '';
-  let adId = '';
-  let articleId = '';
-  let adVersion = 1;
-  let articleVersion = 1;
 
   await measureOp(ctx, result, 'placement-create', CREATED, async () => {
     const created = await httpCall(ctx.baseUrl, {
@@ -40,7 +44,7 @@ export async function runJourneyJ12(ctx: LoadContext): Promise<JourneyResult> {
       token,
       idempotencyKey: `j12-placement-${randomSuffix()}`,
       body: {
-        code: `HOME_HERO_${randomSuffix()}`,
+        code: `HOME_HERO_${randomSuffix().toUpperCase()}`,
         name: 'Home hero',
         description: 'Primary member home placement',
         position: 0,
@@ -53,7 +57,46 @@ export async function runJourneyJ12(ctx: LoadContext): Promise<JourneyResult> {
     return created;
   });
 
-  await measureOp(ctx, result, 'ad-create', CREATED, async () => {
+  await measureOp(ctx, result, 'ad-create', CREATED, async () =>
+    httpCall(ctx.baseUrl, {
+      method: 'POST',
+      path: `${base}/ads`,
+      token,
+      idempotencyKey: `j12-ad-${randomSuffix()}`,
+      body: {
+        placementId,
+        title: 'Local dining week',
+        summary: 'Discover selected local dining offers.',
+        creativeMediaUrl: 'https://cdn.example.test/dining.webp',
+        creativeAltText: 'A prepared local meal',
+        targetUrl: 'https://example.test/dining',
+        sponsorLabel: 'Sponsored',
+        reason: 'P8-S6 load fixture.',
+      },
+    }),
+  );
+
+  await measureOp(ctx, result, 'article-create', CREATED, async () =>
+    httpCall(ctx.baseUrl, {
+      method: 'POST',
+      path: `${base}/articles`,
+      token,
+      idempotencyKey: `j12-article-${randomSuffix()}`,
+      body: {
+        slug: `local-market-update-${randomSuffix()}`,
+        title: 'Local market update',
+        excerpt: 'This week in your current market.',
+        body: 'Verified market news for iPoint members.',
+        isPromoted: true,
+        sponsorLabel: 'Promoted',
+        reason: 'P8-S6 load fixture.',
+      },
+    }),
+  );
+
+  // Fresh resource per iteration: a second status write on the same resource
+  // is a stale 409 by design (optimistic concurrency), not a load failure.
+  await measureOp(ctx, result, 'ad-activate', OK, async () => {
     const created = await httpCall(ctx.baseUrl, {
       method: 'POST',
       path: `${base}/ads`,
@@ -70,14 +113,25 @@ export async function runJourneyJ12(ctx: LoadContext): Promise<JourneyResult> {
         reason: 'P8-S6 load fixture.',
       },
     });
-    if (created.status === 201) {
-      adId = stringId(created.body, ['id']);
-      adVersion = Number((created.body as { version?: unknown })?.version ?? 1);
-    }
-    return created;
+    if (created.status !== 201) return created;
+    const freshAdId = stringId(created.body, ['id']);
+    const freshAdVersion = Number(
+      (created.body as { version?: unknown })?.version ?? 1,
+    );
+    return httpCall(ctx.baseUrl, {
+      method: 'POST',
+      path: `${base}/ads/${freshAdId}/status`,
+      token,
+      idempotencyKey: `j12-ad-status-${randomSuffix()}`,
+      body: {
+        status: 'ACTIVE',
+        expectedVersion: freshAdVersion,
+        reason: 'P8-S6 activate.',
+      },
+    });
   });
 
-  await measureOp(ctx, result, 'article-create', CREATED, async () => {
+  await measureOp(ctx, result, 'article-activate', OK, async () => {
     const created = await httpCall(ctx.baseUrl, {
       method: 'POST',
       path: `${base}/articles`,
@@ -93,42 +147,23 @@ export async function runJourneyJ12(ctx: LoadContext): Promise<JourneyResult> {
         reason: 'P8-S6 load fixture.',
       },
     });
-    if (created.status === 201) {
-      articleId = stringId(created.body, ['id']);
-      articleVersion = Number(
-        (created.body as { version?: unknown })?.version ?? 1,
-      );
-    }
-    return created;
-  });
-
-  await measureOp(ctx, result, 'ad-activate', OK, async () =>
-    httpCall(ctx.baseUrl, {
+    if (created.status !== 201) return created;
+    const freshArticleId = stringId(created.body, ['id']);
+    const freshArticleVersion = Number(
+      (created.body as { version?: unknown })?.version ?? 1,
+    );
+    return httpCall(ctx.baseUrl, {
       method: 'POST',
-      path: `${base}/ads/${adId}/status`,
-      token,
-      idempotencyKey: `j12-ad-status-${randomSuffix()}`,
-      body: {
-        status: 'ACTIVE',
-        expectedVersion: adVersion,
-        reason: 'P8-S6 activate.',
-      },
-    }),
-  );
-
-  await measureOp(ctx, result, 'article-activate', OK, async () =>
-    httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `${base}/articles/${articleId}/status`,
+      path: `${base}/articles/${freshArticleId}/status`,
       token,
       idempotencyKey: `j12-article-status-${randomSuffix()}`,
       body: {
         status: 'ACTIVE',
-        expectedVersion: articleVersion,
+        expectedVersion: freshArticleVersion,
         reason: 'P8-S6 activate.',
       },
-    }),
-  );
+    });
+  });
 
   await measureOp(ctx, result, 'admin-ads-list', OK, async () =>
     httpCall(ctx.baseUrl, { method: 'GET', path: `${base}/ads`, token }),

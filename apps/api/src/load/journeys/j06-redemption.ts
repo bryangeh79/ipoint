@@ -80,12 +80,25 @@ export async function seedRedemptionFixture(
     `INSERT INTO redemption_pickup_locations (
         id, market_id, name, address, contact_name, contact_phone,
         is_active, created_by
-       ) VALUES ($1, $2, 'P8-S6 Counter', '1 Test St', 'Counter', '000',
-                 true, $3)`,
-    [pickupLocationId, world.marketId, superAdminUserId],
+       ) VALUES ($1, $2, 'P8-S6 Counter', $3::jsonb, 'Counter', '000',
+                 true, $4)`,
+    [
+      pickupLocationId,
+      world.marketId,
+      JSON.stringify({
+        line1: '1 Test St',
+        city: 'Test City',
+        postcode: '50000',
+      }),
+      superAdminUserId,
+    ],
   );
 
-  // Member wallet with points.
+  // Member wallet with points + KYC Level 2 (redemption requires L2).
+  await ctx.pool.query(
+    `UPDATE members SET kyc_level = 'LEVEL_2' WHERE id = $1`,
+    [world.merchant.memberId],
+  );
   const wallet = await ctx.pool.query<{ id: string }>(
     `SELECT id FROM member_wallet_accounts WHERE member_id = $1 AND market_id = $2 LIMIT 1`,
     [world.merchant.memberId, world.marketId],

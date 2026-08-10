@@ -2,22 +2,26 @@
  * J9 — Maker/Checker (manual iPoint adjustment workflow).
  *
  * Contract §6 journey 9. Ops over real HTTP: maker create → submit → checker
- * decision → execute (step-up grants seeded per the canonical P7-S8 pattern).
- * Storm: concurrent double-decision on one submitted request → exactly one
- * accepted transition (gate 14 invariant under load).
+ * decision → execute (step-up grants seeded per the canonical P7-S8 pattern;
+ * each measured iteration uses a fresh request — a second submit/decision on
+ * the same request is a state conflict by design). Storm: concurrent
+ * double-decision on one submitted request → exactly one accepted transition
+ * (gate 14 invariant under load).
  *
  * @packageDocumentation
  */
 
 import type { LoadContext, JourneyResult } from '../harness.js';
-import { randomUUID } from 'node:crypto';
 import {
   createAdmin,
   createMember,
+  ensureRolePermissions,
   finishJourneyResult,
   httpCall,
   measureOp,
   newJourneyResult,
+  seedMfaFactor,
+  selectMarketFor,
   seedStepUpGrant,
 } from '../harness.js';
 import { randomSuffix, stringId } from './common.js';
@@ -28,6 +32,12 @@ const CREATED = new Set([201]);
 export async function runJourneyJ9(ctx: LoadContext): Promise<JourneyResult> {
   const result = newJourneyResult(ctx, 'J9', 'Maker/Checker');
   const world = ctx.world;
+  await ensureRolePermissions(ctx, 'SUPER_ADMIN', [
+    'wallet.ipoint.read',
+    'wallet.ipoint.adjust.maker',
+    'wallet.ipoint.adjust.checker',
+    'wallet.ipoint.adjust.execute',
+  ]);
 
   // Market rules + reason code for the adjustment owner (fixture per the
   // P7-S8 integration suite; no production code touched).
@@ -69,8 +79,7 @@ export async function runJourneyJ9(ctx: LoadContext): Promise<JourneyResult> {
   const member = await createMember(ctx.database, ctx.auth, world.marketId);
   const walletRows = await ctx.pool.query<{ id: string }>(
     `INSERT INTO member_wallet_accounts (member_id, market_id, available_balance)
-     VALUES ($1, $2, '5000')
-     RETURNING id`,
+     VALUES ($1, $2, '5000') RETURNING id`,
     [member.memberId, world.marketId],
   );
   const walletId = walletRows.rows[0]?.id ?? '';
@@ -86,9 +95,7 @@ export async function runJourneyJ9(ctx: LoadContext): Promise<JourneyResult> {
     ...overrides,
   });
 
-  // -- full workflow ops (one request per measured op) ----------------------
-  let requestId = '';
-  await measureOp(ctx, result, 'maker-create', CREATED, async () => {
+  const createRequest = async (): Promise<string> => {
     const created = await httpCall(ctx.baseUrl, {
       method: 'POST',
       path: base,
@@ -96,51 +103,84 @@ export async function runJourneyJ9(ctx: LoadContext): Promise<JourneyResult> {
       idempotencyKey: `j9-create-${randomSuffix()}`,
       body: adjustmentPayload(),
     });
-    if (created.status === 201) {
-      requestId = stringId(created.body, ['id']);
-    }
-    return created;
-  });
+    if (created.status !== 201) return '';
+    return stringId(created.body, ['id']);
+  };
 
-  await measureOp(ctx, result, 'maker-submit', OK, async () =>
+  const submitRequest = async (requestId: string) =>
     httpCall(ctx.baseUrl, {
       method: 'POST',
       path: `${base}/${requestId}/submit`,
       token: maker.token,
+    });
+
+  // -- measured ops (fresh request per iteration) ---------------------------
+  await measureOp(ctx, result, 'maker-create', CREATED, async () =>
+    httpCall(ctx.baseUrl, {
+      method: 'POST',
+      path: base,
+      token: maker.token,
+      idempotencyKey: `j9-create-${randomSuffix()}`,
+      body: adjustmentPayload(),
     }),
   );
 
-  const checkerStepUp = await seedStepUpGrant(
-    ctx,
-    checker,
-    'wallet.ipoint.adjust.checker',
-    world.marketId,
-  );
-  await measureOp(ctx, result, 'checker-decision', OK, async () =>
-    httpCall(ctx.baseUrl, {
+  await measureOp(ctx, result, 'maker-submit', OK, async () => {
+    const requestId = await createRequest();
+    if (!requestId) return { status: 500, latencyMs: 0 };
+    return submitRequest(requestId);
+  });
+
+  await measureOp(ctx, result, 'checker-decision', OK, async () => {
+    const requestId = await createRequest();
+    if (!requestId) return { status: 500, latencyMs: 0 };
+    await submitRequest(requestId);
+    const stepUp = await seedStepUpGrant(
+      ctx,
+      checker,
+      'wallet.ipoint.adjust.checker',
+      world.marketId,
+    );
+    return httpCall(ctx.baseUrl, {
       method: 'POST',
       path: `${base}/${requestId}/decision`,
       token: checker.token,
-      headers: { 'x-step-up-token': checkerStepUp },
+      headers: { 'x-step-up-token': stepUp },
       body: { decision: 'APPROVED', reason: 'Evidence verified.' },
-    }),
-  );
+    });
+  });
 
-  const executeStepUp = await seedStepUpGrant(
-    ctx,
-    checker,
-    'wallet.ipoint.adjust.execute',
-    world.marketId,
-  );
-  await measureOp(ctx, result, 'checker-execute', OK, async () =>
-    httpCall(ctx.baseUrl, {
+  await measureOp(ctx, result, 'checker-execute', OK, async () => {
+    const requestId = await createRequest();
+    if (!requestId) return { status: 500, latencyMs: 0 };
+    await submitRequest(requestId);
+    const approveStepUp = await seedStepUpGrant(
+      ctx,
+      checker,
+      'wallet.ipoint.adjust.checker',
+      world.marketId,
+    );
+    await httpCall(ctx.baseUrl, {
+      method: 'POST',
+      path: `${base}/${requestId}/decision`,
+      token: checker.token,
+      headers: { 'x-step-up-token': approveStepUp },
+      body: { decision: 'APPROVED', reason: 'Evidence verified.' },
+    });
+    const executeStepUp = await seedStepUpGrant(
+      ctx,
+      checker,
+      'wallet.ipoint.adjust.execute',
+      world.marketId,
+    );
+    return httpCall(ctx.baseUrl, {
       method: 'POST',
       path: `${base}/${requestId}/execute`,
       token: checker.token,
       headers: { 'x-step-up-token': executeStepUp },
       body: { decision: 'APPROVED', reason: 'Execute.' },
-    }),
-  );
+    });
+  });
 
   await measureOp(ctx, result, 'queue-read', OK, async () =>
     httpCall(ctx.baseUrl, { method: 'GET', path: base, token: checker.token }),
@@ -148,31 +188,22 @@ export async function runJourneyJ9(ctx: LoadContext): Promise<JourneyResult> {
 
   // -- storm: concurrent double-decision -----------------------------------
   if (ctx.level !== 'L0') {
-    const stormCreate = await httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: base,
-      token: maker.token,
-      idempotencyKey: `j9-storm-create-${randomSuffix()}`,
-      body: adjustmentPayload(),
-    });
-    const stormRequestId = stringId(stormCreate.body, ['id']);
-    await httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `${base}/${stormRequestId}/submit`,
-      token: maker.token,
-    });
-    const grantA = await seedStepUpGrant(
-      ctx,
-      checker,
-      'wallet.ipoint.adjust.checker',
-      world.marketId,
-    );
-    const grantB = await seedStepUpGrant(
-      ctx,
-      checker,
-      'wallet.ipoint.adjust.checker',
-      world.marketId,
-    );
+    const stormRequestId = await createRequest();
+    await submitRequest(stormRequestId);
+    const [grantA, grantB] = await Promise.all([
+      seedStepUpGrant(
+        ctx,
+        checker,
+        'wallet.ipoint.adjust.checker',
+        world.marketId,
+      ),
+      seedStepUpGrant(
+        ctx,
+        checker,
+        'wallet.ipoint.adjust.checker',
+        world.marketId,
+      ),
+    ]);
     const [decisionA, decisionB] = await Promise.all([
       httpCall(ctx.baseUrl, {
         method: 'POST',
@@ -203,46 +234,4 @@ export async function runJourneyJ9(ctx: LoadContext): Promise<JourneyResult> {
   }
 
   return finishJourneyResult(result);
-}
-
-async function seedMfaFactor(
-  ctx: LoadContext,
-  admin: { adminUserId: string; accountId: string },
-): Promise<void> {
-  await ctx.pool.query(
-    `INSERT INTO admin_mfa_factors (
-        account_id, admin_user_id, factor_type, secret_ciphertext,
-        secret_nonce, secret_auth_tag, key_id, algorithm, status,
-        confirmed_at
-       ) VALUES ($1, $2, 'TOTP', $3, $3, $3, 'load-key', 'AES-256-GCM',
-                 'ACTIVE', now())`,
-    [
-      admin.accountId,
-      admin.adminUserId,
-      `cipher-${randomUUID().replaceAll('-', '')}`,
-    ],
-  );
-}
-
-async function selectMarketFor(
-  ctx: LoadContext,
-  accountId: string,
-  marketId: string,
-): Promise<void> {
-  const sessionRows = await ctx.pool.query<{ id: string }>(
-    `SELECT id FROM sessions
-      WHERE account_id = $1 AND revoked_at IS NULL
-      ORDER BY created_at LIMIT 1`,
-    [accountId],
-  );
-  const sessionId = sessionRows.rows[0]?.id;
-  if (!sessionId) throw new Error('No active session for admin account.');
-  await ctx.pool.query(
-    `UPDATE sessions
-        SET current_admin_market_id = $1,
-            current_admin_market_selected_at = now(),
-            market_context_version = 2
-      WHERE id = $2`,
-    [marketId, sessionId],
-  );
 }

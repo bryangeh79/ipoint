@@ -37,15 +37,17 @@ import {
   merchantPackageAssignments,
   mcpAccounts,
   migrate,
+  permissions,
   rewardRuleVersions,
   roleAssignments,
+  rolePermissions,
   roles,
   serviceFeeProfiles,
   serviceFeeVersions,
   sessions,
 } from '@ipoint/database';
 import { seedFoundation } from '@ipoint/database/seeds/foundation';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AppModule } from '../app.module.js';
@@ -111,6 +113,8 @@ export interface JourneyOpResult {
   errorCount: number;
   unexpectedErrorCount: number;
   statuses: Record<string, number>;
+  /** First unexpected error body (stringified, truncated) for evidence. */
+  firstUnexpectedError?: string;
 }
 
 export interface JourneyResult {
@@ -204,6 +208,8 @@ export interface RunConcurrentResult {
   samples: OpSample[];
   errorCount: number;
   unexpectedErrorCount: number;
+  /** First unexpected error body (stringified, truncated) for evidence. */
+  firstUnexpectedError: string;
 }
 
 export async function runConcurrentAsync(
@@ -213,6 +219,7 @@ export async function runConcurrentAsync(
   const samples: OpSample[] = [];
   let errorCount = 0;
   let unexpectedErrorCount = 0;
+  let firstUnexpectedError = '';
   await Promise.all(
     Array.from({ length: concurrency }, async () => {
       for (let i = 0; i < iterations; i += 1) {
@@ -221,7 +228,15 @@ export async function runConcurrentAsync(
           const result = await call();
           status = result.status;
           if (status >= 400) errorCount += 1;
-          if (!expectedStatuses.has(status)) unexpectedErrorCount += 1;
+          if (!expectedStatuses.has(status)) {
+            unexpectedErrorCount += 1;
+            if (!firstUnexpectedError) {
+              const body = (result as { body?: unknown }).body;
+              if (body !== undefined) {
+                firstUnexpectedError = JSON.stringify(body).slice(0, 300);
+              }
+            }
+          }
           samples.push({
             op,
             status,
@@ -232,13 +247,14 @@ export async function runConcurrentAsync(
           errorCount += 1;
           unexpectedErrorCount += 1;
           const msg = error instanceof Error ? error.message : String(error);
+          if (!firstUnexpectedError) firstUnexpectedError = msg.slice(0, 300);
           samples.push({ op, status, latencyMs: 0, ok: false });
           console.error(`[load] transport error on ${op}: ${msg}`);
         }
       }
     }),
   );
-  return { samples, errorCount, unexpectedErrorCount };
+  return { samples, errorCount, unexpectedErrorCount, firstUnexpectedError };
 }
 
 export interface RunStats {
@@ -267,18 +283,19 @@ export async function measureOp(
   opName: string,
   expectedStatuses: ReadonlySet<number>,
   call: () => Promise<{ status: number; latencyMs: number }>,
-  options: { scale?: number } = {},
+  options: { scale?: number; concurrency?: number } = {},
 ): Promise<void> {
   const concurrency = Math.max(
     1,
-    Math.round(LEVEL_CONCURRENCY[ctx.level] * (options.scale ?? 1)),
+    options.concurrency ??
+      Math.round(LEVEL_CONCURRENCY[ctx.level] * (options.scale ?? 1)),
   );
   const iterations = Math.max(
     1,
     Math.round(LEVEL_ITERATIONS[ctx.level] * (options.scale ?? 1)),
   );
   const startedAt = performance.now();
-  const { samples, errorCount, unexpectedErrorCount } =
+  const { samples, errorCount, unexpectedErrorCount, firstUnexpectedError } =
     await runConcurrentAsync({
       op: opName,
       concurrency,
@@ -303,6 +320,7 @@ export async function measureOp(
     errorCount,
     unexpectedErrorCount,
     statuses,
+    firstUnexpectedError: firstUnexpectedError || undefined,
   });
 }
 
@@ -754,6 +772,45 @@ export async function createMerchantFixture(
   };
 }
 
+/**
+ * Grant permission codes to an existing role (idempotent). Mirrors the
+ * canonical admin-ops integration suite pattern (ensurePermissions +
+ * rolePermissions rows); the load harness only ever grants the codes its own
+ * journeys exercise.
+ */
+export async function ensureRolePermissions(
+  ctx: LoadContext,
+  roleCode: string,
+  codes: readonly string[],
+): Promise<void> {
+  if (codes.length === 0) return;
+  const roleRows = await ctx.db
+    .select({ id: roles.id })
+    .from(roles)
+    .where(eq(roles.code, roleCode))
+    .limit(1);
+  const roleId = roleRows[0]?.id;
+  if (!roleId) throw new Error(`Role not found: ${roleCode}`);
+  await ctx.db
+    .insert(permissions)
+    .values(
+      codes.map((code) => ({
+        code,
+        description: `${code} P8-S6 load harness permission`,
+      })),
+    )
+    .onConflictDoNothing({ target: permissions.code });
+  const permissionRows = await ctx.db
+    .select({ id: permissions.id, code: permissions.code })
+    .from(permissions)
+    .where(inArray(permissions.code, [...codes]));
+  const rows = permissionRows.map((row) => ({
+    roleId,
+    permissionId: row.id,
+  }));
+  await ctx.db.insert(rolePermissions).values(rows).onConflictDoNothing();
+}
+
 export async function selectMarket(
   database: DatabaseService,
   accountId: string,
@@ -773,6 +830,50 @@ export async function selectMarket(
       marketContextVersion: 2,
     })
     .where(eq(sessions.id, sessionRows[0]?.id ?? ''));
+}
+
+/** Seed an ACTIVE TOTP MFA factor for an admin (step-up grants require one). */
+export async function seedMfaFactor(
+  ctx: LoadContext,
+  admin: { adminUserId: string; accountId: string },
+): Promise<void> {
+  await ctx.pool.query(
+    `INSERT INTO admin_mfa_factors (
+        account_id, admin_user_id, factor_type, secret_ciphertext,
+        secret_nonce, secret_auth_tag, key_id, algorithm, status,
+        confirmed_at
+       ) VALUES ($1, $2, 'TOTP', $3, $3, $3, 'load-key', 'AES-256-GCM',
+                 'ACTIVE', now())`,
+    [
+      admin.accountId,
+      admin.adminUserId,
+      `cipher-${randomUUID().replaceAll('-', '')}`,
+    ],
+  );
+}
+
+/** Point an admin's current session at a market (market-scoped guard context). */
+export async function selectMarketFor(
+  ctx: LoadContext,
+  accountId: string,
+  marketId: string,
+): Promise<void> {
+  const sessionRows = await ctx.pool.query<{ id: string }>(
+    `SELECT id FROM sessions
+      WHERE account_id = $1 AND revoked_at IS NULL
+      ORDER BY created_at LIMIT 1`,
+    [accountId],
+  );
+  const sessionId = sessionRows.rows[0]?.id;
+  if (!sessionId) throw new Error('No active session for admin account.');
+  await ctx.pool.query(
+    `UPDATE sessions
+        SET current_admin_market_id = $1,
+            current_admin_market_selected_at = now(),
+            market_context_version = 2
+      WHERE id = $2`,
+    [marketId, sessionId],
+  );
 }
 
 export async function seedStepUpGrant(

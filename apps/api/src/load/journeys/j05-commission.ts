@@ -12,10 +12,13 @@
 
 import type { LoadContext, JourneyResult } from '../harness.js';
 import {
+  createAdmin,
+  ensureRolePermissions,
   finishJourneyResult,
   httpCall,
   measureOp,
   newJourneyResult,
+  selectMarketFor,
 } from '../harness.js';
 import {
   confirmTransaction,
@@ -29,31 +32,75 @@ const CREATED = new Set([201]);
 
 export async function runJourneyJ5(ctx: LoadContext): Promise<JourneyResult> {
   const result = newJourneyResult(ctx, 'J5', 'commission');
-  const world = ctx.world;
+  await ensureRolePermissions(ctx, 'SUPER_ADMIN', [
+    'commission.rate.read',
+    'commission.rate.manage',
+  ]);
 
-  await measureOp(ctx, result, 'rate-schedule', CREATED, async () =>
-    httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `/api/v1/admin/commission-ops/markets/${world.marketId}/rates`,
-      token: world.opsAdmin.token,
-      idempotencyKey: `j5-rate-${randomSuffix()}`,
-      body: {
-        commission_type: 'AGENT_UPGRADE',
-        generation: 1,
-        rate_type: 'FIXED',
-        rate_value: '88.0000000000',
-        effective_date: futureEffectiveDate(3),
-        reason: 'P8-S6 load rate configuration',
-      },
-    }),
+  // Commission-rate routes are keyed by a 2-letter market CODE. Create a
+  // dedicated two-letter market for this journey (the world market code is a
+  // synthetic T-code) with a dedicated admin so the world baseline is
+  // untouched.
+  const code = `Q${'ABCDEFGHJKLMNPRSTUVWXYZ'[Math.floor(Math.random() * 24)] ?? 'A'}`;
+  const marketRows = await ctx.pool.query<{ id: string; code: string }>(
+    `INSERT INTO markets (code, name, status, currency_code, timezone, default_locale)
+     VALUES ($1, $2, 'ACTIVE', 'MYR', 'Asia/Kuala_Lumpur', 'en-MY')
+     ON CONFLICT (code) DO NOTHING
+     RETURNING id, code`,
+    [code, `P8-S6 commission market ${code}`],
+  );
+  const marketId =
+    marketRows.rows[0]?.id ??
+    (
+      await ctx.pool.query<{ id: string }>(
+        `SELECT id FROM markets WHERE code = $1`,
+        [code],
+      )
+    ).rows[0]?.id ??
+    '';
+  const admin = await createAdmin(
+    ctx.database,
+    ctx.auth,
+    [marketId],
+    'SUPER_ADMIN',
+  );
+  await selectMarketFor(ctx, admin.accountId, marketId);
+  const token = admin.token;
+  // The route param is the market UUID; the service then validates the
+  // market's code is the canonical 2-letter shape.
+  const rateBase = `/api/v1/admin/commission-ops/markets/${marketId}/rates`;
+
+  let rateIndex = 0;
+  // Rate scheduling is a serialized config op by business rule (overlapping
+  // windows are a documented 409), so it is measured with concurrency 1.
+  await measureOp(
+    ctx,
+    result,
+    'rate-schedule',
+    CREATED,
+    async () => {
+      rateIndex += 1;
+      return httpCall(ctx.baseUrl, {
+        method: 'POST',
+        path: rateBase,
+        token,
+        idempotencyKey: `j5-rate-${randomSuffix()}`,
+        body: {
+          commission_type: 'AGENT_UPGRADE',
+          generation: 1,
+          rate_type: 'FIXED',
+          rate_value: '88.0000000000',
+          // Distinct future effective date per iteration.
+          effective_date: futureEffectiveDate(3 + (rateIndex % 40)),
+          reason: 'P8-S6 load rate configuration',
+        },
+      });
+    },
+    { concurrency: 1 },
   );
 
   await measureOp(ctx, result, 'rate-list', OK, async () =>
-    httpCall(ctx.baseUrl, {
-      method: 'GET',
-      path: `/api/v1/admin/commission-ops/markets/${world.marketId}/rates`,
-      token: world.opsAdmin.token,
-    }),
+    httpCall(ctx.baseUrl, { method: 'GET', path: rateBase, token }),
   );
 
   // -- outbox drain observation -------------------------------------------

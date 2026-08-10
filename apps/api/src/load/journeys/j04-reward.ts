@@ -11,6 +11,7 @@
 
 import type { LoadContext, JourneyResult } from '../harness.js';
 import {
+  ensureRolePermissions,
   finishJourneyResult,
   httpCall,
   measureOp,
@@ -29,27 +30,46 @@ const CREATED = new Set([201]);
 export async function runJourneyJ4(ctx: LoadContext): Promise<JourneyResult> {
   const result = newJourneyResult(ctx, 'J4', 'reward');
   const world = ctx.world;
+  await ensureRolePermissions(ctx, 'SUPER_ADMIN', [
+    'reward.rule.read',
+    'reward.rule.schedule',
+  ]);
+  const token = world.superAdmin.token;
 
-  await measureOp(ctx, result, 'rule-schedule', CREATED, async () =>
-    httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `/api/v1/admin/reward-ops/markets/${world.marketId}/rules`,
-      token: world.opsAdmin.token,
-      idempotencyKey: `j4-rule-${randomSuffix()}`,
-      body: {
-        package_reference: 'C',
-        rate: '0.04',
-        effective_date: futureEffectiveDate(3),
-        reason: 'P8-S6 load rule schedule',
-      },
-    }),
+  let scheduleIndex = 0;
+  // Rate scheduling is a serialized config op by business rule (two
+  // schedules whose windows overlap are a documented 409, not a load
+  // failure), so it is measured with concurrency 1.
+  await measureOp(
+    ctx,
+    result,
+    'rule-schedule',
+    CREATED,
+    async () => {
+      scheduleIndex += 1;
+      return httpCall(ctx.baseUrl, {
+        method: 'POST',
+        path: `/api/v1/admin/reward-ops/markets/${world.marketId}/rules`,
+        token,
+        idempotencyKey: `j4-rule-${randomSuffix()}`,
+        body: {
+          package_reference: 'C',
+          rate: '0.04',
+          // Strictly increasing future effective date per iteration (serial
+          // op): each schedule closes its predecessor's window.
+          effective_date: futureEffectiveDate(3 + scheduleIndex),
+          reason: 'P8-S6 load rule schedule',
+        },
+      });
+    },
+    { concurrency: 1 },
   );
 
   await measureOp(ctx, result, 'rule-list', OK, async () =>
     httpCall(ctx.baseUrl, {
       method: 'GET',
       path: `/api/v1/admin/reward-ops/markets/${world.marketId}/rules`,
-      token: world.opsAdmin.token,
+      token,
     }),
   );
 

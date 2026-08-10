@@ -1,10 +1,15 @@
 /**
  * P8-S6 journey registry — the 12 contract §6 journeys in execution order.
  *
+ * Every journey runs through `runJourney` which clears the in-memory auth
+ * rate limiter first (fixture setup for later journeys performs logins; the
+ * cleared-buckets methodology matches the P2-S4D / P4-S7 perf baselines).
+ *
  * @packageDocumentation
  */
 
 import type { LoadContext, JourneyResult } from '../harness.js';
+import { clearRateLimiter } from '../harness.js';
 import { runJourneyJ1 } from './j01-auth.js';
 import { runJourneyJ2 } from './j02-transactions.js';
 import { runJourneyJ3 } from './j03-mcp-debit.js';
@@ -22,6 +27,14 @@ export interface JourneyDefinition {
   id: string;
   name: string;
   run: (ctx: LoadContext) => Promise<JourneyResult>;
+}
+
+export async function runJourney(
+  journey: JourneyDefinition,
+  ctx: LoadContext,
+): Promise<JourneyResult> {
+  clearRateLimiter(ctx);
+  return journey.run(ctx);
 }
 
 export const JOURNEYS: readonly JourneyDefinition[] = [

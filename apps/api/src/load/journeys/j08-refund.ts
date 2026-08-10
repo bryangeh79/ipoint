@@ -43,57 +43,65 @@ export async function runJourneyJ8(ctx: LoadContext): Promise<JourneyResult> {
   const result = newJourneyResult(ctx, 'J8', 'refund');
   const world = ctx.world.merchant;
 
-  // -- reversal path (tx A) ------------------------------------------------
-  const txA = await confirmFreshTransaction(ctx);
-  if (!txA) {
-    result.assertions.push({
-      name: 'J8 fixture transaction confirmed',
-      pass: false,
-      detail: 'no transaction number returned',
-    });
-    return finishJourneyResult(result);
-  }
-  result.observations.push(`reversal fixture transaction: ${txA}`);
-
-  await measureOp(ctx, result, 'reversal-request', CREATED, async () =>
-    httpCall(ctx.baseUrl, {
+  // -- reversal path (fresh confirmed transaction per iteration) ------------
+  await measureOp(ctx, result, 'reversal-request', CREATED, async () => {
+    const tx = await confirmFreshTransaction(ctx);
+    if (!tx) return { status: 500, latencyMs: 0 };
+    return httpCall(ctx.baseUrl, {
       method: 'POST',
-      path: `/api/v1/merchant/transactions/${txA}/reversal-requests`,
+      path: `/api/v1/merchant/transactions/${tx}/reversal-requests`,
       token: world.merchantToken,
       idempotencyKey: `j8-reversal-${randomSuffix()}`,
       body: { reasonCode: 'CUSTOMER_REQUEST' },
-    }),
-  );
+    });
+  });
 
-  await measureOp(ctx, result, 'reversal-request-read', OK, async () =>
-    httpCall(ctx.baseUrl, {
-      method: 'GET',
-      path: `/api/v1/merchant/transactions/${txA}/reversal-request`,
-      token: world.merchantToken,
-    }),
-  );
-
-  // -- refund path (tx B) --------------------------------------------------
-  const txB = await confirmFreshTransaction(ctx);
-  result.observations.push(`refund fixture transaction: ${txB}`);
-
-  await measureOp(ctx, result, 'refund-request', CREATED, async () =>
-    httpCall(ctx.baseUrl, {
+  await measureOp(ctx, result, 'reversal-request-read', OK, async () => {
+    const tx = await confirmFreshTransaction(ctx);
+    if (!tx) return { status: 500, latencyMs: 0 };
+    await httpCall(ctx.baseUrl, {
       method: 'POST',
-      path: `/api/v1/merchant/transactions/${txB}/refund-requests`,
+      path: `/api/v1/merchant/transactions/${tx}/reversal-requests`,
+      token: world.merchantToken,
+      idempotencyKey: `j8-reversal-${randomSuffix()}`,
+      body: { reasonCode: 'CUSTOMER_REQUEST' },
+    });
+    return httpCall(ctx.baseUrl, {
+      method: 'GET',
+      path: `/api/v1/merchant/transactions/${tx}/reversal-request`,
+      token: world.merchantToken,
+    });
+  });
+
+  // -- refund path (fresh confirmed transaction per iteration) --------------
+  await measureOp(ctx, result, 'refund-request', CREATED, async () => {
+    const tx = await confirmFreshTransaction(ctx);
+    if (!tx) return { status: 500, latencyMs: 0 };
+    return httpCall(ctx.baseUrl, {
+      method: 'POST',
+      path: `/api/v1/merchant/transactions/${tx}/refund-requests`,
       token: world.merchantToken,
       idempotencyKey: `j8-refund-${randomSuffix()}`,
       body: { reasonCode: 'CUSTOMER_REQUEST' },
-    }),
-  );
+    });
+  });
 
-  await measureOp(ctx, result, 'refund-request-read', OK, async () =>
-    httpCall(ctx.baseUrl, {
-      method: 'GET',
-      path: `/api/v1/merchant/transactions/${txB}/refund-request`,
+  await measureOp(ctx, result, 'refund-request-read', OK, async () => {
+    const tx = await confirmFreshTransaction(ctx);
+    if (!tx) return { status: 500, latencyMs: 0 };
+    await httpCall(ctx.baseUrl, {
+      method: 'POST',
+      path: `/api/v1/merchant/transactions/${tx}/refund-requests`,
       token: world.merchantToken,
-    }),
-  );
+      idempotencyKey: `j8-refund-${randomSuffix()}`,
+      body: { reasonCode: 'CUSTOMER_REQUEST' },
+    });
+    return httpCall(ctx.baseUrl, {
+      method: 'GET',
+      path: `/api/v1/merchant/transactions/${tx}/refund-request`,
+      token: world.merchantToken,
+    });
+  });
 
   // -- storm: concurrent reversal, one key (tx C) --------------------------
   if (ctx.level !== 'L0') {

@@ -21,7 +21,7 @@ import type { INestApplication } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { LoadContext } from './harness.js';
 import { bootLoadApp, recordRunEvidence } from './harness.js';
-import { JOURNEYS } from './journeys/index.js';
+import { JOURNEYS, runJourney } from './journeys/index.js';
 import {
   assertLoadTestAllowed,
   destructiveTestOptIn,
@@ -124,7 +124,7 @@ describe.skipIf(!databaseUrl || !destructiveTestOptIn(process.env))(
 
     for (const journey of JOURNEYS) {
       it(`${journey.id} ${journey.name} (${loadLevel})`, async () => {
-        const result = await journey.run(ctx);
+        const result = await runJourney(journey, ctx);
         results.push(result);
         const failed = result.assertions.filter((a) => !a.pass);
         // Every measured op must have zero unexpected errors.

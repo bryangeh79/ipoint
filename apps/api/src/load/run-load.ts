@@ -21,7 +21,7 @@
 import 'reflect-metadata';
 import type { LoadContext } from './harness.js';
 import { bootLoadApp, recordRunEvidence } from './harness.js';
-import { JOURNEYS } from './journeys/index.js';
+import { JOURNEYS, runJourney } from './journeys/index.js';
 import { assertLoadTestAllowed } from './guards.js';
 
 const databaseUrl = process.env['DATABASE_URL'];
@@ -91,7 +91,7 @@ async function main(): Promise<number> {
     const startedAt = Date.now();
     console.log(`[P8-S6] ${journey.id} ${journey.name} ...`);
     try {
-      const result = await journey.run(ctx);
+      const result = await runJourney(journey, ctx);
       results.push(result);
       const failed = result.assertions.filter((a) => !a.pass);
       const unexpected = result.ops.filter((op) => op.unexpectedErrorCount > 0);
@@ -120,7 +120,9 @@ async function main(): Promise<number> {
   console.log(
     `[P8-S6] ${results.length - failedJourneys}/${results.length} journeys passed`,
   );
-  return failedJourneys === 0 ? 0 : 1;
+  // The outbox worker keeps a timer alive; exit explicitly so the runner
+  // terminates cleanly.
+  process.exit(failedJourneys === 0 ? 0 : 1);
 }
 
 main()

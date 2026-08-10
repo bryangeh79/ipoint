@@ -75,7 +75,9 @@ export function previewTransaction(
     method: 'POST',
     path: '/api/v1/merchant/transactions/preview',
     token: world.merchantToken,
-    idempotencyKey: options.idempotencyKey,
+    // Preview is idempotency-keyed by contract (key required on every call).
+    idempotencyKey: options.idempotencyKey ?? `preview-${randomSuffix()}`,
+    headers: { 'x-market-id': world.marketId },
     body: {
       amount: options.amount ?? '100.00',
       memberQrToken: world.qrToken,
@@ -99,7 +101,9 @@ export function confirmTransaction(
     method: 'POST',
     path: `/api/v1/merchant/transactions/${previewSessionId}/confirm`,
     token: ctx.world.merchant.merchantToken,
-    idempotencyKey: options.idempotencyKey,
+    // Confirm is idempotency-keyed by contract (key required on every call).
+    idempotencyKey: options.idempotencyKey ?? `confirm-${randomSuffix()}`,
+    headers: { 'x-market-id': ctx.world.merchant.marketId },
     body: {
       merchantReceiptNumber:
         options.merchantReceiptNumber ?? `REC-${randomSuffix()}`,
