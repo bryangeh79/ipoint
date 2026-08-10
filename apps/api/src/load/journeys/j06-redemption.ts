@@ -186,7 +186,22 @@ export async function runJourneyJ6(ctx: LoadContext): Promise<JourneyResult> {
   // orders with exactly 20 wallet debits and zero 5xx.
   if (ctx.level !== 'L0') {
     const beforeOrders = await orderCount(ctx, memberId);
+    const debitBefore = await ctx.pool.query<{ count: string }>(
+      `SELECT count(*)::text AS count
+         FROM member_wallet_entries
+        WHERE member_id = $1 AND entry_type = 'REDEMPTION_DEBIT'`,
+      [memberId],
+    );
+    const debitBeforeCount = Number(debitBefore.rows[0]?.count ?? 0);
     const stormCount = 20;
+    // Top the wallet back up for the storm (the measured order-create op
+    // already drained the 100000-point fixture balance at 10000/order).
+    await ctx.pool.query(
+      `UPDATE member_wallet_accounts
+          SET available_balance = '500000'
+        WHERE member_id = $1 AND market_id = $2`,
+      [memberId, world.marketId],
+    );
     const quotes: Array<{ quoteId: string; postedPointCost: string }> = [];
     for (let i = 0; i < stormCount; i += 1) {
       const quote = await httpCall(ctx.baseUrl, {
@@ -241,7 +256,7 @@ export async function runJourneyJ6(ctx: LoadContext): Promise<JourneyResult> {
       detail: `5xx = ${fiveHundreds}`,
     });
 
-    // One wallet debit per order.
+    // One wallet debit per order (delta over the storm window).
     const debitCount = await ctx.pool.query<{ count: string }>(
       `SELECT count(*)::text AS count
          FROM member_wallet_entries
@@ -251,8 +266,8 @@ export async function runJourneyJ6(ctx: LoadContext): Promise<JourneyResult> {
     const debits = Number(debitCount.rows[0]?.count ?? 0);
     result.assertions.push({
       name: 'J6 exactly one wallet debit per order',
-      pass: debits === afterOrders - beforeOrders,
-      detail: `REDEMPTION_DEBIT entries = ${debits} (orders created = ${afterOrders - beforeOrders})`,
+      pass: debits - debitBeforeCount === created,
+      detail: `REDEMPTION_DEBIT entries ${debitBeforeCount} → ${debits} (delta ${debits - debitBeforeCount}, orders created ${created})`,
     });
 
     // Replay one key → same order, no second write.

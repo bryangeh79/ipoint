@@ -283,7 +283,7 @@ export async function measureOp(
   opName: string,
   expectedStatuses: ReadonlySet<number>,
   call: () => Promise<{ status: number; latencyMs: number }>,
-  options: { scale?: number; concurrency?: number } = {},
+  options: { scale?: number; concurrency?: number; iterations?: number } = {},
 ): Promise<void> {
   const concurrency = Math.max(
     1,
@@ -292,7 +292,8 @@ export async function measureOp(
   );
   const iterations = Math.max(
     1,
-    Math.round(LEVEL_ITERATIONS[ctx.level] * (options.scale ?? 1)),
+    options.iterations ??
+      Math.round(LEVEL_ITERATIONS[ctx.level] * (options.scale ?? 1)),
   );
   const startedAt = performance.now();
   const { samples, errorCount, unexpectedErrorCount, firstUnexpectedError } =

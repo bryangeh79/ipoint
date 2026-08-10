@@ -82,6 +82,15 @@ export async function runJourneyJ4(ctx: LoadContext): Promise<JourneyResult> {
       [memberId],
     );
     const beforeCount = Number(before.rows[0]?.count ?? 0);
+    const walletEntryBefore = await ctx.pool.query<{ count: string }>(
+      `SELECT count(*)::text AS count
+         FROM member_wallet_entries
+        WHERE member_id = $1 AND reason = 'TRANSACTION_REWARD'`,
+      [memberId],
+    );
+    const walletEntryBeforeCount = Number(
+      walletEntryBefore.rows[0]?.count ?? 0,
+    );
 
     // One confirm per storm iteration (distinct keys) — the reward credit
     // must equal the number of confirms exactly.
@@ -120,8 +129,8 @@ export async function runJourneyJ4(ctx: LoadContext): Promise<JourneyResult> {
     const entryCount = Number(walletEntry.rows[0]?.count ?? 0);
     result.assertions.push({
       name: 'J4 every confirm writes exactly one reward wallet entry',
-      pass: entryCount === confirmed,
-      detail: `TRANSACTION_REWARD entries = ${entryCount} (expected ${confirmed})`,
+      pass: entryCount - walletEntryBeforeCount === confirmed,
+      detail: `TRANSACTION_REWARD entries ${walletEntryBeforeCount} → ${entryCount} (delta expected ${confirmed})`,
     });
   }
 
