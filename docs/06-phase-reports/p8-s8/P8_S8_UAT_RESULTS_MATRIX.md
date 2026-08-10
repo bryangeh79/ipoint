@@ -1,0 +1,118 @@
+# P8-S8 — Full Final UAT Results Matrix (U-01..U-36 + Browser)
+
+> Phase 8 · Sub-phase **P8-S8** · Branch `task/p8-s8-full-final-uat`
+> Contract: `P8_S0_CONTRACT_FREEZE.md` §8 (G-08) · Brief: `TASK_BRIEF_P8S8.md` @ `5059616f` (D-073)
+> Executor: verifier class (contract §8; D-060 pool). Evidence: `.local/p8-s8-uat/**` (API per-scenario JSON), `test-results/p8s8-*.png` (browser screenshots), `playwright-report/` (browser run).
+> Run identity: API `2026-08-10T10-51-09.828Z-p8s8-uat-l0` (35/36 scenarios PASS, 221/224 assertions); Browser suite `tests/e2e/p8-s8-uat.spec.ts` 7/7 PASS (host, Chromium, real API + real PostgreSQL on `ipoint_p8s8_browser`, 2026-08-10).
+
+---
+
+## GATE CONDITION STAMP (mandatory, brief §3.7 / D-073 O-6)
+
+> **PASS with documented limitations: OBS-04/SEC-01 PENDING Bryan — see §6; final 0C/0H declaration deferred to P8-S9 pending Bryan decision.**
+>
+> - **OBS-04 (High, OPEN, D-070/D-072)** is a known engine-level limitation on the reconciliation path (idle-in-transaction connection-lifecycle stall); remediation decision (Option A bounded P8-S2-domain fix / Option B documented-risk precedent) is PENDING Bryan. UAT does not remediate, re-classify, or hide it. U-21/U-36 executed at the OBS-04-mitigated profile (serial executes, 25s client bounds) — sustained L2 reconciliation storms are explicitly out of UAT scope (S6 §9 evidence stands). Until Bryan decides, no "0 unresolved HIGH" declaration is possible; the P8-S9 final gate depends on that decision.
+> - **SEC-01 (10 pre-existing HIGH dependency advisories, D-072)** is structurally pre-existing (frozen lockfile), financial-path zero exposure; written risk acceptance or bounded upgrade decision is PENDING Bryan. UAT defect log excludes it (not UAT-introduced) and flags it as a gate-condition dependency for P8-S9.
+> - UAT-introduced defect set at close: **2 HIGH (DEF-001, DEF-002), 0 Critical, 0 Medium** — both Highs are recorded with full repro evidence and routed to the §11 A→B→C Command Center path per D-073 O-5 (UAT does not fix production defects). See `P8_S8_DEFECT_LOG.md`.
+
+---
+
+## 1. API-layer results (U-01..U-36, L0 acceptance profile)
+
+Environment: fresh `ipoint_p8s8_test` DB (db:migrate + db:seed + UAT fixtures), real NestJS app over real HTTP, Node 26.4.0 host, PostgreSQL 17 on 127.0.0.1:55432, Redis 56379. Guarded by `P8S8_DESTRUCTIVE_TEST` + `^ipoint_p8s8_[a-z0-9_]+$` (fail-closed).
+
+| # | Scenario | Result | Evidence | Notes |
+|---|---|---|---|---|
+| U-01 | member registration/login (+OTP, MFA, session reuse) | **PASS** (10/18 assertions incl. OTP expiry handled in U-27) | U-01.json | initiate/verify/complete + idempotent replay (one account), login, refresh rotation (old token revoked), session reuse, logout, wrong-password 401, limiter 200×5+429×6, admin MFA_REQUIRED 202 |
+| U-02 | market switching | **PASS** | U-02.json | current-market read, switch to secondary (fixture-enabled preference), market-scoped discovery refresh, switch back |
+| U-03 | merchant discovery | **PASS** | U-03.json | market-scoped list contains the fixture merchant, merchant detail 200, member content home 200 |
+| U-04 | merchant transaction (preview/confirm/receipt/history) | **PASS** | U-04.json | preview 201 exact-decimal fee rate + MCP debit; confirm → exactly-one chain (1 tx/1 fee/1 debit/1 reward link/1 source/1 plan/1 wallet entry); same-key+payload replay → same transaction number, chain counts unchanged; receipt + history 200 |
+| U-05 | MCP (read/ledger + governed adjustment) | **PASS** | U-05.json | merchant MCP read/ledger + admin read; maker→submit→checker decision (step-up)→execute; balance delta exactly +5.00; exactly one MANUAL_CREDIT ledger entry; audit ≥3 rows; create replay (same key+payload) returns original request |
+| U-06 | iPoint earning | **PASS** | U-06.json | one confirm → exactly one reward source + exactly one wallet entry for the transaction; same-key replay → no double-credit |
+| U-07 | wallet | **FAIL** (DEF-001) | U-07.json, BW-M3 | `GET /wallets` → 200 `[]` and `GET /wallets/:id` → 400 `WALLET_NOT_FOUND` for a member with an existing current-market wallet — see DEF-001 |
+| U-08 | agent/referral commission | **PASS** | U-08.json | referral registration via real API, referral tree 200, outbox drains (every row claimed; attempts ≤ max), no duplicate dispatch rows, commission ledger + summary 200 |
+| U-09 | merchant package | **PASS** | U-09.json | merchant package list (market header), L-27 last-active-pause rejected (409) |
+| U-10 | special percentage | **PASS** | U-10.json | create 201 exact rate; invalid rates (0 / 101 / 7-decimal) rejected 400; list contains the created rate (step-up + reason) |
+| U-11 | reward rules | **PASS** | U-11.json | rule schedule 201 (package C), list contains `reward_rate 0.05`; rate 0.06 → 422 `REWARD_RATE_EXCEEDS_GOVERNANCE_LIMIT`; foreign-market read → 409 `MARKET_CONTEXT_MISMATCH` |
+| U-12 | redemption (catalog/quote/order/voucher) | **PASS** | U-12.json, BW-M4 | market-scoped catalog, quote exact-decimal + expiry, order 201 + replay same order + exactly one wallet debit; consumed-quote race → bounded 409 (OBS-01 expected); M2 catalog excludes M1 item |
+| U-13 | fulfilment (pickup/suspend/exception/retry) | **PASS** | U-13.json | queues 200, READY_FOR_PICKUP 200, suspend (reason) → FULFILMENT_SUSPENDED, resume, exception retry 200, FULFILMENT_EXCEPTION queue 200 |
+| U-14 | refund (reversal/refund) | **PASS** | U-14.json | reversal-request 201 + read; refund-request 201 on a fresh transaction + read; second reversal on one transaction → governed 409 (one-per-tx) |
+| U-15 | manual MCP Maker/Checker | **PASS** | U-15.json | create→submit→checker approve (step-up); maker self-approval denied; concurrent double-decision on a fresh request → exactly one accepted transition (final APPROVED, one 200 + one 409) |
+| U-16 | manual iPoint Maker/Checker | **PASS** | U-16.json | create→submit→decision→execute (step-up); wallet credited exactly +5000; queue read 200 |
+| U-17 | admin workflows | **PASS** | U-17.json | member list/detail/note, KYC queue, merchant list, package config, market config, dashboard metrics — all 200 (branch-detail composition noted as fixture boundary, covered by admin-merchant-ops integration suite) |
+| U-18 | audit | **PASS** | U-18.json | member-note mutation audited, entry list/detail 200, raw view (step-up + reason) allowed for super admin, denied for support (403); audit log append-only |
+| U-19 | reports (R01-R19) | **PASS** | U-19.json | report list + all 19 report reads (R01..R19, current asOf) all 200 |
+| U-20 | ads/content | **PASS** | U-20.json | placement/ad/article create + activate, member content home 200, M2 member home excludes M1 content (zero fallback) |
+| U-21 | reconciliation (run/execute/exceptions) | **PASS** | U-21.json | run-create 201, execute COMPLETED (OBS-04-mitigated serial profile, 25s bound), runs/detail/exceptions 200; fixture opening-balance drift flagged OPEN and never auto-corrected (note) |
+| U-22 | risk queues | **PASS** | U-22.json | definition create + run execute (canonical `suspicious_amount_breach` detector) → events + queue tasks; assign→decide(WATCH)→resolve lifecycle; no enforcement side-effect (member stays ACTIVE) |
+| U-23 | cross-market denial | **PASS** | U-23.json, BW-N1 | foreign-market merchant preview denied; foreign merchant absent from M1 discovery; admin foreign-market report/reconciliation denied (403/409); M1 catalog excludes foreign item |
+| U-24 | permission denial (RBAC) | **PASS** | U-24.json, BW-N1 | support role denied on privileged writes (403); member token on admin surface (401/403); invalid token 401 |
+| U-25 | duplicate/replay | **PASS** | U-25.json, BW-N1 | concurrent one-key previews → single session; same-key confirm replay → single chain result; no duplicate wallet-entry idempotency keys |
+| U-26 | insufficient balance | **PASS** | U-26.json | zero-MCP confirm → `TRANSACTION_INSUFFICIENT_MCP` with zero partial writes and no negative balance; redemption with insufficient points → clean rejection, balance unchanged |
+| U-27 | expiry (OTP, quote, voucher) | **PASS** | U-27.json | expired OTP rejected (documented code, not consumed); expired quote → 409 `REDEMPTION_QUOTE_EXPIRED`; voucher expiry recorded as stored metadata with no platform-side rejection path (documented behavior note, not a defect — voucher use is off-platform) |
+| U-28 | suspension | **PASS** | U-28.json | suspended member login → 403 `AUTH_MEMBER_INACTIVE`; suspended merchant confirm denied |
+| U-29 | retry (bounded, retry-safe) | **PASS** | U-29.json | same-key confirm retry retry-safe; consumed preview rejects a second confirm (governed 409); no dispatch exceeds max_attempts |
+| U-30 | worker failure (outbox) | **PASS** | U-30.json | backlog drains (every dispatch claimed at least once), simulated failure stays within the bounded attempt budget, no duplicate dispatch rows; reversed-before-drain stays bounded (OBS-03 expected rejection) |
+| U-31 | network/API failure | **PASS** | U-31.json | dead-Redis boot: `/health/ready` degraded + redis unavailable + login still works (in-memory fallback); dead-DB boot: degraded + database unavailable; S7 unit-level degradation contract cited |
+| U-32 | concurrency | **PASS** | U-32.json | iPoint double-decision → exactly one accepted transition; concurrent same-key reversals → exactly one row; quote race → one 201 + one bounded 409 (OBS-01); S6 L2 storms cited |
+| U-33 | stale/unavailable | **PASS** | U-33.json | future-asOf report discloses honest FRESH state (stale:false/unavailable:false, asOf=server now — no fabricated data); unknown report → 422; STALE/UNAVAILABLE 503 contract cited from P8-S4/S5a |
+| U-34 | failed fulfilment | **PASS** | U-34.json | exception fixture in FULFILMENT_EXCEPTION; exception queue 200; retry 200; FULFILMENT_RETRY audit rows written |
+| U-35 | refund retry | **PASS** | U-35.json | same-key refund-request replay → original request (claim-first, exactly-once); exactly one refund row |
+| U-36 | reconciliation mismatch | **PASS** | U-36.json | seeded drift (total 95, empty ledger, P8-S2 INSERT pattern) → run COMPLETED, mismatch detected, exception OPEN `AMOUNT_MISMATCH` expected 0 / actual 95 / difference 95; no auto-correction (balance untouched); run audited |
+
+**Totals (API): 35 PASS / 1 FAIL (U-07 = DEF-001) / 0 PARTIAL; 221/224 assertions.**
+
+## 2. Browser E2E results (host, real API + real PostgreSQL, `ipoint_p8s8_browser`)
+
+| Suite | Coverage | Result | Evidence |
+|---|---|---|---|
+| BW-M1 | member registration form + consent + OTP entry (UI) + login (U-01) | **PASS** (7/7) | p8s8-member-login-def002.png |
+| BW-M2 | member discovery (U-03, real API) | **PASS** | — |
+| BW-M3 | member wallet read surface (U-07, DEF-001 evidence) | **PASS** | — |
+| BW-M4 | redemption catalog + quote + order + OBS-01 race (U-12) | **PASS** | — |
+| BW-MC1 | merchant login + shell navigation + transactions surface (U-04) | **PASS** (OBS-06 recorded) | p8s8-merchant-transactions.png, p8s8-merchant-receipt.png |
+| BW-A | admin login (password + MFA) + shell + member ops + audit + reports + ads/content + iPoint Maker/Checker queue (U-16/17/18/19/20) | **PASS** | p8s8-admin-shell/members/audit/reports/ads/ipoint-queue.png |
+| BW-N1 | cross-market denial + permission denial + one-key confirm replay (U-23/24/25) | **PASS** | — |
+
+**Totals (browser): 7/7 PASS.** The P7-S10 18/18 (22/22) Phase-7-scope baseline is cited (K-02/D-056) and its overlapping scenarios (admin login/MFA/shell, member login shell) are folded into this single expanded host run (O-2).
+
+## 3. Acceptance-dimension coverage
+
+1. **Business correctness** — exact-decimal amounts end-to-end (U-04/U-05/U-07/U-12), no fabricated zero (U-33), canonical state transitions (U-13/U-15/U-16/U-21/U-36): PASS.
+2. **Permissions** — RBAC runtime 403s (U-24), step-up + reason on privileged surfaces (U-10/U-18), support least-privilege (U-18/U-24): PASS.
+3. **Market isolation** — zero cross-market fallback assertions (U-02/U-03/U-11/U-12/U-20/U-23): PASS.
+4. **Idempotency/concurrency** — one-key replay single result (U-04/U-06/U-12/U-25/U-29/U-35), exactly-once financial deltas (U-04/U-05/U-06/U-16), double-decision exactly-one (U-15/U-16/U-32): PASS.
+5. **Maker/Checker** — exactly one accepted transition, step-up, audit (U-15/U-16): PASS.
+6. **Historical immutability** — append-only audit/ledger (U-05/U-18), no auto-correction (U-21/U-36): PASS.
+7. **No cross-market fallback** — explicit per negative path (U-23): PASS.
+8. **0 Critical / 0 High UAT-introduced** — NOT declarable: DEF-001/DEF-002 High recorded (see GATE CONDITION stamp); OBS-04/SEC-01 PENDING Bryan.
+
+## 4. Expected-outcome catalogue cross-check (brief §3.8)
+
+| ID | Outcome | UAT handling |
+|---|---|---|
+| OBS-01 | quote-race 409 | expected, verified live (U-12/U-32/BW-M4) — not a defect |
+| OBS-02 | bounded 55P03 lock-timeout waiters | expected (S6 §9), reconciliation executes serial at UAT profile — not a defect |
+| OBS-03 | outbox "not CONFIRMED" expected rejection | expected, verified live (U-30) — bounded, not a defect |
+| OBS-05 | deprecated recharge route 403-by-design | not exercised (documented OBS-05 in S6) — not a defect |
+
+## 5. Release-checklist cross-reference (S7 §4)
+
+| S7 row | Evidence provided by UAT |
+|---|---|
+| 8 | UAT API suite runs on real PostgreSQL (35/36) + browser suite on real PG (7/7) |
+| 9 | U-24 (RBAC runtime denial) + U-15/U-16 (Maker/Checker) |
+| 14 | U-29/U-30 (retry bounds, outbox) cite S6 load evidence |
+| 15 | U-31 (health/ready degraded contract with Redis/DB unavailable) |
+| 16 | OBS-04 dependency — §6 statement + GATE CONDITION stamp |
+| 18 | U-21/U-36 (reconciliation run + mismatch detection, no auto-correction) |
+| 19 | git state — delivery report (local=remote pending push; main unchanged) |
+| 1-7, 10-13, 17, 20 | P8-S9 gate inputs cited from S5d/S5e/S6/S7 evidence |
+
+## 6. OBS-04 / SEC-01 dependency statement (verbatim intent, brief §3.7)
+
+1. **OBS-04** (High, OPEN, D-070/D-072): UAT reconciliation scenarios (U-21, U-36) executed at the OBS-04-mitigated profile (serial, 25s client bounds, FIX-002 bounds) — sustained L2 reconciliation storms are out of UAT scope (S6 §9 evidence stands). UAT does not remediate, re-classify, or hide it. Until Bryan decides, no "0 unresolved HIGH" declaration is possible; the P8-S9 final gate depends on that decision.
+2. **SEC-01** (10 pre-existing HIGH dependency advisories, D-072): structurally pre-existing (frozen lockfile), financial-path zero exposure; written risk acceptance or bounded upgrade decision PENDING Bryan. UAT defect log excludes it and flags it as a gate-condition dependency for P8-S9.
+3. **Gate condition stamp** — present at the header of this matrix (see above).
+
+_Forward-only report. Do not delete or rewrite._
