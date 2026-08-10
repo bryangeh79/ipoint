@@ -1,0 +1,285 @@
+/**
+ * J6 — redemption (order / approve / voucher path).
+ *
+ * Contract §6 journey 6. Ops: member catalog browse, quote, order creation
+ * over real HTTP (the approve/voucher state machine is exercised via the
+ * admin queues + fulfilment ops in J7). Storm: concurrent orders with
+ * distinct idempotency keys → exactly the expected number of orders and one
+ * wallet debit per order; replay of one key → one order.
+ *
+ * @packageDocumentation
+ */
+
+import type { LoadContext, JourneyResult } from '../harness.js';
+import { randomUUID } from 'node:crypto';
+import {
+  finishJourneyResult,
+  httpCall,
+  measureOp,
+  newJourneyResult,
+} from '../harness.js';
+import { randomSuffix, stringId } from './common.js';
+
+const OK = new Set([200]);
+const CREATED = new Set([201]);
+
+export interface RedemptionFixture {
+  itemId: string;
+  pickupLocationId: string;
+}
+
+export async function seedRedemptionFixture(
+  ctx: LoadContext,
+): Promise<RedemptionFixture> {
+  const world = ctx.world;
+  const superAdminUserId = world.superAdmin.adminUserId;
+
+  // Rate rule + version for the world market (foundation only seeds MY).
+  await ctx.pool.query(
+    `INSERT INTO redemption_rate_market_rules (
+        market_code, rate_type, initial_rate, minimum_rate, maximum_rate,
+        currency, display_unit, is_active
+       ) VALUES ($1, 'POINTS_PER_CURRENCY', '1.0000000000', '0.5000000000',
+                 '2.0000000000', 'MYR', 'RM', true)
+     ON CONFLICT DO NOTHING`,
+    [world.marketCode],
+  );
+  const rateVersionId = randomUUID();
+  await ctx.pool.query(
+    `INSERT INTO redemption_rate_versions (
+        id, market_id, rate_type, rate_value, effective_from, created_by
+       ) VALUES ($1, $2, 'POINTS_PER_CURRENCY', '0.0100000000',
+                 now() - interval '1 day', $3)`,
+    [rateVersionId, world.marketId, superAdminUserId],
+  );
+
+  // Catalog item + inventory.
+  const itemId = randomUUID();
+  await ctx.pool.query(
+    `INSERT INTO redemption_catalog_items (
+        id, market_id, sku, name, item_type, ownership, status,
+        fiat_reference_value, fiat_currency, fulfilment_mode,
+        inventory_mode, created_by, version
+       ) VALUES (
+        $1, $2, $3, 'P8-S6 item', 'PHYSICAL', 'PLATFORM_OWNED', 'ACTIVE',
+        '100.0000000000', 'MYR', 'PICKUP', 'TRACKED', $4, 1
+       )`,
+    [itemId, world.marketId, `P8S6-${randomSuffix()}`, superAdminUserId],
+  );
+  await ctx.pool.query(
+    `INSERT INTO redemption_inventory (
+        item_id, total_quantity, committed_quantity, fulfilled_quantity,
+        backorder_quantity, version
+       ) VALUES ($1, '1000', '0', '0', '0', 1)`,
+    [itemId],
+  );
+
+  // Pickup location (PICKUP fulfilment requires one).
+  const pickupLocationId = randomUUID();
+  await ctx.pool.query(
+    `INSERT INTO redemption_pickup_locations (
+        id, market_id, name, address, contact_name, contact_phone,
+        is_active, created_by
+       ) VALUES ($1, $2, 'P8-S6 Counter', '1 Test St', 'Counter', '000',
+                 true, $3)`,
+    [pickupLocationId, world.marketId, superAdminUserId],
+  );
+
+  // Member wallet with points.
+  const wallet = await ctx.pool.query<{ id: string }>(
+    `SELECT id FROM member_wallet_accounts WHERE member_id = $1 AND market_id = $2 LIMIT 1`,
+    [world.merchant.memberId, world.marketId],
+  );
+  if (wallet.rows[0]?.id) {
+    await ctx.pool.query(
+      `UPDATE member_wallet_accounts SET available_balance = '100000' WHERE id = $1`,
+      [wallet.rows[0].id],
+    );
+  } else {
+    await ctx.pool.query(
+      `INSERT INTO member_wallet_accounts (member_id, market_id, available_balance)
+       VALUES ($1, $2, '100000')`,
+      [world.merchant.memberId, world.marketId],
+    );
+  }
+
+  return { itemId, pickupLocationId };
+}
+
+export async function runJourneyJ6(ctx: LoadContext): Promise<JourneyResult> {
+  const result = newJourneyResult(ctx, 'J6', 'redemption');
+  const world = ctx.world;
+  const fixture = await seedRedemptionFixture(ctx);
+  const memberToken = world.merchant.memberToken;
+  const memberId = world.merchant.memberId;
+
+  await measureOp(ctx, result, 'catalog', OK, async () =>
+    httpCall(ctx.baseUrl, {
+      method: 'GET',
+      path: '/api/v1/redemption/catalog',
+      token: memberToken,
+    }),
+  );
+
+  await measureOp(ctx, result, 'quote', OK, async () =>
+    httpCall(ctx.baseUrl, {
+      method: 'GET',
+      path: `/api/v1/redemption/catalog/${fixture.itemId}/quote?quantity=1`,
+      token: memberToken,
+    }),
+  );
+
+  // Order create: quote → confirm order.
+  await measureOp(ctx, result, 'order-create', CREATED, async () => {
+    const quote = await httpCall(ctx.baseUrl, {
+      method: 'GET',
+      path: `/api/v1/redemption/catalog/${fixture.itemId}/quote?quantity=1`,
+      token: memberToken,
+    });
+    const quoteBody = quote.body as {
+      quoteId?: string;
+      postedPointCost?: string;
+    };
+    if (!quoteBody.quoteId || !quoteBody.postedPointCost) {
+      return { status: 500, latencyMs: quote.latencyMs };
+    }
+    return httpCall(ctx.baseUrl, {
+      method: 'POST',
+      path: '/api/v1/redemption/orders',
+      token: memberToken,
+      body: {
+        quoteId: quoteBody.quoteId,
+        idempotencyKey: `j6-order-${randomSuffix()}`,
+        expectedItemVersion: 1,
+        expectedTotalPoints: quoteBody.postedPointCost,
+        expectedQuantity: '1',
+        fulfilment: {
+          type: 'PICKUP',
+          pickupLocationId: fixture.pickupLocationId,
+        },
+        termsAcceptance: { accepted: true, termsVersion: 'v1' },
+      },
+    });
+  });
+
+  // -- order storm ---------------------------------------------------------
+  if (ctx.level !== 'L0') {
+    const beforeOrders = await orderCount(ctx, memberId);
+    const stormCount = 20;
+    const stormed = await Promise.all(
+      Array.from({ length: stormCount }, async () => {
+        const quote = await httpCall(ctx.baseUrl, {
+          method: 'GET',
+          path: `/api/v1/redemption/catalog/${fixture.itemId}/quote?quantity=1`,
+          token: memberToken,
+        });
+        const quoteBody = quote.body as {
+          quoteId?: string;
+          postedPointCost?: string;
+        };
+        if (!quoteBody.quoteId || !quoteBody.postedPointCost) {
+          return { status: 500, orderId: '' };
+        }
+        const order = await httpCall(ctx.baseUrl, {
+          method: 'POST',
+          path: '/api/v1/redemption/orders',
+          token: memberToken,
+          body: {
+            quoteId: quoteBody.quoteId,
+            idempotencyKey: `j6-storm-${randomSuffix()}`,
+            expectedItemVersion: 1,
+            expectedTotalPoints: quoteBody.postedPointCost,
+            expectedQuantity: '1',
+            fulfilment: {
+              type: 'PICKUP',
+              pickupLocationId: fixture.pickupLocationId,
+            },
+            termsAcceptance: { accepted: true, termsVersion: 'v1' },
+          },
+        });
+        return {
+          status: order.status,
+          orderId: stringId(order.body, ['id', 'orderId']),
+        };
+      }),
+    );
+    const created = stormed.filter((r) => r.status === 201).length;
+    const afterOrders = await orderCount(ctx, memberId);
+    result.assertions.push({
+      name: 'J6 order storm → exactly one order per confirm (no duplicates)',
+      pass: afterOrders - beforeOrders === created && created === stormCount,
+      detail: `before=${beforeOrders} after=${afterOrders} created=${created}/${stormCount}`,
+    });
+
+    // One wallet debit per order.
+    const debitCount = await ctx.pool.query<{ count: string }>(
+      `SELECT count(*)::text AS count
+         FROM member_wallet_entries
+        WHERE member_id = $1 AND entry_type = 'REDEMPTION_DEBIT'`,
+      [memberId],
+    );
+    const debits = Number(debitCount.rows[0]?.count ?? 0);
+    result.assertions.push({
+      name: 'J6 exactly one wallet debit per order',
+      pass: debits === afterOrders - beforeOrders,
+      detail: `REDEMPTION_DEBIT entries = ${debits} (orders created = ${afterOrders - beforeOrders})`,
+    });
+
+    // Replay one key → same order, no second write.
+    const quote = await httpCall(ctx.baseUrl, {
+      method: 'GET',
+      path: `/api/v1/redemption/catalog/${fixture.itemId}/quote?quantity=1`,
+      token: memberToken,
+    });
+    const quoteBody = quote.body as {
+      quoteId?: string;
+      postedPointCost?: string;
+    };
+    const replayKey = `j6-replay-${randomSuffix()}`;
+    const orderBody = {
+      quoteId: quoteBody.quoteId,
+      idempotencyKey: replayKey,
+      expectedItemVersion: 1,
+      expectedTotalPoints: quoteBody.postedPointCost,
+      expectedQuantity: '1',
+      fulfilment: {
+        type: 'PICKUP',
+        pickupLocationId: fixture.pickupLocationId,
+      },
+      termsAcceptance: { accepted: true, termsVersion: 'v1' },
+    };
+    const first = await httpCall(ctx.baseUrl, {
+      method: 'POST',
+      path: '/api/v1/redemption/orders',
+      token: memberToken,
+      body: orderBody,
+    });
+    const replay = await httpCall(ctx.baseUrl, {
+      method: 'POST',
+      path: '/api/v1/redemption/orders',
+      token: memberToken,
+      body: orderBody,
+    });
+    const firstId = stringId(first.body, ['id', 'orderId']);
+    const replayId = stringId(replay.body, ['id', 'orderId']);
+    result.assertions.push({
+      name: 'J6 order replay (same key) → single order, same result',
+      pass:
+        first.status === 201 &&
+        replay.status === 201 &&
+        firstId !== '' &&
+        firstId === replayId,
+      detail: `first=${first.status} replay=${replay.status} sameOrderId=${firstId === replayId}`,
+    });
+  }
+
+  return finishJourneyResult(result);
+}
+
+async function orderCount(ctx: LoadContext, memberId: string): Promise<number> {
+  const rows = await ctx.pool.query<{ count: string }>(
+    `SELECT count(*)::text AS count FROM redemption_orders WHERE member_id = $1`,
+    [memberId],
+  );
+  return Number(rows.rows[0]?.count ?? 0);
+}
