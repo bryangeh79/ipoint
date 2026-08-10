@@ -1,0 +1,171 @@
+# P8-S7 Alert Rule Template (Prometheus-compatible alerting rules, YAML)
+#
+# DELIVERY FORM: configuration TEMPLATE only. No runtime dependency is added
+# to the API; a production monitoring stack (Prometheus/Alertmanager or an
+# equivalent) applies these rules at deployment time. Thresholds are
+# CONFIGURABLE PROPOSALS (decision O-5): final production values are a
+# Bryan/Command Center production-launch decision, never S7 policy.
+#
+# Metric sources: the rules below reference metric names a monitoring stack
+# would collect from (a) PostgreSQL exporters (pg_stat_activity /
+# pg_stat_database — the S6-proven measurement surface) and (b) the checked-in
+# probe scripts/p8-s7/monitoring-probe.mjs for the reconciliation/OBS-04
+# class. OBS-01/02/03/05 expected outcomes are referenced so rules do not
+# false-positive on expected business results (see
+# P8_S7_MONITORING_ALERTING_REPORT.md §4).
+
+groups:
+  - name: ipoint-p8-s7-auth-abuse
+    rules:
+      # ops doc §7: authentication failures and abuse.
+      # Expected-outcome note (OBS-05): deprecated recharge 403s are by
+      # design and excluded via the label matcher on route.
+      - alert: IpointHighAuthFailureRate
+        expr: |
+          sum(rate(http_requests_total{service="ipoint-api", route=~"/api/v1/auth/.*", status=~"4(01|03|29)"}[5m]))
+            / sum(rate(http_requests_total{service="ipoint-api", route=~"/api/v1/auth/.*"}[5m]))
+          > 0.5
+        for: 10m
+        labels:
+          severity: High
+        annotations:
+          summary: "High auth failure rate on the auth surface"
+          description: "Over 50% of auth-surface requests failed (401/403/429) for 10 minutes. Check for credential stuffing or a broken client."
+          runbook: "docs/06-phase-reports/p8-s7/P8_S7_OPS_RUNBOOKS_RELEASE_CHECKLIST.md#security-incident"
+
+      - alert: IpointRateLimit429Burst
+        expr: |
+          sum(rate(http_requests_total{service="ipoint-api", status="429"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: Medium
+        annotations:
+          summary: "Sustained 429 burst"
+          description: "More than 5 req/s of 429s for 5 minutes. Expected under the frozen limiter ceilings (10/IP/300s, 5/email/300s); investigate when persistent (abuse or misconfiguration)."
+
+  - name: ipoint-p8-s7-api-health
+    rules:
+      # ops doc §7: API error rate and latency.
+      - alert: IpointApiErrorRateHigh
+        expr: |
+          sum(rate(http_requests_total{service="ipoint-api", status=~"5.."}[5m]))
+            / sum(rate(http_requests_total{service="ipoint-api"}[5m]))
+          > 0.05
+        for: 10m
+        labels:
+          severity: High
+        annotations:
+          summary: "API 5xx error rate above 5%"
+          description: "5xx share exceeded 5% for 10 minutes."
+          runbook: "docs/06-phase-reports/p8-s7/P8_S7_OPS_RUNBOOKS_RELEASE_CHECKLIST.md#production-outage"
+
+      - alert: IpointApiP95LatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service="ipoint-api"}[5m])) by (le))
+          > 2
+        for: 15m
+        labels:
+          severity: Medium
+        annotations:
+          summary: "API p95 latency above 2s"
+          description: "p95 response latency exceeded 2s for 15 minutes (indicative threshold; production SLA is a launch decision)."
+
+  - name: ipoint-p8-s7-database
+    rules:
+      # ops doc §7: database health. Sources: pg_stat_database counters and
+      # pg_stat_activity snapshots (S6 §7 method), probe scripts/p8-s7/monitoring-probe.mjs.
+      - alert: IpointIdleInTransaction
+        expr: |
+          pg_stat_activity_idle_in_transaction{datname=~"ipoint.*"} > 0
+        for: 5m
+        labels:
+          severity: High
+        annotations:
+          summary: "Idle-in-transaction sessions present (OBS-04 class)"
+          description: "Sessions stuck idle in transaction for 5+ minutes — the known OBS-04 class (reconciliation path). Monitoring makes it visible; remediation is the Command Center decision per D-070."
+          runbook: "docs/06-phase-reports/p8-s7/P8_S7_OPS_RUNBOOKS_RELEASE_CHECKLIST.md#production-outage"
+          obs04: "detected"
+
+      - alert: IpointReconcileRunStall
+        expr: |
+          reconciliation_runs_running_age_seconds{datname=~"ipoint.*"} > 300
+        for: 5m
+        labels:
+          severity: High
+        annotations:
+          summary: "Reconciliation run_execute stalled"
+          description: "A reconciliation run stayed RUNNING beyond 5 minutes (run_execute stall). Expected-outcome note (OBS-02): bounded 55P03 lock-timeout 500s are expected; this rule targets RUNNING-state age only."
+          runbook: "docs/06-phase-reports/p8-s7/P8_S7_OPS_RUNBOOKS_RELEASE_CHECKLIST.md#production-outage"
+
+      - alert: IpointPoolSaturation
+        expr: |
+          (pg_stat_activity_total{datname=~"ipoint.*"} / pg_settings_max_connections) * 100 >= 80
+        for: 10m
+        labels:
+          severity: High
+        annotations:
+          summary: "Connection pool saturation >= 80%"
+          description: "Pool saturation reached the proposed 80% threshold for 10 minutes (OBS-04 pool-exhaustion signature)."
+
+      - alert: IpointDeadlockDelta
+        expr: |
+          increase(pg_stat_database_deadlocks{datname=~"ipoint.*"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: Medium
+        annotations:
+          summary: "Deadlock counter increasing"
+          description: "PostgreSQL deadlock counter increased in the last 15 minutes (S6 baseline: 0 deadlocks)."
+
+  - name: ipoint-p8-s7-workers
+    rules:
+      # ops doc §7: queue health / outbox. Expected-outcome note (OBS-03):
+      # "Dispatch failed: not CONFIRMED" for reversed transactions is an
+      # expected business rejection — the rule watches backlog AGE, not the
+      # log line.
+      - alert: IpointOutboxBacklog
+        expr: |
+          transaction_commission_dispatch_pending{datname=~"ipoint.*"} > 100
+        for: 15m
+        labels:
+          severity: Medium
+        annotations:
+          summary: "Outbox pending backlog above 100"
+          description: "More than 100 PENDING outbox rows for 15 minutes (S6 baseline drains 60 -> 0 in ~3s)."
+
+  - name: ipoint-p8-s7-business
+    rules:
+      # ops doc §7: transaction confirmations / MCP debits / reward settlement
+      # / reconciliation differences / admin privileged actions. Expected
+      # outcome notes: OBS-01 quote 409s are a safe bounded business race —
+      # excluded by status matcher; OBS-02 55P03 500s are bounded — counted
+      # below threshold.
+      - alert: IpointLedgerReconciliationDifference
+        expr: |
+          reconciliation_exceptions_open{datname=~"ipoint.*"} > 0
+        for: 30m
+        labels:
+          severity: High
+        annotations:
+          summary: "Open reconciliation exceptions"
+          description: "Reconciliation detected open exceptions (amount/missing/unexpected classes) for 30 minutes — investigate per the reconciliation runbook."
+
+      - alert: IpointMcpDebitFailureRate
+        expr: |
+          sum(rate(http_requests_total{service="ipoint-api", route=~"/api/v1/admin/.*/mcp/.*", status=~"5.."}[5m])) > 0
+        for: 15m
+        labels:
+          severity: High
+        annotations:
+          summary: "MCP adjustment failures"
+          description: "5xx responses on the MCP adjustment surface for 15 minutes."
+
+      - alert: IpointRewardSettlementStall
+        expr: |
+          daily_job_running_seconds{job="reward-settlement", datname=~"ipoint.*"} > 3600
+        for: 15m
+        labels:
+          severity: Medium
+        annotations:
+          summary: "Reward settlement job stalled"
+          description: "Reward settlement daily job running beyond 1 hour (timezone-aware scheduling per ops doc §9)."

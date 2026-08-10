@@ -228,3 +228,10 @@ jobs:
           P8S6_LOAD_LEVEL: 'L0'
           REDIS_URL: redis://127.0.0.1:6379
         run: cd apps/api && pnpm vitest run src/load/load.spec.ts --reporter verbose
+
+      - name: P8-S7 redis integration (guarded fresh-database suite)
+        env:
+          DATABASE_URL: postgresql://ipoint:ipoint_ci@127.0.0.1:5432/ipoint_p8s7_test
+          P8S7_DESTRUCTIVE_TEST: '1'
+          REDIS_URL: redis://127.0.0.1:6379
+        run: cd apps/api && pnpm vitest run src/redis/redis.integration.spec.ts --reporter verbose

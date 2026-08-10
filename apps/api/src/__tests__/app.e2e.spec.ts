@@ -55,16 +55,24 @@ e2eDescribe('App (e2e)', () => {
   });
 
   describe('GET /health/ready', () => {
-    it('should return 200 with readiness checks', async () => {
+    it('should return 200 with per-check readiness status', async () => {
       const res = await supertest(server).get('/health/ready').expect(200);
 
       const body = res.body as Record<string, unknown>;
-      expect(body).toHaveProperty('status', 'ok');
       expect(body).toHaveProperty('service', 'ipoint-api');
       expect(body).toHaveProperty('timestamp');
       expect(body).toHaveProperty('version', '0.0.0');
       expect(body).toHaveProperty('checks');
-      expect(body['checks']).toEqual({ config: 'ok' });
+      const checks = body['checks'] as Record<string, string>;
+      // Config is always reported; the DB under test is deliberately
+      // unreachable (localhost:5432), so the database check is unavailable.
+      expect(checks['config']).toBe('ok');
+      expect(checks['database']).toBe('unavailable');
+      // Redis availability depends on the run environment (host has a local
+      // Redis, CI unit job does not) — accept either honest value.
+      expect(['ok', 'unavailable']).toContain(checks['redis']);
+      // Overall status is degraded whenever any configured dependency fails.
+      expect(body['status']).toBe('degraded');
     });
   });
 

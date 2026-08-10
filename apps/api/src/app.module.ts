@@ -73,11 +73,25 @@ import {
             res.setHeader('x-request-id', requestId);
             return requestId;
           },
-          customProps: (req) => ({
-            requestId: ((req as unknown as Record<string, unknown>)[
-              'requestId'
-            ] ?? req.id) as string,
-          }),
+          customProps: (req) => {
+            const record = req as unknown as Record<string, unknown>;
+            const headers = req.headers as Record<
+              string,
+              string | string[] | undefined
+            >;
+            const marketHeader = headers['x-market-id'];
+            const marketId = Array.isArray(marketHeader)
+              ? marketHeader[0]
+              : marketHeader;
+            return {
+              requestId: (record['requestId'] ?? req.id) as string,
+              // ops doc §7: logs include service, environment and market
+              // context where appropriate (P8-S7 bounded addition).
+              service: 'ipoint-api',
+              env: process.env['NODE_ENV'] ?? 'development',
+              ...(marketId ? { marketId } : {}),
+            };
+          },
         },
       }),
     }),
