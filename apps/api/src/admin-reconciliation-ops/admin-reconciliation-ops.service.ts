@@ -194,6 +194,7 @@ export class AdminReconciliationOpsService {
             ),
           );
         const items = await this.detect(
+          tx,
           marketId,
           run.kind as ReconciliationKind,
           run.windowStartAt as Date,
@@ -651,9 +652,17 @@ export class AdminReconciliationOpsService {
 
   // -------------------------------------------------------------------------
   // Difference detection (READ-ONLY: frozen tables are never written)
+  //
+  // OBS-04 fix (fix record FIX-005): every detection query runs on the
+  // transaction-scoped client (`tx`) - never on a fresh pool acquisition -
+  // because executeRun runs detection INSIDE its write transaction. Before
+  // the fix, pool-level queries from inside the open transaction deadlocked
+  // the pool under a sustained same-run storm (all pooled connections held
+  // by in-flight transactions, each waiting for a further pool connection).
   // -------------------------------------------------------------------------
 
   private async detect(
+    tx: DatabaseTransaction,
     marketId: string,
     kind: ReconciliationKind,
     windowStart: Date,
@@ -661,17 +670,22 @@ export class AdminReconciliationOpsService {
   ): Promise<DetectedItem[]> {
     switch (kind) {
       case 'MCP':
-        return this.detectMcp(marketId, windowStart, windowEnd);
+        return this.detectMcp(tx, marketId, windowStart, windowEnd);
       case 'IPOINT':
-        return this.detectIpoint(marketId, windowStart, windowEnd);
+        return this.detectIpoint(tx, marketId, windowStart, windowEnd);
       case 'TRANSACTION_LEDGER':
-        return this.detectTransactionLedger(marketId, windowStart, windowEnd);
+        return this.detectTransactionLedger(
+          tx,
+          marketId,
+          windowStart,
+          windowEnd,
+        );
       case 'COMMISSION':
-        return this.detectCommission(marketId, windowStart, windowEnd);
+        return this.detectCommission(tx, marketId, windowStart, windowEnd);
       case 'REFUND':
-        return this.detectRefund(marketId, windowStart, windowEnd);
+        return this.detectRefund(tx, marketId, windowStart, windowEnd);
       case 'REDEMPTION':
-        return this.detectRedemption(marketId, windowStart, windowEnd);
+        return this.detectRedemption(tx, marketId, windowStart, windowEnd);
       default:
         throw new ReconciliationError(
           'RECONCILIATION_INVALID_INPUT',
@@ -682,29 +696,29 @@ export class AdminReconciliationOpsService {
 
   /** MCP: ledger net (lifetime) vs maintained balance columns per account. */
   private async detectMcp(
+    tx: DatabaseTransaction,
     marketId: string,
     windowStart: Date,
     windowEnd: Date,
   ): Promise<DetectedItem[]> {
-    const result = await this.database.pool.query(
-      `SELECT a.id AS account_id, a.total_balance, a.available_balance,
+    const result = await tx.execute(
+      sql`SELECT a.id AS account_id, a.total_balance, a.available_balance,
               coalesce(sum(e.balance_delta), 0)::numeric(38,10) AS ledger_total,
               coalesce(sum(e.available_delta), 0)::numeric(38,10) AS ledger_available,
               count(e.id)::int AS entry_count
          FROM mcp_accounts a
          LEFT JOIN mcp_ledger_entries e ON e.mcp_account_id = a.id
-        WHERE a.market_id = $1
+        WHERE a.market_id = ${marketId}
           AND (
             EXISTS (
               SELECT 1 FROM mcp_ledger_entries e2
                WHERE e2.mcp_account_id = a.id
-                 AND e2.effective_at >= $2 AND e2.effective_at < $3
+                 AND e2.effective_at >= ${windowStart} AND e2.effective_at < ${windowEnd}
             )
-            OR (a.created_at >= $2 AND a.created_at < $3)
+            OR (a.created_at >= ${windowStart} AND a.created_at < ${windowEnd})
           )
         GROUP BY a.id
         ORDER BY a.id`,
-      [marketId, windowStart, windowEnd],
     );
     const items: DetectedItem[] = [];
     for (const row of result.rows as JsonObject[]) {
@@ -745,20 +759,20 @@ export class AdminReconciliationOpsService {
    * REDEMPTION_DEBIT) move down; credit types move up.
    */
   private async detectIpoint(
+    tx: DatabaseTransaction,
     marketId: string,
     windowStart: Date,
     windowEnd: Date,
   ): Promise<DetectedItem[]> {
-    const result = await this.database.pool.query(
-      `SELECT w.id AS wallet_account_id,
+    const result = await tx.execute(
+      sql`SELECT w.id AS wallet_account_id,
               e.id AS entry_id, e.entry_type, e.amount,
               e.balance_before, e.balance_after, e.created_at
          FROM member_wallet_entries e
          JOIN member_wallet_accounts w ON w.id = e.wallet_account_id
-        WHERE w.market_id = $1
-          AND e.created_at >= $2 AND e.created_at < $3
+        WHERE w.market_id = ${marketId}
+          AND e.created_at >= ${windowStart} AND e.created_at < ${windowEnd}
         ORDER BY e.id`,
-      [marketId, windowStart, windowEnd],
     );
     const items: DetectedItem[] = [];
     for (const row of result.rows as JsonObject[]) {
@@ -798,12 +812,13 @@ export class AdminReconciliationOpsService {
    * recorded transaction amount matches the purchase.
    */
   private async detectTransactionLedger(
+    tx: DatabaseTransaction,
     marketId: string,
     windowStart: Date,
     windowEnd: Date,
   ): Promise<DetectedItem[]> {
-    const result = await this.database.pool.query(
-      `SELECT t.id AS transaction_id, t.purchase_amount, t.member_id,
+    const result = await tx.execute(
+      sql`SELECT t.id AS transaction_id, t.purchase_amount, t.member_id,
               count(tmd.id)::int AS debit_count,
               coalesce(sum(tmd.amount), 0)::numeric(38,10) AS debit_total,
               rl.id AS reward_link_id, rs.id AS reward_source_id,
@@ -813,12 +828,11 @@ export class AdminReconciliationOpsService {
          LEFT JOIN transaction_mcp_debits tmd ON tmd.transaction_id = t.id
          LEFT JOIN transaction_reward_links rl ON rl.transaction_id = t.id
          LEFT JOIN reward_sources rs ON rs.id = rl.reward_source_id
-        WHERE t.market_id = $1
+        WHERE t.market_id = ${marketId}
           AND t.status = 'CONFIRMED'
-          AND t.confirmed_at >= $2 AND t.confirmed_at < $3
+          AND t.confirmed_at >= ${windowStart} AND t.confirmed_at < ${windowEnd}
         GROUP BY t.id, rl.id, rs.id, rs.transaction_amount, rs.member_id
         ORDER BY t.id`,
-      [marketId, windowStart, windowEnd],
     );
     const items: DetectedItem[] = [];
     for (const row of result.rows as JsonObject[]) {
@@ -878,33 +892,32 @@ export class AdminReconciliationOpsService {
    * all belong to another market are out of scope for this market's run.
    */
   private async detectCommission(
+    tx: DatabaseTransaction,
     marketId: string,
     windowStart: Date,
     windowEnd: Date,
   ): Promise<DetectedItem[]> {
-    const marketRows = await this.database.pool.query(
-      'SELECT code FROM markets WHERE id = $1',
-      [marketId],
+    const marketRows = await tx.execute(
+      sql`SELECT code FROM markets WHERE id = ${marketId}`,
     );
     const marketCode = text(
       (marketRows.rows[0] as Record<string, unknown> | undefined)?.['code'],
     );
     if (!marketCode) return [];
-    const result = await this.database.pool.query(
-      `SELECT cp.id AS processing_id, cp.source_type, cp.source_reference,
+    const result = await tx.execute(
+      sql`SELECT cp.id AS processing_id, cp.source_type, cp.source_reference,
               cp.status AS processing_status, cp.completion_outcome,
               count(cl.id)::int AS all_posting_count,
-              count(cl.id) FILTER (WHERE cl.market = $1)::int AS market_posting_count,
-              coalesce(sum(cl.amount) FILTER (WHERE cl.market = $1), 0)::numeric(38,10) AS market_posting_total
+              count(cl.id) FILTER (WHERE cl.market = ${marketCode})::int AS market_posting_count,
+              coalesce(sum(cl.amount) FILTER (WHERE cl.market = ${marketCode}), 0)::numeric(38,10) AS market_posting_total
          FROM commission_processing cp
          LEFT JOIN commission_ledger cl ON cl.processing_id = cp.id
-        WHERE cp.created_at >= $2 AND cp.created_at < $3
+        WHERE cp.created_at >= ${windowStart} AND cp.created_at < ${windowEnd}
           AND cp.status = 'COMPLETED' AND cp.completion_outcome = 'CREATED'
         GROUP BY cp.id
-        HAVING count(cl.id) FILTER (WHERE cl.market = $1) > 0
+        HAVING count(cl.id) FILTER (WHERE cl.market = ${marketCode}) > 0
             OR count(cl.id) = 0
         ORDER BY cp.id`,
-      [marketCode, windowStart, windowEnd],
     );
     const items: DetectedItem[] = [];
     for (const row of result.rows as JsonObject[]) {
@@ -942,21 +955,21 @@ export class AdminReconciliationOpsService {
 
   /** Refund: approved refunds must have their compensating ledger credit. */
   private async detectRefund(
+    tx: DatabaseTransaction,
     marketId: string,
     windowStart: Date,
     windowEnd: Date,
   ): Promise<DetectedItem[]> {
     const items: DetectedItem[] = [];
-    const mcp = await this.database.pool.query(
-      `SELECT r.id AS refund_id, r.status, r.amount, r.ledger_entry_id,
+    const mcp = await tx.execute(
+      sql`SELECT r.id AS refund_id, r.status, r.amount, r.ledger_entry_id,
               le.amount AS ledger_amount, le.entry_type AS ledger_entry_type,
               le.direction AS ledger_direction
          FROM mcp_refund_requests r
          LEFT JOIN mcp_ledger_entries le ON le.id = r.ledger_entry_id
-        WHERE r.market_id = $1 AND r.status = 'APPROVED'
-          AND r.updated_at >= $2 AND r.updated_at < $3
+        WHERE r.market_id = ${marketId} AND r.status = 'APPROVED'
+          AND r.updated_at >= ${windowStart} AND r.updated_at < ${windowEnd}
         ORDER BY r.id`,
-      [marketId, windowStart, windowEnd],
     );
     for (const row of mcp.rows as JsonObject[]) {
       const refundId = text(row['refund_id']);
@@ -991,18 +1004,17 @@ export class AdminReconciliationOpsService {
         },
       });
     }
-    const redemption = await this.database.pool.query(
-      `SELECT r.id AS refund_id, r.status, r.refund_amount,
+    const redemption = await tx.execute(
+      sql`SELECT r.id AS refund_id, r.status, r.refund_amount,
               r.refund_wallet_entry_id, we.amount AS wallet_amount,
               we.entry_type AS wallet_entry_type, o.market_id
          FROM redemption_refund_requests r
          JOIN redemption_orders o ON o.id = r.order_id
          LEFT JOIN member_wallet_entries we ON we.id = r.refund_wallet_entry_id
-        WHERE o.market_id = $1
-          AND r.updated_at >= $2 AND r.updated_at < $3
+        WHERE o.market_id = ${marketId}
+          AND r.updated_at >= ${windowStart} AND r.updated_at < ${windowEnd}
           AND r.status IN ('COMPLETED', 'REJECTED', 'FAILED')
         ORDER BY r.id`,
-      [marketId, windowStart, windowEnd],
     );
     for (const row of redemption.rows as JsonObject[]) {
       const refundId = text(row['refund_id']);
@@ -1060,26 +1072,26 @@ export class AdminReconciliationOpsService {
    * per unit ordered.
    */
   private async detectRedemption(
+    tx: DatabaseTransaction,
     marketId: string,
     windowStart: Date,
     windowEnd: Date,
   ): Promise<DetectedItem[]> {
-    const result = await this.database.pool.query(
-      `SELECT o.id AS order_id, o.status, o.total_points, o.wallet_entry_id,
+    const result = await tx.execute(
+      sql`SELECT o.id AS order_id, o.status, o.total_points, o.wallet_entry_id,
               o.quantity, c.item_type, we.amount AS wallet_amount,
               count(v.id)::int AS voucher_count
          FROM redemption_orders o
          LEFT JOIN member_wallet_entries we ON we.id = o.wallet_entry_id
          LEFT JOIN redemption_voucher_codes v ON v.order_id = o.id
          JOIN redemption_catalog_items c ON c.id = o.item_id
-        WHERE o.market_id = $1
-          AND o.confirmed_at >= $2 AND o.confirmed_at < $3
+        WHERE o.market_id = ${marketId}
+          AND o.confirmed_at >= ${windowStart} AND o.confirmed_at < ${windowEnd}
           AND o.status IN ('CONFIRMED','PROCESSING','READY_FOR_PICKUP',
                            'BACKORDERED','FULFILMENT_SUSPENDED',
                            'FULFILMENT_EXCEPTION','FULFILLED')
         GROUP BY o.id, c.item_type, we.amount
         ORDER BY o.id`,
-      [marketId, windowStart, windowEnd],
     );
     const items: DetectedItem[] = [];
     for (const row of result.rows as JsonObject[]) {
@@ -1160,7 +1172,7 @@ export class AdminReconciliationOpsService {
            FOR UPDATE`,
     );
     const row = result.rows[0] as unknown as JsonObject | undefined;
-    if (!row) await this.runNotFound(marketId, runId);
+    if (!row) await this.runNotFound(tx, marketId, runId);
     return camelize(row as JsonObject);
   }
 
@@ -1176,7 +1188,7 @@ export class AdminReconciliationOpsService {
            FOR UPDATE`,
     );
     const row = result.rows[0] as unknown as JsonObject | undefined;
-    if (!row) await this.exceptionNotFound(marketId, exceptionId);
+    if (!row) await this.exceptionNotFound(tx, marketId, exceptionId);
     return camelize(row as JsonObject);
   }
 
@@ -1185,7 +1197,7 @@ export class AdminReconciliationOpsService {
       'SELECT * FROM reconciliation_runs WHERE market_id = $1 AND id::text = $2',
       [marketId, runId],
     );
-    if (!result.rows[0]) await this.runNotFound(marketId, runId);
+    if (!result.rows[0]) await this.runNotFound(undefined, marketId, runId);
     return runDto(result.rows[0] as unknown as JsonObject);
   }
 
@@ -1194,15 +1206,27 @@ export class AdminReconciliationOpsService {
       'SELECT * FROM reconciliation_exceptions WHERE market_id = $1 AND id::text = $2',
       [marketId, exceptionId],
     );
-    if (!result.rows[0]) await this.exceptionNotFound(marketId, exceptionId);
+    if (!result.rows[0])
+      await this.exceptionNotFound(undefined, marketId, exceptionId);
     return exceptionDto(result.rows[0] as unknown as JsonObject);
   }
 
-  private async runNotFound(marketId: string, runId: string): Promise<never> {
-    const foreign = await this.database.pool.query(
-      'SELECT 1 FROM reconciliation_runs WHERE id::text = $1 LIMIT 1',
-      [runId],
-    );
+  private async runNotFound(
+    tx: DatabaseTransaction | undefined,
+    marketId: string,
+    runId: string,
+  ): Promise<never> {
+    // OBS-04 fix: lockRun may call this inside the write transaction, so the
+    // look-up must run on the transaction-scoped client when one is supplied
+    // (never a fresh pool acquisition inside an open transaction).
+    const foreign = tx
+      ? await tx.execute(
+          sql`SELECT 1 FROM reconciliation_runs WHERE id::text = ${runId} LIMIT 1`,
+        )
+      : await this.database.pool.query(
+          'SELECT 1 FROM reconciliation_runs WHERE id::text = $1 LIMIT 1',
+          [runId],
+        );
     if (foreign.rows[0])
       throw new ReconciliationError(
         'RECONCILIATION_MARKET_MISMATCH',
@@ -1216,13 +1240,19 @@ export class AdminReconciliationOpsService {
   }
 
   private async exceptionNotFound(
+    tx: DatabaseTransaction | undefined,
     marketId: string,
     exceptionId: string,
   ): Promise<never> {
-    const foreign = await this.database.pool.query(
-      'SELECT 1 FROM reconciliation_exceptions WHERE id::text = $1 LIMIT 1',
-      [exceptionId],
-    );
+    // OBS-04 fix: same transaction-scoped discipline as runNotFound.
+    const foreign = tx
+      ? await tx.execute(
+          sql`SELECT 1 FROM reconciliation_exceptions WHERE id::text = ${exceptionId} LIMIT 1`,
+        )
+      : await this.database.pool.query(
+          'SELECT 1 FROM reconciliation_exceptions WHERE id::text = $1 LIMIT 1',
+          [exceptionId],
+        );
     if (foreign.rows[0])
       throw new ReconciliationError(
         'RECONCILIATION_MARKET_MISMATCH',
