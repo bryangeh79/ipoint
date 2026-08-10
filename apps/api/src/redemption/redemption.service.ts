@@ -1928,7 +1928,8 @@ export class RedemptionService {
             FROM redemption_quotes q
             JOIN redemption_catalog_items ci ON ci.id = q.catalog_item_id
             WHERE q.id = ${input.quoteId}
-              AND q.member_id = ${memberId}`,
+              AND q.member_id = ${memberId}
+            FOR UPDATE`,
       );
       const quote = quoteResult.rows[0];
       if (!quote) {

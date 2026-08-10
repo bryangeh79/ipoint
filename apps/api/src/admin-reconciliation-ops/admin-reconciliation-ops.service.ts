@@ -1272,6 +1272,17 @@ export class AdminReconciliationOpsService {
     const requestHash = hash(payload);
     try {
       return await this.database.db.transaction(async (tx) => {
+        // P8-S6 bounded fix (fix record FIX-002): every reconciliation write
+        // boundary applies the frozen transaction-engine timeouts (P4-S7
+        // contract: statement_timeout 10s, lock_timeout 3s). Without them a
+        // concurrent execute of the same run (or a stalled client) left
+        // waiters blocked on the run row lock indefinitely and leaked pool
+        // connections — verified by the P8-S6 J10 storm evidence.
+        await tx.execute(sql`
+          SELECT
+            set_config('statement_timeout', '10000ms', true),
+            set_config('lock_timeout', '3000ms', true)
+        `);
         const existingRows = await tx
           .select()
           .from(reconciliationIdempotencyKeys)
@@ -1398,9 +1409,7 @@ export class AdminReconciliationOpsService {
 // Pure helpers (unit-testable)
 // ---------------------------------------------------------------------------
 
-export function toScaledBigInt(
-  value: unknown,
-): bigint {
+export function toScaledBigInt(value: unknown): bigint {
   if (value == null) return ZERO;
   const textValue = text(value).trim();
   if (!textValue) return ZERO;
@@ -1430,10 +1439,7 @@ export function sub(
   return formatScaledBigInt(toScaledBigInt(a) - toScaledBigInt(b));
 }
 
-export function eqScaled(
-  a: unknown,
-  b: unknown,
-): boolean {
+export function eqScaled(a: unknown, b: unknown): boolean {
   return toScaledBigInt(a) === toScaledBigInt(b);
 }
 

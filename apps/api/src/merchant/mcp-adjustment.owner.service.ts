@@ -17,6 +17,7 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { DatabaseService } from '../database/database.service.js';
 import { AuditService } from '../platform-access/audit.service.js';
 import { RbacService } from '../platform-access/rbac.service.js';
+import { TRANSACTION_EXECUTION_OPTIONS } from '../transaction/transaction-reliability.js';
 import {
   mcpAdjustmentAboveHardCapError,
   mcpAdjustmentAccountNotFoundError,
@@ -277,7 +278,7 @@ export class McpAdjustmentOwnerService {
           summary: `Manual MCP ${request.entryType} adjustment of ${amount} requested for account ${account.id} (market ${market.code}).`,
         });
         return this.toView(request);
-      });
+      }, TRANSACTION_EXECUTION_OPTIONS);
     } catch (error) {
       if (this.isUniqueViolation(error)) {
         return this.replayOrConflict(
@@ -350,7 +351,7 @@ export class McpAdjustmentOwnerService {
         summary: `Manual MCP adjustment ${command.requestId} submitted for checker review.`,
       });
       return this.toView(row);
-    });
+    }, TRANSACTION_EXECUTION_OPTIONS);
   }
 
   // ─── Checker: decide (SUBMITTED -> APPROVED | REJECTED) ────────────
@@ -468,7 +469,7 @@ export class McpAdjustmentOwnerService {
         summary: `Manual MCP adjustment ${requestId} ${command.decision.toLowerCase()} by checker ${actor.adminUserId}.`,
       });
       return this.toView(row);
-    });
+    }, TRANSACTION_EXECUTION_OPTIONS);
   }
 
   // ─── Checker: execute (APPROVED -> EXECUTING -> EXECUTED | FAILED) ─
@@ -600,7 +601,7 @@ export class McpAdjustmentOwnerService {
           summary: `Manual MCP ${request.entryType} adjustment of ${request.amount} executed on account ${request.mcpAccountId} (ledger ${result.ledgerEntryId}).`,
         });
         return this.toView(row);
-      });
+      }, TRANSACTION_EXECUTION_OPTIONS);
     } catch (error) {
       if (!attempted || !(error instanceof Error)) throw error;
       // The execution attempt failed: the transaction above rolled back
@@ -977,7 +978,7 @@ export class McpAdjustmentOwnerService {
           summary: `Manual MCP adjustment ${requestId} execution failed; no ledger effect was committed.`,
         });
         return this.toView(row);
-      });
+      }, TRANSACTION_EXECUTION_OPTIONS);
     } catch {
       return null;
     }
