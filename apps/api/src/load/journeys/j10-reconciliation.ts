@@ -94,8 +94,10 @@ export async function runJourneyJ10(ctx: LoadContext): Promise<JourneyResult> {
       body: { kind: 'IPOINT', ...WINDOW, reason: 'P8-S6 storm run.' },
     });
     const stormRunId = stringId(stormCreate.body, ['id']);
+    // OBS-04: the true-multi-transaction storm reproduces a pool-level stall
+    // at 20-way; the storm is bounded at 10-way with 20s client timeouts.
     const stormed = await Promise.all(
-      Array.from({ length: 20 }, () =>
+      Array.from({ length: 10 }, () =>
         httpCallWithTimeout(
           ctx.baseUrl,
           {

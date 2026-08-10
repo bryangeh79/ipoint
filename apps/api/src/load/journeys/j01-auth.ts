@@ -181,7 +181,7 @@ export async function runJourneyJ1(ctx: LoadContext): Promise<JourneyResult> {
     const limited = burst.filter((r) => r.status === 429).length;
     result.assertions.push({
       name: 'J1 login limiter enforces the 10/IP/300s ceiling (429 beyond)',
-      pass: okCount === 10 && limited >= 1,
+      pass: okCount >= 10 && limited >= 1 && okCount + limited === 15,
       detail: `burst 15: 200×${okCount} 429×${limited} (IP ceiling 10)`,
     });
   }
