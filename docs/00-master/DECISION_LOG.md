@@ -2006,3 +2006,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | Bryan |
 | **Basis** | Bryan directive 2026-08-10 22:15 MYT; D-070/D-072/D-074 gate-condition records; P8_S6 OBS-04 reproduction ledger; P8_S7_SECURITY_READINESS_REPORT.md audit section |
 | **Status** | **DECIDED (EXECUTION AUTHORIZED)** |
+
+---
+
+## D-076 - P8-S9 Task Brief Accepted + Open Decision Points O-1..O-8 Resolved (OPENCLAW-ACTING-COMMAND-CENTER)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-076 |
+| **Date** | 2026-08-10 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization) |
+| **Old Rule** | P8-S9 (G-09 Production Readiness Gate — final gate) awaiting task brief; O-1..O-8 unresolved |
+| **New Decision** | P8-S9 task brief ACCEPTED (commit `17c01a76`, `docs/06-phase-reports/p8-s9/TASK_BRIEF_P8S9.md`, single docs file, UTF-8 no BOM; gate matrix G-01..G-32 with RERUN/CITE/DECISION markers + mandatory unmet-conditions list). Open decisions resolved: **O-1** = default envelope confirmed (RERUN: checksum/drift, all-apps typecheck/build, lint/format, OpenAPI, unit, guarded integration incl. S8 UAT L0, S8 browser suite host, RBAC, zero-bypass, secret scan, audit, git; CITE: S6 L1/L2, S7 rehearsals, 18/18 baseline, UAT-as-acceptance) + G-26 live health smoke enabled (cheap); no CI-branch run, no G-17 spot-check; **O-2** = default: NOT MET rows + unmet-conditions list + recommendation blocks, no false 0H claim, gate record states `GATE_CONDITION_NOT_FULLY_MET - <n>` if applicable; **O-3** = handoff as gate-report section; **O-4** = Bryan decision recommendation templates included; **O-5** = OBS-06/07/10 recorded + G-12 re-verify, not gate blockers (L-06 QR is the only Bryan-dependent part); **O-6** = verifier-class gate executor + independent reviewer audit + OpenClaw files gate record (never the executor); **O-7** = GREEN-with-accepted-risk counts as green (D-037/D-070 documented-risk precedent); **O-8** = S9 does NOT recompute progress values (S10 does per D-058 §26). **Sequencing decision**: the S9 gate executes on the FINAL integrated state — gate runner dispatched AFTER the OBS-04 engine fix (D-075 Option A, in progress) and the SEC-01 dependency fix (D-075, queued) are reviewed and integrated, so G-18/G-21/G-25/G-30 rows consume the resolved evidence; QR decision (G-30) remains Bryan-dependent and may close as GREEN-with-accepted-risk or unmet. |
+| **Reason** | Brief mirrors the established quality bar with a complete 32-row matrix and honest PENDING handling; sequencing ensures the final gate runs once on the definitive codebase rather than re-running rows after the two authorized remediations land. |
+| **Affected Files** | docs/06-phase-reports/p8-s9/TASK_BRIEF_P8S9.md, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S9) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058 §19, D-059, D-060, D-067..D-075; P8_S0_CONTRACT_FREEZE.md §9; P8_S0_GAP_AUDIT_REPORT.md G-09; TASK_BRIEF_P8S9.md @ `17c01a76` |
+| **Status** | **APPROVED (REVOCABLE)** |
