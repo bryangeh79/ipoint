@@ -1854,3 +1854,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058, D-059, D-060; P8_S0_CONTRACT_FREEZE.md §5; TASK_BRIEF_P8S5E.md; first-hand fsck/rev-list/prune/gc verification 2026-08-10 |
 | **Status** | **APPROVED (REVOCABLE)** |
+
+---
+
+## D-068 - P8-S5e Cross-Platform Consistency Matrix APPROVED (OPENCLAW-ACTING-COMMAND-CENTER)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-068 |
+| **Date** | 2026-08-10 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization) |
+| **Old Rule** | P8-S5e IN_PROGRESS; implementer delivered task branch `task/p8-s5e-cross-platform-consistency` @ `6b7dce37`; independent review pending |
+| **New Decision** | P8-S5e APPROVED (OPENCLAW-ACTING-COMMAND-CENTER, revocable). Deliverables: `P8_S5E_CONSISTENCY_MATRIX.md` (11 dimensions × member/merchant/admin-web + api-client + API + workers; all cells CONSISTENT; L-1..L-5 documented), `P8_S5E_CONTROLLER_MAP.md` (F-04 45 vs 46/46 vs 48 reconciled as count-method artifact; 48 controllers all guarded; RBAC spec 49/49 passed), `P8_S5E_DELIVERY_REPORT.md` (F-06 drift set 6 items re-verified, no new drift; zero-owner-bypass scan 445 files / 0 direct bypass). Independent Reviewer B' APPROVED 0C/0H/0M/4L (L-A..L-D doc-precision, non-blocking, recorded as optional follow-ups). Integration gate: merge `b043e932` on `phase/8-final-delivery-readiness`; diff = 3 docs only (510 insertions); post-merge fsck exit 0; checksums 40/40 untouched; origin/phase/8 synced. Gate record: `P8_S5E_FINAL_GATE_RECORD.md`. |
+| **Reason** | Evidence chain complete (implementer + independent review + host integration gate); reviewer independently reproduced all key claims (RBAC 49/49, OpenAPI 285 paths / 275 error codes, zero-bypass 445/0, F-04 git-history proof, F-06 line-level checks); zero production change; zero Critical/High/Medium. |
+| **Affected Files** | docs/06-phase-reports/p8-s5/P8_S5E_CONSISTENCY_MATRIX.md, P8_S5E_CONTROLLER_MAP.md, P8_S5E_DELIVERY_REPORT.md, P8_S5E_FINAL_GATE_RECORD.md, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S5e CLOSED; next P8-S6 Load / Performance / Concurrency G-06) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058, D-059, D-060, D-067; TASK_BRIEF_P8S5E.md; P8_S5E_FINAL_GATE_RECORD.md (Reviewer B' APPROVED); host gate verification 2026-08-10 |
+| **Status** | **APPROVED (REVOCABLE)** |
