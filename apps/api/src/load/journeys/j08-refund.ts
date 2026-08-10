@@ -12,6 +12,7 @@
  * @packageDocumentation
  */
 
+import { createHash, randomUUID } from 'node:crypto';
 import type { LoadContext, JourneyResult } from '../harness.js';
 import {
   finishJourneyResult,
@@ -42,6 +43,27 @@ async function confirmFreshTransaction(ctx: LoadContext): Promise<string> {
 export async function runJourneyJ8(ctx: LoadContext): Promise<JourneyResult> {
   const result = newJourneyResult(ctx, 'J8', 'refund');
   const world = ctx.world.merchant;
+
+  // Earlier journeys debit the shared merchant MCP; top it back up through
+  // the canonical ledger function (MCP balances may only change via
+  // append_mcp_ledger_entry) so every fixture confirm in this journey
+  // succeeds (delta assertions stay exact).
+  await ctx.pool.query(
+    `SELECT * FROM append_mcp_ledger_entry(
+       (SELECT id FROM mcp_accounts WHERE merchant_branch_id = $1),
+       'RECHARGE'::mcp_entry_type, 'CREDIT'::mcp_direction,
+       '500000'::numeric, '500000'::numeric, '500000'::numeric,
+       'RECHARGE_REQUEST', $2, $3, $4,
+       'ADMIN_USER', $5, 'P8-S6 load top-up', now()
+     )`,
+    [
+      world.branchId,
+      randomUUID(),
+      `j8-topup-${randomUUID()}`,
+      createHash('sha256').update('j8-topup').digest('hex'),
+      randomUUID(),
+    ],
+  );
 
   // -- reversal path (fresh confirmed transaction per iteration) ------------
   await measureOp(ctx, result, 'reversal-request', CREATED, async () => {
@@ -106,6 +128,14 @@ export async function runJourneyJ8(ctx: LoadContext): Promise<JourneyResult> {
   // -- storm: concurrent reversal, one key (tx C) --------------------------
   if (ctx.level !== 'L0') {
     const txC = await confirmFreshTransaction(ctx);
+    if (!txC) {
+      result.assertions.push({
+        name: 'J8 storm fixture transaction confirmed',
+        pass: false,
+        detail: 'no transaction number returned',
+      });
+      return finishJourneyResult(result);
+    }
     const stormKey = `j8-storm-reversal-${randomSuffix()}`;
     const stormed = await Promise.all(
       Array.from({ length: 20 }, () =>

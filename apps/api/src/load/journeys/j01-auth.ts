@@ -41,6 +41,9 @@ export async function runJourneyJ1(ctx: LoadContext): Promise<JourneyResult> {
   const poolSize = ctx.level === 'L2' ? 40 : 8;
   const pool: Array<{ email: string; password: string }> = [];
   for (let i = 0; i < poolSize; i += 1) {
+    // Fixture creation performs a real login per member; reset the limiter
+    // before each so the 10/IP/300s ceiling never trips during setup.
+    clearRateLimiter(ctx);
     const member = await createMember(
       ctx.database,
       ctx.auth,

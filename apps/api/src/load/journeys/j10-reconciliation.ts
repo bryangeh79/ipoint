@@ -47,14 +47,26 @@ export async function runJourneyJ10(ctx: LoadContext): Promise<JourneyResult> {
     return created;
   });
 
-  await measureOp(ctx, result, 'run-execute', OK, async () =>
-    httpCall(ctx.baseUrl, {
+  // Each measured iteration executes a FRESH run (distinct run id) so the
+  // latency sample measures a single uncontended execute; the same-run
+  // contention behaviour is covered by the dedicated storm below.
+  await measureOp(ctx, result, 'run-execute', OK, async () => {
+    const created = await httpCall(ctx.baseUrl, {
       method: 'POST',
-      path: `${base}/runs/${runId}/execute`,
+      path: `${base}/runs`,
+      token,
+      idempotencyKey: `j10-execute-run-${randomSuffix()}`,
+      body: { kind: 'MCP', ...WINDOW, reason: 'P8-S6 load run.' },
+    });
+    if (created.status !== 201) return created;
+    const freshRunId = stringId(created.body, ['id']);
+    return httpCall(ctx.baseUrl, {
+      method: 'POST',
+      path: `${base}/runs/${freshRunId}/execute`,
       token,
       idempotencyKey: `j10-execute-${randomSuffix()}`,
-    }),
-  );
+    });
+  });
 
   await measureOp(ctx, result, 'run-list', OK, async () =>
     httpCall(ctx.baseUrl, { method: 'GET', path: `${base}/runs`, token }),
