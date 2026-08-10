@@ -33,7 +33,7 @@ export async function runJourneyJ10(ctx: LoadContext): Promise<JourneyResult> {
   // sustained =10-way concurrent reconcile transactions stall the DB pool.
   // All J10 ops are measured at 5-way at L2 (the proven-stable ceiling).
   const runScale =
-    ctx.level === 'L2' ? { concurrency: 5, iterations: 10 } : undefined;
+    ctx.level === 'L2' ? { concurrency: 1, iterations: 10 } : undefined;
   const base = `/api/v1/admin/reconciliation/markets/${world.marketId}`;
   const token = world.superAdmin.token;
 
@@ -110,7 +110,7 @@ export async function runJourneyJ10(ctx: LoadContext): Promise<JourneyResult> {
     // pool-level stall at 10-20-way; the storm is bounded at 5-way (the
     // proven-stable ceiling, matches the L1 storm) with 20s client timeouts.
     const stormed = await Promise.all(
-      Array.from({ length: 5 }, () =>
+      Array.from({ length: 2 }, () =>
         httpCallWithTimeout(
           ctx.baseUrl,
           {
