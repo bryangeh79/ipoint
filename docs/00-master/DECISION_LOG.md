@@ -1892,3 +1892,22 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
 | **Basis** | D-058, D-059, D-060, D-067, D-068; P8_S0_CONTRACT_FREEZE.md §6/§11; TASK_BRIEF_P8S6.md @ `e4ae27f4` |
 | **Status** | **APPROVED (REVOCABLE)** |
+
+---
+
+## D-070 - P8-S6 Load / Performance / Concurrency APPROVED (OPENCLAW-ACTING-COMMAND-CENTER; OBS-04 documented HIGH limitation)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-070 |
+| **Date** | 2026-08-10 |
+| **Source** | OpenClaw acting Command Center (D-059 temporary deputization) |
+| **Old Rule** | P8-S6 IN_PROGRESS; round-1 repair (FIX-004 + report errata) closed; awaiting round-2 independent review |
+| **New Decision** | P8-S6 APPROVED (conditional, OPENCLAW-ACTING-COMMAND-CENTER, revocable). Merged via `dc6a69ee` onto `phase/8-final-delivery-readiness`: load harness (`apps/api/src/load/**`, 12 journeys, L0/L1/L2, fail-closed `P8S6_DESTRUCTIVE_TEST` guards), `P8_S6_LOAD_PERFORMANCE_CONCURRENCY_REPORT.md` (12-journey matrix throughput/p50/p95/p99/error rate, J2 delta vs P4-S7, §3.3 storm assertion set per journey, retry-site table, DB/worker observations), additive L0 CI smoke in `.github/workflows/p8-ci.yml`, and 4 bounded fixes (FIX-001 redemption quote accountId/memberId FK; FIX-002 reconciliation lock_timeout; FIX-003 concurrent quote FOR UPDATE; FIX-004 mcp/wallet adjust owner transaction timeouts) — all independently verified minimal + correct (Reviewer B' rounds 1-2; unit 38/38, L0 17/17, L1 12/12, L2 11/12, zero-owner-bypass 464 files / 0 bypass, prettier clean, typecheck no new; J10 L2 = OBS-04). **OBS-04 recorded as documented HIGH limitation** (reconciliation `executeRun` `detect*` pool-level queries inside transaction → connection-pool deadlock under sustained L2 J10; idle-in-transaction client lifecycle; DB no leak; client kill recovers in seconds): reproduction evidence persisted, mitigations active (5-way/serial cap, watchdog 900s, client timeouts), named remediation path (Option A bounded P8-S2-domain fix: `detect*` take tx param / pool acquire timeout + L-4 FOR UPDATE narrowing; Option B Phase 4 documented-risk precedent) — **resolution or formal Bryan acceptance REQUIRED before Phase 8 final gate** (D-058 "0 unresolved HIGH"). 3 L-level metadata clarifications recorded, non-blocking. |
+| **Reason** | Full evidence chain (implementer 27 commits + independent review rounds 1-2, all round-1 items closed, 0C/0H/0M new + host integration gate; fsck exit 0, tracked 0); OBS-04 explicitly not silent — recorded/mitigated/escalated per §3.7 with a named decision path; DoD bar met with documented-limitation exception mirroring Phase 4 precedent (D-037). |
+| **Affected Files** | apps/api/src/load/**, apps/api/src/redemption/{redemption.controller.ts,redemption.service.ts}, apps/api/src/merchant/mcp-adjustment.owner.service.ts, apps/api/src/wallet/wallet-adjustment.owner.service.ts, apps/api/src/admin-reconciliation-ops/admin-reconciliation-ops.service.ts, .github/workflows/p8-ci.yml, docs/06-phase-reports/p8-s6/*, docs/00-master/DECISION_LOG.md, docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S6 CLOSED; next P8-S7 Backup/Restore/Monitoring/Security Readiness G-07 + F-02) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) |
+| **Basis** | D-058, D-059, D-060, D-067..D-069; TASK_BRIEF_P8S6.md; P8_S6_LOAD_PERFORMANCE_CONCURRENCY_REPORT.md; Reviewer B' round-2 APPROVED (conditional); host gate verification 2026-08-10 |
+| **Status** | **APPROVED (REVOCABLE)** |
