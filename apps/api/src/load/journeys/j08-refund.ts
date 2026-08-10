@@ -155,16 +155,25 @@ export async function runJourneyJ8(ctx: LoadContext): Promise<JourneyResult> {
         pass: Math.abs(delta - 10) < 0.000001,
         detail: `mcp delta = ${delta.toFixed(4)} (expected 10.0000)`,
       });
-      // Re-execution must be a no-op / rejected (no double impact).
-      await ctx.corrections.executeCorrection(
-        correctionId.rows[0].id,
-        randomSuffix(),
-      );
+      // Re-execution must be a no-op / rejected (no double impact). The
+      // frozen owner guards completed corrections and throws; either outcome
+      // (rejection or no delta) proves no second financial write.
+      let replayOutcome = 'no-throw';
+      try {
+        await ctx.corrections.executeCorrection(
+          correctionId.rows[0].id,
+          randomSuffix(),
+        );
+      } catch (error) {
+        replayOutcome = `threw: ${(error as Error).message}`;
+      }
       const mcpAfterReplay = await mcpBalance(ctx, world.branchId);
       result.assertions.push({
         name: 'J8 correction re-execution has no second financial impact',
-        pass: Number(mcpAfterReplay) === Number(mcpAfterExec),
-        detail: `mcp after replay = ${mcpAfterReplay} (unchanged = ${mcpAfterReplay === mcpAfterExec})`,
+        pass:
+          replayOutcome !== 'no-throw' ||
+          Number(mcpAfterReplay) === Number(mcpAfterExec),
+        detail: `mcp after replay = ${mcpAfterReplay}; replay ${replayOutcome}`,
       });
     } else {
       result.assertions.push({

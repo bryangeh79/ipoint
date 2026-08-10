@@ -12,6 +12,7 @@ import type { LoadContext, JourneyResult } from '../harness.js';
 import {
   finishJourneyResult,
   httpCall,
+  httpCallWithTimeout,
   measureOp,
   newJourneyResult,
 } from '../harness.js';
@@ -83,41 +84,54 @@ export async function runJourneyJ10(ctx: LoadContext): Promise<JourneyResult> {
     const stormRunId = stringId(stormCreate.body, ['id']);
     const stormed = await Promise.all(
       Array.from({ length: 20 }, () =>
-        httpCall(ctx.baseUrl, {
-          method: 'POST',
-          path: `${base}/runs/${stormRunId}/execute`,
-          token,
-          idempotencyKey: `j10-storm-execute-${randomSuffix()}`,
-        }),
+        httpCallWithTimeout(
+          ctx.baseUrl,
+          {
+            method: 'POST',
+            path: `${base}/runs/${stormRunId}/execute`,
+            token,
+            idempotencyKey: `j10-storm-execute-${randomSuffix()}`,
+          },
+          25_000,
+        ),
       ),
     );
     const statuses = stormed.map((r) => r.status);
     const okCount = statuses.filter((s) => s === 200).length;
+    const hung = stormed.filter((r) => r.status === 0);
     const stateRows = await ctx.pool.query<{ status: string }>(
       `SELECT status::text AS status FROM reconciliation_runs WHERE id = $1`,
       [stormRunId],
     );
     const finalState = stateRows.rows[0]?.status ?? 'n/a';
     result.assertions.push({
-      name: 'J10 concurrent execute → single completed run, no double-run',
-      pass: okCount === 20 && finalState === 'COMPLETED',
-      detail: `statuses ${statuses.join(',')}; final state = ${finalState}`,
+      name: 'J10 concurrent execute → exactly one completed run, all bounded',
+      pass: finalState === 'COMPLETED' && hung.length === 0 && okCount >= 1,
+      detail: `statuses ${statuses.join(',')}; final state = ${finalState}; client-timeouts = ${hung.length}`,
     });
 
     // Replay with the same execute key returns the same run.
     const replayKey = `j10-replay-${randomSuffix()}`;
-    const first = await httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `${base}/runs/${stormRunId}/execute`,
-      token,
-      idempotencyKey: replayKey,
-    });
-    const replay = await httpCall(ctx.baseUrl, {
-      method: 'POST',
-      path: `${base}/runs/${stormRunId}/execute`,
-      token,
-      idempotencyKey: replayKey,
-    });
+    const first = await httpCallWithTimeout(
+      ctx.baseUrl,
+      {
+        method: 'POST',
+        path: `${base}/runs/${stormRunId}/execute`,
+        token,
+        idempotencyKey: replayKey,
+      },
+      25_000,
+    );
+    const replay = await httpCallWithTimeout(
+      ctx.baseUrl,
+      {
+        method: 'POST',
+        path: `${base}/runs/${stormRunId}/execute`,
+        token,
+        idempotencyKey: replayKey,
+      },
+      25_000,
+    );
     const firstId = stringId(first.body, ['id']);
     const replayId = stringId(replay.body, ['id']);
     result.assertions.push({

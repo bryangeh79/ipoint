@@ -343,6 +343,53 @@ export interface HttpCallResult {
   body: unknown;
 }
 
+/**
+ * httpCall with a bounded client-side timeout (aborts via AbortController).
+ * Timeouts are surfaced as status 0 with the abort message in `body` so the
+ * measurement records them explicitly instead of hanging the run.
+ */
+export async function httpCallWithTimeout(
+  baseUrl: string,
+  options: HttpCallOptions,
+  timeoutMs: number,
+): Promise<HttpCallResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = performance.now();
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    ...(options.headers ?? {}),
+  };
+  if (options.token) headers['authorization'] = `Bearer ${options.token}`;
+  if (options.idempotencyKey)
+    headers['idempotency-key'] = options.idempotencyKey;
+  try {
+    const response = await fetch(`${baseUrl}${options.path}`, {
+      method: options.method,
+      headers,
+      body:
+        options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: controller.signal,
+    });
+    const latencyMs = performance.now() - startedAt;
+    let body: unknown = null;
+    const text = await response.text();
+    if (text.length > 0) {
+      try {
+        body = JSON.parse(text) as unknown;
+      } catch {
+        body = text;
+      }
+    }
+    return { status: response.status, latencyMs, body };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return { status: 0, latencyMs: performance.now() - startedAt, body: msg };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function httpCall(
   baseUrl: string,
   options: HttpCallOptions,

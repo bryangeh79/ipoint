@@ -22,6 +22,9 @@ import { randomSuffix, stringId } from './common.js';
 
 const OK = new Set([200]);
 const CREATED = new Set([201]);
+// 409 = REDEMPTION_QUOTE_EXPIRED when a concurrent order consumed the same
+// quote first — the correct exactly-once outcome (FIX-003), not an error.
+const ORDER_OK = new Set([201, 409]);
 
 export interface RedemptionFixture {
   itemId: string;
@@ -142,8 +145,10 @@ export async function runJourneyJ6(ctx: LoadContext): Promise<JourneyResult> {
     }),
   );
 
-  // Order create: quote → confirm order.
-  await measureOp(ctx, result, 'order-create', CREATED, async () => {
+  // Order create: quote → confirm order. Under concurrency two orders can
+  // race on the same quote; exactly one wins (201) and the other is rejected
+  // with 409 (REDEMPTION_QUOTE_EXPIRED, FIX-003) — never a 500.
+  await measureOp(ctx, result, 'order-create', ORDER_OK, async () => {
     const quote = await httpCall(ctx.baseUrl, {
       method: 'GET',
       path: `/api/v1/redemption/catalog/${fixture.itemId}/quote?quantity=1`,
@@ -162,7 +167,7 @@ export async function runJourneyJ6(ctx: LoadContext): Promise<JourneyResult> {
       token: memberToken,
       body: {
         quoteId: quoteBody.quoteId,
-        idempotencyKey: `j6-order-${randomSuffix()}`,
+        idempotencyKey: `j6-order-${randomUUID()}`,
         expectedItemVersion: 1,
         expectedTotalPoints: quoteBody.postedPointCost,
         expectedQuantity: '1',
@@ -199,7 +204,7 @@ export async function runJourneyJ6(ctx: LoadContext): Promise<JourneyResult> {
           token: memberToken,
           body: {
             quoteId: quoteBody.quoteId,
-            idempotencyKey: `j6-storm-${randomSuffix()}`,
+            idempotencyKey: `j6-storm-${randomUUID()}`,
             expectedItemVersion: 1,
             expectedTotalPoints: quoteBody.postedPointCost,
             expectedQuantity: '1',
@@ -248,7 +253,7 @@ export async function runJourneyJ6(ctx: LoadContext): Promise<JourneyResult> {
       quoteId?: string;
       postedPointCost?: string;
     };
-    const replayKey = `j6-replay-${randomSuffix()}`;
+    const replayKey = `j6-replay-${randomUUID()}`;
     const orderBody = {
       quoteId: quoteBody.quoteId,
       idempotencyKey: replayKey,
@@ -283,6 +288,16 @@ export async function runJourneyJ6(ctx: LoadContext): Promise<JourneyResult> {
         firstId !== '' &&
         firstId === replayId,
       detail: `first=${first.status} replay=${replay.status} sameOrderId=${firstId === replayId}`,
+    });
+    // No unexpected 5xx on the concurrent order path.
+    const order500s =
+      result.ops
+        .find((op) => op.op === 'order-create')
+        ?.samples.filter((s) => s.status >= 500).length ?? 0;
+    result.assertions.push({
+      name: 'J6 concurrent order path has zero 5xx (quote race bounded)',
+      pass: order500s === 0,
+      detail: `5xx samples = ${order500s}`,
     });
   }
 
