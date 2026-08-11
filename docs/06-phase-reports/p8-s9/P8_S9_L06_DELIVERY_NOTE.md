@@ -57,7 +57,7 @@ Integration coverage highlights: 401 unauthenticated; `{ qr: null }` initial GET
 
 - **LOW**: member-web QR display UI not included (documented follow-up, consistent with OBS-06/07/10 triage at P8-S10).
 - **LOW**: `MEMBER_QR_SIGNING_SECRET` must be configured at deployment (documented in .env.example; fail-closed if absent - no token signing without it).
-- **INFO**: token expiry is enforced at verification time by the verifying party (merchant scan path not part of this API surface); the API never returns an expired display token for an ACTIVE row (regenerated on read if expired, per service logic).
+- **INFO**: token expiry is enforced at verification time by the verifying party (merchant scan path not part of this API surface). A GET on an ACTIVE row returns a display token signed from the row's `expires_at`; once expired, the member must POST (rotate) to obtain a fresh token (this matches the L-06 short-lived rotating semantics; no silent auto-refresh on read - corrected from an earlier draft of this note per Reviewer B' L-1).
 - **INFO**: Node 26 host vs CI Node 24 parity note applies (P4-S7 residual, unchanged by this task).
 
 ## 6. Rollback / recovery
