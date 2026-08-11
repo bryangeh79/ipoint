@@ -256,6 +256,26 @@
 
 ---
 
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
+
 _End of register - new entries appended above this line._
 
 ---
@@ -424,6 +444,26 @@ _End of register - new entries appended above this line._
 
 ---
 
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
+
 _End of register - new entries appended above this line._
 
 ## P7-S6B-REWIRE — Canonical Owner Rewiring + Final Gate (CG-02 passed)
@@ -446,6 +486,26 @@ _End of register - new entries appended above this line._
 | **Known limitations**               | Browser E2E host/CI-only (mock-based component specs; not claimed as passed); `openapi:validate` non-self-exit quirk; pre-existing outbox-worker log noise; per-market idempotency scope semantics (same key after deliberate market-context switch = new scoped claim; safe, documented); pre-existing member-facing reward route (O-13) pending Command Center decision; 376 unreachable corrupt tree objects in the local object store (pre-existing, none on the delivery path, no history rewrite).                                                                                                                                                                                                                  |
 
 ---
+
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
 
 _End of register - new entries appended above this line._
 
@@ -470,6 +530,26 @@ _End of register - new entries appended above this line._
 | **Known limitations**                        | F1/F2/F3 as above (surfaced at Command Center acceptance); pre-existing `crypto is not defined` in `redemption-integration.spec.ts` only under sandbox node v18 (7 un-imported usages; passes under the project node v24 — environment compatibility item, not a D-053 defect); `.sql` prettier no-parser quirk unchanged; browser E2E host/CI-only; OpenAPI non-self-exit quirk. CG-03_REDEMPTION_RATE_OWNER_GATE_PASSED declaration pending the P7-S6C rewire final gate per order §15.                                                                                                                                         |
 
 ---
+
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
 
 _End of register - new entries appended above this line._
 
@@ -496,9 +576,49 @@ _End of register - new entries appended above this line._
 
 ---
 
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
+
 _End of register - new entries appended above this line._
 
 ---
+
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
 
 _End of register - new entries appended above this line._
 
@@ -522,6 +642,26 @@ _End of register - new entries appended above this line._
 | **Known limitations**        | 4 Low reviewer observations; fixture-collision lesson recorded (isolated DBs mandatory for high-risk suites); pre-existing node-v18-only crypto item; OpenAPI non-self-exit quirk; browser E2E host/CI-only.                                                                                                                 |
 
 ---
+
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
 
 _End of register - new entries appended above this line._
 
@@ -548,6 +688,26 @@ _End of register - new entries appended above this line._
 | **Known limitations**              | 3 Low reviewer observations; admin-web test suite has one environmental async-race flake (isolated re-run stable; same-class precedent S6B/S6C); OpenAPI non-self-exit quirk; browser E2E host/CI-only; push pending channel restoration (no repository-content blocker).                                                                                                                                                                                                                                                                                                                                                                                                |
 
 ---
+
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
 
 _End of register - new entries appended above this line._
 
@@ -596,6 +756,26 @@ _End of register - new entries appended above this line._
 
 ---
 
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
+
 _End of register - new entries appended above this line._
 
 ## P7-S7A - Manual MCP Adjustment Conformance (D-046)
@@ -620,6 +800,26 @@ _End of register - new entries appended above this line._
 | **Known limitations**        | Phase 1 merchant integration 6/10 with identical pre-existing upstream-debt set; browser E2E host/CI-only.                                                                                                                                                                                                                                                               |
 
 ---
+
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
 
 _End of register - new entries appended above this line._
 
@@ -646,6 +846,26 @@ _End of register - new entries appended above this line._
 | **Known limitations**        | 4 Low reviewer observations (non-blocking); browser E2E host/CI-only.                                                                                                                                                                                                                                                                                                       |
 
 ---
+
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
 
 _End of register - new entries appended above this line._
 
@@ -674,6 +894,26 @@ _End of register - new entries appended above this line._
 
 ---
 
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
+
 _End of register - new entries appended above this line._
 
 ---
@@ -700,6 +940,26 @@ _End of register - new entries appended above this line._
 | **Known limitations**        | 4 Low reviewer observations (non-blocking: IDOR 409-vs-404 convention; grant consumed on later route failure - fail-safe; optional create-path negative test; pre-existing host working-tree dirtiness outside branch); push pending host channel (batch push before Phase 7 final delivery report).                                                                                                                                                                                                                    |
 
 ---
+
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
 
 _End of register - new entries appended above this line._
 
@@ -728,6 +988,26 @@ _End of register - new entries appended above this line._
 
 ---
 
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
+
 _End of register - new entries appended above this line._
 
 ---
@@ -754,6 +1034,26 @@ _End of register - new entries appended above this line._
 | **Known limitations**        | 4 Low reviewer observations (non-blocking: NULL-market platform audit rows excluded from market view; support raw-ledger convention; diagnostic console.log in spec; report naming); lint-claim provenance gap corrected by fix subagent evidence logs; push pending host channel (batch push before Phase 7 final delivery report).                                                                                                                                                                                                                                                                                       |
 
 ---
+
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
 
 _End of register - new entries appended above this line._
 
@@ -848,4 +1148,24 @@ _End of register - new entries appended above this line._
 | **Known limitations** | L-1..L-4 informational; UI/api-client deferred to P8-S5 |
 
 ---
+
+## P8-L06 - L-06 Member QR surface (implementer subagent + independent reviewer; D-060, D-079)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-L06 (L-06 closure; D-080 Option A) - GET/POST/DELETE /members/me/qr per frozen Phase 2 contract |
+| **Sub-phase** | Phase 8 (P8-S9 gate input) |
+| **Executor class** | `OPENCLAW_MANAGED_CODING_SUBAGENT` (implementer + independent review; D-060; Codex CLI auth unavailable - token revoked, recorded limitation) |
+| **Model/provider identity** | OpenClaw managed subagents (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch fix/p8-l06-member-qr) |
+| **Task branch** | `fix/p8-l06-member-qr` (base `9113e438`; HEAD `59ce67c0`) |
+| **Commit SHAs** | `59ce67c0` (feat(p8-l06): implement member QR surface per phase 2 contract; 13 files +2378) |
+| **Migration** | NONE (checksums 40/40 frozen; packages/database/** zero change) |
+| **Host verification (OpenClaw)** | typecheck/build PASS; eslint 0; prettier PASS; unit 26/26; integration 20/20 fresh ipoint_p8l06_test (P8L06_DESTRUCTIVE_TEST=1, fail-closed guard verified); openapi:validate 301 paths (0 dup operationId); zero-owner-bypass re-scan 0 direct (13 pattern hits all pre-existing documented); main 69240bf8 untouched |
+| **Independent review** | B' (D-060 pool): **APPROVED 0C/0H/0M** + 7 LOW/INFO recorded (L-1 delivery-note wording vs service behavior on expired display token - non-blocking; L-2 STATE_CONFLICT fallback; L-3 GET MEMBER_NOT_FOUND un-audited; L-4 idempotency response cache semantics; L-5 concurrent same-key race; L-6 .local env DB pointer; L-7 Drizzle mapping already existed - brief errata) |
+| **Integration commit** | `50a0ac94` (merge --no-ff into `phase/8-final-delivery-readiness`) |
+| **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
+| **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
+
 _End of register - new entries appended above this line._
