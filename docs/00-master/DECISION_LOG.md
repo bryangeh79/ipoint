@@ -2063,3 +2063,41 @@ Between C and D milestones, the following remediation commits corrected integrat
 | **Approver** | OpenClaw (OPENCLAW-ACTING-COMMAND-CENTER per D-059) + Bryan (D-075) |
 | **Basis** | D-075; P8_S7_SECURITY_READINESS_REPORT.md §4; Reviewer B' SEC-01 APPROVED (7/7); host integration gate 2026-08-10 |
 | **Status** | **CLOSED (APPROVED)** |
+
+---
+
+## D-079 - Bryan AUTHORIZES OpenClaw to fully succeed the Command Center role (incl. Phase 8 final acceptance authority)
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-079 |
+| **Date** | 2026-08-11 |
+| **Source** | Bryan (final business decision owner) - webchat directive 2026-08-11 17:58 MYT |
+| **Old Rule** | D-059: OpenClaw TEMPORARILY deputized as Command Center for ENGINEERING ACCEPTANCE only (OPENCLAW-ACTING-COMMAND-CENTER, revocable); PHASE_8_ACCEPTED/COMPLETE/CLOSED/FROZEN/IPOINT_V1_ENGINEERING_COMPLETE remained Command Center-exclusive; the Command Center entity is no longer available to the project |
+| **New Decision** | **OpenClaw FULLY SUCCEEDS the Command Center role** for the remainder of iPoint V1 engineering (incl. final acceptance authority for Phase 8). Scope: (1) all engineering acceptance decisions previously reserved to the Command Center, incl. issuing PHASE_8_ACCEPTED / PHASE_8_COMPLETE / PHASE_8_CLOSED / PHASE_8_FROZEN / IPOINT_V1_ENGINEERING_COMPLETE; (2) architecture authority within the frozen engineering baseline (no LOCKED-rule, technology-stack, or major-architecture change without Bryan approval); (3) phase-brief issuance and acceptance decisions for the remaining Phase 8 sub-phases. REVOCABLE at any time by Bryan. **Business / legal / commercial decisions remain Bryan-exclusive** (commissions, reward rates, payment rules, deployment to production, legal/privacy/tax/regulatory positioning, paid commitments). This supersedes D-059's temporary limitation for the remaining Phase 8 scope; D-059 precedent (OPENCLAW-ACTING-COMMAND-CENTER) remains the historical basis. |
+| **Reason** | The Command Center entity is no longer available. Bryan explicitly instructed OpenClaw to take charge and authorized full succession incl. final acceptance authority. Without this, the P8-S9 gate outcome could never reach final acceptance (D-058: Command Center-exclusive). Business/legal/commercial authority is explicitly retained by Bryan per the governance model. |
+| **Affected Files** | docs/00-master/DECISION_LOG.md (this entry), docs/00-master/PHASE_REGISTRY.md (role/status update), docs/00-master/PROJECT_MASTER_CONTROL.md (role table update, next governance commit) |
+| **Affected Phases** | Phase 8 (P8-S9 gate authority, P8-S10 final delivery, final acceptance/closure/freeze) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | Bryan |
+| **Basis** | Bryan directive 2026-08-11 17:58 MYT (webchat); D-059 (temporary deputization precedent); D-058 (final acceptance declaration set) |
+| **Status** | **AUTHORIZED (REVOCABLE)** |
+
+---
+
+## D-080 - Bryan selects Option A: bounded implementation of the L-06 /members/me/qr surface
+
+| Field | Value |
+|---|---|
+| **Decision ID** | D-080 |
+| **Date** | 2026-08-11 |
+| **Source** | Bryan (final business decision owner) - webchat directive 2026-08-11 17:58 MYT |
+| **Old Rule** | /members/me/qr (L-06 LOCKED gap, OBS-07/D-074) decision PENDING Bryan: bounded implement vs formal DEFERRED (P8-S9 gate rows G-30/G-31 blocked) |
+| **New Decision** | **Option A AUTHORIZED - bounded implementation of the L-06 QR surface.** Scope = the frozen Phase 2 API contract (docs/06-phase-reports/p2-s1/PHASE_2_API_CONTRACT.md Â§4.4 + route table): GET /members/me/qr (MemberQrResponse), POST /members/me/qr (rotate, RotateMemberQrRequest), DELETE /members/me/qr (revoke, RevokeMemberQrRequest, 204); ownership-only guard; short-lived rotating signed security token (NOT permanent static QR; D-14); stored QR material = token hash only, plaintext token NEVER persisted; public payload excludes internal DB IDs / email / phone / sensitive data; no raw token in errors or logs; idempotency on rotate/revoke (no duplicate history rows on replay); audit on all three routes; errors MEMBER_NOT_FOUND / QR_REVOKED / MEMBER_CLOSED / QR_ACTIVE_EXISTS / QR_NOT_FOUND per contract. Execution path: A->B->C (Codex CLI preferred per D-058, D-060 alternate executor) on branch fix/p8-l06-member-qr; independent review (Reviewer B'); then integration; evidence = OpenAPI + UAT-style scenario tests + zero-owner-bypass re-scan over changed scope. G-30 row closes GREEN after integration; the P8-S9 final gate then executes on the final integrated state. |
+| **Reason** | L-06 is a LOCKED rule (V1.1 C-02: member universal QR with short-lived rotating signed security token). Option A preserves V1 feature completeness (member universal QR is a core member capability per D-14) and closes the last known gap before the final gate, enabling an unconditional 0 unresolved HIGH declaration. Scope is small and fully contract-frozen (3 ownership-guarded routes), minimizing risk at the final delivery stage. |
+| **Affected Files** | apps/api/src/** (new member-QR surface, bounded), docs/06-phase-reports/p8-s9/TASK_BRIEF_P8S9.md (G-30 row consumption), docs/00-master/DECISION_LOG.md (this entry), docs/00-master/PHASE_REGISTRY.md |
+| **Affected Phases** | Phase 8 (P8-S9 gate input; L-06 closure) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Approver** | Bryan |
+| **Basis** | Bryan directive 2026-08-11 17:58 MYT; L-06 (BASELINE_ACKNOWLEDGMENT_V1.1); D-14 (V1 unified QR with secure token only); PHASE_2_API_CONTRACT.md Â§4.4; D-074 OBS-07; TASK_BRIEF_P8S9.md (State A) |
+| **Status** | **AUTHORIZED (EXECUTION STARTING)** |
