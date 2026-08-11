@@ -12,6 +12,7 @@ import { MarketModule } from './market/market.module.js';
 import { MarketOwnerModule } from './market/market-owner.module.js';
 import { CountryChangeModule } from './country-change/country-change.module.js';
 import { KycModule } from './kyc/kyc.module.js';
+import { MemberQrModule } from './member-qr/member-qr.module.js';
 import { AdminKycModule } from './admin-kyc/admin-kyc.module.js';
 import { DiscoveryModule } from './discovery/discovery.module.js';
 import { AdminMemberModule } from './admin-member/admin-member.module.js';
@@ -105,6 +106,7 @@ import {
     MarketOwnerModule,
     CountryChangeModule,
     KycModule,
+    MemberQrModule,
     AdminKycModule,
     DiscoveryModule,
     AdminMemberModule,
