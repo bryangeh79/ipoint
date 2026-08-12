@@ -153,8 +153,10 @@
 | **Description** | `POST /api/v1/rewards/rules` (apps/api/src/reward/reward.controller.ts) is guarded ONLY by `AuthGuard` — any authenticated ACCOUNT can call `RewardService.createRuleVersion` (raw insert): no RBAC/permission check, no market enforcement (`marketId` optional in member DTO), no §7.1 0.05%/day governance ceiling (any positive decimal accepted, e.g. `"999"`), no six-decimal limit, no future-market-local-00:00 rule, `effectiveTo` (closed windows) allowed, no reason, no audit, no idempotency; `createdBy` is client-suppliable (attribution spoofing). Severity: **HIGH** (authorization bypass + governance-limit bypass on a Phase 3 owner resource, unaudited, spoofable attribution). Confirmed by D-050 independent reviewer (2026-08-05); the D-050 fix branch correctly did NOT touch `apps/api/src/reward/**` (outside its scope). |
 | **Affected Phases** | Phase 3 (frozen owner member surface), Phase 7 |
 | **Blocks Phase** | No (D-050/CG-02 acceptance is independent); blocks safe member exposure of reward-rule creation; remediation decision required |
-| **Status** | **OPEN — CRITICAL FINDING (remediation decision pending; candidate follow-on owner remediation)** |
-| **Decision needed by** | Before any member-facing reward rule surface is exposed; recommended: remove/secure the member route (owner remediation, e.g. D-053) |
+| **Status** | **RESOLVED** |
+| **Resolution Decision ID** | O13_FINAL_GATE_RECORD.md (merge `bb8d6f01`, Phase 7); status correction recorded at V1 closure D-083 (2026-08-12) |
+| **Resolution** | Remediated in Phase 7: the member-facing reward-rule creation route was removed and the secured Phase 3 canonical owner became the sole write path (merge `bb8d6f01`; `O13_FINAL_GATE_RECORD.md`). Status corrected from OPEN (CRITICAL FINDING) to RESOLVED at V1 closure (D-083) — the OPEN_QUESTIONS entry had not been synchronized after the Phase 7 remediation. |
+| **Decision needed by** | Resolved (remediation integrated in Phase 7; status correction 2026-08-12) |
 
 ---
 

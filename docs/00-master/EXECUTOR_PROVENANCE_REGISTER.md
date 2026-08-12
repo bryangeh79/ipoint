@@ -1168,4 +1168,24 @@ _End of register - new entries appended above this line._
 | **Declarations** | `L-06 CLOSED / P8-S9 G-30 QR row GREEN` (D-081, OPENCLAW per D-079; revocable) |
 | **Known limitations** | member-web QR display page = P9 follow-up (documented in P8_S9_L06_DELIVERY_NOTE.md); L-1..L-7 recorded non-blocking |
 
-_End of register - new entries appended above this line._
+## P8-S10 - Phase 8 Final Delivery Report writer (OpenClaw subagent; report composition only)
+
+| Field | Value |
+|---|---|
+| **Task ID** | P8-S10 (D-058 sec.24 inventory + sec.26 progress recomputation; per D-082 dispatch) |
+| **Sub-phase** | Phase 8 (P8-S10 final delivery report) |
+| **Executor class** | `OPENCLAW_MANAGED_SUBAGENT` (report composition only; zero production code; no test/evidence re-run per D-082 + gate-report sec.8.2) |
+| **Model/provider identity** | OpenClaw managed subagent (deepseek runtime pool) |
+| **Session time** | 2026-08-11 MYT |
+| **Worktree** | main workspace (branch phase/8-final-delivery-readiness) |
+| **Task branch** | `phase/8-final-delivery-readiness` (base `4a15b207`) |
+| **Commit SHAs** | `b3e3838a` (docs(p8-s10): phase 8 final delivery report (d-058 inventory + progress recomputation); single file, exact-path staging, UTF-8 no BOM) |
+| **Migration** | NONE (checksums 40/40 frozen) |
+| **Host verification (OpenClaw)** | Composition-time git state verified: HEAD `4a15b207` local=remote; main `69240bf8` untouched; tracked 0 modified; untracked baseline unchanged |
+| **Independent review** | Not applicable (governance report; all quoted numbers traceable to cited gate records; P8-S9 gate audit A1-A3 LOW items cover precision) |
+| **Integration commit** | `b3e3838a` (direct docs commit on phase/8-final-delivery-readiness) |
+| **Declarations** | `PHASE_8_DELIVERY_COMPLETE / READY_FOR_FINAL_ACCEPTANCE` (report boundary per D-058 sec.24/sec.26); final acceptance declarations issued later by D-083 |
+| **Known limitations** | three sellable-domain UI gaps (UI-1/UI-2/UI-3) recorded per D-058 sec.26 truthful reporting; OBS-06/07/10 + SEC-01 remainder recorded; see IPOINT_V1_CLOSURE_RECORD.md (D-083) |
+
+---
+\n_End of register - new entries appended above this line._

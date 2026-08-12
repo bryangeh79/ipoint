@@ -10,6 +10,8 @@ Final business decision owner. Only Bryan may approve changes to business positi
 
 ### ChatGPT Command Center
 
+> **V1 closure note (D-079, 2026-08-11; D-083, 2026-08-12):** the Command Center entity is no longer available to the project. Bryan authorized OpenClaw to FULLY SUCCEED the Command Center role for the remainder of iPoint V1 engineering (incl. final acceptance authority). iPoint V1 engineering closed/frozen under D-083. The Command Center acceptance decision types below remain the historical authority model; any future engagement would require a new governance decision by Bryan.
+
 Acts as product commander, architecture authority, and final engineering acceptance reviewer. It defines Big Phases, resolves requirement conflicts, reviews commits and test evidence, and issues one of the following decisions:
 
 - `APPROVED`
@@ -18,6 +20,8 @@ Acts as product commander, architecture authority, and final engineering accepta
 - `READY FOR NEXT PHASE`
 
 ### OpenClaw
+
+> **D-079 (2026-08-11, revocable):** Bryan authorized OpenClaw to fully succeed the Command Center role for the remainder of iPoint V1 engineering, including issuing PHASE_8_ACCEPTED / PHASE_8_COMPLETE / PHASE_8_CLOSED / PHASE_8_FROZEN / IPOINT_V1_ENGINEERING_COMPLETE (all issued at D-083, 2026-08-12). Business / legal / commercial decisions remain Bryan-exclusive. OpenClaw does not write production code (unchanged).
 
 Acts as project general manager. OpenClaw does not write production code. It:
 
