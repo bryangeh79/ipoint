@@ -31,6 +31,7 @@
 7. `docs/00-master/OPEN_QUESTIONS.md` — unresolved questions registry
 8. `docs/00-master/PHASE_REGISTRY.md` — phase authorization and status registry
 9. Current approved Phase Brief (if any)
+10. `docs/00-master/PROJECT_STATUS_AND_HANDOVER.md` — current progress overview & handover status (kept current at every major state change; a new agent must read this before any work)
 
 ## 3. Repository verification
 
@@ -98,6 +99,7 @@ After reading all required files, output:
   - OPEN_QUESTIONS.md [✅]
   - PHASE_REGISTRY.md [✅]
   - <Phase Brief> [✅/❌]
+  - PROJECT_STATUS_AND_HANDOVER.md [✅/❌]
 - Git Status:
   - Branch: <branch>
   - Latest Commit: <SHA> <message>
